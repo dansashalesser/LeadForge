@@ -16,6 +16,7 @@ import leadforge.lead_ingestion as slice_pkg
 from leadforge.lead_ingestion import database as db
 from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.store.migrate import upgrade_to_head
+from leadforge.lead_ingestion.structure_guard import ENGINE_SPECIFIC_ALLOWLIST
 
 SLICE_ROOT = Path(slice_pkg.__file__).resolve().parent
 SECRET = "s3cr3t-pass"
@@ -241,14 +242,14 @@ def test_a_url_object_override_is_validated_like_a_string() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#9.3
 def test_backend_branching_lives_only_in_the_database_module() -> None:
-    """Only `database.py` may name a backend; nothing else branches on dialect."""
+    """Only the `ENGINE_SPECIFIC_ALLOWLIST` modules may name a backend (9.3)."""
     offenders: list[str] = []
     for path in SLICE_ROOT.rglob("*.py"):
         rel = path.relative_to(SLICE_ROOT)
         if (
             "tests" in rel.parts
             or "migrations" in rel.parts
-            or rel.name == "database.py"
+            or rel.as_posix() in ENGINE_SPECIFIC_ALLOWLIST
         ):
             continue
         for node in ast.walk(ast.parse(path.read_text())):

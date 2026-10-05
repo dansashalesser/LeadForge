@@ -586,7 +586,7 @@ task = one commit.
   - Blocked on 16.5 — touches the projection
   - _Requirements: 11.4_
 
-- [ ] 19.4 (P) Assert the canonical-boundary and persistence structural rules
+- [x] 19.4 (P) Assert the canonical-boundary and persistence structural rules
   - Assert no module outside the ingestion slice imports a provider raw schema
   - Assert the orchestration layer contains no reference to a concrete adapter class name
   - Assert no dialect branching and no raw SQL outside the migrations directory

@@ -2151,3 +2151,32 @@ Known gaps:
 - needs-follow-up: Hunter `yields_suppression` stays False. Requirement 2.7/6.10 ties it to FREE suppression-bearing sources run first; Hunter's 451 is a by-product of a paid call, so declaring True would only reorder it ahead of other paid tiers. Left as a design decision; moving it changes tier tests.
 - needs-follow-up: `_flagged_first._same_value` uses `==` on flag values; an adapter-produced hostile `__eq__` is not defended (adapters emit parsed values; not reachable today).
 - Plus-address/dot variants are not normalised (same normalisers as the match keys, by design): a suppression on ada+x@ does not block ada@.
+
+## Task 19.4 — Assert the canonical-boundary and persistence structural rules (2026-10-05)
+Evidence: new tests/test_structural_rules.py first run: collection ImportError (red, scanners absent); after structure_guard.py additions 65 passed / 6 failed (real findings: scanner module itself holds engine and create_all vocabulary, fake-slice helper bug), fixed; final `uv run ruff format src`, `ruff check src`, `mypy` clean, `uv run pytest -q` 3432 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Reused existing proofs for 1.1 raw-schema imports, 2.4 orchestrator names, 9.4 SQL/dialect, 9.7 create_all attribute; added only gaps (dynamic imports, __init__ re-exports, CanonicalLead construction, 20.1 transport imports, driver/URL/PRAGMA strings, string-built SQL, create_all strings, runtime no-tables). Rejected: rewriting the older local scans into structure_guard (churn on finished tasks).
+- Allowlists with reasons: ENGINE_SPECIFIC_ALLOWLIST = database.py (engine resolution, FK pragma) + structure_guard.py (scanner vocabulary); SCHEMA_CREATION_ALLOWLIST = structure_guard.py; CANONICAL_LEAD_BUILDERS = projection.py + models.py (share_company_signals copies leads). Migrations dir exempt from engine-name scan per 9.4 text, but scanned for string-built SQL and create_all. Rejected: excluding structure_guard.py from walks silently.
+- test_database_engine.py's 9.3 scan now skips ENGINE_SPECIFIC_ALLOWLIST instead of the literal name database.py (needed because structure_guard.py now holds backend names as data).
+- CanonicalLead "new lead via model_copy(update=)" detected only on names annotated CanonicalLead in the same function; rejected name heuristics (e.g. "lead" in variable name).
+- 20.1 interpreted as: orchestration + merge-side modules (MERGE_SIDE_MODULES list) import no httpx/aiohttp/requests/mcp/etc. and no slice transport or mcp_transport module. BaseLeadSource keeps accepting the slice's own neutral `Transport` protocol (base_source imports it); rejected treating that as a leak.
+- Every new scanner raises RuntimeError("... no modules under ...") on an empty walk, plus count assertions (>=40 modules) on the real tree.
+- Dynamic literal import (importlib/__import__) now also flagged by find_raw_schema_imports_outside_slice.
+### Known gaps (needs-follow-up)
+- Bullets: 19.4-1 (no module outside slice imports raw schema) delivered (extended: dynamic imports, init re-exports; static case pre-existing); 19.4-2 (orchestrator names no concrete adapter) already proven by 3.4, cross-referenced, not re-done; 19.4-3 (no dialect branching/raw SQL outside migrations) delivered (extended); 19.4-4 (no implicit schema creation) delivered (extended + runtime no-tables test).
+- Red phase was observed at file level (ImportError) not per test; the one runtime test (no tables after importing all modules) passed immediately because the behavior already held.
+- Not catchable by AST: variable-assembled SQL, non-literal dynamic imports, lead built via getattr/subclass/unannotated variable; Postgres run not executed here.
+- requirements 20.1 "merge-side" list is a hand-kept set; a new merge module must be added to MERGE_SIDE_MODULES.
+
+
+### Self-review findings
+Fixed (files: structure_guard.py, tests/test_structural_rules.py; red at file/mutation level):
+- CanonicalLead allowance was whole-file; now per function (BuilderAllowance: projection `_build_lead`, models `share_company_signals`), with a test that the allowed set equals the real sites (stale or over-wide entries fail). Also catches `as`/`X = CanonicalLead` aliases, subclasses, TypeAdapter(CanonicalLead), parse_raw/from_orm; violations carry `scope`.
+- structure_guard.py self-exemption (engine names, create_all) narrowed to string constants only. database.py stays exempt for engine names only (test: still held to the other rules).
+- 20.1 scan was a hard-coded merge-module list (new modules like run_report/cli escaped); now fail-closed: every module not declared below the contract (BELOW_CONTRACT_MODULES / adapters/, each with a reason) is scanned. Added annotation detection ('httpx.Response' strings, attribute annotations).
+- `_scan` excluded tests/fixtures at any depth; now top-level only. SyntaxError and non-UTF8 raise (tests). Init scan raises if __init__.py was not scanned.
+- Engine scan: `.dialects` chains and literal dynamic driver imports. SQL scan: `"a" + x + y` chains missed, `"a" + "b"` false positive. create_all scan: `def create_all`, folded "crea"+"te_all".
+- Runtime no-tables test could not fail (cached imports, tmp engine only); replaced by a fresh-subprocess test (DATABASE_URL at a tmp file) plus a planted-module test proving it fails.
+Delivered: all four 19.4 bullets. Verified: pytest 3470 pass, ruff and mypy clean; mutations (swallow SyntaxError, drop empty-walk guard, extra build site in projection.py) each fail tests.
+Known gaps (needs-follow-up, documented in docstrings): getattr/type(x)(...)/exec construction; unannotated model_copy(update=); SQL built in a variable or passed by keyword; relative import_module(".adapters", pkg); getattr(e, "dialect"); backends other than sqlite/postgres; `slice.adapters.x` attribute access without import. Old 9.3 scan in test_database_engine.py skips structure_guard.py whole (covered by the new scan). No SPEC GAP found.

@@ -6,6 +6,8 @@ but never anything under that package.
 """
 
 import ast
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,6 +47,10 @@ def find_raw_schema_imports_outside_slice(
         package = _package_of(path, src_root)
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and _is_raw_schema(_dynamic_module(node)):
+                violations.append(
+                    RawSchemaImport(path, node.lineno, _dynamic_module(node))
+                )
             if not isinstance(node, ast.Import | ast.ImportFrom):
                 continue
             raw = [m for m in _imported_modules(node, package) if _is_raw_schema(m)]
@@ -376,3 +382,518 @@ def _parsed(root: Path) -> list[tuple[Path, ast.Module]]:
         for p in sorted(root.rglob("*.py"))
         if not {"tests", "fixtures"} & set(p.relative_to(root).parts)
     ]
+
+
+# ------------------------- canonical boundary and persistence placement rules (19.4)
+
+
+@dataclass(frozen=True)
+class RuleViolation:
+    """One structural-rule breach: where it is and the identifier that breaches it.
+
+    `detail` is a module, name or construct kind, never source text, so a message built
+    from it cannot carry a secret that happens to sit in a string literal.
+    """
+
+    path: Path
+    """Absolute path of the offending module."""
+
+    lineno: int
+    """1-based line of the offending statement or expression."""
+
+    detail: str
+    """The imported module, called name or construct kind that breaches the rule."""
+
+    scope: str = ""
+    """Module-level function or class holding the site; "" at module level."""
+
+
+@dataclass(frozen=True)
+class BuilderAllowance:
+    """Where in one module a `CanonicalLead` may be built, and why."""
+
+    functions: frozenset[str]
+    """Module-level functions or classes whose bodies may build one."""
+
+    reason: str
+
+
+CANONICAL_LEAD_BUILDERS = {
+    "projection.py": BuilderAllowance(
+        frozenset({"_build_lead"}),
+        "the Merge Engine's projection builds the one lead from resolved "
+        "contributions (8.12)",
+    ),
+    "models.py": BuilderAllowance(
+        frozenset({"share_company_signals"}),
+        "returns copies of projected leads with one shared CompanySignal per "
+        "company; the class definition itself is not a construction",
+    ),
+}
+"""Only these functions may build or copy a `CanonicalLead`; the allowance is per
+function, so a new construction elsewhere in the same module is still a violation."""
+
+_CANONICAL_LEAD = "CanonicalLead"
+_LEAD_BUILD_METHODS = frozenset(
+    {"model_validate", "model_validate_json", "model_validate_strings",
+     "model_construct", "construct", "parse_obj", "parse_raw", "from_orm"}
+)  # fmt: skip
+
+BELOW_CONTRACT_MODULES = {
+    "base_source.py": "the contract itself: it dispatches through the Transport "
+    "protocol and builds the default transport for a mode",
+    "transport.py": "the REST transport",
+    "mcp_transport.py": "the MCP transport",
+    "auth.py": "the OAuth token fetch goes through a Transport",
+}
+BELOW_CONTRACT_DIRS = ("adapters",)
+"""Slice modules and directories on or below the contract (20.1), each with its reason.
+Every other production module is above it and may name no transport type; a module
+added later is held to the rule until it is declared here."""
+
+TRANSPORT_LIBRARY_ROOTS = NETWORK_CLIENT_ROOTS | {"mcp"}
+TRANSPORT_SLICE_MODULES = ("transport", "mcp_transport")
+_TRANSPORT_ANNOTATION = re.compile(
+    r"\b(?:" + "|".join(sorted(TRANSPORT_LIBRARY_ROOTS)) + r")\."
+)
+
+ENGINE_SPECIFIC_ALLOWLIST = {
+    "database.py": "engine resolution: the one module that names a backend (SQLite, "
+    "PostgreSQL), maps URL aliases and sets SQLite's foreign-key pragma (9.3)",
+    "structure_guard.py": "this scanner: it holds the backend names it searches for "
+    "as string data (string constants only; imports and attributes are still "
+    "scanned)",
+}
+"""Slice modules outside the migrations directory allowed to name a database engine.
+Only the engine rule is relaxed for them: every other rule still scans these files."""
+
+STRING_DATA_ONLY_MODULES = frozenset({"structure_guard.py"})
+"""Allowlisted modules where only string constants are exempt, not code."""
+
+MIGRATIONS_PARTS = ("store", "migrations")
+_ENGINE_DRIVER_ROOTS = frozenset(
+    {"psycopg", "psycopg2", "asyncpg", "aiosqlite", "sqlite3", "pg8000"}
+)
+_ENGINE_ATTRS = frozenset({"dialect", "dialects", "get_backend_name", "get_dialect"})
+_ENGINE_NAMES = frozenset({"sqlite", "postgresql", "postgres"})
+_ENGINE_URL_PREFIXES = tuple(
+    f"{name}{sep}" for name in _ENGINE_NAMES for sep in (":", "+")
+)
+_PRAGMA = re.compile(r"^\s*pragma\s", re.IGNORECASE)
+_EXECUTE_CALLS = frozenset({"execute", "executemany", "exec_driver_sql", "text", "DDL"})
+_SCHEMA_CREATION_NAMES = frozenset({"create_all", "drop_all"})
+_NON_PRODUCTION_DIRS = frozenset({"tests", "fixtures"})
+
+
+def _scan(root: Path, rule: str) -> list[tuple[Path, ast.Module]]:
+    """The production modules a rule scans; an empty walk fails loudly.
+
+    Only a top-level ``tests`` or ``fixtures`` directory is excluded, so a directory of
+    that name deeper in production code is still scanned. A module that cannot be read
+    or parsed raises instead of being skipped.
+    """
+    modules = [
+        (p, ast.parse(p.read_text(encoding="utf-8"), filename=str(p)))
+        for p in sorted(root.rglob("*.py"))
+        if p.relative_to(root).parts[0] not in _NON_PRODUCTION_DIRS
+    ]
+    if not modules:
+        raise RuntimeError(f"{rule}: no modules under {root} to scan")
+    return modules
+
+
+def _package_parts(slice_root: Path, path: Path) -> list[str]:
+    return _package_of(path, slice_root.parent.parent)
+
+
+def find_init_reexports(slice_root: Path) -> list[RuleViolation]:
+    """Every import of the adapters package in the slice's ``__init__.py``.
+
+    Importing a raw schema there would re-export it as ``leadforge.lead_ingestion.X``,
+    which the outside-the-slice import scan sees only as an import of the slice.
+    Not catchable: a relative ``import_module(".adapters", package)``.
+    """
+    violations: list[RuleViolation] = []
+    init = slice_root / "__init__.py"
+    scanned = False
+    for path, tree in _scan(slice_root, "init re-exports"):
+        if path != init:
+            continue
+        scanned = True
+        package = _package_parts(slice_root, path)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import | ast.ImportFrom):
+                names = _imported_modules(node, package)
+            elif isinstance(node, ast.Call):
+                names = [_dynamic_module(node)]
+            else:
+                continue
+            hit = next((n for n in names if _is_raw_schema(n)), None)
+            if hit is not None:
+                violations.append(RuleViolation(path, node.lineno, hit))
+    if not scanned:
+        raise RuntimeError(f"init re-exports: {init} was not scanned")
+    return violations
+
+
+def find_canonical_lead_constructions(
+    slice_root: Path, allowed: Mapping[str, BuilderAllowance] = CANONICAL_LEAD_BUILDERS
+) -> list[RuleViolation]:
+    """Every production site that builds a `CanonicalLead` outside `allowed`.
+
+    Sites: a ``CanonicalLead(...)`` call (also ``mod.CanonicalLead(...)``, an import
+    alias and a ``CL = CanonicalLead`` alias), a ``CanonicalLead.model_validate``-style
+    classmethod call, ``TypeAdapter(CanonicalLead)``, a subclass, and
+    ``.model_copy(update=)`` on a name annotated ``CanonicalLead`` in the same function
+    (a changed copy is a new lead). Not catchable: a lead reached through an
+    unannotated variable, ``getattr``, ``type(x)(...)`` or ``exec``.
+    """
+    violations: list[RuleViolation] = []
+    for path, tree in _scan(slice_root, "canonical lead construction"):
+        allowance = allowed.get(path.relative_to(slice_root).as_posix())
+        aliases = _lead_aliases(tree)
+        for stmt in tree.body:
+            scope = (
+                stmt.name
+                if isinstance(
+                    stmt, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+                )
+                else ""
+            )
+            if allowance is not None and scope in allowance.functions:
+                continue
+            violations.extend(
+                RuleViolation(path, lineno, detail, scope)
+                for lineno, detail in sorted(_lead_build_sites(stmt, aliases))
+            )
+    return violations
+
+
+def _lead_aliases(tree: ast.Module) -> set[str]:
+    """`CanonicalLead` and every name bound to it by ``as`` or a plain assignment."""
+    names = {_CANONICAL_LEAD}
+    changed = True
+    while changed:
+        changed = False
+        for node in ast.walk(tree):
+            bound: list[str] = []
+            if isinstance(node, ast.ImportFrom):
+                bound = [a.asname for a in node.names if a.asname and a.name in names]
+            elif isinstance(node, ast.Assign) and _name_of(node.value) in names:
+                bound = [t.id for t in node.targets if isinstance(t, ast.Name)]
+            if not set(bound) <= names:
+                names.update(bound)
+                changed = True
+    return names
+
+
+def _lead_build_sites(stmt: ast.stmt, aliases: set[str]) -> set[tuple[int, str]]:
+    sites: set[tuple[int, str]] = set()
+    for node in ast.walk(stmt):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            lead_names = _lead_annotated_names(node, aliases)
+            sites.update(
+                (n.lineno, "model_copy")
+                for n in ast.walk(node)
+                if isinstance(n, ast.Call) and _is_update_copy(n, lead_names)
+            )
+        elif isinstance(node, ast.ClassDef):
+            if any(_name_of(b) in aliases for b in node.bases):
+                sites.add((node.lineno, "subclass"))
+        elif isinstance(node, ast.Call):
+            detail = _lead_call_detail(node, aliases)
+            if detail:
+                sites.add((node.lineno, detail))
+    return sites
+
+
+def _lead_call_detail(call: ast.Call, aliases: set[str]) -> str:
+    func = call.func
+    if _name_of(func) in aliases:
+        return _CANONICAL_LEAD
+    if (
+        isinstance(func, ast.Attribute)
+        and func.attr in _LEAD_BUILD_METHODS
+        and _name_of(func.value) in aliases
+    ):
+        return func.attr
+    if _name_of(func) == "TypeAdapter" and any(
+        _name_of(a) in aliases for a in call.args
+    ):
+        return "TypeAdapter"
+    return ""
+
+
+def _name_of(node: ast.expr) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    return node.attr if isinstance(node, ast.Attribute) else ""
+
+
+def _lead_annotated_names(
+    func: ast.FunctionDef | ast.AsyncFunctionDef, aliases: set[str]
+) -> set[str]:
+    def names_lead(annotation: ast.expr) -> bool:
+        text = ast.unparse(annotation)
+        return any(re.search(rf"\b{re.escape(a)}\b", text) for a in aliases)
+
+    args = [*func.args.posonlyargs, *func.args.args, *func.args.kwonlyargs]
+    names = {a.arg for a in args if a.annotation and names_lead(a.annotation)}
+    names.update(
+        n.target.id
+        for n in ast.walk(func)
+        if isinstance(n, ast.AnnAssign)
+        and isinstance(n.target, ast.Name)
+        and names_lead(n.annotation)
+    )
+    return names
+
+
+def _is_update_copy(node: ast.Call, lead_names: set[str]) -> bool:
+    return (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "model_copy"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id in lead_names
+        and any(k.arg == "update" for k in node.keywords)
+    )
+
+
+def find_transport_leaks_above_contract(slice_root: Path) -> list[RuleViolation]:
+    """Every transport library or slice-transport reference above the contract.
+
+    Above ``BaseLeadSource`` nothing may name REST or MCP (20.1). "Above" is every
+    production module not declared in `BELOW_CONTRACT_MODULES` / `BELOW_CONTRACT_DIRS`,
+    so a module added later is covered. A violation is a ``httpx``, other client
+    library or ``mcp`` import, an import of the slice's ``transport`` or
+    ``mcp_transport``, a literal ``__import__``/``import_module`` of one, or an
+    annotation (also a string one) naming a library type such as ``httpx.Response``.
+    Not catchable: a library type reached through an unannotated value.
+    """
+    violations: list[RuleViolation] = []
+    for path, tree in _scan(slice_root, "transport types above the contract"):
+        if _is_below_contract(path.relative_to(slice_root)):
+            continue
+        package = _package_parts(slice_root, path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.expr | ast.stmt | ast.arg):
+                continue
+            hit = ""
+            if isinstance(node, ast.Import | ast.ImportFrom):
+                names = _imported_modules(node, package)
+            elif isinstance(node, ast.Call):
+                names = [_dynamic_module(node)]
+            else:
+                names = []
+                hit = _annotation_leak(node)
+            hit = hit or next((n for n in names if _is_transport_type_module(n)), "")
+            if hit:
+                violations.append(RuleViolation(path, node.lineno, hit))
+    return violations
+
+
+def _is_below_contract(rel: Path) -> bool:
+    if len(rel.parts) == 1:
+        return rel.name in BELOW_CONTRACT_MODULES
+    return rel.parts[0] in BELOW_CONTRACT_DIRS
+
+
+def _annotation_leak(node: ast.AST) -> str:
+    """``annotation:<library>`` when a type annotation names a transport library."""
+    annotations: list[ast.expr] = []
+    if isinstance(node, ast.arg | ast.AnnAssign) and node.annotation:
+        annotations.append(node.annotation)
+    elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.returns:
+        annotations.append(node.returns)
+    for annotation in annotations:
+        for part in ast.walk(annotation):
+            text = (
+                part.value
+                if isinstance(part, ast.Constant) and isinstance(part.value, str)
+                else ast.unparse(part)
+                if isinstance(part, ast.Attribute)
+                else ""
+            )
+            found = _TRANSPORT_ANNOTATION.search(text)
+            if found:
+                return f"annotation:{found.group(0).rstrip('.')}"
+    return ""
+
+
+def _is_transport_type_module(module: str) -> bool:
+    if not module:
+        return False
+    if (
+        module.split(".")[0] in TRANSPORT_LIBRARY_ROOTS
+        or module in NETWORK_CLIENT_MODULES
+    ):
+        return True
+    prefix = "leadforge.lead_ingestion"
+    return any(
+        module == f"{prefix}.{m}" or module.startswith(f"{prefix}.{m}.")
+        for m in TRANSPORT_SLICE_MODULES
+    )
+
+
+def find_engine_specific_references(
+    slice_root: Path, allowed: Mapping[str, str] = ENGINE_SPECIFIC_ALLOWLIST
+) -> list[RuleViolation]:
+    """Every database-engine reference outside the migrations directory and `allowed`.
+
+    A driver import (``psycopg``, ``aiosqlite``, ``sqlite3``, ...), also through a
+    literal ``import_module``, a ``sqlalchemy.dialects`` import, a
+    ``.dialect``/``.dialects``/``get_backend_name`` access, a backend-named string or
+    URL, and a ``PRAGMA`` statement (9.3, 9.4). Text that merely mentions a backend is
+    not flagged. Modules in `STRING_DATA_ONLY_MODULES` are exempt for string constants
+    only. Not catchable: ``getattr(e, "dialect")``.
+    """
+    violations: list[RuleViolation] = []
+    for path, tree in _scan(slice_root, "engine-specific code"):
+        rel = path.relative_to(slice_root)
+        if (
+            rel.as_posix() in allowed and rel.as_posix() not in STRING_DATA_ONLY_MODULES
+        ) or rel.parts[: len(MIGRATIONS_PARTS)] == MIGRATIONS_PARTS:
+            continue
+        strings = rel.as_posix() not in STRING_DATA_ONLY_MODULES
+        if not strings and rel.as_posix() not in allowed:
+            strings = True
+        package = _package_parts(slice_root, path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.expr | ast.stmt):
+                continue
+            detail = _engine_detail(node, package, strings)
+            if detail:
+                violations.append(RuleViolation(path, node.lineno, detail))
+    return violations
+
+
+def _is_engine_module(module: str) -> bool:
+    return module.split(".")[0] in _ENGINE_DRIVER_ROOTS or module.startswith(
+        "sqlalchemy.dialects"
+    )
+
+
+def _engine_detail(node: ast.expr | ast.stmt, package: list[str], strings: bool) -> str:
+    if isinstance(node, ast.Import | ast.ImportFrom):
+        return next(
+            (m for m in _imported_modules(node, package) if _is_engine_module(m)), ""
+        )
+    if isinstance(node, ast.Call) and _is_engine_module(_dynamic_module(node)):
+        return _dynamic_module(node)
+    if isinstance(node, ast.Attribute) and node.attr in _ENGINE_ATTRS:
+        return node.attr
+    if strings and isinstance(node, ast.Constant) and isinstance(node.value, str):
+        low = node.value.strip().lower()
+        if _PRAGMA.match(node.value):
+            return "pragma"
+        if low in _ENGINE_NAMES:
+            return low
+        return next(
+            (p.rstrip(":+") for p in _ENGINE_URL_PREFIXES if low.startswith(p)), ""
+        )
+    return ""
+
+
+def find_string_built_sql(slice_root: Path) -> list[RuleViolation]:
+    """Every statement handed to ``execute``/``text`` that is built from a string.
+
+    Bound parameters only (9.4): an f-string, a ``+`` chain that mixes a string with a
+    non-literal, a ``%`` format or ``str.format`` as the first argument of ``execute``,
+    ``executemany``, ``exec_driver_sql``, ``text`` or ``DDL``. Migrations are scanned
+    too. Not catchable: a statement assembled in a variable first, or passed by keyword.
+    """
+    violations: list[RuleViolation] = []
+    for path, tree in _scan(slice_root, "string-built SQL"):
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and node.args):
+                continue
+            callee = _name_of(node.func)
+            kind = _string_build_kind(node.args[0])
+            if callee in _EXECUTE_CALLS and kind:
+                violations.append(
+                    RuleViolation(path, node.lineno, f"{kind} passed to {callee}")
+                )
+    return violations
+
+
+def _concat_operands(node: ast.expr) -> list[ast.expr]:
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return [*_concat_operands(node.left), *_concat_operands(node.right)]
+    return [node]
+
+
+def _string_build_kind(arg: ast.expr) -> str:
+    if isinstance(arg, ast.JoinedStr):
+        return "f-string"
+    if isinstance(arg, ast.BinOp):
+        if isinstance(arg.op, ast.Mod) and _is_str(arg.left):
+            return "percent-format"
+        operands = _concat_operands(arg)
+        if (
+            isinstance(arg.op, ast.Add)
+            and any(_is_str(o) for o in operands)
+            and not all(_is_str_constant(o) for o in operands)
+        ):
+            return "concatenation"
+    if (
+        isinstance(arg, ast.Call)
+        and isinstance(arg.func, ast.Attribute)
+        and arg.func.attr == "format"
+        and _is_str(arg.func.value)
+    ):
+        return "str.format"
+    return ""
+
+
+def _is_str_constant(node: ast.expr) -> bool:
+    return isinstance(node, ast.Constant) and isinstance(node.value, str)
+
+
+def _is_str(node: ast.expr) -> bool:
+    return isinstance(node, ast.JoinedStr) or _is_str_constant(node)
+
+
+SCHEMA_CREATION_ALLOWLIST = {
+    "structure_guard.py": "this scanner: it holds the method names it searches for "
+    "as string data (strings only; a call, attribute or definition is still flagged)",
+}
+"""Slice modules allowed to hold ``create_all``/``drop_all`` as string data only."""
+
+
+def find_schema_creation_calls(
+    slice_root: Path, allowed: Mapping[str, str] = SCHEMA_CREATION_ALLOWLIST
+) -> list[RuleViolation]:
+    """Every ``create_all``/``drop_all`` reference in production code, migrations too.
+
+    Migrations are the only schema path (9.7); they use Alembic operations, never the
+    metadata's ``create_all``. Covers an attribute, a bare name, an imported name, a
+    function or class definition of that name, and a string, also one built from
+    literals (``getattr(meta, "create_all")``). Modules in `allowed` are exempt for
+    strings only.
+    """
+    violations: list[RuleViolation] = []
+    for path, tree in _scan(slice_root, "schema creation"):
+        strings = path.relative_to(slice_root).as_posix() not in allowed
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.expr | ast.stmt):
+                continue
+            name = _schema_creation_name(node, strings)
+            if name in _SCHEMA_CREATION_NAMES:
+                violations.append(RuleViolation(path, node.lineno, name))
+    return violations
+
+
+def _schema_creation_name(node: ast.expr | ast.stmt, strings: bool) -> str:
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        return node.name
+    if isinstance(node, ast.ImportFrom):
+        return next(
+            (a.name for a in node.names if a.name in _SCHEMA_CREATION_NAMES), ""
+        )
+    if strings and isinstance(node, ast.expr):
+        return _folded_text(node) or ""
+    return ""
