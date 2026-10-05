@@ -90,8 +90,9 @@ class RetentionPolicy:
 @dataclass(frozen=True)
 class PurgeResult:
     deleted: int
-    # Expired rows kept because a contribution still references them (FK, 8.12).
-    skipped_referenced: int
+    # Contributions whose raw payload was deleted and whose link the database set to
+    # NULL (ON DELETE SET NULL). The contributions themselves are kept (8.12).
+    detached_contributions: int
 
 
 class RawResponseRepository:
@@ -145,30 +146,40 @@ class RawResponseRepository:
     def purge_expired(session: Session, *, now: datetime) -> PurgeResult:
         """Delete rows with ``retention_until <= now``; never rows with NULL.
 
-        A row a contribution still references is kept (the FK would refuse it) and
-        counted in ``skipped_referenced``.
+        A contribution that references a deleted row is kept and detached: the
+        database sets its ``raw_response_id`` to NULL (ON DELETE SET NULL), so no
+        contribution row is updated through the ORM (append-only, 8.12). That relies
+        on the engine enforcing foreign keys; `create_store_engine` turns SQLite's
+        enforcement on, and PostgreSQL always enforces them. Contributions already
+        loaded in the session are expired so they re-read the detached link.
         """
         cutoff = _as_utc(now)
         expired = sa.and_(
             RawResponse.retention_until.is_not(None),
             RawResponse.retention_until <= cutoff,
         )
-        referenced = sa.select(SourceContribution.raw_response_id)
-        unreferenced = expired, RawResponse.id.not_in(referenced)
-        deletable = (
+        session.flush()
+        deleted = (
             session.scalar(
-                sa.select(sa.func.count()).select_from(RawResponse).where(*unreferenced)
+                sa.select(sa.func.count()).select_from(RawResponse).where(expired)
             )
             or 0
         )
-        skipped = (
+        detached = (
             session.scalar(
                 sa.select(sa.func.count())
-                .select_from(RawResponse)
-                .where(expired, RawResponse.id.in_(referenced))
+                .select_from(SourceContribution)
+                .where(
+                    SourceContribution.raw_response_id.in_(
+                        sa.select(RawResponse.id).where(expired)
+                    )
+                )
             )
             or 0
         )
-        if deletable:
-            session.execute(sa.delete(RawResponse).where(*unreferenced))
-        return PurgeResult(deleted=deletable, skipped_referenced=skipped)
+        if deleted:
+            session.execute(sa.delete(RawResponse).where(expired))
+            for obj in list(session.identity_map.values()):
+                if isinstance(obj, SourceContribution):
+                    session.expire(obj)
+        return PurgeResult(deleted=deleted, detached_contributions=detached)

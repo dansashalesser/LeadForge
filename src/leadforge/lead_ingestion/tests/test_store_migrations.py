@@ -2,10 +2,12 @@
 
 import ast
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
+from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -170,3 +172,119 @@ def test_using_the_orm_without_migrating_does_not_create_the_schema() -> None:
 def test_migrations_directory_ships_inside_the_package() -> None:
     assert (MIGRATIONS_DIR / "env.py").is_file()
     assert list((MIGRATIONS_DIR / "versions").glob("*.py"))
+
+
+def _raw_fk(engine: sa.Engine) -> dict[str, object]:
+    (fk,) = [
+        f
+        for f in inspect(engine).get_foreign_keys("source_contribution")
+        if f["constrained_columns"] == ["raw_response_id"]
+    ]
+    return dict(fk)
+
+
+def _raw_column_nullable(engine: sa.Engine) -> bool:
+    cols = {c["name"]: c for c in inspect(engine).get_columns("source_contribution")}
+    return bool(cols["raw_response_id"]["nullable"])
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_head_makes_raw_response_link_nullable_with_set_null() -> None:
+    engine = create_engine("sqlite://")
+    with engine.begin() as conn:
+        upgrade_to_head(conn)
+
+    assert _raw_column_nullable(engine) is True
+    fk = _raw_fk(engine)
+    assert fk["referred_table"] == "raw_response"
+    assert fk["options"].get("ondelete") == "SET NULL"  # type: ignore[attr-defined]
+    # the batch rebuild keeps the other keys and the index
+    names = {
+        tuple(f["constrained_columns"])
+        for f in inspect(engine).get_foreign_keys("source_contribution")
+    }
+    assert names == {("source_run_id",), ("lead_identity_id",), ("raw_response_id",)}
+    assert "ix_source_contribution_lead_identity_id" in {
+        i["name"] for i in inspect(engine).get_indexes("source_contribution")
+    }
+
+
+def _seed_contribution_with_raw(conn: sa.Connection, raw_id: uuid.UUID | None) -> None:
+    when = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
+    with Session(bind=conn) as s:
+        run = m.IngestionRun(started_at=when, status="running")
+        s.add(run)
+        s.flush()
+        sr = m.SourceRun(run_id=run.id, source_name="x", resolved_mode="live")
+        s.add(sr)
+        s.flush()
+        raw = None
+        if raw_id is not None:
+            raw = m.RawResponse(
+                id=raw_id,
+                source_run_id=sr.id,
+                endpoint_key="e",
+                request_fingerprint="f",
+                payload={},
+                fetched_at=when,
+            )
+            s.add(raw)
+            s.flush()
+        s.add(
+            m.SourceContribution(
+                source_run_id=sr.id,
+                raw_response_id=raw_id,
+                source_name="x",
+                data_mode="live",
+                fetched_at=when,
+                lead_scope="person",
+            )
+        )
+        s.flush()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_downgrade_to_0002_restores_not_null_and_keeps_attached_rows() -> None:
+    engine = create_engine("sqlite://")
+    with engine.begin() as conn:
+        upgrade_to_head(conn)
+        _seed_contribution_with_raw(conn, uuid.uuid4())
+        command.downgrade(alembic_config(conn), "0002")
+
+    assert _raw_column_nullable(engine) is False
+    assert _raw_fk(engine)["options"].get("ondelete") is None  # type: ignore[attr-defined]
+    with engine.connect() as conn:
+        assert (
+            conn.execute(sa.text("SELECT count(*) FROM source_contribution")).scalar()
+            == 1
+        )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_downgrade_to_0002_refuses_while_a_detached_contribution_exists() -> None:
+    engine = create_engine("sqlite://")
+    with engine.begin() as conn:
+        upgrade_to_head(conn)
+        _seed_contribution_with_raw(conn, None)  # seeding succeeds at head
+    with engine.connect() as conn:
+        assert (
+            conn.execute(sa.text("SELECT count(*) FROM source_contribution")).scalar()
+            == 1
+        )
+    with engine.begin() as conn, pytest.raises(sa.exc.IntegrityError):
+        command.downgrade(alembic_config(conn), "0002")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_upgrade_through_0002_then_head_preserves_existing_rows() -> None:
+    engine = create_engine("sqlite://")
+    with engine.begin() as conn:
+        command.upgrade(alembic_config(conn), "0002")
+        _seed_contribution_with_raw(conn, uuid.uuid4())
+        upgrade_to_head(conn)
+
+    with engine.connect() as conn:
+        assert (
+            conn.execute(sa.text("SELECT count(*) FROM source_contribution")).scalar()
+            == 1
+        )

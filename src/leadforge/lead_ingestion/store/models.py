@@ -165,7 +165,11 @@ class SourceContribution(Base):
     lead_identity_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("lead_identity.id"), nullable=True
     )
-    raw_response_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("raw_response.id"))
+    # NULL once the raw payload expired and was purged (9.8): the database detaches the
+    # row (ON DELETE SET NULL), so the append-only guard never sees an UPDATE.
+    raw_response_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("raw_response.id", ondelete="SET NULL"), nullable=True
+    )
     source_name: Mapped[str] = mapped_column(String(64))
     data_mode: Mapped[str] = mapped_column(String(16))
     fetched_at: Mapped[datetime] = _utc()

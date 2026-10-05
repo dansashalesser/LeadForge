@@ -301,6 +301,15 @@ def test_inserting_contributions_and_updating_other_tables_still_works(
     assert len(session.scalars(sa.select(m.SourceContribution)).all()) == 1
 
 
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_contribution_raw_link_is_nullable_and_detaches_on_raw_delete() -> None:
+    column = m.SourceContribution.__table__.c.raw_response_id
+    assert column.nullable is True
+    (fk,) = column.foreign_keys
+    assert fk.ondelete == "SET NULL"
+    assert fk.column.table.name == "raw_response"
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#8.12
 def test_no_code_in_package_updates_or_deletes_contribution_models() -> None:
     names = {"SourceContribution", "ContributionField"}

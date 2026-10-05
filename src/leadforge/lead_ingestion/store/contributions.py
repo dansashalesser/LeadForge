@@ -59,6 +59,8 @@ class StoredContribution:
     data_mode: DataMode
     fetched_at: datetime  # aware UTC
     values: dict[str, Any]  # canonical path -> trusted value or ``UntrustedText``
+    # None once the raw payload expired and was purged (9.8); the fields stay readable.
+    raw_response_id: uuid.UUID | None = None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -208,4 +210,5 @@ def read_contribution(
         data_mode=DataMode(row.data_mode),
         fetched_at=fetched.astimezone(UTC),
         values={f.canonical_path: _rebuild(f) for f in fields},
+        raw_response_id=row.raw_response_id,
     )

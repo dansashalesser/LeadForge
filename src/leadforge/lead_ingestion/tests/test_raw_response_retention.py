@@ -278,52 +278,160 @@ def test_purge_rejects_naive_now(session: Session) -> None:
         RawResponseRepository.purge_expired(session, now=datetime(2026, 1, 1))
 
 
+def _contribution_row(
+    source_run_id: uuid.UUID, raw_response_id: uuid.UUID
+) -> m.SourceContribution:
+    return m.SourceContribution(
+        source_run_id=source_run_id,
+        raw_response_id=raw_response_id,
+        source_name="x",
+        data_mode="live",
+        fetched_at=T0,
+        lead_scope="person",
+    )
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#9.8
-def test_purge_keeps_rows_a_contribution_still_references_and_counts_them(
+def test_purge_deletes_expired_rows_a_contribution_references_and_detaches_it(
     session: Session, source_run_id: uuid.UUID
 ) -> None:
-    kept = _add(session, source_run_id, DataMode.LIVE)
-    gone = _add(session, source_run_id, DataMode.LIVE)
-    session.add(
-        m.SourceContribution(
-            source_run_id=source_run_id,
-            raw_response_id=kept,
-            source_name="x",
-            data_mode="live",
-            fetched_at=T0,
-            lead_scope="person",
-        )
-    )
+    referenced = _add(session, source_run_id, DataMode.LIVE)
+    unreferenced = _add(session, source_run_id, DataMode.LIVE)
+    row = _contribution_row(source_run_id, referenced)
+    session.add(row)
     session.commit()
+    contribution_id = row.id
+
     result = RawResponseRepository.purge_expired(session, now=T0 + timedelta(days=99))
     session.commit()
-    assert (result.deleted, result.skipped_referenced) == (1, 1)
-    assert _ids(session) == {kept}
-    assert gone not in _ids(session)
+
+    assert (result.deleted, result.detached_contributions) == (2, 1)
+    assert _ids(session) == set()
+    assert unreferenced not in _ids(session)
+    session.expire_all()
+    kept = session.get(m.SourceContribution, contribution_id)
+    assert kept is not None
+    assert kept.raw_response_id is None
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#9.8
-def test_purge_does_not_touch_append_only_contribution_tables(
+def test_purge_refreshes_a_contribution_already_loaded_in_the_session(
     session: Session, source_run_id: uuid.UUID
 ) -> None:
     rid = _add(session, source_run_id, DataMode.LIVE)
-    session.add(
-        m.SourceContribution(
-            source_run_id=source_run_id,
-            raw_response_id=rid,
-            source_name="x",
-            data_mode="live",
-            fetched_at=T0,
-            lead_scope="person",
-        )
-    )
+    row = _contribution_row(source_run_id, rid)
+    session.add(row)
     session.commit()
+    assert row.raw_response_id == rid  # loaded, so a stale copy is possible
+
     RawResponseRepository.purge_expired(session, now=T0 + timedelta(days=99))
-    session.commit()
-    assert (
-        session.scalar(sa.select(sa.func.count()).select_from(m.SourceContribution))
-        == 1
+
+    assert row.raw_response_id is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_purge_counts_each_detached_contribution_once(
+    session: Session, source_run_id: uuid.UUID
+) -> None:
+    rid = _add(session, source_run_id, DataMode.LIVE)
+    session.add_all(
+        [_contribution_row(source_run_id, rid), _contribution_row(source_run_id, rid)]
     )
+    session.commit()
+    result = RawResponseRepository.purge_expired(session, now=T0 + timedelta(days=99))
+    assert (result.deleted, result.detached_contributions) == (1, 2)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_purge_leaves_contributions_of_unexpired_and_indefinite_rows_attached(
+    session: Session, source_run_id: uuid.UUID
+) -> None:
+    fresh = _add(session, source_run_id, DataMode.LIVE)
+    synthetic = _add(session, source_run_id, DataMode.SYNTHETIC)
+    session.add_all(
+        [
+            _contribution_row(source_run_id, fresh),
+            _contribution_row(source_run_id, synthetic),
+        ]
+    )
+    session.commit()
+    result = RawResponseRepository.purge_expired(session, now=T0 + timedelta(days=1))
+    session.commit()
+    assert (result.deleted, result.detached_contributions) == (0, 0)
+    refs = set(session.scalars(sa.select(m.SourceContribution.raw_response_id)))
+    assert refs == {fresh, synthetic}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_purge_never_updates_or_deletes_contribution_rows_through_the_orm(
+    engine: Engine, session: Session, source_run_id: uuid.UUID
+) -> None:
+    rid = _add(session, source_run_id, DataMode.LIVE)
+    session.add(_contribution_row(source_run_id, rid))
+    session.commit()
+    statements: list[str] = []
+
+    def record(conn: object, cursor: object, statement: str, *rest: object) -> None:
+        statements.append(statement)
+
+    sa.event.listen(engine, "before_cursor_execute", record)
+    try:
+        RawResponseRepository.purge_expired(session, now=T0 + timedelta(days=99))
+        session.commit()
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", record)
+
+    touching = [
+        q
+        for q in statements
+        if "source_contribution" in q
+        and q.lstrip().upper().startswith(("UPDATE", "DELETE"))
+    ]
+    assert touching == []  # the database detaches the row (ON DELETE SET NULL)
+    assert any(
+        q.lstrip().upper().startswith("DELETE FROM RAW_RESPONSE") for q in statements
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_detaching_relies_on_foreign_key_enforcement_of_the_engine(
+    tmp_path: Path,
+) -> None:
+    url = f"sqlite:///{tmp_path / 'plain.db'}"
+    upgrade_to_head(url)
+    plain = sa.create_engine(url)  # no PRAGMA foreign_keys: SQLite ignores the FK
+    try:
+        with Session(plain) as s:
+            run = m.IngestionRun(started_at=T0, status="running")
+            s.add(run)
+            s.flush()
+            sr = m.SourceRun(run_id=run.id, source_name="x", resolved_mode="live")
+            s.add(sr)
+            s.flush()
+            rid = RawResponseRepository.add(
+                s,
+                source_run_id=sr.id,
+                endpoint_key="e",
+                request_fingerprint="f",
+                payload={},
+                fetched_at=T0,
+                mode=DataMode.LIVE,
+                policy=RetentionPolicy(),
+            )
+            s.add(_contribution_row(sr.id, rid))
+            s.commit()
+            RawResponseRepository.purge_expired(s, now=T0 + timedelta(days=99))
+            s.commit()
+            s.expire_all()
+            dangling = s.scalar(sa.select(m.SourceContribution.raw_response_id))
+        assert dangling == rid  # documents why create_store_engine must be used
+    finally:
+        plain.dispose()
+
+
+def test_store_engine_enforces_foreign_keys(engine: Engine) -> None:
+    with engine.connect() as conn:
+        assert conn.execute(sa.text("PRAGMA foreign_keys")).scalar() == 1
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#9.8

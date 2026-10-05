@@ -512,3 +512,34 @@ def test_written_rows_stay_append_only(
     with pytest.raises(m.AppendOnlyViolationError):
         session.flush()
     session.rollback()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#9.8
+def test_a_contribution_whose_raw_payload_was_purged_still_reads_back(
+    session: Session, ids: tuple[uuid.UUID, uuid.UUID]
+) -> None:
+    cid = write_contribution(
+        session,
+        _contribution({"full_name": "Ada"}),
+        source_run_id=ids[0],
+        raw_response_id=ids[1],
+        data_mode=DataMode.LIVE,
+        fetched_at=T0,
+        lead_scope="person",
+    )
+    session.commit()
+    before = read_contribution(session, cid)
+    assert before.raw_response_id == ids[1]
+
+    result = RawResponseRepository.purge_expired(session, now=T0 + timedelta(days=31))
+    session.commit()
+    assert result.detached_contributions == 1
+
+    after = read_contribution(session, cid)
+    assert after.raw_response_id is None
+    assert after.values == before.values
+    assert (after.source_name, after.data_mode, after.fetched_at) == (
+        before.source_name,
+        before.data_mode,
+        before.fetched_at,
+    )
