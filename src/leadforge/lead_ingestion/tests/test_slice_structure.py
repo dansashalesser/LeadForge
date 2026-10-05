@@ -118,6 +118,8 @@ def test_orchestration_layer_references_no_concrete_adapter() -> None:
         "x = HunterSource\n",
         "x = HunterSubSource\n",
         "import m\nx = m.HunterSource\n",
+        "import importlib as i\ni.import_module('leadforge.lead_ingestion.adapters')\n",
+        "__import__('leadforge.lead_ingestion.adapters')\n",
     ],
 )
 def test_guard_flags_concrete_adapter_reference_in_orchestration(

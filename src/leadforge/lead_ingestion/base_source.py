@@ -82,6 +82,17 @@ class RateBucket:
     doc_url: str
 
 
+def _is_provider_path(path: str) -> bool:
+    """A path on the adapter's own host: '/a/b', no URL, query, '..' or '//'."""
+    if not path.startswith("/") or path.startswith("//"):
+        return False
+    if any(c in path for c in "?#\\") or any(
+        c.isspace() or not c.isprintable() for c in path
+    ):
+        return False
+    return not any(seg in (".", "..") for seg in path.split("/")) and "//" not in path
+
+
 @dataclass(frozen=True)
 class Endpoint:
     """One provider path an adapter may reach; every call goes through a declared one.
@@ -107,6 +118,11 @@ class Endpoint:
             value = getattr(self, field)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"Endpoint.{field} must be a non-blank str")
+        if not _is_provider_path(self.path):
+            raise ValueError(
+                f"Endpoint.path must be a root-relative path on the provider host, "
+                f"got {self.path!r}"
+            )
 
 
 class SourceRequest(_Entity):
@@ -271,8 +287,11 @@ class BaseLeadSource(ABC):
         for label, endpoint in self.endpoints.items():
             if not isinstance(label, str) or not label.strip():
                 raise TypeError(f"{cls}.endpoints keys must be non-blank str")
-            if not isinstance(endpoint, Endpoint):
-                raise TypeError(f"{cls}.endpoints[{label!r}] must be an Endpoint")
+            # Exact type: a subclass could override the checks in __post_init__.
+            if type(endpoint) is not Endpoint or endpoint.read_only is not True:
+                raise TypeError(
+                    f"{cls}.endpoints[{label!r}] must be a read-only Endpoint"
+                )
             if endpoint.bucket not in self.rate_limit:
                 raise TypeError(
                     f"{cls}.endpoints[{label!r}] uses undeclared rate bucket "

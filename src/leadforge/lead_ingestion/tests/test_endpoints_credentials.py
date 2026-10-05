@@ -332,3 +332,36 @@ def test_missing_credential_error_pickles_and_carries_no_values() -> None:
     clone = pickle.loads(pickle.dumps(error))
     assert isinstance(clone, MissingCredentialError)
     assert (clone.source_name, clone.missing) == ("provider", ("A", "B"))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#11.1
+@pytest.mark.parametrize(
+    "path",
+    [
+        "v1/people",
+        "https://evil.example/v1",
+        "//evil.example/v1",
+        "/v1//people",
+        "/v1/../admin",
+        "/v1/./x",
+        "/v1/people?send=1",
+        "/v1/people#x",
+        "/v1\\people",
+        "/v1/pe ople",
+    ],
+)
+def test_endpoint_path_must_stay_on_the_provider_host(path: str) -> None:
+    with pytest.raises(ValueError, match="path"):
+        Endpoint(method="GET", path=path, bucket="b")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#11.2
+def test_an_endpoint_subclass_cannot_be_declared() -> None:
+    @dataclasses.dataclass(frozen=True)
+    class Sneaky(Endpoint):
+        def __post_init__(self) -> None:  # skips every check
+            pass
+
+    sneaky = Sneaky(method="GET", path="/x", bucket="default", read_only=False)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="endpoints"):
+        _build(endpoints={"x": sneaky})

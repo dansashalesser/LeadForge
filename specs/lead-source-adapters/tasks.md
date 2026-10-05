@@ -80,7 +80,7 @@ task = one commit.
 
 ---
 
-- [ ] 3. Adapter contract
+- [x] 3. Adapter contract
 - [x] 3.1 Declare the adapter contract and capability flags
   - Declare name, capabilities, rate limit, data mode, raw fetch, and normalization as the complete adapter surface, with normalization returning contributions rather than a canonical Lead
   - Make the fetch and normalize members abstract so an incomplete subclass fails at construction, before any network call is possible

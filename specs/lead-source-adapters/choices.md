@@ -348,3 +348,12 @@ Least-confident first.
 
 Counts: sound 6, unsound 0, needs-user 2. The audit was done by the parent, not an independent auditor.
 Signals: none. No clustering and no `unsound` entries. 3.5 should add `UndeclaredEndpointError` transport rejection.
+
+### Task 3.4 — independent self-review (spec-refactor-agent, 2026-10-05)
+The first pass (above) was audited by the parent only; the independent review ran afterwards and found three gaps, all fixed:
+- `Endpoint.__post_init__` now rejects any path that is not a root-relative path on the provider host (absolute URLs, `//host`, `//` inside a path, `.` / `..` segments, `?`, `#`, backslash, whitespace, non-printable characters).
+- `_validate_endpoints` requires values to be exactly `Endpoint` (not a subclass) with `read_only is True`; a subclass overriding `__post_init__` could previously carry `read_only=False` past the class-definition check.
+- `structure_guard` now flags `__import__("...adapters...")` and `importlib.import_module("...adapters...")` calls with a string literal.
+
+Known gaps, not fixed (**needs-follow-up**): dynamic imports with a non-literal argument; base classes imported under an alias; a concrete adapter deriving from a helper base outside `adapters/`; `resolve_credentials` raises `AttributeError` for a custom `environ` mapping with non-str values; rebinding `Cls.endpoints` / `Cls.required_env` after class creation (needs a metaclass; out of scope, as for every declaration).
+Major task 3 (adapter contract) is complete: 3.1 to 3.4 done and reviewed.

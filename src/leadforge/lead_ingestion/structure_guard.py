@@ -127,11 +127,28 @@ def find_concrete_adapter_references(slice_root: Path) -> list[AdapterReference]
                     )
                 if hit is not None:
                     violations.append(AdapterReference(path, node.lineno, hit))
+            elif isinstance(node, ast.Call) and _dynamic_import_target(node):
+                violations.append(
+                    AdapterReference(path, node.lineno, _dynamic_import_target(node))
+                )
             elif isinstance(node, ast.Name) and node.id in classes:
                 violations.append(AdapterReference(path, node.lineno, node.id))
             elif isinstance(node, ast.Attribute) and node.attr in classes:
                 violations.append(AdapterReference(path, node.lineno, node.attr))
     return violations
+
+
+def _dynamic_import_target(call: ast.Call) -> str:
+    """The adapters module named by `__import__("...")` or `import_module("...")`,
+    or "" if this call is not one (a non-literal argument cannot be resolved)."""
+    func = call.func
+    called = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+    if called not in ("__import__", "import_module") or not call.args:
+        return ""
+    arg = call.args[0]
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value if _is_raw_schema(arg.value) else ""
+    return ""
 
 
 def _orchestration_modules(slice_root: Path) -> list[Path]:
