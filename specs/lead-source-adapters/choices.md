@@ -1675,3 +1675,34 @@ Gaps left:
 - needs-follow-up: company_id hashes raw casefolded domains (no registrable-domain normalisation: 'www.x.com' differs from 'x.com'; a URL string stays a domain) or 'name:<name>' when no domain; two leads at one company with different winning names share a company_id with different content, which share_company_signals rejects. A personal domain (webmail, freelancer's own) would be hashed unsalted; flag as potentially personal data. Superseded by 16.9-16.11.
 - needs-follow-up: _any_true accepts only the boolean True; a future adapter emitting a non-bool flag would fail open.
 - Signals: one per (kind, label), first in deterministic candidate order keeps its strength; duplicates collapse; same-label different-strength from two sources keep the higher-ranked one.
+
+## Task 16.6 — Apply Identity Exclusions as the only Over-merge repair (2026-10-05)
+Evidence: wrote tests/test_identity_exclusions.py first; first run = collection ImportError (IdentityExclusions missing), red. After code: 2 test-side faults fixed (a same-text-two-kinds test that cannot exist, version-token fixture), then green; `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 2209 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Followed task/8.13 text, not the pair/split framing: an exclusion is a VALUE barred from acting as a key, skipped at key extraction; no cluster splitting rule exists. Rejected: pairs of identities that must not co-reside with a split rule (spec says values; split rules are order-sensitive).
+- A barred key's kind still counts as present for 8.2 (LinkedIn-absent) and 8.3 (stronger key), via MatchKeys.barred_kinds. Rejected: plain removal, which let barring a LinkedIn URL make its holder an email bridge and MERGE two people. Tested: exclusions only refine the partition (all subsets).
+- Only LinkedIn URLs and verified emails are excludable; name+domain is not. Rejected: composite name+domain exclusions (no requirement names a case).
+- from_values normalises like key extraction and raises ValueError (no value in text) for an unusable entry. Rejected: silently dropping it.
+- version_token = sha256 of the sorted set, exposed for the 8.13 projection_version bump.
+### Known gaps (needs-follow-up)
+- Not read from config/: no file format or loader exists (no config file for exclusions); the pure type is the seam.
+- projection_version bump not wired into the store/recompute (version_token only); a store-backed test of "bump on change" is outstanding.
+- The end-to-end "recompute with zero contribution mutation in the store" is shown on pure clustering only.
+
+### Self-review findings
+Requirement 8.13: "SHALL read a configured set of Identity Exclusions — specific values barred from acting as a match key — from config/, and SHALL bump projection_version when that set changes ... this exclusion set is the only supported repair for an over-merge." Verify: "Adding a value to the exclusion set and recomputing separates a previously over-merged cluster, with no contribution record mutated or deleted." Value-barring (not pair/split) is the correct reading; confirmed.
+**Fixed / built (test-first, seen red):**
+- Task bullet 1 (read from config) was THIS task and buildable, so the earlier "no loader" gap is superseded: added exclusion_settings.py (load_identity_exclusions, config/identity_exclusions.yaml, keys linkedin_urls and emails, absent or empty file = empty set) on read_yaml_document; ConfigurationError carries path + key_path (e.g. emails[1]); values and unknown key text are never echoed. Tests: tests/test_exclusion_settings.py (18).
+- Defect: IdentityExclusions.from_values raised AttributeError on non-text entries; now ValueError "usable key value" with no value (mutation-checked).
+- Added tests: end-to-end repair through project_lead (two people -> two Leads); barring the LinkedIn instead does NOT split a bridged email cluster (documented limit); barred LinkedIn plus a bare same-email record merges exactly as without the exclusion (refinement only).
+**Verified correct:** barred key counts as present for 8.2/8.3 (never merges more than without exclusions); order independence over 720 contribution permutations and all exclusion-input permutations; idempotent; no-op for absent values; same normalisers as extraction; repr hides values.
+**Mutation checks (restored exactly):** barred-still-merges, plain removal, no email normalisation, no URL normalisation, constant version_token, repr leak, no type check, exclusion-merges-new: each caught by a test.
+**Bullet status:** 1 delivered; 2 (bump projection_version) DEFERRED; 3 (prove separation, no mutation) delivered on pure clustering and projection, not store-backed; 4 (blocked on 16.1) satisfied.
+### Known gaps
+- SPEC GAP / needs-follow-up: "bump projection_version when the set changes" is NOT delivered. The store only has an integer canonical_lead.projection_version column; no recompute or store-wiring code exists (projection.py defers it) and nothing persists the prior exclusion token, so a bump cannot be wired without inventing store features. IdentityExclusions.version_token is the seam.
+- needs-follow-up: version_token is an unsalted sha256 over the sorted normalised set (never the values, but low-entropy emails are guessable by dictionary attack). Treat it as personal-data-adjacent; do not log it.
+- needs-follow-up: when a bare record bridges, repair needs the shared EMAIL barred, not the LinkedIn; operator guidance is not written.
+- needs-follow-up: store-backed "recompute with zero contribution mutation" test.
+
+- **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** bullet 1 (read exclusions from config) is delivered and reviewed; bullet 2 (bump `projection_version` when the exclusion set changes, recomputing projections) is not: the store has only an integer `canonical_lead.projection_version` column, no recompute code exists, and nothing persists the previous exclusion token. `IdentityExclusions.version_token` is the seam. It needs a store-side decision (where the previous token lives, and what triggers the recompute).

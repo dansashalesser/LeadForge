@@ -29,8 +29,16 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
   never log it or put it in a filename. It is not a persistent store id; matching a
   run to persisted identities (8.9) is the store's job and not built here.
 * Keyless contributions are singleton clusters, never dropped.
-* Identity Exclusions (16.6), role-address disqualification (16.7) and the over-merge
-  detector (16.8) are not built and no parameter reserves a seam for them.
+* Identity Exclusions (16.6, 8.13) are a parameter: ``match_keys.IdentityExclusions``
+  values are skipped at key extraction, so clusters stay a pure function of the
+  contributions and the exclusions (order-independent). A barred key still counts as
+  PRESENT for the LinkedIn-absent test of 8.2 and the stronger-key test of 8.3, so an
+  exclusion only ever splits clusters, never merges (barring a LinkedIn URL must not
+  turn its holder into an email bridge). Rejected: exclusions naming cluster ids
+  (pseudonyms that change) or pairs of identities with a split rule (the requirement
+  bars values, and the over-merge rule stays global and order-free).
+  Role-address disqualification (16.7) and the over-merge detector (16.8) are not
+  built and no parameter reserves a seam for them.
 * Errors name types only; cluster and key data is personal data.
 """
 
@@ -47,6 +55,7 @@ from pydantic import BaseModel
 
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.match_keys import (
+    IdentityExclusions,
     MatchKeyKind,
     MatchKeys,
     extract_match_keys,
@@ -150,14 +159,18 @@ def _key_text(key: object) -> str:
 
 def cluster_contributions(
     contributions: Iterable[LeadContribution],
+    exclusions: IdentityExclusions | None = None,
 ) -> tuple[IdentityCluster, ...]:
-    """Cluster ``contributions`` by Match Key; the result ignores arrival order."""
+    """Cluster ``contributions`` by Match Key; the result ignores arrival order.
+
+    ``exclusions`` bars values from acting as a key (8.13); it can only split clusters.
+    """
     # Canonical order first, so nothing downstream depends on arrival. Byte-identical
     # contributions are interchangeable, so their relative order is immaterial.
     items = sorted(
         ((canonical_json(c), c) for c in contributions), key=lambda pair: pair[0]
     )
-    keys = [extract_match_keys(c) for _, c in items]
+    keys = [extract_match_keys(c, exclusions) for _, c in items]
     forest = _UnionFind(len(items))
     _link_linkedin(keys, forest)
     _link_email(keys, forest)
@@ -197,7 +210,8 @@ def _values(keys: list[MatchKeys], kind: MatchKeyKind) -> list[tuple[int, str]]:
 
 
 def _has(keys: MatchKeys, kind: MatchKeyKind) -> bool:
-    return any(k.kind is kind for k in keys.keys)
+    """Whether the contribution offers ``kind``, a barred key (8.13) included."""
+    return kind in keys.barred_kinds or any(k.kind is kind for k in keys.keys)
 
 
 def _link_all(forest: _UnionFind, group: list[int]) -> None:

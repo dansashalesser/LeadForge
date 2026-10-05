@@ -27,13 +27,24 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   have no canonical path yet, so only title and employer name corroborate.
 * Role addresses are not recognised here: 8.14 disqualifies them structurally by
   names reported against them (task 16.7), with no curated role-word list.
+* Identity Exclusions (task 16.6, 8.13) are specific normalised LinkedIn URLs and
+  verified emails barred from acting as a key; ``extract_match_keys`` skips them. A
+  barred key's kind stays in ``MatchKeys.barred_kinds``, because the contribution still
+  names that identity: clustering must keep treating it as "has a LinkedIn / email key"
+  for 8.2 and 8.3, else barring a key would make its holder look key-less and could
+  MERGE people (an exclusion only ever refines the partition). Name+domain values are
+  not excludable (no requirement text names a case; add when one does). The set is
+  personal data: hidden from ``repr``, errors name no value. ``version_token`` is a
+  digest of the set, so a change is observable (8.13's ``projection_version`` bump);
+  storing that bump is the store's job and not built here.
 * Values are read at the paths the adapters write (``person.*``, ``company.*``).
 """
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import IntEnum
+from hashlib import sha256
 from unicodedata import normalize
 from urllib.parse import urlsplit
 
@@ -43,6 +54,7 @@ from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.models import EmailStatus, UntrustedText
 
 __all__ = [
+    "IdentityExclusions",
     "MatchKey",
     "MatchKeyKind",
     "MatchKeys",
@@ -95,6 +107,48 @@ class MatchKeys:
     corroborating_emails: frozenset[str] = field(default=frozenset(), repr=False)
     titles: frozenset[str] = field(default=frozenset(), repr=False)
     employers: frozenset[str] = field(default=frozenset(), repr=False)
+    # Kinds the contribution offered but an Identity Exclusion barred (task 16.6).
+    barred_kinds: frozenset[MatchKeyKind] = field(default=frozenset(), repr=False)
+
+
+@dataclass(frozen=True)
+class IdentityExclusions:
+    """Normalised values barred from acting as a Match Key (8.13); personal data."""
+
+    linkedin_urls: frozenset[str] = field(default=frozenset(), repr=False)
+    emails: frozenset[str] = field(default=frozenset(), repr=False)
+
+    @classmethod
+    def from_values(
+        cls, *, linkedin_urls: Iterable[str] = (), emails: Iterable[str] = ()
+    ) -> "IdentityExclusions":
+        """Normalise as key extraction does; an unusable value is an error."""
+        urls_in, emails_in = tuple(linkedin_urls), tuple(emails)
+        if not all(isinstance(v, str) for v in (*urls_in, *emails_in)):
+            raise ValueError("an Identity Exclusion must name a usable key value")
+        urls = {normalize_linkedin_url(u) for u in urls_in}
+        addresses = {normalize_email(e) for e in emails_in}
+        if None in urls or None in addresses:
+            raise ValueError("an Identity Exclusion must name a usable key value")
+        return cls(
+            frozenset(u for u in urls if u), frozenset(a for a in addresses if a)
+        )
+
+    def bars(self, key: MatchKey) -> bool:
+        if key.kind is MatchKeyKind.LINKEDIN_URL:
+            return key.value in self.linkedin_urls
+        if key.kind is MatchKeyKind.VERIFIED_EMAIL:
+            return key.value in self.emails
+        return False
+
+    @property
+    def version_token(self) -> str:
+        """Digest of the set: equal sets agree, any change differs (8.13)."""
+        entries = sorted(
+            [f"{MatchKeyKind.LINKEDIN_URL.value}\x1f{u}" for u in self.linkedin_urls]
+            + [f"{MatchKeyKind.VERIFIED_EMAIL.value}\x1f{e}" for e in self.emails]
+        )
+        return sha256("\x1e".join(entries).encode("utf-8")).hexdigest()
 
 
 def corroborates(a: MatchKeys, b: MatchKeys) -> bool:
@@ -102,8 +156,13 @@ def corroborates(a: MatchKeys, b: MatchKeys) -> bool:
     return bool(a.titles & b.titles) or bool(a.employers & b.employers)
 
 
-def extract_match_keys(contribution: LeadContribution) -> MatchKeys:
-    """The Match Keys of ``contribution``, strongest kind first, and its evidence."""
+def extract_match_keys(
+    contribution: LeadContribution, exclusions: IdentityExclusions | None = None
+) -> MatchKeys:
+    """The Match Keys of ``contribution``, strongest kind first, and its evidence.
+
+    Keys named by ``exclusions`` are skipped (8.13); their kinds go to ``barred_kinds``.
+    """
     values = contribution.values
     keys: set[MatchKey] = set()
 
@@ -129,8 +188,12 @@ def extract_match_keys(contribution: LeadContribution) -> MatchKeys:
                 )
             )
 
+    barred = (
+        {k for k in keys if exclusions.bars(k)} if exclusions is not None else set()
+    )
     return MatchKeys(
-        keys=tuple(sorted(keys)),
+        keys=tuple(sorted(keys - barred)),
+        barred_kinds=frozenset(k.kind for k in barred),
         corroborating_emails=corroborating,
         titles=_fold_set(_text(values, _TITLE)),
         employers=_fold_set(_text(values, _COMPANY_NAME)),
