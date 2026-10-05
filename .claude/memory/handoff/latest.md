@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T20:03:37+00:00
+- Written: 2026-10-05T20:12:34+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 19.3 review caught three real problems. The compliance-flag rule was unbounded fail-closed, so values like "false", "no" and 0 all counted as suppressed. A hostile LinkedIn URL could crash a run while reading identities, and a crash in the compliance path is itself a compliance failure. And HubSpot had its own flag rule, so the adapter, the pruning and the projection could disagree. There is now one documented definition used everywhere. The bullet is delivered, so I'll tick it. A name-only Hunter restriction still can't be matched to a lead, which is recorded as a spec gap for you. Finishing the task.
+I committed and pushed the session-state files. Task 19.4's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
