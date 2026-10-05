@@ -123,7 +123,7 @@ task = one commit.
   - Blocked on 4.1 for the port definition; parallel with 4.3 and 4.4, which touch separate modules
   - _Requirements: 4.1, 5.1, 5.2, 11.5_
 
-- [ ] 4.3 (P) Add the MCP transport seam with interactive-auth fallback
+- [x] 4.3 (P) Add the MCP transport seam with interactive-auth fallback
   - Satisfy the identical adapter contract over MCP so an MCP-backed source passes the same contract assertions as a REST-backed one
   - Fall back to REST transport or to synthetic mode when a server demands an interactive browser authorization flow, logging the reason for the fallback
   - Blocked on 4.1; parallel with 4.2 and 4.4
