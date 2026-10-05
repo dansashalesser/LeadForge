@@ -1,4 +1,4 @@
-"""Transport port and its REST implementation (task 4.1).
+"""Transport port, its REST implementation (4.1) and the fixture transport (4.2).
 
 Every provider call travels through ``Transport.send``. Nothing above the adapter
 contract sees an ``httpx`` type: requests are described by an ``Endpoint`` plus plain
@@ -6,9 +6,11 @@ mappings, and answers come back as a ``TransportResponse``. The transport only e
 reaches paths in the owning adapter's declared endpoint map (11.1).
 """
 
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
 
@@ -16,6 +18,7 @@ import httpx
 
 from leadforge.lead_ingestion.base_source import Endpoint
 from leadforge.lead_ingestion.errors import (
+    FixtureSchemaError,
     SourceTimedOut,
     SourceTransient,
     UndeclaredEndpointError,
@@ -24,6 +27,7 @@ from leadforge.lead_ingestion.errors import (
 __all__ = [
     "DEFAULT_CONNECT_TIMEOUT_S",
     "DEFAULT_READ_TIMEOUT_S",
+    "FixtureTransport",
     "RestTransport",
     "Transport",
     "TransportResponse",
@@ -33,6 +37,8 @@ DEFAULT_CONNECT_TIMEOUT_S = 5.0
 DEFAULT_READ_TIMEOUT_S = 30.0
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
+_FILE_STEM = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
+_DEFAULT_FIXTURES_ROOT = Path(__file__).parent / "fixtures"
 
 
 @dataclass(frozen=True)
@@ -115,6 +121,61 @@ class RestTransport:
             headers={k.lower(): v for k, v in response.headers.items()},
             body=body,
         )
+
+
+class FixtureTransport:
+    """``Transport`` that serves ``<root>/<provider>/<endpoint name>.json``.
+
+    Synthetic mode is this substitution, not a branch in any adapter: it holds no
+    socket, so a synthetic run cannot reach the network (4.1, 11.5), and the adapter's
+    raw-schema validation and ``normalize()`` run unchanged on what it returns (5.2).
+    The endpoint name is the key under which the adapter declares the endpoint.
+    """
+
+    def __init__(
+        self,
+        provider: str,
+        endpoints: Mapping[str, Endpoint],
+        *,
+        fixtures_root: Path | None = None,
+    ) -> None:
+        if not _FILE_STEM.fullmatch(provider):
+            raise ValueError(f"invalid provider name for fixtures: {provider!r}")
+        names: dict[Endpoint, str] = {}
+        for name, endpoint in endpoints.items():
+            if not _FILE_STEM.fullmatch(name):
+                raise ValueError(f"invalid endpoint name for fixtures: {name!r}")
+            if endpoint in names:
+                raise ValueError(
+                    f"endpoint {endpoint.path} declared as both "
+                    f"{names[endpoint]!r} and {name!r}"
+                )
+            names[endpoint] = name
+        self._provider = provider
+        self._names = names
+        self.fixtures_root = (
+            _DEFAULT_FIXTURES_ROOT if fixtures_root is None else fixtures_root
+        )
+
+    async def send(
+        self,
+        endpoint: Endpoint,
+        *,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str],
+    ) -> TransportResponse:
+        name = self._names.get(endpoint)
+        if name is None:
+            raise UndeclaredEndpointError(self._provider, path=endpoint.path)
+        label = f"{self._provider}/{name}.json"
+        try:
+            body: object = json.loads(
+                (self.fixtures_root / label).read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise FixtureSchemaError(self._provider, field=label) from exc
+        return TransportResponse(status=200, headers={}, body=body)
 
 
 def _fill_path(
