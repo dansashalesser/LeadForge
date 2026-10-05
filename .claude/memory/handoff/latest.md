@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T13:55:16+00:00
+- Written: 2026-10-05T14:00:38+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 11.6's code stays uncommitted until its implementer reports and the self-review is done.
+The 11.6 review ran 18 mutations. It fixed one real defect: a blank email or LinkedIn URL counted as an identity, so a single blank-keyed suppression report would have removed every lead without an email. The three surviving mutations are now killed too. Finishing the task. The full suite includes the structure-guard test.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git fetch -q; git status -sb | head -2; git status --short | grep -v "\.claude/memory"; git log --oneline | head -3; g
 - $ awk '/^- \[ \] 10\.3/{f=1} f{print} /^- \[.\] 11\.1/{exit}' specs/lead-source-adapters/tasks.md | cut -c1-700; ls src/
 - /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/finish.sh
 - /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/ledger-10.3.md
@@ -55,3 +54,4 @@ old="            self._error = str(
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.3 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.4 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.5 "feat(lea
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.6 "feat(lea
