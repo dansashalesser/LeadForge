@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T15:45:40+00:00
+- Written: 2026-10-05T15:50:59+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 15.3's code stays uncommitted until its implementer reports and the self-review is done.
+15.3 is committed and pushed, which completes the Hunter adapter. I'll tick the parent tasks whose sub-tasks are all done. Parent 14 stays open because 14.2 is unchecked.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.4 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.5 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.6 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.7 "feat(lea
@@ -51,3 +50,9 @@ old='raise SourceTimedOut(self._provid
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; sed -i 's|^sed -i "s/^- \\\[ \\\
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **LEFT UNCHECKED IN 
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Parent note:** the
+- $ python3 - <<'PY'
+import re
+p="specs/lead-source-adapters/tasks.md"
+L=open(p).read().split("\n")
+parents={}
+for i,l in 
