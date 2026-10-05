@@ -6,9 +6,10 @@ CRM state (contact exists, lifecycle stage, owner, last activity date, open deal
 the canonical compliance flags (13.2, 13.7). Both searches are POSTs because HubSpot
 takes its query in a body; they read and write nothing in HubSpot, so they are
 read-only ``Endpoint`` declarations. Client-side throttling with policy-aware backoff
-is task 13.2 in tasks.md; this module only declares the documented ``search`` bucket
-that the base class paces on. The transport is REST only: there is no MCP connection
-and no interactive authorization step (13.8).
+is task 13.2: the ``search`` bucket declared here is what the base class paces every
+search on, and ``classify_error`` reads HubSpot's ``policyName`` on a 429.
+The transport is REST only: there is no MCP connection and no interactive
+authorization step (13.8).
 
 Provisional decisions (see choices.md, task 13.1):
 
@@ -59,8 +60,14 @@ from leadforge.lead_ingestion.base_source import (
     RawBatch,
     SourceRequest,
     resolve_credentials,
+    retry_after_seconds,
 )
-from leadforge.lead_ingestion.errors import NormalizationError, SourceError
+from leadforge.lead_ingestion.errors import (
+    NormalizationError,
+    SourceError,
+    SourceQuotaExhausted,
+    SourceRateLimited,
+)
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.normalizer import (
     FieldRule,
@@ -68,7 +75,7 @@ from leadforge.lead_ingestion.normalizer import (
     Normalizer,
     validate_raw_payload,
 )
-from leadforge.lead_ingestion.transport import Transport
+from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 if TYPE_CHECKING:
     from leadforge.lead_ingestion.pacing import SourcePacing
@@ -80,6 +87,7 @@ MAX_CONTACTS_PER_LOOKUP = 100
 _TOKEN_ENV = "HUBSPOT_ACCESS_TOKEN"
 _VERSION_ENV = "HUBSPOT_API_VERSION"
 _VERSION_SHAPE = re.compile(r"[0-9]{4}-(?:0[1-9]|1[0-2])")
+_SEARCH_SPACING_S = 0.2
 _DOCS = "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm"
 
 _CONTACT_SEARCH = Endpoint(
@@ -88,6 +96,9 @@ _CONTACT_SEARCH = Endpoint(
 _DEAL_SEARCH = Endpoint(
     method="POST", path="/crm/objects/{version}/deals/search", bucket="search"
 )
+
+_DAILY_POLICIES = frozenset({"DAILY"})
+_SHORT_POLICIES = frozenset({"SECONDLY", "TEN_SECONDLY_ROLLING"})
 
 _CONTACT_PROPERTIES = (
     "lifecyclestage",
@@ -114,6 +125,12 @@ class _Record(BaseModel):
     lookup: StrictStr
     contact: _Contact | None = None
     open_deals_total: StrictInt | None = None
+
+
+def _policy_of(body: object) -> str:
+    """The upper-cased top-level ``policyName``, or ``""`` when absent or unreadable."""
+    name = body.get("policyName") if isinstance(body, Mapping) else None
+    return name.strip().upper() if isinstance(name, str) else ""
 
 
 def _text(value: object) -> object:
@@ -160,7 +177,13 @@ class HubSpotSource(BaseLeadSource):
     rate_limit: ClassVar[Mapping[str, RateBucket]] = {
         "search": RateBucket(
             name="search",
-            windows=(RateWindow(requests=5, per_seconds=1.0),),
+            # The documented five per second, plus an even spacing of one per 0.2 s:
+            # a bare token bucket would admit five at once and one more 0.2 s later,
+            # six inside one second, which 13.4 forbids.
+            windows=(
+                RateWindow(requests=5, per_seconds=1.0),
+                RateWindow(requests=1, per_seconds=_SEARCH_SPACING_S),
+            ),
             documented=True,
             doc_url=_DOCS,
         )
@@ -244,6 +267,35 @@ class HubSpotSource(BaseLeadSource):
         return (
             {"authorization": f"Bearer {credentials[_TOKEN_ENV]}"},
             {"version": version},
+        )
+
+    def classify_error(
+        self, response: TransportResponse, *, endpoint: Endpoint
+    ) -> SourceError | None:
+        """HubSpot's reading of the conventional mapping, policy-aware on a 429 (13.6).
+
+        A 429 whose top-level ``policyName`` is ``DAILY`` is ``SourceQuotaExhausted``:
+        the day's allowance is spent and a retry cannot fix it. ``SECONDLY`` and
+        ``TEN_SECONDLY_ROLLING`` are ``SourceRateLimited`` with ``Retry-After`` when
+        usable. An absent, non-JSON, non-string or unknown policy is also
+        ``SourceRateLimited``: retry is bounded by the policy, whereas halting the
+        source would drop leads on a limit that may clear in seconds. This is the only
+        place the policy is read, and error text names the policy, never the body.
+        Every other status is the base default.
+        """
+        if response.status != 429:
+            return super().classify_error(response, endpoint=endpoint)
+        policy = _policy_of(response.body)
+        if policy in _DAILY_POLICIES:
+            return SourceQuotaExhausted(self.name, f"cause=policy_{policy.lower()}")
+        return SourceRateLimited(
+            self.name,
+            cause=(
+                f"policy_{policy.lower()}"
+                if policy in _SHORT_POLICIES
+                else "unrecognized_policy"
+            ),
+            retry_after_s=retry_after_seconds(response.headers),
         )
 
     async def fetch_raw(self, request: SourceRequest) -> RawBatch:

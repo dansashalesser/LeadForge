@@ -197,7 +197,10 @@ def test_endpoints_are_read_only_and_on_the_version_placeholder_path_only() -> N
 # Verifies: specs/lead-source-adapters/requirements.md#13.4
 def test_search_bucket_is_declared_as_five_per_second_documented() -> None:
     bucket = HubSpotSource.rate_limit["search"]
-    assert [(w.requests, w.per_seconds) for w in bucket.windows] == [(5, 1.0)]
+    assert [(w.requests, w.per_seconds) for w in bucket.windows] == [
+        (5, 1.0),
+        (1, 0.2),  # even spacing, so no one second ever holds six (13.4)
+    ]
     assert bucket.documented is True
     assert {e.bucket for e in HubSpotSource.endpoints.values()} == {"search"}
 

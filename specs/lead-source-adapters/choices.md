@@ -1274,3 +1274,32 @@ Known gaps:
 - needs-follow-up: `.env.example` leaves `HUBSPOT_API_VERSION=` empty with no documented value (research.md suggests 2026-09).
 - needs-follow-up: a contact search with total above 100 is silently truncated, and one deal search is made per contact found (no total call cap beyond the work list).
 - needs-follow-up: HubSpot property names and the `associations.contact` deal filter are unverified against a live portal; fixtures are hand-made.
+
+## Task 13.2 — Throttle HubSpot search client-side with policy-aware backoff (2026-10-05)
+Evidence: wrote tests/adapters/test_hubspot_throttle.py first; first run 16 failed, 6 passed (policy classification and the six-in-one-second pacing test failed), then implemented; all green. `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 1664 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- 429 with policyName DAILY is `SourceQuotaExhausted` (halts source for the run, no retry); SECONDLY and TEN_SECONDLY_ROLLING are `SourceRateLimited` with Retry-After; rejected treating daily as a long-interval `SourceRateLimited` (retry cannot fix it; design Error Categories separates the two rows).
+- Absent, non-JSON, non-str, blank or unknown policyName defaults to `SourceRateLimited` (cause `unrecognized_policy`); rejected defaulting to quota exhaustion, since halting would drop leads on a limit that may clear in seconds, while retry is bounded.
+- policyName read only from the top-level body field, trimmed and case-insensitive; rejected a nested `error.policyName` lookup.
+- Retry-After is honoured for short policies, ignored for DAILY.
+- Error text carries only `cause=policy_<name>` or `unrecognized_policy`, never the body.
+- The `search` bucket gained a second window, 1 request per 0.2 s (even spacing) next to the documented 5 per 1 s, because the token bucket otherwise admits 5 at once plus 1 more 0.2 s later (six in one second, against 13.4). Rejected keeping the single honest window. This changed the 13.1 test `test_search_bucket_is_declared_as_five_per_second_documented` (assertion now lists both windows).
+- 13.1 endpoint declarations were already right (both searches on `search`); no account-burst bucket added.
+### Known gaps (needs-follow-up)
+- Policy names (SECONDLY, TEN_SECONDLY_ROLLING, DAILY) and top-level placement are from memory and the spec text; developers.hubspot.com could not be checked, and no captured 429 fixture exists (tests use inline stand-in bodies).
+- The 0.2 s spacing makes five lookups take about one second even when HubSpot would allow a burst; owner may prefer the plain window.
+- Nothing builds HubSpotSource with real pacing in production yet (no bootstrap), so end-to-end pacing is verified only with a fake clock.
+- No property test; self-review not run (no Agent tool).
+
+### Self-review findings
+Fixed (no defect found in hubspot.py; test gap only):
+- Added two end-to-end tests to tests/adapters/test_hubspot_throttle.py driving the real HubSpotSource + RetryPolicy + orchestrator: DAILY -> QUOTA_EXHAUSTED, 1 attempt, 0 retries, other source OK; SECONDLY / unknown policy / non-JSON body -> RATE_LIMITED, bounded at max_attempts (3 attempts, 2 retries).
+- Mutations run and killed by existing tests: DAILY->rate-limited, SECONDLY->quota, unknown->quota, spacing window removed (fake-clock test fails), body echoed into error text, policy read from a header. Files restored (diff verified).
+- Checked: deals/search is in the same `search` bucket (right); classification only in HubSpot.classify_error (nothing above reads policyName/status for HubSpot); non-429 uses super().
+
+Known gaps:
+- needs-follow-up: policy names DAILY / SECONDLY / TEN_SECONDLY_ROLLING are UNVERIFIED; research.md and requirements.md name none of them (13.6 says only "secondly versus daily").
+- needs-follow-up: a failure mid-fetch (e.g. DAILY on the 2nd email) discards the whole batch, including opt-out contacts already found; prune_flagged then cannot exclude them. Spec silent; partial-result design is outside 13.2.
+- needs-follow-up: `bucket.documented=True` for 5/s is from requirement 13.4 text, not a verified HubSpot doc page.
+- Skipped: str.upper() Unicode folding (e.g. dotless i) can match "DAILY"; harmless.

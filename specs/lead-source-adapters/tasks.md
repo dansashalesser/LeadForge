@@ -384,7 +384,7 @@ task = one commit.
   - Parallel with 12.x, 14.x, and 15.x. Within this major, run 13.1 before 13.2
   - _Requirements: 13.1, 13.2, 13.3, 13.7, 13.8_
 
-- [ ] 13.2 (P) Throttle HubSpot search client-side with policy-aware backoff
+- [x] 13.2 (P) Throttle HubSpot search client-side with policy-aware backoff
   - Throttle search calls to the documented search-specific limit of five requests per second per token, independent of the account burst limit
   - Keep the bucket purely client-side, since HubSpot returns no rate-limit headers on search responses
   - Read the policy name from a throttling error body to tell a per-second limit from a daily one and back off accordingly
