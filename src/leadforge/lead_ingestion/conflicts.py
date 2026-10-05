@@ -49,6 +49,7 @@ __all__ = [
     "FieldCandidate",
     "FieldResolution",
     "resolve_conflicts",
+    "validate_trust_ranks",
 ]
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
@@ -93,10 +94,8 @@ class ClusterResolution:
         raise KeyError(canonical_path)
 
 
-def resolve_conflicts(
-    cluster: IdentityCluster, trust_ranks: Mapping[str, int]
-) -> ClusterResolution:
-    """Resolve every path of ``cluster``; the result ignores contribution order."""
+def validate_trust_ranks(trust_ranks: Mapping[str, int]) -> None:
+    """Reject a trust rank that is not an int (bool included) or below the lowest."""
     for name, rank in trust_ranks.items():
         if not isinstance(rank, int) or isinstance(rank, bool):
             raise TypeError(f"trust rank of source {name!r} must be an int")
@@ -104,6 +103,13 @@ def resolve_conflicts(
             raise ValueError(
                 f"trust rank of source {name!r} must be >= {LOWEST_TRUST_RANK}"
             )
+
+
+def resolve_conflicts(
+    cluster: IdentityCluster, trust_ranks: Mapping[str, int]
+) -> ClusterResolution:
+    """Resolve every path of ``cluster``; the result ignores contribution order."""
+    validate_trust_ranks(trust_ranks)
 
     by_path: dict[str, list[tuple[tuple[Any, ...], str, FieldCandidate]]] = {}
     absences: list[SourceAbsence] = []

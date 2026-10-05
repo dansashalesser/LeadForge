@@ -509,7 +509,7 @@ task = one commit.
   - Blocked on 16.2
   - _Requirements: 8.16_
 
-- [ ] 16.10 Elect a display-only primary domain by trust-weighted vote
+- [x] 16.10 Elect a display-only primary domain by trust-weighted vote
   - Decide the chosen primary domain by a vote across contributing sources weighted by Source Trust Rank
   - Use it only for display and keep it absent from every match rule, so changing it alters no clustering outcome
   - Blocked on 16.9

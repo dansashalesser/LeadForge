@@ -1784,3 +1784,30 @@ Evidence: red phase seen per file (test_companies.py ImportError on missing comp
 - needs-follow-up: company_id changes when a cluster gains a domain (no stable id across runs, cf. 8.9 and the 16.2 cluster_id issue); needs a persisted id mapping.
 - needs-follow-up: project_lead now raises TypeError on a non-text winning company.domain (before: ignored silently); consistent with the orchestrator, error never echoes the value.
 - needs-follow-up: tldextract is pinned only by `>=5` plus uv.lock; no dated-snapshot assertion beyond the offline test.
+
+## Task 16.10 — Elect a display-only primary domain by trust-weighted vote (2026-10-05)
+Evidence: wrote tests/test_primary_domain.py first; first run = collection ImportError (primary_domain missing), red. After primary_domain.py: 4 failures, all test arithmetic or fixture faults (dedupe of repeat votes miscounted by me), fixed in the tests, not the code; then 32 green. `uv run ruff format src`, `ruff check src`, `mypy` (124 files) clean; `uv run pytest -q` 2362 passed, 1 skipped. No mutation checks run.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Voter = each `provider_ids` source of the CompanySignal naming the domain (CompanySignal has no other source field); a Signal with no provider_ids is one shared undeclared voter. Rejected: new source field on CompanySignal; one voter per anonymous Signal.
+- A source votes once per domain however often its records repeat it. Rejected: counting every record.
+- Weight = rank - LOWEST_TRUST_RANK + 1, so rank 0 and undeclared sources still weigh 1 and an all-unranked cluster decides by number of sources, not an all-zero tie. Rejected: weight = rank (all-zero ties escalate to the LLM for nothing). Ranks validated like conflicts.py (int, not bool, >= lowest; TypeError/ValueError).
+- Exact tie: result carries tied=True and sorted tied_domains (only the leaders); provisional winner = lowest-sorted tied domain (what 8.18 prescribes in synthetic mode). Rejected: raising, or a hash-based winner.
+- No usable domain (webmail only, none): domain None, not tied. Webmail/subdomains handled via companies.company_domains.
+- New module primary_domain.py (PrimaryDomain, elect_primary_domain(cluster, trust_ranks)); domain and tied_domains hidden from repr (personal data). Rank validation duplicated from conflicts.py (2 call sites, below the 3 for extraction).
+- Display-only proven by test: AST scan shows clustering/companies/match_keys/orchestrator/projection neither import it nor take a "primary*" parameter; ranks flip the election while clusters, company_id and per_company_work_list signature stay unchanged.
+- 16.9 SPEC GAP: electing a primary domain does NOT close any part of it (the gap is per-Lead company_id from unequal sets, and the name vote); this task adds no company-level resolution stage and does not wire the election into projection/CompanySignal.
+### Known gaps (needs-follow-up)
+- Bullet 1 (vote weighted by Source Trust Rank): delivered. Bullet 2 (display-only, absent from every match rule, changes no clustering outcome): delivered and tested. Bullet 3 (blocked on 16.9): satisfied.
+- Not wired: nothing calls elect_primary_domain yet and no model field stores or displays it; where it surfaces (projection, report, CLI) is a later decision.
+- 16.11 (LLM, persisted resolution, run-report flag) and 16.12 deferred; the tie is exposed as data only, the LLM is neither built nor imported (tested).
+- Voter identity comes only from provider_ids; a record whose source is not listed there votes as undeclared.
+
+### Self-review findings
+- Fixed: trust-rank validator was duplicated in primary_domain.py; extracted validate_trust_ranks in conflicts.py (behaviour-preserving; resolve_conflicts and elect_primary_domain both call it). Only existing file changed.
+- Added 9 tests (41 total): NaN/inf/float/None/huge-negative ranks (named error, no domain in message), huge int rank, source absent from mapping, tied_domains hidden from repr, win-by-one not a tie, trailing domain excluded from tie, multi-source signal, near-leader excluded from tied set, sourceless signals are one shared voter.
+- Mutation checks run, all restored byte-identical: ignore weights, count repeats, tie flag never set, tie winner last or first-seen, ranks ignored, lowest weighs 0, no validation, repr leaks domain or tied_domains, near-tie widening, per-signal undeclared voter, webmail unfiltered, empty string for no domain, primary_domain imported from clustering/match_keys/companies/orchestrator/projection. Initially surviving: tie-near and undeclared-per-signal, now killed by new tests.
+- Attribution verdict: a CompanyCluster keeps per-Signal domains and provider_ids, so each Signal sources vote for that Signal domains; exact when a Signal has one source. Delivered: both 16.10 bullets (trust-weighted vote; display-only, in no rule, import-direction and signature tests). Deferred: 16.11, 16.12. Tie returns tied=True, sorted tied_domains, lowest-sorted provisional winner (matches 8.18 synthetic rule); never blocks.
+- Weight = rank - LOWEST + 1 (lowest and unranked weigh 1): design choice, consistent with conflicts default of LOWEST_TRUST_RANK.
+- needs-follow-up: a Signal with several provider_ids and several domains credits every source to every domain (flat model cannot say which source supplied which); fine only while adapters emit one source per Signal.
+- needs-follow-up: 16.9 SPEC GAP (project_lead per Lead gives different company_ids for overlapping sets) untouched by this task.
