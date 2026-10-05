@@ -161,7 +161,7 @@ task = one commit.
 ---
 
 - [ ] 6. Lead Store persistence
-- [ ] 6.1 Define the append-only contribution log and projection schema
+- [x] 6.1 Define the append-only contribution log and projection schema
   - Typed ORM models for ingestion runs, per-source runs, raw responses, source contributions, contribution fields, Lead identities, Match Keys, the canonical Lead projection, and canonical field provenance
   - Make the Match Key table uniquely constrained on key type and value, so identity resolution is enforced by the database rather than by application logic
   - Restrict column types to the engine-portable set, with no dialect-specific types, no dialect-conditional branches, and no raw SQL strings outside migrations
