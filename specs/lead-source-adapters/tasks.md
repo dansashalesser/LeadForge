@@ -168,7 +168,7 @@ task = one commit.
   - Treat contributions and contribution fields as append-only: no code path updates or deletes them
   - _Requirements: 9.1, 9.4_
 
-- [ ] 6.2 Ship the schema through migrations only
+- [x] 6.2 Ship the schema through migrations only
   - Express every schema change as a migration revision, with the test suite upgrading to head
   - Perform no implicit schema creation on application startup
   - _Requirements: 9.7_
