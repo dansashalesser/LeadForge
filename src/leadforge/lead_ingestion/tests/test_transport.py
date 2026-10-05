@@ -160,6 +160,33 @@ async def test_connection_failure_maps_to_source_transient() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#20.1
-def test_non_json_body_yields_none() -> None:
-    resp = TransportResponse(status=200, headers={}, body=None)
+@respx.mock
+async def test_empty_or_non_json_body_yields_none() -> None:
+    respx.get(f"{BASE}/v1/people/1").mock(return_value=httpx.Response(204))
+    t = make()
+    resp = await t.send(LOOKUP, params={"id": "1"}, json_body=None, headers={})
+    await t.aclose()
     assert resp.body is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#11.1
+@pytest.mark.parametrize("value", ["..", ".", ""])
+async def test_path_placeholder_cannot_escape_the_declared_path(value: str) -> None:
+    t = make()
+    with pytest.raises(ValueError, match="path parameter"):
+        await t.send(LOOKUP, params={"id": value}, json_body=None, headers={})
+    await t.aclose()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#11.1
+@respx.mock
+async def test_redirects_are_not_followed() -> None:
+    respx.get(f"{BASE}/v1/people/1").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://evil.test/x"})
+    )
+    other = respx.get("https://evil.test/x").mock(return_value=httpx.Response(200))
+    t = make()
+    resp = await t.send(LOOKUP, params={"id": "1"}, json_body=None, headers={})
+    await t.aclose()
+    assert resp.status == 302
+    assert not other.called

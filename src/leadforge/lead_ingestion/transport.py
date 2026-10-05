@@ -77,7 +77,7 @@ class RestTransport:
             write=read_timeout_s,
             pool=connect_timeout_s,
         )
-        self._client = httpx.AsyncClient(base_url=base_url)
+        self._client = httpx.AsyncClient(base_url=base_url, follow_redirects=False)
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -127,8 +127,11 @@ def _fill_path(
         name = match.group(1)
         if name not in params:
             raise ValueError(f"missing path parameter {name!r} for {template}")
+        value = str(params[name])
+        if value in ("", ".", ".."):  # httpx collapses dot segments out of the path
+            raise ValueError(f"invalid path parameter {name!r} for {template}")
         used.add(name)
-        return quote(str(params[name]), safe="")
+        return quote(value, safe="")
 
     path = _PLACEHOLDER.sub(sub, template)
     return path, {k: _query_value(v) for k, v in params.items() if k not in used}
