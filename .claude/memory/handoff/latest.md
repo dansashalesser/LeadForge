@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T14:24:40+00:00
+- Written: 2026-10-05T14:29:01+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,15 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 12.2's code stays uncommitted until its implementer reports and the self-review is done.
+The 12.2 review found a real money bug and fixed it. The orchestrator retries a whole fetch, so a failure on the Nth id re-called the match for ids 1 to N-1 and spent their credits again. A per-run cache now pays for each id once. The reviewer also flagged a spec gap that needs your decision: Apollo only matches leads that already carry Apollo's own id. I'll collect those decisions for you at the end. Finishing the task.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git status --short | head -8; git add .claude/memory && git commit -q -m "chore: update session memory state
-
-Co-Autho
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; head -c 600 $S/ledger-7.4.md; ec
 - $ grep -n "lookup\|Collection\|Iterable\|set(\|frozenset" src/leadforge/lead_ingestion/identifier_validation.py | cut -c
 - $ sed -n 60,100p src/leadforge/lead_ingestion/identifier_validation.py; grep -n "ConfigurationError(" src/leadforge/lead
@@ -59,3 +56,4 @@ L=open(p).read().split("\n")
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 12.1 "feat(lea
 - $ git diff --stat .env.example; git diff .env.example | head -20; grep -n "env.example\|env_example" -r src/leadforge/le
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; sed -i 's|^git add src specs .cl
+- $ git status --short | grep -v "\.claude/memory"; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f6892990
