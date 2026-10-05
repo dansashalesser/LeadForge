@@ -109,7 +109,7 @@ task = one commit.
 ---
 
 - [ ] 4. Transport port
-- [ ] 4.1 Define the transport port with the REST implementation
+- [x] 4.1 Define the transport port with the REST implementation
   - One send interface over which every provider call travels, carrying an endpoint, parameters, body, and headers, with no transport-specific type or branch visible above the adapter contract
   - REST implementation with an explicit connect and read timeout on every request, never relying on library defaults
   - Reject at the transport any path not present in the calling adapter's declared endpoint map
