@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T17:06:23+00:00
+- Written: 2026-10-05T17:10:55+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 16.9 review found the core sound: order-independent clustering, a single normaliser for the pinned PSL and no runtime fetch. It made one fix, hiding a company's domains from the object's repr, since a person's own domain is personal data. It confirmed the 11.7 test update only changed the overlap expectation. The remaining projection gap needs the name vote that task 16.10 introduces, so it's recorded as a spec gap. Finishing the task.
+I committed and pushed the session-state files. Task 16.10's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
