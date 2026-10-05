@@ -129,7 +129,7 @@ task = one commit.
   - Blocked on 4.1; parallel with 4.2 and 4.4
   - _Requirements: 20.2, 20.5_
 
-- [ ] 4.4 (P) Define the authentication strategy port with a token cache
+- [x] 4.4 (P) Define the authentication strategy port with a token cache
   - Strategies for the schemes the four built adapters need: custom key header, bearer token, and request-parameter key
   - Keep an OAuth2 client-credentials strategy backed by a token cache that refreshes before the stated validity window expires and reuses one token across many calls, so the authentication abstraction is not shaped around static-header schemes alone
   - Resolve every credential from the declared environment variable names only
