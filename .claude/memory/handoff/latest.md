@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T15:11:56+00:00
+- Written: 2026-10-05T15:14:34+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 14.2 review found the code safe, since the prompt-injection handling holds up, but it flagged a real spec gap. The task says to contribute web evidence as Company Signals with Signal Strength recorded at ingestion. The adapter instead emits flat `company.web_evidence.*` values, with no strength, no tech/intent kind and no company name or domain. As built, the contributions can't attach to any company. Ticking the task would overstate what's done, so I'll commit the work, leave 14.2 unchecked and record the gap prominently.
+I committed and pushed the session-state files. Task 14.3's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
