@@ -226,7 +226,7 @@ task = one commit.
 
 ---
 
-- [ ] 8. Data mode resolution and credential manifest
+- [x] 8. Data mode resolution and credential manifest
 - [x] 8.1 (P) Resolve live versus synthetic mode with a stated reason
   - Resolve in precedence order: per-source configuration override first, then a global mode override, then a live-access classification of unavailable, then all declared credentials present, then synthetic with the missing variable names as the reason
   - Honour a per-source override even when a credential is present
@@ -248,7 +248,7 @@ task = one commit.
   - Blocked on 7.3 for the registry listing; parallel with 8.1, 8.2, and 8.4
   - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 8.4 (P) Redact credential values from every log and report
+- [x] 8.4 (P) Redact credential values from every log and report
   - Seed a log redaction processor with the values of every variable in the credential manifest at startup, so an accidental interpolation is scrubbed before emission
   - Emit structured logs that carry no credential value and no full raw provider payload
   - Assert no log line and no database row outside the raw-response table contains a credential value
