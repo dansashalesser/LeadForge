@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 from pydantic import Field, model_validator
 
 from leadforge.lead_ingestion.errors import (
+    FixtureSchemaError,
     InvalidAbsenceError,
     MissingCredentialError,
     SourceError,
@@ -490,6 +491,21 @@ class BaseLeadSource(ABC):
 
     @abstractmethod
     def normalize(self, raw: RawBatch) -> list[LeadContribution]: ...
+
+    @classmethod
+    def validate_fixture(cls, endpoint: str, body: object) -> None:
+        """Check one endpoint's fixture body against this adapter's raw schema (5.3).
+
+        An adapter that ships a fixture overrides this with its own raw models and
+        raises ``NormalizationError`` naming the first offending field. The default
+        refuses, so a source with fixtures and no declared schema cannot pass.
+        """
+        raise FixtureSchemaError(cls.name, field=f"{endpoint}: no raw schema declared")
+
+    @classmethod
+    def validate_reference_file(cls, file: str, text: str) -> None:
+        """Check a non-JSON reference file with the adapter's own loader (5.3)."""
+        raise FixtureSchemaError(cls.name, field=f"{file}: no loader declared")
 
     def target_term_absence(
         self, term: str, *, vocabulary: Mapping[str, object] | None = None

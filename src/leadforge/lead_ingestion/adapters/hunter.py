@@ -558,6 +558,23 @@ class HunterSource(BaseLeadSource):
             _log.warning("hunter_verification_unfinished", reason=reason, polls=polls)
             return None  # no verdict: the address stays unknown, the batch goes on
 
+    @classmethod
+    def validate_fixture(cls, endpoint: str, body: object) -> None:
+        checks: dict[str, tuple[type[BaseModel], tuple[FieldRule, ...]]] = {
+            "domain_search": (_Response, cls.RULES),
+            "email_finder": (_FoundResponse, cls.FINDER_RULES),
+            "email_verifier": (_VerdictResponse, cls.VERIFIER_RULES),
+        }
+        if endpoint not in checks:
+            super().validate_fixture(endpoint, body)
+            return
+        model, rules = checks[endpoint]
+        if not isinstance(body, Mapping):
+            raise NormalizationError(
+                cls.name, raw_field_path="data", canonical_path="<unmapped>"
+            )
+        validate_raw_payload(cls.name, model, body, rules)
+
     def normalize(self, raw: RawBatch) -> list[LeadContribution]:
         context = NormalizationContext(
             source_name=self.name,

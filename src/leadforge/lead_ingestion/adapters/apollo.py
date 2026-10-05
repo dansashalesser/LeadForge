@@ -52,6 +52,7 @@ Provisional decisions (see choices.md, task 12.1):
 """
 
 import csv
+import io
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -410,6 +411,30 @@ class ApolloSource(BaseLeadSource):
             for person in found
         ]
 
+    @classmethod
+    def validate_fixture(cls, endpoint: str, body: object) -> None:
+        if endpoint == "match":
+            checked = _require(body)
+            validate_raw_payload(cls.name, _Match, checked, cls.MATCH_RULES)
+            return
+        if endpoint != "search":
+            super().validate_fixture(endpoint, body)
+            return
+        people = _require(body).get("people")
+        if not isinstance(people, list):
+            raise NormalizationError(
+                cls.name, raw_field_path="people", canonical_path="<unmapped>"
+            )
+        for person in people:
+            validate_raw_payload(cls.name, _Person, _require(person), cls.RULES)
+
+    @classmethod
+    def validate_reference_file(cls, file: str, text: str) -> None:
+        if file != SUPPORTED_TECHNOLOGIES_SNAPSHOT.name:
+            super().validate_reference_file(file, text)
+            return
+        _check_technology_snapshot(cls.name, text)
+
     def _normalize_matches(self, raw: RawBatch) -> list[LeadContribution]:
         context = NormalizationContext(
             source_name=self.name,
@@ -520,3 +545,33 @@ def _uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
 def _supported_technologies() -> frozenset[str]:
     with SUPPORTED_TECHNOLOGIES_SNAPSHOT.open(encoding="utf-8", newline="") as handle:
         return frozenset(row["uid"] for row in csv.DictReader(handle))
+
+
+def _check_technology_snapshot(provider: str, text: str) -> None:
+    """Fixture-guard check of the snapshot: a ``uid`` column, rows, no blank uid.
+
+    Stricter than the loader a run uses (a blank uid there is merely a uid that matches
+    nothing), so a damaged snapshot fails the suite without stopping a live run. The
+    error is raised outside the ``except`` so no csv text rides along in its context.
+    """
+    uids: list[str | None] = []
+    readable = True
+    try:
+        reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
+        uids = [row.get("uid") for row in reader]
+        readable = "uid" in (reader.fieldnames or ())
+    except csv.Error:
+        readable = False
+    if not readable or not uids or not all(u and u.strip() for u in uids):
+        raise NormalizationError(
+            provider, raw_field_path="uid", canonical_path="<unmapped>"
+        )
+
+
+def _require(value: object) -> Mapping[str, object]:
+    """A fixture record must be a JSON object; anything else is a schema break."""
+    if not isinstance(value, Mapping):
+        raise NormalizationError(
+            ApolloSource.name, raw_field_path="<record>", canonical_path="<unmapped>"
+        )
+    return value

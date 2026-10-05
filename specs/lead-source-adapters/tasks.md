@@ -536,7 +536,7 @@ task = one commit.
   - Touches every adapter's fixture directory, so not concurrent with 12.x through 15.x
   - _Requirements: 5.1, 5.6_
 
-- [ ] 17.2 (P) Validate every fixture against its declared raw schema
+- [x] 17.2 (P) Validate every fixture against its declared raw schema
   - One test per provider asserting its fixtures validate against the adapter's declared raw schema
   - Fail the suite naming the provider and the failing field when a fixture violates its schema
   - Blocked on 17.1; parallel with 17.3 — separate test modules

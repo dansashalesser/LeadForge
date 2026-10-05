@@ -377,13 +377,7 @@ class HubSpotSource(BaseLeadSource):
             },
             headers=headers,
         )
-        body = response.body
-        total = body.get("total") if isinstance(body, Mapping) else None
-        if not isinstance(total, int) or isinstance(total, bool) or total < 0:
-            raise NormalizationError(
-                self.name, raw_field_path="total", canonical_path="<unmapped>"
-            )
-        return total
+        return _open_deal_total(self.name, response.body)
 
     def normalize(self, raw: RawBatch) -> list[LeadContribution]:
         payload = raw.payload
@@ -419,6 +413,17 @@ class HubSpotSource(BaseLeadSource):
             contributions.append(normalizer.apply(checked, self.RULES, context))
         return contributions
 
+    @classmethod
+    def validate_fixture(cls, endpoint: str, body: object) -> None:
+        if endpoint == "contact_search":
+            for contact in _results_of(cls.name, body):
+                record = {"lookup": "fixture", "contact": contact}
+                validate_raw_payload(cls.name, _Record, record, cls.RULES)
+        elif endpoint == "deal_search":
+            _open_deal_total(cls.name, body)
+        else:
+            super().validate_fixture(endpoint, body)
+
     def _records(self, lookups: list[object]) -> list[Mapping[str, object]]:
         """One record per contact found, or one empty record for an unknown email."""
         records: list[Mapping[str, object]] = []
@@ -451,6 +456,15 @@ def _results_of(provider: str, body: object) -> list[Mapping[str, Any]]:
             provider, raw_field_path="results", canonical_path="<unmapped>"
         )
     return results
+
+
+def _open_deal_total(provider: str, body: object) -> int:
+    total = body.get("total") if isinstance(body, Mapping) else None
+    if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+        raise NormalizationError(
+            provider, raw_field_path="total", canonical_path="<unmapped>"
+        )
+    return total
 
 
 def _emails_of(work_list: tuple[LeadContribution, ...]) -> list[str]:

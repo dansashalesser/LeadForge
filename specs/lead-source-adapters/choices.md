@@ -1858,3 +1858,39 @@ Known gaps:
 - Kept: the loader is test-time only; neither 5.x nor the design says FixtureTransport consults the manifest at runtime.
 - SPEC GAP: requirement 5.6 asks for "the date the schema was verified"; no date can be truthfully recorded today because the provider doc pages were not checked from this environment. needs-follow-up: verify each shape against its page, then flip the record to `verified` with the date (the shipped-records test must be updated at that point).
 - needs-follow-up: `api_version` is null everywhere (no version known); `recorded_on` is the authoring date for hand-made files.
+
+## Task 17.2 — Validate every fixture against its declared raw schema (2026-10-05)
+Evidence: wrote tests/test_fixture_schema.py first; run 1 = collection ModuleNotFoundError (fixture_schema missing), red. After fixture_schema.py + base hooks only, 35 failed / 52 passed (adapters had no schema hooks), red. After adapter hooks all green. Vendor-named mutation tests live in tests/adapters/test_fixture_schema_mutations.py (written in the same red-first pass, split afterwards because test_vendor_neutrality scans tests/ outside adapters/). `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q`: 2590 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Validation is test-time plus a callable (`fixture_schema.validate_fixture_schemas`), NOT wired into FixtureTransport at startup: 5.2 already runs raw-schema validation via normalize() in synthetic mode and 5.4 only asks the suite to fail. Rejected: load-time validation in the transport.
+- Per-adapter hooks `BaseLeadSource.validate_fixture(endpoint, body)` and `validate_reference_file(file, text)` (classmethods; base default refuses with FixtureSchemaError) rather than a central endpoint-to-model table: keeps "new source = one module plus fixtures" (3.x) and vendor names inside adapters/. Rejected: central mapping module.
+- Error field format `<file>:<raw field path>` (dotted, record-relative, no array index beyond pydantic's `emails.0`), `<file>` alone for unreadable/non-JSON/non-object/oversize/too-deep files, `<endpoint>: no raw schema declared` for a source with no hook. No values echoed.
+- MAX_FIXTURE_BYTES = 1,000,000 cap; RecursionError from the JSON parser treated as unreadable.
+- Reference CSV validated by the Apollo loader's own parsing (`_technology_uids`, now shared with `_supported_technologies`): requires a `uid` column, at least one row, no blank uid. Behaviour change in the production loader: a blank uid or empty snapshot now raises NormalizationError (was KeyError / accepted). Rejected: documenting an exemption.
+- HubSpot deal_search has no Pydantic model; its check is the adapter's existing `total` rule, extracted to `_open_deal_total` and shared with fetch_raw. Google `_page_evidence` refactored into `_blocks_of`/`_checked` shared with the fixture hook.
+- No fixture needed fixing and no schema was weakened.
+### Known gaps (needs-follow-up)
+- No declared raw model forbids extras (all tolerate unknown fields), so the "unknown field where schema forbids extras" mutation does not apply and is not tested. Design line 503 (every fixture field is mapped or in IGNORED) is not built: not in 5.3/5.4; belongs with 17.3 (5.5 no undefined field).
+- Fixtures remain unverified hand-made stand-ins; passing proves consistency with our schemas, not with the providers.
+- Task bullets: 1 (one test per provider asserting its fixtures validate) delivered: parametrized per fixture plus a per-provider test; 2 (fail naming provider and field) delivered; "Blocked on 17.1" satisfied; "(P) parallel with 17.3" respected, 17.3 not built.
+- Files: src/leadforge/lead_ingestion/{fixture_schema.py,base_source.py,adapters/{apollo,hubspot,hunter,google_search}.py,tests/test_fixture_schema.py,tests/adapters/test_fixture_schema_mutations.py}.
+
+### Self-review findings
+
+Fixed (each test-first, seen failing first). The "behaviour change in the production loader" decision above is SUPERSEDED by item 2.
+1. Fixture content leaked through `__cause__`/`__context__` (JSONDecodeError keeps the whole document, UnicodeDecodeError the bytes, pydantic ValidationError the input value). `fixture_schema.py` now raises FixtureSchemaError outside any `except`, so the chain is empty. Test: `test_a_failure_carries_no_chained_exception_that_holds_fixture_content`.
+2. Apollo production loader tightening reverted. `_supported_technologies()` (used by the ApolloSource constructor, live and synthetic) is the original lenient loader again, because a blank uid or empty snapshot would otherwise stop a run. The strict check is now `_check_technology_snapshot`, used only by `validate_reference_file`. It also catches `csv.Error` (an oversized field escaped raw) and uses `strict=True` (unterminated quote). Tests: hostile-CSV and `test_the_production_snapshot_loader_stays_lenient`.
+3. Duplicate JSON keys were silently accepted (last wins, hides drift); now a file-level FixtureSchemaError.
+4. A symlinked fixture file was followed by `validate_fixture_file`; now refused.
+5. Added whole-tree tests for an unlisted file and a manifest-listed absent file (only one weak test caught a removed tree check).
+6. A test I added hard-coded vendor names outside adapters/ and tripped test_vendor_neutrality; now generic.
+
+Verified claims: 5.2 validates at runtime only the fixtures a run actually fetches, via normalize(); 5.4 asks only for a suite failure, so test-time-only is acceptable. Mutations (skip validation, echo content, default accepts, wrong provider, field path dropped, tree check removed) each fail the suite. Full suite 2601 passed, ruff and mypy clean, whole-tree validation under 1 s.
+
+Task bullets: both 17.2 bullets delivered (per-provider validation; failure naming provider and field). 17.3 not touched.
+
+Known gaps:
+- needs-follow-up: no raw model uses `extra="forbid"`, so an unknown extra field in a fixture is tolerated. design.md line 503 says fixture fields must be mapped or listed as ignored; `unmapped_raw_paths` runs in the adapter tests, not in this guard. SPEC GAP candidate for 5.5 "no fixture carries a field its provider does not define" (17.3).
+- needs-follow-up: a ValueError from a bug inside an adapter's validate_fixture is reported as a file-level failure instead of surfacing.
+- Non-UTF8, BOM, non-object and duplicate-key files fail at file level (field = file name, no path) by design.

@@ -329,6 +329,56 @@ class GoogleSearchSource(BaseLeadSource):
                 )
         return contributions
 
+    @classmethod
+    def _blocks_of(
+        cls, page: Mapping[str, Any]
+    ) -> list[tuple[str, Any, type[BaseModel], tuple[FieldRule, ...]]]:
+        organic = page.get("organic_results")
+        if organic is not None and not isinstance(organic, list):
+            raise _unmapped(cls.name, "organic_results")
+        blocks: list[tuple[str, Any, type[BaseModel], tuple[FieldRule, ...]]] = [
+            ("organic_results", item, _OrganicRecord, cls.ORGANIC_RULES)
+            for item in organic or []
+        ]
+        optional: tuple[tuple[str, type[BaseModel], tuple[FieldRule, ...]], ...] = (
+            ("answer_box", _AnswerBoxRecord, cls.ANSWER_BOX_RULES),
+            ("knowledge_graph", _KnowledgeGraphRecord, cls.KNOWLEDGE_GRAPH_RULES),
+        )
+        for block, model, rules in optional:
+            if page.get(block) is not None:
+                blocks.append((block, page[block], model, rules))
+        return blocks
+
+    @classmethod
+    def _checked(
+        cls,
+        block: str,
+        result: object,
+        model: type[BaseModel],
+        rules: tuple[FieldRule, ...],
+        query: str,
+        retrieved_on: date,
+    ) -> Mapping[str, object]:
+        if not isinstance(result, Mapping):
+            raise _unmapped(cls.name, block)
+        wrapped = {
+            "query": query,
+            "block": block,
+            "retrieved_on": retrieved_on.isoformat(),
+            "result": result,
+        }
+        return validate_raw_payload(cls.name, model, wrapped, rules)
+
+    @classmethod
+    def validate_fixture(cls, endpoint: str, body: object) -> None:
+        if endpoint != "search":
+            super().validate_fixture(endpoint, body)
+            return
+        if not isinstance(body, Mapping):
+            raise _unmapped(cls.name, "<response>")
+        for block, result, model, rules in cls._blocks_of(body):
+            cls._checked(block, result, model, rules, "fixture", date.min)
+
     def _page_evidence(
         self,
         page: Mapping[str, Any],
@@ -340,36 +390,12 @@ class GoogleSearchSource(BaseLeadSource):
 
         An absent or null block is no evidence; a block of the wrong shape raises.
         """
-        organic = page.get("organic_results")
-        if organic is not None and not isinstance(organic, list):
-            raise _unmapped(self.name, "organic_results")
-        blocks: list[tuple[str, Any, type[BaseModel], tuple[FieldRule, ...]]] = [
-            ("organic_results", item, _OrganicRecord, self.ORGANIC_RULES)
-            for item in organic or []
-        ]
-        optional: tuple[tuple[str, type[BaseModel], tuple[FieldRule, ...]], ...] = (
-            ("answer_box", _AnswerBoxRecord, self.ANSWER_BOX_RULES),
-            ("knowledge_graph", _KnowledgeGraphRecord, self.KNOWLEDGE_GRAPH_RULES),
-        )
-        for block, model, rules in optional:
-            if page.get(block) is not None:
-                blocks.append((block, page[block], model, rules))
+        blocks = self._blocks_of(page)
         normalizer = Normalizer()
         found: list[LeadContribution] = []
         for block, result, model, rules in blocks:
-            if not isinstance(result, Mapping):
-                raise _unmapped(self.name, block)
-            wrapped = {
-                "query": query,
-                "block": block,
-                "retrieved_on": retrieved_on.isoformat(),
-                "result": result,
-            }
-            contribution = normalizer.apply(
-                validate_raw_payload(self.name, model, wrapped, rules),
-                rules,
-                context,
-            )
+            checked = self._checked(block, result, model, rules, query, retrieved_on)
+            contribution = normalizer.apply(checked, rules, context)
             if any(path in contribution.values for path in _EVIDENCE_PATHS):
                 found.append(contribution)
         return found
