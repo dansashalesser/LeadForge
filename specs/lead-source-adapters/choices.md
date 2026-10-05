@@ -1733,3 +1733,27 @@ Evidence: new tests/test_role_addresses.py (39 tests): first run was a collectio
 - Requirement 8.14 wording ("disqualify as a match key", "two or more distinct normalized person names", no role-word list per design.md and ADR-0003) is fully matched; no role-word list is required, none built.
 - Delivered: all three 16.7 bullets (structural bar independent of exclusions; role-address proof with empty exclusion set; shares the key-extraction module).
 - Known gaps: disqualified unverified/accept_all address still counts as corroborating evidence (not a key, so within 8.14) needs-follow-up if the owner wants it dropped; zero-width characters in names make names distinct (same as the name key; under-merge only) needs-follow-up.
+
+## Task 16.8 — Flag suspected Over-merges without blocking the run (2026-10-05)
+Evidence: wrote tests/test_over_merge.py first; first run = collection ImportError (over_merge missing), red. After code: one test-fixture fault (FieldProvenance.untrusted, project_lead trust_ranks) fixed, then 33 green. Mutations caught: cluster ids in the log line (2 fail), threshold >=1 name (20 fail); restored. `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 2305 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Only signal built is the requirement's: two or more distinct normalised full names. Rejected: two verified emails / two LinkedIn URLs / key-less bridge signals (not in 8.15; a bridge is caught only if its members carry distinct names).
+- "Distinct name" reuses the 8.14 rule via new public match_keys.normalized_person_name (full_name else first+last, NFKC/casefold/whitespace; blank or masked `*` is not a name); DisqualifiedAddresses now calls it. Rejected: fuzzy or prefix-unmasked comparison.
+- Report (SuspectCluster) carries cluster_id (pseudonym, repr hidden), reason codes, distinct_name_count, member_count; NO names, emails or URLs. Operator finds members by id in the DB to write an Exclusion. Rejected: carrying personal values on the report.
+- Log line is counts-only (clusters_examined, suspect_clusters), WARNING if any suspect else INFO; cluster ids never logged.
+- Odd input (empty, nameless, masked) reports nothing; a non-text name raises TypeError naming the type only, as clustering does. Rejected: catching it (silent fallback).
+- Reports sorted by cluster_id; one name normalisation per member (call-count test on 5,000).
+### Known gaps (needs-follow-up)
+- Bullet 1 (flag clusters with 2+ distinct names, run not halted): delivered as a returned report plus log line. Bullet 2 (prove over-merged named, correct not): delivered. Bullet 3 (blocked on 16.2; run-report warning surface): 16.2 satisfied; the run-report surface (18.x) does not exist, so nothing is written to it and the orchestrator does not call the detector yet. Deferred.
+- Persisting reports in the store is not built.
+- Cluster ids are pseudonyms; how an operator maps an id to members (a CLI or query) is not built.
+
+### Self-review findings
+- Fixed (test-first, saw it fail): detector raised TypeError on a non-text name, which could abort a run (8.15 "without blocking"). Now the member is skipped and counted in the counts-only log as `unreadable_names`; nothing echoed. Clustering already rejects such input first, so only hand-built clusters reach it.
+- Added test: 'Lee, Ann' vs 'Ann Lee' is flagged (accepted false positive, consistent with 16.7 normalisation).
+- Mutation-checked (all caught by tests): threshold 1 and 3, masked names counted, unsorted report, cluster id logged, name logged, detector mutating a cluster, raising on keyless cluster, un-normalised names. Files restored exactly.
+- 8.15 lists exactly one signal (two distinct non-null normalised full names); no further signals owed. 16.7 behaviour unchanged (full suite 2306 passed, ruff, mypy clean).
+- Delivered: 16.8 bullet 1 (detection, never blocks) and bullet 2 (proof test). Deferred: writing to the run report surface (18.x; task says blocked on/shares 18.1, so wiring out of scope).
+- needs-follow-up: operator handle. Report carries only cluster_id (pseudonym that changes when membership changes, 16.2) and counts; an operator must locate members by recomputing clusters to write a 16.6 Identity Exclusion (barred values). Requirement 8.15 only says "named", so not a SPEC GAP, but 18.x should decide whether the stored report may carry the contributing emails/LinkedIn URLs (never in logs).
+- needs-follow-up: key-less bridge, two verified emails, weak-key merges are not flagged (not in 8.15).

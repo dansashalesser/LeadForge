@@ -496,7 +496,7 @@ task = one commit.
   - Blocked on 16.1 — shares the key-extraction module
   - _Requirements: 8.14_
 
-- [ ] 16.8 Flag suspected Over-merges without blocking the run
+- [x] 16.8 Flag suspected Over-merges without blocking the run
   - Flag on the run report any cluster carrying two or more distinct non-null full names that do not match under normalization, without halting the run
   - Prove a deliberately Over-merged cluster is named on the report and a correctly merged cluster is not
   - Blocked on 16.2; writes to the run-report warning surface, so not concurrent with 18.2

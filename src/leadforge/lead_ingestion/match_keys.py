@@ -76,6 +76,7 @@ __all__ = [
     "extract_match_keys",
     "normalize_email",
     "normalize_linkedin_url",
+    "normalized_person_name",
 ]
 
 _LINKEDIN = "person.linkedin_url"
@@ -181,8 +182,8 @@ class DisqualifiedAddresses:
         for contribution in contributions:
             values = contribution.values
             address = normalize_email(_text(values, _EMAIL))
-            name = _full_name(values)
-            if address and name and _MASK not in name:
+            name = normalized_person_name(values)
+            if address and name:
                 names.setdefault(address, set()).add(name)
         return cls(frozenset(a for a, found in names.items() if len(found) > 1))
 
@@ -293,6 +294,16 @@ def _full_name(values: Mapping[str, object]) -> str | None:
     first, last = _text(values, _FIRST_NAME), _text(values, _LAST_NAME)
     joined = _fold(f"{first or ''} {last or ''}") if first and last else ""
     return joined or None
+
+
+def normalized_person_name(values: Mapping[str, object]) -> str | None:
+    """The name as the name key and 8.14 compare it; ``None`` when it is not a name.
+
+    Missing, blank and masked (any ``*``) names are not names (task 16.8 reuses 8.14's
+    rule so both agree on what "distinct" means).
+    """
+    name = _full_name(values)
+    return None if name is None or _MASK in name else name
 
 
 def _registrable_domains(value: object) -> list[str]:
