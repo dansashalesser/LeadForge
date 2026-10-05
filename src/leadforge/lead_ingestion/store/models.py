@@ -195,7 +195,12 @@ class ContributionField(Base):
     canonical_path: Mapped[str] = mapped_column(String(255))
     value: Mapped[Any] = mapped_column(JSON)
     raw_field_path: Mapped[str] = mapped_column(String(512))
-    confidence: Mapped[float] = mapped_column(Float)
+    # NULL when the provider stated no certainty (confidence_origin "none").
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # The classification lives in these three columns, never inside ``value``:
+    # ``untrusted`` marks provider free text, ``truncated`` and ``original_length``
+    # describe any cut to the configured bound (``original_length`` is NULL for
+    # trusted values). ``value`` holds the text verbatim as a plain JSON string.
     untrusted: Mapped[bool] = mapped_column(Boolean, default=False)
     truncated: Mapped[bool] = mapped_column(Boolean, default=False)
     original_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
