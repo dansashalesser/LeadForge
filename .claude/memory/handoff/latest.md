@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T14:13:22+00:00
+- Written: 2026-10-05T14:19:00+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,15 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 12.1 implementer is running in the background. I'll wait for its report before the self-review.
+`.env.example` shows as modified again after the commit. Something regenerates it, so I'll check what changed before leaving it.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/ledger-10.3.md
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 10.3 "feat(lea
-- $ grep -n "^- \[ \] [0-9]*\.[0-9]" specs/lead-source-adapters/tasks.md | cut -c1-120
 - $ git status --short | head -8; git add .claude/memory && git commit -q -m "chore: update session memory state
 
 Co-Autho
@@ -59,3 +56,6 @@ import re
 p="specs/lead-source-adapters/tasks.md"
 L=open(p).read().split("\n")
 # parent lines look li
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 12.1 "feat(lea
+- $ git diff --stat .env.example; git diff .env.example | head -20; grep -n "env.example\|env_example" -r src/leadforge/le
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; sed -i 's|^git add src specs .cl
