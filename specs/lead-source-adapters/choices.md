@@ -2109,3 +2109,45 @@ Known gaps:
 - needs-follow-up: Hunter 202 polling has no fixture, so polling is not driven from fixtures; the Hunter verifier is not reached in the composed run because HubSpot's opt-out report prunes the email lead (6.10), so it has a direct guarded test instead.
 - Decisions: any inet socket creation is refused, including a loopback listener (bind); socketpair and fd-wrapping are allowed (local), and connect on a wrapped inet fd is still refused.
 - aiohttp is not installed (not tested). The helper has no except clauses; the one broad catch is a thread-capture in a test that re-raises to the caller.
+
+## Task 19.3 — Propagate provider Suppression onto compliance flags (2026-10-05)
+Evidence: new test_compliance.py and adapters/test_suppression_end_to_end.py first run = collection ModuleNotFoundError (red); new HubSpot unparseable-opt-out test seen failing (4 red) before the `_flag` change; then green. Mutations caught: fail-open is_flag_set (21 tests fail), identity propagation off (7 fail), flagged-source-not-winner (1 fail, after strengthening the provenance test). `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 3316 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Fail CLOSED everywhere: a flag is set unless it is boolean False or absent ("true", 1, "yes", "" all count). Rejected: raising a named error (drops the signal with the batch) and treating only literal True as set (16.5 gap).
+- New compliance.py is the single reading of the flags and identities, used by prune_flagged (orchestrator) and project_lead; orchestrator's private _is_flagged/_identities removed. Rejected: a second copy in projection.
+- HubSpot `_flag`: any non-blank value other than "false" reads as opted out (was a NormalizationError for "maybe"); the old "maybe" row of the malformed-property test was moved to a fail-closed test. Rejected: keep raising (the source fails, work list is not pruned, paid tiers run = fail open).
+- Clustering cannot carry a suppression report onto the lead another source supplied (bare `email` is not read by match_keys; an unverified person.email is no Match Key), so project_lead takes keyword `blocked` (compliance.blocked_identities over the whole run) and ORs the flags of every report sharing an email/LinkedIn identity. Rejected: letting a flagged report bridge clusters (merges are irreversible, ADR-0003) and a SPEC GAP only.
+- ProjectionResult.compliance_sources (sorted source names that set a flag) is the "why is this lead suppressed" record; no store column added. Rejected: a migration.
+- Flag paths: the flagging candidate is made the provenance winner and the path never reports a rank-resolved conflict (decided_by None). Rejected: leaving the trust-rank winner (a False could "win" over a True).
+- Identity-propagated flags are the same flags the report set (HubSpot: both, Hunter 451: suppressed only). Rejected: forcing suppressed only.
+- Hunter yields_suppression left False: 6.10 only needs free suppression sources first, and every tier already prunes after it runs. Rejected: declaring True (reorders paid tiers, not required).
+- Apollo and Google emit no suppression signal (fixtures and requirements are silent); nothing added. HubSpot maps only hs_email_optout (the one property requested); unsubscribed/bounced are not requested.
+- E2E Discovery is a stub whose leads carry an email and an apollo source name (Apollo enrich matches only its own ids); real HubSpot, Hunter and Apollo behind scripted transports.
+### Known gaps (needs-follow-up)
+- SPEC GAP: a name-only Hunter finder restriction (first/last/domain, no email/LinkedIn) names no one prune_flagged or blocked_identities can match; name+domain matching needs 8.3 corroboration. Not built; Hunter will be asked again and the work-list lead is not flagged.
+- SPEC GAP: no real Discovery adapter yields an email (Apollo search returns none) and HubSpot looks up by email only, so with the real adapter set the free HubSpot check cannot see a Discovery lead before paid tiers run.
+- No pipeline yet calls cluster_contributions -> blocked_identities -> project_lead(blocked=) (project_lead has no production caller); wiring is the persistence/run task's. The test composes it.
+- A flag-only report with an email forms its own flagged Lead beside the Discovery Lead (both flagged); dedupe is not done.
+- compliance_sources is not persisted (store has canonical_field_provenance only for in-cluster candidates); run report suppression counts still "not recorded".
+- HubSpot raw model keeps StrictStr: a JSON boolean hs_email_optout still raises NormalizationError (loud, source fails, fails open at the run level).
+- Bullets: 19.3 b1 (carry signal onto flags) delivered (HubSpot, Hunter; others emit none); b2 (OR, survives projection, none can clear) delivered; b3 (blocked on 16.5) satisfied. Run-report counts, persistence of sources, name-only matching deferred.
+
+### Self-review findings
+
+Fixed (each test-first, seen failing):
+- Fail-closed was unbounded: `is_flag_set` counted "false", "no", 0, "", [] as SET (would silently suppress valid leads; the old test even asserted "false" is set). Now exactly: absent = None, False, zero numbers, blank/empty strings or containers, and text (any case/whitespace) in {false, no, n, f, 0, off}; UntrustedText judged by its `.value`; everything else (True, "true", "yes", 1, "maybe", other objects) is SET. Never raises, never str()/bool()-converts. Documented in compliance.py.
+- Second interpretation: hubspot `_flag` read any non-"false" string as opt-out ("FALSE", " False ", "no", "0" suppressed). It now calls `compliance.is_flag_set`: one definition for adapter, pruning and projection.
+- `identities()` could raise on a hostile value (str() of an object; urlsplit ValueError on "//[bad" in a LinkedIn URL), crashing prune_flagged and so the run. Now only str/UntrustedText are read and ValueError yields no identity.
+- Tests added: value tables (set / absent), hostile value, bad URL, blank identity never blocks all (mutation-verified), blocked email vs different LinkedIn, key-less cluster (lead=None) still carries flags + compliance_sources, name-only flagged lead is still a Lead, projection order-independence with flags, HubSpot "no" values.
+- Mutations run and killed: fail-open, blank-blocks-all, first-flag-only, winner-decides, no _flagged_first plus winner-only, compliance_sources dropped, blocked ignored, prune skipped, prune without identities. Files restored exactly (diffed). "Winner-only candidates" alone survives by design (equivalent: _flagged_first makes the flagged source the winner).
+
+Bullets: 19.3 delivered for: carry the signal onto flags (HubSpot, Hunter 451), OR semantics across sources/order/rank/supersession, pruning and projection use one reading. 19.4 untouched.
+
+Known gaps:
+- SPEC GAP: name-only Hunter restrictions (no email/LinkedIn) cannot be matched to a lead; the report only flags its own cluster (lead=None keeps flags/sources, but nothing carries it onto another source's lead). Match Key work (8.3 corroboration).
+- SPEC GAP: no real Discovery adapter yields an email, so the Apollo->HubSpot->Hunter flow is proven for the contract with a scripted Discovery stand-in (plus real HubSpot/Hunter/Apollo adapters behind scripted transports), not for a real Discovery run.
+- needs-follow-up: `project_lead` has no production caller. `blocked` must be rebuilt at recompute from the stored contributions of the run (blocked_identities over all of them); if a later recompute passes a different set, suppression can differ. project_lead is pure in (cluster, ranks, blocked); the persistence/recompute caller must supply it.
+- needs-follow-up: Hunter `yields_suppression` stays False. Requirement 2.7/6.10 ties it to FREE suppression-bearing sources run first; Hunter's 451 is a by-product of a paid call, so declaring True would only reorder it ahead of other paid tiers. Left as a design decision; moving it changes tier tests.
+- needs-follow-up: `_flagged_first._same_value` uses `==` on flag values; an adapter-produced hostile `__eq__` is not defended (adapters emit parsed values; not reachable today).
+- Plus-address/dot variants are not normalised (same normalisers as the match keys, by design): a suppression on ada+x@ does not block ada@.

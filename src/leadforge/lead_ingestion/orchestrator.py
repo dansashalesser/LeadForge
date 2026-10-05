@@ -148,6 +148,11 @@ from leadforge.lead_ingestion.base_source import (
     enrichment_tiers,
 )
 from leadforge.lead_ingestion.companies import company_domains, domain_components
+from leadforge.lead_ingestion.compliance import (
+    blocked_identities,
+    flags_set,
+    identities,
+)
 from leadforge.lead_ingestion.errors import (
     NormalizationError,
     SourceComplianceRestricted,
@@ -158,9 +163,8 @@ from leadforge.lead_ingestion.errors import (
     SourceTransient,
     SourceUnauthorized,
 )
-from leadforge.lead_ingestion.match_keys import normalize_email, normalize_linkedin_url
 from leadforge.lead_ingestion.mode_resolution import ModeResolution
-from leadforge.lead_ingestion.models import DataMode, UntrustedText
+from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.pacing import SourcePacing, build_pacing
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.retry import RetryPolicy, RetryStats
@@ -423,37 +427,6 @@ def enrichment_work_list(
     )
 
 
-# Compliance flags a contribution can carry, and the identity values a report names its
-# lead by (Requirement 6.10). Canonical-path names match ``CanonicalLead`` fields.
-_COMPLIANCE_FLAGS = ("suppressed", "opt_out")
-# Adapters differ on the spelling: most write ``person.*``, one suppression report
-# writes the bare ``email``. Each spelling names the same identity.
-_EMAIL_PATHS = ("person.email", "email")
-_LINKEDIN_PATHS = ("person.linkedin_url", "linkedin_url")
-
-
-def _is_flagged(contribution: LeadContribution) -> bool:
-    return any(contribution.values.get(flag) is True for flag in _COMPLIANCE_FLAGS)
-
-
-def _identities(contribution: LeadContribution) -> frozenset[tuple[str, str]]:
-    """Normalised ``(kind, value)`` pairs; a blank value names no lead."""
-    pairs: set[tuple[str, str]] = set()
-    for kind, paths, normalise in (
-        ("email", _EMAIL_PATHS, normalize_email),
-        ("linkedin_url", _LINKEDIN_PATHS, normalize_linkedin_url),
-    ):
-        for path in paths:
-            value = contribution.values.get(path)
-            if value is None:
-                continue
-            text = value.value if isinstance(value, UntrustedText) else str(value)
-            key = normalise(text)
-            if key:
-                pairs.add((kind, key))
-    return frozenset(pairs)
-
-
 def prune_flagged(
     work_list: tuple[LeadContribution, ...],
     reports: tuple[LeadContribution, ...] = (),
@@ -464,13 +437,11 @@ def prune_flagged(
     ``email`` or ``linkedin_url`` with a flagged contribution in ``reports`` or in the
     list. Order is kept; a report naming no known lead removes nothing.
     """
-    blocked: set[tuple[str, str]] = set()
-    for flagged in (c for c in (*work_list, *reports) if _is_flagged(c)):
-        blocked |= _identities(flagged)
+    blocked = blocked_identities((*work_list, *reports))
     return tuple(
         c
         for c in work_list
-        if not _is_flagged(c) and blocked.isdisjoint(_identities(c))
+        if not flags_set(c) and blocked.keys().isdisjoint(identities(c))
     )
 
 

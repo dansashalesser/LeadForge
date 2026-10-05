@@ -580,7 +580,7 @@ task = one commit.
   - Parallel with 19.1 and 19.4
   - _Requirements: 4.1, 11.5_
 
-- [ ] 19.3 Propagate provider Suppression onto compliance flags
+- [x] 19.3 Propagate provider Suppression onto compliance flags
   - Carry any provider Suppression, do-not-contact, or restriction signal present on a record onto the canonical compliance flags
   - Combine compliance flags with OR semantics, so a Suppression from any source survives the projection and no merge can clear it
   - Blocked on 16.5 — touches the projection

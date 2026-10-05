@@ -23,7 +23,9 @@ Provisional decisions (see choices.md, task 13.1):
   the signals but no path. The compliance flags use the canonical ``opt_out`` and
   ``suppressed`` paths.
 * HubSpot's one marketing opt-out property sets BOTH ``opt_out`` and ``suppressed``,
-  since the spec asks for "the compliance flags" and names no second property.
+  since the spec asks for "the compliance flags" and names no second property. A
+  value is read by ``compliance.is_flag_set`` (fails closed, task 19.3), not refused:
+  refusing would drop the whole contact's signal.
 * Only the lead's ``email`` is looked up (no LinkedIn or name lookup), for any work-list
   lead whatever its source. One contribution is made per contact found, so a duplicate
   contact flagged as opted out still flags the lead (the orchestrator matches by
@@ -62,6 +64,7 @@ from leadforge.lead_ingestion.base_source import (
     resolve_credentials,
     retry_after_seconds,
 )
+from leadforge.lead_ingestion.compliance import is_flag_set
 from leadforge.lead_ingestion.errors import (
     NormalizationError,
     SourceError,
@@ -143,11 +146,9 @@ def _flag(value: object) -> object:
     value = _text(value)
     if value is None:
         return None
-    if value == "true":
-        return True
-    if value == "false":
-        return False
-    raise ValueError("not a boolean flag")
+    # Only ever feeds the compliance flags (11.4): the one reading of a flag, so an
+    # unreadable value is still an opt-out rather than a dropped signal.
+    return is_flag_set(value)
 
 
 def _when(value: object) -> object:

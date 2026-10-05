@@ -57,7 +57,7 @@ Provisional decisions (choices.md, 16.5):
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from hashlib import sha256
 from typing import Any
 
@@ -66,6 +66,12 @@ from pydantic import HttpUrl, TypeAdapter, ValidationError
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster
 from leadforge.lead_ingestion.companies import company_domains, company_id_for
+from leadforge.lead_ingestion.compliance import (
+    COMPLIANCE_FLAGS,
+    Blocked,
+    identities,
+    is_flag_set,
+)
 from leadforge.lead_ingestion.conflicts import (
     ClusterResolution,
     ConflictRule,
@@ -103,7 +109,7 @@ _LAST_NAME = "person.last_name"
 _TITLE = "person.title"
 _COMPANY_NAME = "company.name"
 _COMPANY_DOMAIN = "company.domain"
-_OPT_OUT = "opt_out"
+_OPT_OUT = "opt_out"  # both are in ``COMPLIANCE_FLAGS``
 _SUPPRESSED = "suppressed"
 
 _EMAIL_ADAPTER: TypeAdapter[str] = TypeAdapter(StrictEmail)
@@ -138,21 +144,34 @@ class ProjectionResult:
     # Paths with a losing value, sorted by path.
     conflicts: tuple[ResolvedConflict, ...] = ()
     contribution_count: int = 0
+    # Task 19.3 (11.4): sorted names of the sources that set ``opt_out`` or
+    # ``suppressed`` on this Lead, in its own cluster or on a linked identity.
+    compliance_sources: tuple[str, ...] = ()
 
 
 def project_lead(
-    cluster: IdentityCluster, trust_ranks: Mapping[str, int]
+    cluster: IdentityCluster,
+    trust_ranks: Mapping[str, int],
+    *,
+    blocked: Blocked | None = None,
 ) -> ProjectionResult:
-    """Project ``cluster``; the result ignores contribution order."""
+    """Project ``cluster``; the result ignores contribution order.
+
+    ``blocked`` (``compliance.blocked_identities`` over every contribution of the run)
+    carries a flag a source set on an identity onto a Lead another source supplied
+    (11.4): the report may sit in a cluster of its own, since an unverified address is
+    no Match Key.
+    """
     members = tuple(_with_canonical_email(c) for c in cluster.contributions)
-    resolution = resolve_conflicts(
-        IdentityCluster(cluster.cluster_id, members), trust_ranks
+    resolution = _flagged_first(
+        resolve_conflicts(IdentityCluster(cluster.cluster_id, members), trust_ranks)
     )
     sources = sorted(
         {c.source_name for c in members} | set(contributing_sources(resolution))
     )
-    opt_out = _any_true(resolution, _OPT_OUT)
-    suppressed = _any_true(resolution, _SUPPRESSED)
+    reports = _compliance_reports(resolution, members, blocked or {})
+    opt_out = any(flag == _OPT_OUT for flag, _ in reports)
+    suppressed = any(flag == _SUPPRESSED for flag, _ in reports)
     return ProjectionResult(
         lead=_build_lead(resolution, cluster.cluster_id, opt_out, suppressed),
         contributing_sources=tuple(sources),
@@ -164,6 +183,7 @@ def project_lead(
         not_applicable=resolution.not_applicable,
         opt_out=opt_out,
         suppressed=suppressed,
+        compliance_sources=tuple(sorted({source for _, source in reports})),
         match_keys=cluster.merged_by,
         conflicts=tuple(
             ResolvedConflict(
@@ -213,8 +233,60 @@ def _winner_value(resolution: ClusterResolution, path: str) -> object:
     return candidates[0].value if candidates else None
 
 
-def _any_true(resolution: ClusterResolution, path: str) -> bool:
-    return any(c.value is True for c in _candidates(resolution, path))
+def _flagged_first(resolution: ClusterResolution) -> ClusterResolution:
+    """Make a flag's winner the first source that set it, and never a rank decision.
+
+    A Suppression is not resolved by trust rank (11.4): the candidates that set the flag
+    lead, so provenance names the source that flagged the Lead, and the path reports no
+    resolved conflict.
+    """
+    fields = []
+    for f in resolution.fields:
+        if f.canonical_path not in COMPLIANCE_FLAGS:
+            fields.append(f)
+            continue
+        everyone = (f.winner, *f.agreeing, *f.superseded)
+        flagged = [c for c in everyone if is_flag_set(c.value)]
+        if not flagged:
+            fields.append(replace(f, decided_by=None))
+            continue
+        winner = flagged[0]
+        agreeing = tuple(c for c in flagged[1:] if _same_value(c.value, winner.value))
+        kept = {id(winner), *(id(c) for c in agreeing)}
+        superseded = tuple(c for c in everyone if id(c) not in kept)
+        fields.append(
+            replace(
+                f,
+                winner=winner,
+                agreeing=agreeing,
+                superseded=superseded,
+                decided_by=None,
+            )
+        )
+    return replace(resolution, fields=tuple(fields))
+
+
+def _same_value(a: object, b: object) -> bool:
+    return type(a) is type(b) and a == b
+
+
+def _compliance_reports(
+    resolution: ClusterResolution,
+    members: tuple[LeadContribution, ...],
+    blocked: Blocked,
+) -> frozenset[tuple[str, str]]:
+    """``(flag, source_name)`` for every flag set on this Lead; fails closed."""
+    reports: set[tuple[str, str]] = set()
+    for flag in COMPLIANCE_FLAGS:
+        reports.update(
+            (flag, c.source_name)
+            for c in _candidates(resolution, flag)
+            if is_flag_set(c.value)
+        )
+    for member in members:
+        for identity in identities(member):
+            reports.update(blocked.get(identity, ()))
+    return frozenset(reports)
 
 
 def _text(value: object) -> str | None:

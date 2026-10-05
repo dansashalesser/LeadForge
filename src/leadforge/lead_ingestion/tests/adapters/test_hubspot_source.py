@@ -469,7 +469,6 @@ async def test_blank_properties_are_absent_not_empty_values() -> None:
 @pytest.mark.parametrize(
     ("props", "path"),
     [
-        ({"hs_email_optout": "maybe"}, "hs_email_optout"),
         ({"notes_last_updated": "yesterday"}, "notes_last_updated"),
         ({"lifecyclestage": 3}, "lifecyclestage"),
     ],
@@ -487,6 +486,26 @@ async def test_a_malformed_property_is_a_normalization_error_naming_paths_only(
     assert path in str(caught.value)
     assert "maybe" not in str(caught.value)
     assert "yesterday" not in str(caught.value)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#13.7
+@pytest.mark.parametrize("raw", ["maybe", "yes", "TRUE", "1"])
+async def test_an_opt_out_value_that_cannot_be_read_fails_closed(raw: str) -> None:
+    """A suppression signal HubSpot sent but we cannot parse is a suppression (11.4)."""
+    transport = Scripted(answers([contact(optout=raw)]))
+    (found,) = await contributions(live(transport), request("ada@example.com"))
+    assert found.values["opt_out"] is True
+    assert found.values["suppressed"] is True
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#13.7
+@pytest.mark.parametrize("raw", ["FALSE", " False ", "no", "0"])
+async def test_an_opt_out_value_that_says_no_is_not_an_opt_out(raw: str) -> None:
+    """The one reading of a flag (compliance.is_flag_set): "no" in any case is no."""
+    transport = Scripted(answers([contact(optout=raw)]))
+    (found,) = await contributions(live(transport), request("ada@example.com"))
+    assert found.values["opt_out"] is False
+    assert found.values["suppressed"] is False
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#13.2
