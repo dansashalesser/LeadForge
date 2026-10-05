@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import leadforge.lead_ingestion as slice_pkg
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 
 SLICE_ROOT = Path(slice_pkg.__file__).resolve().parent
 NOW = datetime(2026, 10, 5, tzinfo=UTC)
@@ -43,7 +44,8 @@ PORTABLE_TYPES = (
 @pytest.fixture
 def session() -> Iterator[Session]:
     engine = create_engine("sqlite://")
-    m.Base.metadata.create_all(engine)  # test-only; app paths use migrations (6.2)
+    with engine.begin() as conn:
+        upgrade_to_head(conn)
     with Session(engine) as s:
         yield s
 
