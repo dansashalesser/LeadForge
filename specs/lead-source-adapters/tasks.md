@@ -240,7 +240,7 @@ task = one commit.
   - Parallel with 8.1, 8.3, and 8.4
   - _Requirements: 10.6_
 
-- [ ] 8.3 (P) Generate the credential example file from the registry manifest
+- [x] 8.3 (P) Generate the credential example file from the registry manifest
   - Generate the committed example file from the union of every registered adapter's declared variables plus the database URL and the LLM provider and model settings
   - Give every entry a placeholder or empty value and a comment naming the provider documentation URL, listing each variable separately where a provider needs more than one
   - Assert as a lockfile-style check that the generated output equals the committed file, so an adapter reading an undocumented variable fails the suite

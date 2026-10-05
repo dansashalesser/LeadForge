@@ -678,3 +678,20 @@ Least-confident first.
 
 Counts: sound 7 (entries 2 to 7, 9; 2, 3, 4, 6 provisional), unsound 1 (entry 1, accepted), needs-user 1 (entry 8). Self-audit, not an independent auditor.
 Signals: no refactor or production-readiness agent ran (no Agent tool). Red phase used a stub module: 23 of 28 failed at assertion level, none at import. Mutation probes: replacing the blank-aware check with `name not in environ` fails 2 tests, dropping the blank-line offset fails 2. No Hypothesis property test. Blast radius: new module only; no serena or GitNexus query was run.
+
+## Task 8.3 — Generate the credential example file from the registry manifest (2026-10-05)
+
+### Audit pass (manual self-audit by the implementing agent; ruff, mypy clean, pytest re-run: 931 passed, 1 skipped)
+Least-confident first.
+1. **Provider documentation URL comes from a new optional `BaseLeadSource.docs_url: ClassVar[str] = ""`; when blank, the first rate bucket's `doc_url` (by bucket name) is used; an adapter with credentials and neither fails generation (`ManifestError`)** — **needs-user.** 3.4 declared no per-provider doc URL; `RateBucket.doc_url` points at rate-limit pages, which may not be the credential page. Touches the adapter contract (5 lines in `base_source.py`). Reversible: drop the field and the bucket fallback becomes the only source. Tasks 12 to 15 should set `docs_url` explicitly.
+2. **Only `DATABASE_URL`, `LLM_PROVIDER`, `LLM_MODEL` are built in; `RAW_RETENTION_DAYS`, `LEADFORGE_MODE`, `LEADFORGE_ENV_FILE` are not in the manifest** — **sound, provisional.** Requirement 10.1 lists exactly three extras; the omitted ones are defaulted tuning knobs, not credentials (`LEADFORGE_ENV_FILE` cannot sit in the file it locates). `RAW_RETENTION_DAYS` stays an invented name documented only in code. One tuple each in `BUILTIN_SETTINGS` adds them.
+3. **LLM doc URL is the LangChain `init_chat_model` page, and the database URL points at the SQLAlchemy engine page** — **unsound, accepted.** I did not fetch either URL; they are from memory and may have moved. A stale comment link is cosmetic.
+4. **Every value is empty, `DATABASE_URL=` included** — **sound.** Empty means local default (6.3) and unset (8.1, 8.2). The generator takes no environ, so a secret cannot reach the file; a test plants a secret on every variable.
+5. **A variable shared by two adapters, or redeclaring a built-in, is one entry listing each owner and URL (`# <owner> docs: <url>`)** — **sound.**
+6. **Hostile declarations are rejected, not escaped: names or URLs with control or non-printing characters, line separators, `#`, quotes, non-ASCII, non-http(s) URLs, non-str `docs_url`** — **sound.** Stricter than `_is_env_name`, which only bans whitespace, `=` and NUL.
+7. **Retired `GOOGLE_CSE_API_KEY`, `GOOGLE_CSE_CX` are a deny-set: an adapter declaring one fails generation** — **sound, provisional.** A static list; a renamed variable would slip through, but no CSE adapter exists.
+8. **Regenerate path is `uv run python -m leadforge.lead_ingestion.env_example` (`--path`, `--check`); the file defaults to `.env.example` in the working directory, so run it from the repo root** — **sound, provisional.** `cli.py` untouched; the failing test message prints the command. Output is LF bytes with one trailing newline, built-ins first, then adapter variables sorted.
+9. **Tasks 12 to 15 must regenerate and commit `.env.example` when they add an adapter** — **needs-user.** The lockfile test fails until they do; intended, not automatic. The committed file lists only the three built-ins because the registry is empty.
+
+Counts: sound 6 (entries 2, 4, 5, 6, 7, 8; 2, 7, 8 provisional), unsound 1 (entry 3, accepted), needs-user 2 (entries 1, 9). Self-audit, not an independent auditor.
+Signals: no refactor or production-readiness agent ran (no Agent tool). Red phase used a stub module returning empty output: 32 of 36 tests failed at assertion level, none at import. No mutation probes were run. Blast radius: one additive field on `BaseLeadSource`; no serena or GitNexus query was run, but mypy and the full suite pass.
