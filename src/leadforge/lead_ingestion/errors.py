@@ -149,3 +149,17 @@ class MissingCredentialError(SourceError):
         super().__init__(
             source_name, f"missing environment variables: {', '.join(missing)}"
         )
+
+
+class SourceDiscoveryError(_Picklable):
+    """A module in the adapter package cannot be turned into a registered source.
+
+    Raised at startup when a scanned module fails to import, or when a concrete (or
+    name-bearing) adapter class has no usable ``name`` or is still abstract. A
+    source silently dropped here would look identical to one never configured.
+    """
+
+    def __init__(self, module: str, *, detail: str) -> None:
+        self.module = module
+        self.detail = detail
+        super().__init__(f"[{module}] SourceDiscoveryError: {detail}")

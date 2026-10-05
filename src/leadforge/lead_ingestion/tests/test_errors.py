@@ -12,6 +12,7 @@ from leadforge.lead_ingestion.errors import (
     NoAccessibleAccountError,
     NormalizationError,
     SourceComplianceRestricted,
+    SourceDiscoveryError,
     SourceError,
     SourceQuotaExhausted,
     SourceRateLimited,
@@ -125,6 +126,7 @@ def test_non_source_errors_are_not_source_errors() -> None:
     for err in (
         FixtureSchemaError("hunter", field="f"),
         DuplicateSourceNameError("apollo"),
+        SourceDiscoveryError("pkg.mod", detail="d"),
         UndeclaredEndpointError("apollo", path="/p"),
     ):
         assert not isinstance(err, SourceError)
@@ -151,6 +153,7 @@ def test_retry_dispatch_by_type_distinguishes_every_failure_class() -> None:
         *SOURCE_ERRORS,
         FixtureSchemaError("hunter", field="f"),
         DuplicateSourceNameError("apollo"),
+        SourceDiscoveryError("pkg.mod", detail="d"),
         UndeclaredEndpointError("apollo", path="/p"),
     ],
     ids=lambda e: type(e).__name__,
