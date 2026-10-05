@@ -19,7 +19,7 @@ NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
 def prov(**kw: Any) -> FieldProvenance:
     base: dict[str, Any] = {
         "canonical_path": "email",
-        "source_name": "apollo",
+        "source_name": "provider_one",
         "data_mode": DataMode.SYNTHETIC,
         "fetched_at": NOW,
         "raw_field_path": "person.email",
@@ -34,7 +34,7 @@ def prov(**kw: Any) -> FieldProvenance:
 def test_carries_source_mode_timestamp_and_raw_path() -> None:
     p = prov(data_mode=DataMode.LIVE)
     assert (p.source_name, p.data_mode, p.fetched_at, p.raw_field_path) == (
-        "apollo",
+        "provider_one",
         DataMode.LIVE,
         NOW,
         "person.email",
@@ -59,7 +59,7 @@ def test_naive_fetch_timestamp_is_rejected() -> None:
 def test_required_fields_cannot_be_omitted(field: str) -> None:
     kw: dict[str, Any] = {
         "canonical_path": "email",
-        "source_name": "apollo",
+        "source_name": "provider_one",
         "data_mode": "live",
         "fetched_at": NOW,
         "raw_field_path": "person.email",
@@ -162,7 +162,7 @@ def test_origin_is_not_coerced_from_arbitrary_text() -> None:
     with pytest.raises(ValidationError):
         prov_any(
             canonical_path="email",
-            source_name="apollo",
+            source_name="provider_one",
             data_mode="live",
             fetched_at=NOW,
             raw_field_path="p",

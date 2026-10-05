@@ -102,7 +102,7 @@ def _prov(**kw: Any) -> FieldProvenance:
     kw.setdefault("untrusted", False)
     return FieldProvenance(
         canonical_path="bio",
-        source_name="apollo",
+        source_name="provider_one",
         data_mode=DataMode.SYNTHETIC,
         fetched_at=datetime(2026, 10, 5, tzinfo=UTC),
         raw_field_path="person.bio",
@@ -121,7 +121,7 @@ def test_provenance_requires_an_explicit_untrusted_flag() -> None:
     with pytest.raises(ValidationError):
         FieldProvenance(  # type: ignore[call-arg]
             canonical_path="bio",
-            source_name="apollo",
+            source_name="provider_one",
             data_mode=DataMode.SYNTHETIC,
             fetched_at=datetime(2026, 10, 5, tzinfo=UTC),
             raw_field_path="person.bio",

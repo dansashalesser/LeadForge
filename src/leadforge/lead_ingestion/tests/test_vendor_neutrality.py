@@ -7,10 +7,14 @@ Scope (explicit, so later tasks are not broken by accident):
   module name is the provider name) and ``fixtures`` (synthetic provider payloads).
   The shipped example profile and ``config/`` live outside ``src/`` (task 9.2).
 * This file is exempt: it holds the denylist.
-* ``BASELINE`` lists files written before 9.1 that already name a vendor. It is a
-  ratchet: a file not listed may never name one, and a listed file that no longer
-  does must be removed from the list. Shrinking it is the cleanup the baseline
-  records; growing it needs a conscious edit here.
+* There is no baseline and no allowlist: outside the exempt directories the scan must
+  find zero hits.
+* ``linkedin`` is deliberately not in the denylist. Requirement 23.1 forbids naming a
+  vendor as a built-in *targeting assumption* (a provider module, a hard-coded
+  technology or competitor, a provider name baked into logic). ``linkedin_url`` is a
+  canonical Lead data field, the profile link of a person, which is data and not a
+  choice of vendor. Renaming it would need a schema migration and would ripple through
+  the model, provenance paths and fixtures for no neutrality gain.
 """
 
 import re
@@ -31,7 +35,6 @@ DENYLIST = (
     "clay",
     "datastax",
     "cassandra",
-    "linkedin",
     "clearbit",
     "lusha",
     "pipedrive",
@@ -44,47 +47,25 @@ THIS_FILE = Path(__file__).resolve()
 # word (``clayton``).
 PATTERN = re.compile(r"(?<![a-z])(" + "|".join(DENYLIST) + r")(?![a-z])", re.IGNORECASE)
 
-BASELINE = frozenset(
-    {
-        "leadforge/lead_ingestion/models.py",
-        "leadforge/lead_ingestion/store/migrations/versions/0001_initial_lead_store_schema.py",
-        "leadforge/lead_ingestion/store/models.py",
-        "leadforge/lead_ingestion/structure_guard.py",
-        "leadforge/lead_ingestion/tests/test_base_source.py",
-        "leadforge/lead_ingestion/tests/test_canonical_entities.py",
-        "leadforge/lead_ingestion/tests/test_env_example.py",
-        "leadforge/lead_ingestion/tests/test_errors.py",
-        "leadforge/lead_ingestion/tests/test_log_redaction.py",
-        "leadforge/lead_ingestion/tests/test_normalizer.py",
-        "leadforge/lead_ingestion/tests/test_provenance.py",
-        "leadforge/lead_ingestion/tests/test_signal_strength.py",
-        "leadforge/lead_ingestion/tests/test_slice_structure.py",
-        "leadforge/lead_ingestion/tests/test_source_absence.py",
-        "leadforge/lead_ingestion/tests/test_source_registry.py",
-        "leadforge/lead_ingestion/tests/test_store_schema.py",
-        "leadforge/lead_ingestion/tests/test_untrusted_text.py",
-    }
-)
 
-
-def _scanned_files() -> list[Path]:
+def _scanned_files(root: Path = SRC) -> list[Path]:
     return sorted(
         p
-        for p in SRC.rglob("*")
+        for p in root.rglob("*")
         if p.is_file()
         and p.suffix in SCANNED_SUFFIXES
         and p.resolve() != THIS_FILE
-        and not EXEMPT_DIRS & set(p.relative_to(SRC).parts)
+        and not EXEMPT_DIRS & set(p.relative_to(root).parts)
     )
 
 
-def _offenders() -> dict[str, set[str]]:
+def _offenders(root: Path = SRC) -> dict[str, set[str]]:
     found: dict[str, set[str]] = {}
-    for path in _scanned_files():
+    for path in _scanned_files(root):
         text = path.read_text(encoding="utf-8")
         names = {m.group(1).lower() for m in PATTERN.finditer(text)}
         if names:
-            found[path.relative_to(SRC).as_posix()] = names
+            found[path.relative_to(root).as_posix()] = names
     return found
 
 
@@ -107,17 +88,24 @@ def test_pattern_matches_names_in_identifiers_but_not_inside_longer_words() -> N
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_no_new_file_names_a_vendor_or_technology_as_a_built_in() -> None:
-    new = {f: n for f, n in _offenders().items() if f not in BASELINE}
+def test_no_file_outside_adapters_and_fixtures_names_a_vendor_or_technology() -> None:
+    offenders = _offenders()
 
-    assert new == {}, "vendor names belong in config or fixtures, not code or tests"
+    assert offenders == {}, (
+        "vendor names belong in config or fixtures, not code or tests"
+    )
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_baseline_only_lists_files_that_still_name_a_vendor() -> None:
-    stale = sorted(BASELINE - set(_offenders()))
+def test_scanner_flags_a_planted_vendor_name_in_scope(tmp_path: Path) -> None:
+    planted = tmp_path / "leadforge" / "planted.py"
+    planted.parent.mkdir(parents=True)
+    planted.write_text("PROVIDER = 'Apollo'\n", encoding="utf-8")
+    exempt = tmp_path / "leadforge" / "adapters" / "apollo.py"
+    exempt.parent.mkdir()
+    exempt.write_text("PROVIDER = 'apollo'\n", encoding="utf-8")
 
-    assert stale == [], "remove cleaned files from BASELINE so the ratchet tightens"
+    assert _offenders(tmp_path) == {"leadforge/planted.py": {"apollo"}}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.1

@@ -43,7 +43,7 @@ def company(**kw: Any) -> CompanySignal:
 
 def with_strength(strength: float) -> dict[str, Any]:
     return {
-        "tech_signals": (TechSignal(label="cassandra", strength=strength),),
+        "tech_signals": (TechSignal(label="tech_beta", strength=strength),),
         "intent_signals": (IntentSignal(label="hiring", strength=strength),),
     }
 

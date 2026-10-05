@@ -190,17 +190,17 @@ def test_multi_credential_provider_lists_each_variable_on_its_own_line() -> None
     registry = SourceRegistry(
         [
             _cls(
-                "zoominfo",
-                ("ZOOMINFO_CLIENT_ID", "ZOOMINFO_CLIENT_SECRET"),
+                "provider_four",
+                ("PROVIDER_FOUR_CLIENT_ID", "PROVIDER_FOUR_CLIENT_SECRET"),
                 docs_url="https://docs.example.invalid/zi",
             )
         ]
     )
     text = render_env_example(registry)
     entries = _entries(text)
-    assert entries["ZOOMINFO_CLIENT_ID"] == ""
-    assert entries["ZOOMINFO_CLIENT_SECRET"] == ""
-    for variable in ("ZOOMINFO_CLIENT_ID", "ZOOMINFO_CLIENT_SECRET"):
+    assert entries["PROVIDER_FOUR_CLIENT_ID"] == ""
+    assert entries["PROVIDER_FOUR_CLIENT_SECRET"] == ""
+    for variable in ("PROVIDER_FOUR_CLIENT_ID", "PROVIDER_FOUR_CLIENT_SECRET"):
         assert "https://docs.example.invalid/zi" in "\n".join(_block(text, variable))
 
 
@@ -212,8 +212,8 @@ def test_documentation_url_falls_back_to_first_rate_bucket_url() -> None:
     registry = SourceRegistry(
         [
             _cls(
-                "apollo",
-                ("APOLLO_API_KEY",),
+                "provider_one",
+                ("PROVIDER_ONE_API_KEY",),
                 rate_limit={
                     "z": bucket("https://docs.example.invalid/z-limit"),
                     "a": bucket("https://docs.example.invalid/a-limit"),
@@ -221,7 +221,7 @@ def test_documentation_url_falls_back_to_first_rate_bucket_url() -> None:
             )
         ]
     )
-    block = "\n".join(_block(render_env_example(registry), "APOLLO_API_KEY"))
+    block = "\n".join(_block(render_env_example(registry), "PROVIDER_ONE_API_KEY"))
     assert "https://docs.example.invalid/a-limit" in block
 
 
@@ -230,21 +230,21 @@ def test_explicit_docs_url_beats_rate_bucket_url() -> None:
     registry = SourceRegistry(
         [
             _cls(
-                "apollo",
-                ("APOLLO_API_KEY",),
+                "provider_one",
+                ("PROVIDER_ONE_API_KEY",),
                 docs_url="https://x.invalid/docs",
                 rate_limit={"b": bucket},
             )
         ]
     )
-    block = "\n".join(_block(render_env_example(registry), "APOLLO_API_KEY"))
+    block = "\n".join(_block(render_env_example(registry), "PROVIDER_ONE_API_KEY"))
     assert "https://x.invalid/docs" in block
     assert "https://x.invalid/limit" not in block
 
 
 def test_adapter_with_variables_but_no_documentation_url_fails_loudly() -> None:
-    registry = SourceRegistry([_cls("apollo", ("APOLLO_API_KEY",))])
-    with pytest.raises(ManifestError, match="apollo"):
+    registry = SourceRegistry([_cls("provider_one", ("PROVIDER_ONE_API_KEY",))])
+    with pytest.raises(ManifestError, match="provider_one"):
         render_env_example(registry)
 
 

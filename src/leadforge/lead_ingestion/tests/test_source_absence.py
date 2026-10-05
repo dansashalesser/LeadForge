@@ -13,7 +13,7 @@ absence_any: Any = SourceAbsence
 def negative(**kw: Any) -> SourceAbsence:
     base: dict[str, Any] = {
         "canonical_path": "email",
-        "source_name": "apollo",
+        "source_name": "provider_one",
         "kind": AbsenceKind.NEGATIVE_EVIDENCE,
         "raw_field_path": "person.email",
     }
@@ -48,7 +48,7 @@ def test_not_applicable_has_no_surface() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#1.9
 def test_the_two_kinds_are_distinguishable() -> None:
     assert negative().kind != not_applicable().kind
-    assert negative() != not_applicable(source_name="apollo")
+    assert negative() != not_applicable(source_name="provider_one")
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.9
@@ -68,7 +68,7 @@ def test_not_applicable_cannot_claim_a_surface() -> None:
 def test_required_fields_cannot_be_omitted(field: str) -> None:
     kw: dict[str, Any] = {
         "canonical_path": "email",
-        "source_name": "apollo",
+        "source_name": "provider_one",
         "kind": AbsenceKind.NOT_APPLICABLE,
     }
     del kw[field]

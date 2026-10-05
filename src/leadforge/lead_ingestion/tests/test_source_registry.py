@@ -192,26 +192,28 @@ def test_same_name_in_two_modules_fails_startup_with_a_named_error(
 ) -> None:
     pkg = make_package(
         {
-            "one.py": module(adapter("OneSource", "apollo")),
-            "two.py": module(adapter("TwoSource", "apollo")),
+            "one.py": module(adapter("OneSource", "provider_one")),
+            "two.py": module(adapter("TwoSource", "provider_one")),
         }
     )
 
     with pytest.raises(DuplicateSourceNameError) as exc:
         SourceRegistry.discover(pkg)
 
-    assert exc.value.name == "apollo"
-    assert "apollo" in str(exc.value)
+    assert exc.value.name == "provider_one"
+    assert "provider_one" in str(exc.value)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#3.3
-@pytest.mark.parametrize("other", ["Apollo", "APOLLO", " apollo ", "apollo\t"])
+@pytest.mark.parametrize(
+    "other", ["Provider_One", "PROVIDER_ONE", " provider_one ", "provider_one\t"]
+)
 def test_names_differing_only_in_case_or_padding_collide(
     make_package: MakePackage, other: str
 ) -> None:
     pkg = make_package(
         {
-            "one.py": module(adapter("OneSource", "apollo")),
+            "one.py": module(adapter("OneSource", "provider_one")),
             "two.py": module(adapter("TwoSource", other)),
         }
     )
@@ -226,15 +228,15 @@ def test_constructor_rejects_duplicates_given_classes_directly(
 ) -> None:
     pkg = make_package(
         {
-            "one.py": module(adapter("OneSource", "apollo")),
+            "one.py": module(adapter("OneSource", "provider_one")),
             "two.py": module(adapter("TwoSource", "other")),
         }
     )
     registry = SourceRegistry.discover(pkg)
-    one = registry.source_class("apollo")
+    one = registry.source_class("provider_one")
 
     with pytest.raises(DuplicateSourceNameError):
-        SourceRegistry([one, _clone_named(one, "APOLLO")])
+        SourceRegistry([one, _clone_named(one, "PROVIDER_ONE")])
 
 
 def _clone_named(cls: type[BaseLeadSource], name: str) -> type[BaseLeadSource]:

@@ -108,7 +108,7 @@ def test_signals_and_employment_do_not_make_a_lead_without_a_person() -> None:
     with pytest.raises(ValidationError, match="person identity"):
         CanonicalLead(
             employments=(emp,),
-            tech_signals=(TechSignal(label="cassandra", strength=0.9),),
+            tech_signals=(TechSignal(label="tech_beta", strength=0.9),),
             opt_out=True,
         )
 
@@ -193,7 +193,7 @@ def test_entities_survive_pickle_and_dump_roundtrip() -> None:
         email="j@acme.com",
         email_status=EmailStatus.ACCEPT_ALL,
         employments=(Employment(company=company(), title="VP", is_current=True),),
-        tech_signals=(TechSignal(label="cassandra", strength=0.4),),
+        tech_signals=(TechSignal(label="tech_beta", strength=0.4),),
     )
     assert pickle.loads(pickle.dumps(ld)) == ld
     assert CanonicalLead.model_validate(ld.model_dump()) == ld
@@ -436,7 +436,7 @@ def test_company_signal_rejects_blank_duplicate_or_spaced_domains(
 # Verifies: specs/lead-source-adapters/requirements.md#24.4
 def test_company_signal_carries_signals_with_their_own_strength() -> None:
     cs = company(
-        tech_signals=(TechSignal(label="cassandra", strength=0.8),),
+        tech_signals=(TechSignal(label="tech_beta", strength=0.8),),
         intent_signals=(IntentSignal(label="hiring", strength=0.2),),
     )
     assert cs.tech_signals[0].strength == 0.8
@@ -449,10 +449,10 @@ def test_company_signal_carries_signals_with_their_own_strength() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#24.4
 def test_lead_carries_technographic_and_intent_signals_with_strength() -> None:
     ld = lead(
-        tech_signals=(TechSignal(label="cassandra", strength=1.0),),
+        tech_signals=(TechSignal(label="tech_beta", strength=1.0),),
         intent_signals=(IntentSignal(label="pricing-page", strength=0.0),),
     )
-    assert ld.tech_signals[0].label == "cassandra"
+    assert ld.tech_signals[0].label == "tech_beta"
     assert ld.intent_signals[0].strength == 0.0
 
 
@@ -686,14 +686,14 @@ def test_company_signal_records_provider_native_ids_beside_the_unified_id() -> N
     cs = company(
         "acme",
         provider_ids=(
-            ProviderCompanyId(source="apollo", id="5f1"),
-            ProviderCompanyId(source="hubspot", id="991"),
+            ProviderCompanyId(source="provider_one", id="5f1"),
+            ProviderCompanyId(source="provider_three", id="991"),
         ),
     )
     assert cs.company_id == "acme"
     assert {(p.source, p.id) for p in cs.provider_ids} == {
-        ("apollo", "5f1"),
-        ("hubspot", "991"),
+        ("provider_one", "5f1"),
+        ("provider_three", "991"),
     }
 
 
@@ -705,20 +705,20 @@ def test_one_source_cannot_claim_two_native_ids_for_one_company() -> None:
     with pytest.raises(ValidationError, match="provider_ids"):
         company(
             provider_ids=(
-                ProviderCompanyId(source="apollo", id="1"),
-                ProviderCompanyId(source="apollo", id="2"),
+                ProviderCompanyId(source="provider_one", id="1"),
+                ProviderCompanyId(source="provider_one", id="2"),
             )
         )
 
 
 @pytest.mark.parametrize("field", ["source", "id"])
 def test_provider_company_id_rejects_blank_parts(field: str) -> None:
-    kw = {"source": "apollo", "id": "1", field: "  "}
+    kw = {"source": "provider_one", "id": "1", field: "  "}
     with pytest.raises(ValidationError):
         ProviderCompanyId(**kw)
 
 
 def test_employments_with_provider_ids_stay_hashable_for_duplicate_detection() -> None:
-    cs = company(provider_ids=(ProviderCompanyId(source="apollo", id="1"),))
+    cs = company(provider_ids=(ProviderCompanyId(source="provider_one", id="1"),))
     with pytest.raises(ValidationError, match="duplicate Employment"):
         lead(employments=(Employment(company=cs), Employment(company=cs)))

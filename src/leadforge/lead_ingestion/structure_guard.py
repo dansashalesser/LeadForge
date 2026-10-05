@@ -24,7 +24,7 @@ class RawSchemaImport:
 
     module: str
     """Fully qualified module name that was imported, resolved to absolute form
-    (relative imports included), e.g. `leadforge.lead_ingestion.adapters.apollo`.
+    (relative imports included), e.g. `leadforge.lead_ingestion.adapters.provider_one`.
     When one statement imports several raw-schema names, this is the first."""
 
 

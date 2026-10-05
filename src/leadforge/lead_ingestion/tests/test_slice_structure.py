@@ -37,11 +37,11 @@ def test_no_module_outside_slice_imports_provider_raw_schema() -> None:
 @pytest.mark.parametrize(
     "source",
     [
-        f"import {RAW_SCHEMA_PACKAGE}.apollo\n",
-        f"from {RAW_SCHEMA_PACKAGE} import apollo\n",
-        f"from {RAW_SCHEMA_PACKAGE}.apollo.raw import PersonRaw\n",
+        f"import {RAW_SCHEMA_PACKAGE}.provider_one\n",
+        f"from {RAW_SCHEMA_PACKAGE} import provider_one\n",
+        f"from {RAW_SCHEMA_PACKAGE}.provider_one.raw import PersonRaw\n",
         "from leadforge.lead_ingestion import adapters\n",
-        "from ..lead_ingestion.adapters.apollo import raw\n",
+        "from ..lead_ingestion.adapters.provider_one import raw\n",
         "from ..lead_ingestion import adapters\n",
     ],
 )
@@ -63,7 +63,7 @@ def test_guard_flags_raw_schema_import_from_outside_slice(
 def test_guard_allows_raw_schema_imports_inside_slice(tmp_path: Path) -> None:
     src_root, slice_root = _fake_tree(tmp_path)
     inside = slice_root / "normalize.py"
-    inside.write_text(f"from {RAW_SCHEMA_PACKAGE}.apollo.raw import PersonRaw\n")
+    inside.write_text(f"from {RAW_SCHEMA_PACKAGE}.provider_one.raw import PersonRaw\n")
 
     assert find_raw_schema_imports_outside_slice(src_root, slice_root) == []
 
@@ -93,10 +93,10 @@ def _slice_with_adapter(tmp_path: Path) -> tuple[Path, Path]:
     adapters = slice_root / "adapters"
     adapters.mkdir()
     (adapters / "__init__.py").write_text("")
-    (adapters / "hunter.py").write_text(
+    (adapters / "provider_two.py").write_text(
         "from leadforge.lead_ingestion.base_source import BaseLeadSource\n"
-        "class HunterSource(BaseLeadSource): ...\n"
-        "class HunterSubSource(HunterSource): ...\n"
+        "class ProviderTwoSource(BaseLeadSource): ...\n"
+        "class ProviderTwoSubSource(ProviderTwoSource): ...\n"
     )
     return slice_root, slice_root / "orchestrator.py"
 
@@ -110,14 +110,14 @@ def test_orchestration_layer_references_no_concrete_adapter() -> None:
 @pytest.mark.parametrize(
     "source",
     [
-        "import leadforge.lead_ingestion.adapters.hunter\n",
-        "from leadforge.lead_ingestion.adapters import hunter\n",
-        "from leadforge.lead_ingestion.adapters.hunter import HunterSource\n",
-        "from .adapters.hunter import HunterSource as H\n",
-        "from .adapters import hunter\n",
-        "x = HunterSource\n",
-        "x = HunterSubSource\n",
-        "import m\nx = m.HunterSource\n",
+        "import leadforge.lead_ingestion.adapters.provider_two\n",
+        "from leadforge.lead_ingestion.adapters import provider_two\n",
+        "from leadforge.lead_ingestion.adapters.provider_two import ProviderTwo\n",
+        "from .adapters.provider_two import ProviderTwo as H\n",
+        "from .adapters import provider_two\n",
+        "x = ProviderTwoSource\n",
+        "x = ProviderTwoSubSource\n",
+        "import m\nx = m.ProviderTwoSource\n",
         "import importlib as i\ni.import_module('leadforge.lead_ingestion.adapters')\n",
         "__import__('leadforge.lead_ingestion.adapters')\n",
     ],
@@ -139,7 +139,7 @@ def test_guard_scans_an_orchestration_package_too(tmp_path: Path) -> None:
     package = slice_root / "orchestrator"
     package.mkdir()
     offender = package / "run.py"
-    offender.write_text("from ..adapters import hunter\n")
+    offender.write_text("from ..adapters import provider_two\n")
 
     assert [v.path for v in find_concrete_adapter_references(slice_root)] == [offender]
 
@@ -161,7 +161,7 @@ def test_guard_allows_orchestration_that_uses_only_the_contract(
 def test_guard_ignores_modules_that_are_not_orchestration(tmp_path: Path) -> None:
     slice_root, _ = _slice_with_adapter(tmp_path)
     (slice_root / "registry.py").write_text(
-        "from .adapters.hunter import HunterSource\n"
+        "from .adapters.provider_two import ProviderTwoSource\n"
     )
 
     assert find_concrete_adapter_references(slice_root) == []

@@ -54,7 +54,9 @@ def _seed_contribution(s: Session) -> tuple[m.SourceContribution, m.Contribution
     run = m.IngestionRun(started_at=NOW, status="running")
     s.add(run)
     s.flush()
-    sr = m.SourceRun(run_id=run.id, source_name="apollo", resolved_mode="synthetic")
+    sr = m.SourceRun(
+        run_id=run.id, source_name="provider_one", resolved_mode="synthetic"
+    )
     s.add(sr)
     s.flush()
     raw = m.RawResponse(
@@ -69,7 +71,7 @@ def _seed_contribution(s: Session) -> tuple[m.SourceContribution, m.Contribution
     c = m.SourceContribution(
         source_run_id=sr.id,
         raw_response_id=raw.id,
-        source_name="apollo",
+        source_name="provider_one",
         data_mode="synthetic",
         fetched_at=NOW,
         lead_scope="person",
@@ -117,7 +119,7 @@ def test_full_graph_round_trips_through_orm(session: Session) -> None:
         full_name="Ada",
         computed_at=NOW,
         projection_version=1,
-        contributing_sources=["apollo"],
+        contributing_sources=["provider_one"],
     )
     session.add(lead)
     session.flush()

@@ -89,17 +89,17 @@ def test_non_secret_llm_settings_and_url_user_are_not_seeded() -> None:
     env = {
         "LLM_PROVIDER": "anthropic-provider",
         "LLM_MODEL": "some-model-name-long",
-        "DATABASE_URL": "postgresql://bob:hunter2hunter2@db.example/leadforge",
+        "DATABASE_URL": "postgresql://bob:s3cretpassw0rd@db.example/leadforge",
         "A_KEY": SECRET,
     }
     got = secrets_from_environ(
         env, ["LLM_PROVIDER", "LLM_MODEL", "DATABASE_URL", "A_KEY"]
     )
     assert SECRET in got
-    assert "hunter2hunter2" in got
+    assert "s3cretpassw0rd" in got
     assert "anthropic-provider" not in got
     assert "some-model-name-long" not in got
-    assert "postgresql://bob:hunter2hunter2@db.example/leadforge" not in got
+    assert "postgresql://bob:s3cretpassw0rd@db.example/leadforge" not in got
 
 
 # ---- the value scrubber --------------------------------------------------------
