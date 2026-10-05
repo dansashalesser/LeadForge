@@ -1,0 +1,15 @@
+# SDD harness — local-only, never committed
+.claude/
+specs/
+CLAUDE.md
+AGENTS.md
+ERRORS.md
+
+# Python / tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
