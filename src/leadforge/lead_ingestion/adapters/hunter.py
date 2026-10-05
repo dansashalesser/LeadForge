@@ -11,9 +11,7 @@ pair only once per run. The key travels in the ``X-API-KEY`` header, never in th
 query string (16.1).
 
 A verifier answer that is still running (HTTP 202) is polled (16.4, task 15.2), see
-below. The inverted 403/429 mapping and the 451 compliance restriction are task 15.3.
-Until 15.3, the base ``classify_error`` applies, so a Hunter 403 is still read as an
-authorization failure.
+below. Error classification is Hunter's own (task 15.3): see ``classify_error``.
 
 Provisional decisions (see choices.md, task 15.1):
 
@@ -64,6 +62,21 @@ Provisional decisions (see choices.md, task 15.1):
   Hunter is ASSUMED not to charge for polling, so the batch still counts one Credit per
   address, not per poll. The clock and sleep are injected, so tests never wait; the
   default ``asyncio.sleep`` is cancellable, so a run timeout cuts a poll short.
+* Status conventions (16.7, 15.3), classified once in ``classify_error``: 403 is
+  ``SourceRateLimited`` (with ``Retry-After`` when usable), 429 is
+  ``SourceQuotaExhausted`` (halts the source for the run), 451 is
+  ``SourceComplianceRestricted``; everything else is the base default (401 is
+  unauthorized). The 451 carries no person: its ``subject`` is the endpoint path,
+  because the classifier sees no request and a subject must never be an address.
+* A 451 from the finder or verifier (16.6) is ISOLATED to that question: the call is
+  caught in ``fetch_raw`` (that error type only), recorded in the batch under
+  ``restricted_verifications`` (``{"email"}``) or ``restricted_finds`` (``{"domain",
+  "first_name", "last_name"}``), and the rest of the batch goes on. Each becomes one
+  contribution carrying ``suppressed`` = True and the identity the Lead was asked by
+  (the address; or the name and domain), and no verdict, confidence or source. The
+  restriction is cached like a verdict, so a retried fetch does not ask again. A 451
+  from a domain search names no person, so it is not isolated: it fails the fetch as
+  ``SourceComplianceRestricted``. A 451 is assumed not to be billed.
 * The fixtures under ``fixtures/hunter/`` are hand-made STAND-INS, not captured
   responses; the verifier's ``data`` shape in particular is assumed.
 """
@@ -95,7 +108,13 @@ from leadforge.lead_ingestion.base_source import (
     resolve_credentials,
     retry_after_seconds,
 )
-from leadforge.lead_ingestion.errors import NormalizationError, SourceError
+from leadforge.lead_ingestion.errors import (
+    NormalizationError,
+    SourceComplianceRestricted,
+    SourceError,
+    SourceQuotaExhausted,
+    SourceRateLimited,
+)
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
     DataMode,
@@ -139,6 +158,9 @@ _SEARCH = Endpoint(method="GET", path="/v2/domain-search", bucket="finder")
 _FINDER = Endpoint(method="GET", path="/v2/email-finder", bucket="finder")
 _VERIFIER = Endpoint(method="GET", path="/v2/email-verifier", bucket="verifier")
 _ACCEPTED = 202  # the verifier is still running: ask again (16.4)
+_FORBIDDEN = 403  # Hunter: the rate limit was reached (16.7)
+_TOO_MANY = 429  # Hunter: the usage limit is spent (16.7)
+_RESTRICTED = 451  # Hunter: personal-data processing is restricted (16.6)
 DEFAULT_POLL_ATTEMPTS = 5
 DEFAULT_POLL_BUDGET_S = 30.0
 DEFAULT_POLL_INTERVAL_S = 2.0
@@ -308,6 +330,17 @@ class HunterSource(BaseLeadSource):
         FieldRule(_EMAIL_PATH, "email"),
         FieldRule("person.email_status", "status", transform=_email_status),
     )
+    # A 451 (16.6): the identity the Lead was asked by, flagged, nothing Hunter said.
+    RESTRICTED_VERIFY_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        FieldRule(_EMAIL_PATH, "email"),
+        FieldRule("suppressed", "restricted"),
+    )
+    RESTRICTED_FIND_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        FieldRule("company.domain", "domain"),
+        FieldRule("person.first_name", "first_name", untrusted=True),
+        FieldRule("person.last_name", "last_name", untrusted=True),
+        FieldRule("suppressed", "restricted"),
+    )
     VERIFIER_IGNORED: ClassVar[frozenset[str]] = frozenset({"score"})
     # Domain-level flags and fields of the address record that 16.2 does not ask for.
     IGNORED: ClassVar[frozenset[str]] = frozenset(
@@ -361,6 +394,34 @@ class HunterSource(BaseLeadSource):
         self._searched: dict[str, Mapping[str, Any]] = {}
         self._found: dict[tuple[str, str, str], Mapping[str, Any]] = {}
         self._verified: dict[str, Mapping[str, Any] | None] = {}
+        # Questions Hunter refused with a 451 (16.6): asked once, never again.
+        self._restricted_names: dict[tuple[str, str, str], Mapping[str, Any]] = {}
+        self._restricted_addresses: set[str] = set()
+
+    def classify_error(
+        self, response: TransportResponse, *, endpoint: Endpoint
+    ) -> SourceError | None:
+        """Hunter's inverted reading of the conventional mapping (16.6, 16.7).
+
+        403 is throttling, not authorization: ``SourceRateLimited`` with
+        ``Retry-After`` when usable. 429 means the usage limit is spent:
+        ``SourceQuotaExhausted``, which halts the source for the run. 451 is restricted
+        personal-data processing: ``SourceComplianceRestricted``, whose subject is the
+        endpoint path, never the person. Every other status is the base default. Error
+        text names the cause, never the body.
+        """
+        status = response.status
+        if status == _FORBIDDEN:
+            return SourceRateLimited(
+                self.name,
+                cause="http_403_rate_limit",
+                retry_after_s=retry_after_seconds(response.headers),
+            )
+        if status == _TOO_MANY:
+            return SourceQuotaExhausted(self.name, "cause=http_429_usage_limit")
+        if status == _RESTRICTED:
+            return SourceComplianceRestricted(self.name, subject=endpoint.path)
+        return super().classify_error(response, endpoint=endpoint)
 
     async def fetch_raw(self, request: SourceRequest) -> RawBatch:
         if not isinstance(request, EnrichmentRequest):
@@ -384,8 +445,18 @@ class HunterSource(BaseLeadSource):
         for name in plan.names:
             domain, first, last = name
             asked = (domain, first.casefold(), last.casefold())
+            if asked in self._restricted_names:
+                continue
             if asked not in self._found:
-                self._found[asked] = await self._find(domain, first, last, headers)
+                try:
+                    self._found[asked] = await self._find(domain, first, last, headers)
+                except SourceComplianceRestricted:
+                    self._restricted_names[asked] = {
+                        "domain": domain,
+                        "first_name": first,
+                        "last_name": last,
+                    }
+                    continue
             finds.append(
                 {
                     "domain": domain,
@@ -396,8 +467,14 @@ class HunterSource(BaseLeadSource):
             )
         verifications: list[Mapping[str, Any]] = []
         for address in plan.addresses:
+            if address in self._restricted_addresses:
+                continue
             if address not in self._verified:
-                self._verified[address] = await self._verify(address, headers)
+                try:
+                    self._verified[address] = await self._verify(address, headers)
+                except SourceComplianceRestricted:
+                    self._restricted_addresses.add(address)
+                    continue
             verifications.append(
                 {"email": address, "response": self._verified[address]}
             )
@@ -407,6 +484,17 @@ class HunterSource(BaseLeadSource):
                 "searches": searches,
                 "finds": finds,
                 "verifications": verifications,
+                "restricted_finds": [
+                    self._restricted_names[(domain, first.casefold(), last.casefold())]
+                    for domain, first, last in plan.names
+                    if (domain, first.casefold(), last.casefold())
+                    in self._restricted_names
+                ],
+                "restricted_verifications": [
+                    {"email": address}
+                    for address in plan.addresses
+                    if address in self._restricted_addresses
+                ],
                 "credits_billable": billable,
             },
         )
@@ -479,12 +567,20 @@ class HunterSource(BaseLeadSource):
         )
         normalizer = Normalizer()
         contributions: list[LeadContribution] = []
+        refused = {
+            entry["email"].strip().casefold()
+            for entry in _restrictions(
+                self.name, raw, "restricted_verifications", ("email",)
+            )
+        }  # an address Hunter refused keeps nothing another answer says about it (16.6)
         for response in _responses(self.name, raw, "searches", required=True):
             assert response is not None
             validate_raw_payload(self.name, _Response, response, self.RULES)
             data = response["data"]
             shared = {k: v for k, v in data.items() if k != "emails"}
             for item in data["emails"]:
+                if _is_refused(item.get("value"), refused):
+                    continue
                 contribution = normalizer.apply(
                     {**shared, "email": item}, self.RULES, context
                 )
@@ -497,6 +593,8 @@ class HunterSource(BaseLeadSource):
             data = response["data"]
             if data.get("email") is None:
                 continue  # nothing found: no contribution, and no field question asked
+            if _is_refused(data["email"], refused):
+                continue
             contribution = normalizer.apply(data, self.FINDER_RULES, context)
             contributions.append(
                 _with_stated_confidence(contribution, data.get("score"))
@@ -508,11 +606,29 @@ class HunterSource(BaseLeadSource):
                 self.name, _VerdictResponse, response, self.VERIFIER_RULES
             )
             data = response["data"]
+            if _is_refused(data.get("email"), refused):
+                continue
             contribution = normalizer.apply(data, self.VERIFIER_RULES, context)
             contributions.append(
                 _with_stated_confidence(contribution, data.get("score"))
             )
+        for key, fields, rules in (
+            (
+                "restricted_finds",
+                ("domain", "first_name", "last_name"),
+                self.RESTRICTED_FIND_RULES,
+            ),
+            ("restricted_verifications", ("email",), self.RESTRICTED_VERIFY_RULES),
+        ):
+            for entry in _restrictions(self.name, raw, key, fields):
+                contributions.append(
+                    normalizer.apply({**entry, "restricted": True}, rules, context)
+                )
         return contributions
+
+
+def _is_refused(address: object, refused: set[str]) -> bool:
+    return isinstance(address, str) and address.strip().casefold() in refused
 
 
 def _is_finite(value: object) -> bool:
@@ -601,6 +717,25 @@ def _responses(
             )
         checked.append(response)
     return checked
+
+
+def _restrictions(
+    provider: str, batch: RawBatch, key: str, fields: tuple[str, ...]
+) -> list[Mapping[str, Any]]:
+    """The questions Hunter refused with a 451, each a mapping of text ``fields``."""
+    payload = batch.payload
+    if not isinstance(payload, Mapping) or key not in payload:
+        return []
+    entries = payload[key]
+    if not isinstance(entries, list) or not all(
+        isinstance(entry, Mapping)
+        and all(isinstance(entry.get(field), str) for field in fields)
+        for entry in entries
+    ):
+        raise NormalizationError(
+            provider, raw_field_path=key, canonical_path="<unmapped>"
+        )
+    return entries
 
 
 @dataclass(frozen=True)

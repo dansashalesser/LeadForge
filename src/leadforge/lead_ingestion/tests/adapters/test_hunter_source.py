@@ -6,7 +6,7 @@ import socket
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from structlog.testing import capture_logs
@@ -18,6 +18,7 @@ from leadforge.lead_ingestion.adapters.hunter import (
     credits_in,
 )
 from leadforge.lead_ingestion.base_source import (
+    BaseLeadSource,
     Capability,
     ChargeUnit,
     CostClass,
@@ -31,10 +32,15 @@ from leadforge.lead_ingestion.base_source import (
 from leadforge.lead_ingestion.errors import (
     MissingCredentialError,
     NormalizationError,
+    SourceComplianceRestricted,
     SourceError,
+    SourceQuotaExhausted,
+    SourceRateLimited,
     SourceTransient,
+    SourceUnauthorized,
     UndeclaredEndpointError,
 )
+from leadforge.lead_ingestion.mode_resolution import ModeResolution
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
     DataMode,
@@ -43,8 +49,14 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
 )
 from leadforge.lead_ingestion.normalizer import unmapped_raw_paths
-from leadforge.lead_ingestion.orchestrator import per_company_work_list
+from leadforge.lead_ingestion.orchestrator import (
+    IngestionOrchestrator,
+    SourceOutcome,
+    SourceStatus,
+    per_company_work_list,
+)
 from leadforge.lead_ingestion.pacing import SourcePacing
+from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.retry import RetryPolicy
 from leadforge.lead_ingestion.throttle import SourceThrottle
 from leadforge.lead_ingestion.transport import RestTransport, TransportResponse
@@ -1507,3 +1519,407 @@ async def test_a_cancel_during_a_poll_request_propagates_and_leaves_no_task() ->
         await task
     assert asyncio.all_tasks() == {asyncio.current_task()}
     assert source._verified == {}  # nothing cached by a cancelled poll
+
+
+# --- Task 15.3: Hunter's inverted status conventions and 451 (16.6, 16.7) ----------
+
+ADA = "ada@example.com"
+OTHER = "bob@example.com"
+SECRETS = (KEY, ADA, OTHER, "example.com", "Lovelace", "claimed_email")
+
+
+def status_of(code: int, **headers: str) -> TransportResponse:
+    return TransportResponse(code, headers, {"echo": list(SECRETS)})
+
+
+def answering(code: int, **headers: str) -> Routed:
+    bad = status_of(code, **headers)
+    return Routed(search=lambda _: bad, finder=lambda _: bad, verifier=lambda _: bad)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+@pytest.mark.parametrize("route", sorted(WORK_FOR_EACH_ROUTE))
+async def test_a_403_is_throttling_never_unauthorized_on_every_route(
+    route: str,
+) -> None:
+    transport = answering(403, **{"retry-after": "7"})
+    with pytest.raises(SourceRateLimited) as caught:
+        await live(transport).fetch_raw(enrich(WORK_FOR_EACH_ROUTE[route]))
+    assert not isinstance(caught.value, SourceUnauthorized)
+    assert caught.value.retry_after_s == 7.0
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+async def test_a_403_without_a_usable_retry_after_carries_none() -> None:
+    for hint in ({}, {"retry-after": "soon"}):
+        transport = Routed(verifier=Sequence(TransportResponse(403, hint, None)))
+        with pytest.raises(SourceRateLimited) as caught:
+            await live(transport).fetch_raw(enrich(person(email=ADA)))
+        assert caught.value.retry_after_s is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+@pytest.mark.parametrize("route", sorted(WORK_FOR_EACH_ROUTE))
+async def test_a_429_is_quota_exhausted_never_a_retryable_throttle(route: str) -> None:
+    transport = answering(429, **{"retry-after": "7"})
+    with pytest.raises(SourceQuotaExhausted) as caught:
+        await live(transport).fetch_raw(enrich(WORK_FOR_EACH_ROUTE[route]))
+    assert not isinstance(caught.value, SourceRateLimited)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+def test_the_retry_policy_retries_a_403_but_not_a_429_or_a_451() -> None:
+    retryable = RetryPolicy().retryable
+    assert SourceRateLimited in retryable
+    assert SourceQuotaExhausted not in retryable
+    assert SourceComplianceRestricted not in retryable
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [(401, SourceUnauthorized), (408, SourceTransient), (503, SourceTransient)],
+)
+async def test_the_other_statuses_keep_the_conventional_mapping(
+    code: int, expected: type[SourceError]
+) -> None:
+    with pytest.raises(expected):
+        await live(answering(code)).fetch_raw(enrich(person(email=ADA)))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+async def test_a_401_names_the_endpoint_and_a_404_is_plain_permanent() -> None:
+    with pytest.raises(SourceUnauthorized) as unauthorized:
+        await live(answering(401)).fetch_raw(enrich(person(email=ADA)))
+    assert unauthorized.value.endpoint == VERIFIER_PATH
+    with pytest.raises(SourceError) as permanent:
+        await live(answering(404)).fetch_raw(enrich(person(email=ADA)))
+    assert type(permanent.value) is SourceError
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+@pytest.mark.parametrize("code", [403, 429])
+async def test_these_errors_name_no_key_address_domain_name_or_body(code: int) -> None:
+    work = [person(domain="example.com"), person(first="Ada", last="Lovelace")]
+    for one in (*work, person(email=ADA)):
+        with capture_logs() as logs, pytest.raises(SourceError) as caught:
+            await live(answering(code)).fetch_raw(enrich(one))
+        for text in (str(caught.value), repr(caught.value), str(logs)):
+            for secret in SECRETS:
+                assert secret not in text
+
+
+def restricted() -> TransportResponse:
+    return TransportResponse(451, {}, {"errors": [{"details": "claimed_email"}]})
+
+
+def one_restricted(address: str = ADA) -> Responder:
+    def respond(params: Mapping[str, object]) -> TransportResponse:
+        if params["email"] == address:
+            return restricted()
+        return verdict(address=str(params["email"]))
+
+    return respond
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_451_on_one_address_is_recorded_and_the_batch_goes_on() -> None:
+    transport = Routed(verifier=one_restricted())
+    source = live(transport)
+    batch = await source.fetch_raw(
+        enrich(person(email=ADA), person(email=OTHER), person(email="cy@example.com"))
+    )
+    assert len(transport.calls) == 3  # the addresses after the restricted one are asked
+    contributions = source.normalize_checked(batch)
+    [flagged] = [c for c in contributions if c.values.get("suppressed") is True]
+    assert flagged.values["person.email"] == ADA
+    assert set(flagged.values) == {"person.email", "suppressed"}  # no verdict, no data
+    assert len(contributions) == 3
+    others = [c for c in contributions if c is not flagged]
+    assert {c.values["person.email"] for c in others} == {OTHER, "cy@example.com"}
+    assert all(not c.values.get("suppressed") for c in others)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_restricted_address_contributes_no_verdict_confidence_or_source() -> (
+    None
+):
+    transport = Routed(verifier=lambda _: restricted())
+    source = live(transport)
+    batch = await source.fetch_raw(enrich(person(email=ADA)))
+    [flagged] = source.normalize_checked(batch)
+    assert flagged.values == {"person.email": ADA, "suppressed": True}
+    assert all(
+        record.confidence_origin is ConfidenceOrigin.NONE
+        for record in flagged.provenance
+    )
+    assert credits_in(batch) == 0  # nothing was delivered, so nothing is counted
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_451_on_the_finder_flags_that_person_and_contributes_no_address() -> (
+    None
+):
+    def finder(params: Mapping[str, object]) -> TransportResponse:
+        if params["last_name"] == "Lovelace":
+            return restricted()
+        return found_one("bob@example.com")
+
+    transport = Routed(finder=finder)
+    source = live(transport)
+    batch = await source.fetch_raw(
+        enrich(
+            person(first="Ada", last="Lovelace"), person(first="Bob", last="Babbage")
+        )
+    )
+    assert len(transport.calls) == 2
+    contributions = source.normalize_checked(batch)
+    [flagged] = [c for c in contributions if c.values.get("suppressed") is True]
+    assert "person.email" not in flagged.values
+    assert flagged.values["company.domain"] == "example.com"
+    assert isinstance(flagged.values["person.first_name"], UntrustedText)
+    assert [c.values["person.email"] for c in contributions if c is not flagged] == [
+        OTHER
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_451_on_a_domain_search_is_a_compliance_error_not_a_flag() -> None:
+    transport = Routed(search=lambda _: restricted())
+    with capture_logs() as logs, pytest.raises(SourceComplianceRestricted) as caught:
+        await live(transport).fetch_raw(enrich(person(domain="example.com")))
+    for text in (
+        str(caught.value),
+        repr(caught.value),
+        caught.value.subject,
+        str(logs),
+    ):
+        for secret in SECRETS:
+            assert secret not in text
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_restriction_is_asked_once_even_when_the_fetch_retries() -> None:
+    transport = Routed(verifier=one_restricted())
+    source = live(transport)
+    work = enrich(person(email=ADA), person(email=OTHER))
+    first = await source.fetch_raw(work)
+    second = await source.fetch_raw(work)
+    assert len(transport.calls) == 2  # no second payment for the 451 or the verdict
+    assert second.payload == first.payload
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_restriction_leaks_no_address_or_body_into_logs_or_batch() -> None:
+    transport = Routed(verifier=lambda _: restricted())
+    source = live(transport)
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(enrich(person(email=ADA)))
+        source.normalize_checked(batch)
+    assert "claimed_email" not in str(batch.payload)
+    assert "claimed_email" not in str(logs)
+    assert ADA not in str(logs)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_restricted_batch_of_the_wrong_shape_is_a_normalization_error() -> None:
+    source = live(Routed())
+    bad: list[object] = [None, "x", [None], [{"email": 3}], [{}]]
+    for restrictions in bad:
+        batch = RawBatch(
+            source_name="hunter",
+            payload={
+                "searches": [],
+                "finds": [],
+                "verifications": [],
+                "restricted_verifications": restrictions,
+                "credits_billable": True,
+            },
+        )
+        with pytest.raises(NormalizationError):
+            source.normalize(batch)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+@pytest.mark.parametrize(
+    ("code", "kind"), [(403, SourceRateLimited), (429, SourceQuotaExhausted)]
+)
+async def test_a_403_or_429_mid_poll_stops_polling_and_pays_no_more(
+    code: int, kind: type[SourceError]
+) -> None:
+    transport = Routed(
+        verifier=Sequence(pending(), pending(), TransportResponse(code, {}, None))
+    )
+    fake = FakeTime()
+    with pytest.raises(kind):
+        await polling(transport, fake).fetch_raw(
+            enrich(person(email=ADA), person(email=OTHER))
+        )
+    assert len(transport.calls) == 3  # no poll after the error, no second address
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_451_mid_poll_stops_that_address_and_the_batch_goes_on() -> None:
+    def answer(params: Mapping[str, object]) -> TransportResponse:
+        if params["email"] == ADA:
+            return restricted() if seen[ADA] else pending_once(ADA)
+        return verdict(address=str(params["email"]))
+
+    seen = {ADA: False}
+
+    def pending_once(address: str) -> TransportResponse:
+        seen[address] = True
+        return pending()
+
+    transport = Routed(verifier=answer)
+    source = polling(transport, FakeTime())
+    batch = await source.fetch_raw(enrich(person(email=ADA), person(email=OTHER)))
+    assert [call[1]["email"] for call in transport.calls] == [ADA, ADA, OTHER]
+    contributions = source.normalize_checked(batch)
+    flags = {
+        c.values["person.email"]: c.values.get("suppressed") for c in contributions
+    }
+    assert flags == {ADA: True, OTHER: None}
+
+
+class _Discovery(BaseLeadSource):
+    """A stand-in discovery source handing Hunter one known address to verify."""
+
+    name: ClassVar[str] = "discovery"
+    capabilities: ClassVar[frozenset[Capability]] = frozenset({Capability.SEARCH})
+    rate_limit: ClassVar[Mapping[str, Any]] = {}
+    answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {}
+    cost_class: ClassVar[CostClass] = CostClass.FREE
+    charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_CALL
+    yields_suppression: ClassVar[bool] = False
+    target_vocabulary: ClassVar[Mapping[str, object]] = {}
+    endpoints: ClassVar[Mapping[str, Endpoint]] = {}
+    required_env: ClassVar[tuple[str, ...]] = ()
+
+    async def fetch_raw(self, request: SourceRequest) -> RawBatch:
+        return RawBatch(source_name=self.name, payload={})
+
+    def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+        return [person(email=ADA)]
+
+
+async def run_orchestrated(
+    transport: Scripted,
+) -> tuple[dict[str, SourceOutcome], dict[str, int]]:
+    def build(
+        source_class: type[BaseLeadSource], mode: DataMode, pacing: SourcePacing | None
+    ) -> BaseLeadSource:
+        if source_class is HunterSource:
+            return HunterSource(mode, transport=transport, environ=ENV, pacing=pacing)
+        return _Discovery(mode)
+
+    orchestrator = IngestionOrchestrator(
+        SourceRegistry([_Discovery, HunterSource]),
+        resolve_mode=lambda _c, _s: ModeResolution(DataMode.LIVE, "test"),
+        build_source=build,
+        max_concurrent_sources=2,
+        run_timeout_s=30,
+        retry_policy=RetryPolicy(max_attempts=3, base_delay_s=0.001, max_delay_s=0.002),
+    )
+    results = await orchestrator.run(SourceRequest(kind="search"))
+    flagged = {
+        r.source_name: sum(
+            1 for c in r.contributions or () if c.values.get("suppressed") is True
+        )
+        for r in results
+    }
+    return {r.source_name: r.outcome for r in results}, flagged
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.7
+async def test_end_to_end_a_403_is_throttling_and_a_429_halts_the_source() -> None:
+    throttled, _ = await run_orchestrated(answering(403, **{"retry-after": "0"}))
+    assert throttled["hunter"].status is SourceStatus.RATE_LIMITED
+    assert (throttled["hunter"].attempted, throttled["hunter"].retries) == (3, 2)
+    assert throttled["discovery"].status is SourceStatus.OK
+    transport = answering(429)
+    spent, _ = await run_orchestrated(transport)
+    assert spent["hunter"].status is SourceStatus.QUOTA_EXHAUSTED
+    assert (spent["hunter"].attempted, spent["hunter"].retries) == (1, 0)
+    assert len(transport.calls) == 1
+    assert spent["discovery"].status is SourceStatus.OK
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_end_to_end_a_restricted_address_reaches_the_run_as_a_flagged_lead() -> (
+    None
+):
+    outcomes, flagged = await run_orchestrated(Routed(verifier=lambda _: restricted()))
+    assert outcomes["hunter"].status is SourceStatus.OK
+    assert flagged["hunter"] == 1
+    for text in (outcomes["hunter"].error, str(outcomes["hunter"])):
+        for secret in SECRETS:
+            assert secret not in str(text)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_end_to_end_a_restricted_domain_search_is_a_compliance_outcome() -> None:
+    class Domains(_Discovery):
+        def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+            return [person(domain="example.com")]
+
+    def build(
+        source_class: type[BaseLeadSource], mode: DataMode, pacing: SourcePacing | None
+    ) -> BaseLeadSource:
+        transport = Routed(search=lambda _: restricted())
+        if source_class is HunterSource:
+            return HunterSource(mode, transport=transport, environ=ENV, pacing=pacing)
+        return Domains(mode)
+
+    orchestrator = IngestionOrchestrator(
+        SourceRegistry([_Discovery, HunterSource]),
+        resolve_mode=lambda _c, _s: ModeResolution(DataMode.LIVE, "test"),
+        build_source=build,
+        max_concurrent_sources=2,
+        run_timeout_s=30,
+        retry_policy=RetryPolicy(max_attempts=3, base_delay_s=0.001, max_delay_s=0.002),
+    )
+    results = await orchestrator.run(SourceRequest(kind="search"))
+    [hunter] = [r for r in results if r.source_name == "hunter"]
+    assert hunter.outcome.status is SourceStatus.COMPLIANCE_RESTRICTED
+    assert hunter.outcome.attempted == 1  # never retried
+    for secret in SECRETS:
+        assert secret not in str(hunter.outcome.error)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+@pytest.mark.parametrize("route", ["finder", "verifier"])
+async def test_the_per_question_catch_lets_every_other_failure_through(
+    route: str,
+) -> None:
+    work = (
+        person(first="Ada", last="Lovelace") if route == "finder" else person(email=ADA)
+    )
+    for code, kind in (
+        (403, SourceRateLimited),
+        (404, SourceError),
+        (503, SourceTransient),
+    ):
+        with pytest.raises(kind):
+            await live(Routed(**{route: lambda _, c=code: status_of(c)})).fetch_raw(
+                enrich(work)
+            )
+
+    def cancel(_: Mapping[str, object]) -> TransportResponse:
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await live(Routed(**{route: cancel})).fetch_raw(enrich(work))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_restricted_address_never_keeps_contact_data_from_the_finder() -> None:
+    transport = Routed(verifier=lambda _: restricted(), finder=lambda _: found_one(ADA))
+    source = live(transport)
+    batch = await source.fetch_raw(
+        enrich(person(email=ADA), person(first="Ada", last="Lovelace"))
+    )
+    contributions = source.normalize_checked(batch)
+    assert [c.values for c in contributions] == [
+        {"person.email": ADA, "suppressed": True}
+    ]

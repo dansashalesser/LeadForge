@@ -434,7 +434,7 @@ task = one commit.
   - Blocked on 15.1; parallel with 12.x, 13.x, and 14.x
   - _Requirements: 16.4_
 
-- [ ] 15.3 (P) Invert Hunter's status-code conventions in error classification
+- [x] 15.3 (P) Invert Hunter's status-code conventions in error classification
   - Override error classification so Hunter's forbidden response maps to rate-limited and its too-many-requests response maps to Credit-exhausted, keeping the inversion invisible above the adapter
   - Never treat Hunter's forbidden response as an authorization failure
   - Map the restricted-personal-data response to a compliance restriction, recording the restriction on the Lead and contributing no contact data for it

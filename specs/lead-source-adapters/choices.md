@@ -1482,3 +1482,31 @@ Known gaps:
 - Pacing is a token bucket (burst 10 plus refill), as decided in earlier tasks; interleaving with other buckets is not starved because buckets are separate (not tested end to end). needs-follow-up
 
 - **Parent note:** the "recording budget exhaustion" bullet is only partly met (a counts-only log warning) because the run record is task 18.2; wire the give-up count into the per-source counts there. 15.2 is ticked for the bounded polling itself.
+
+## Task 15.3 — Invert Hunter's status-code conventions in error classification (2026-10-05)
+Evidence: wrote 17 new tests first and ran them: 17 failed (403 read as unauthorized, 429 as rate-limited, 451 a plain SourceError, no restriction batch/validation) before any adapter code; after HunterSource.classify_error plus 451 isolation: ruff format/check clean, mypy clean, pytest 1951 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- A 451 on one address (verifier) or one name (finder) is ISOLATED: caught in fetch_raw (SourceComplianceRestricted only), recorded in the batch, batch continues; rejected: letting it fail the whole fetch (would drop every other lead's data).
+- The restriction is carried on the Lead as a contribution with `suppressed` = True plus the identity asked by (address; or domain + first/last name as UntrustedText) and no verdict/confidence/source; rejected: also setting `opt_out` (HubSpot sets both) because Hunter says "restricted processing", not opt-out.
+- A 451 on domain search is not isolated (no person named): it raises SourceComplianceRestricted and fails that fetch.
+- classify_error cannot see the request, so the error's `subject` is the endpoint path, never an address/domain; rejected: re-raising with the address (PII in error text).
+- 403 cause "http_403_rate_limit" (Retry-After via retry_after_seconds); 429 -> SourceQuotaExhausted "cause=http_429_usage_limit", Retry-After ignored.
+- Restrictions are cached per run (no second paid ask on a retried fetch) and a 451 is assumed not billed (credits_in counts delivered responses only).
+- New batch keys `restricted_finds` / `restricted_verifications`; a malformed one is a NormalizationError.
+### Known gaps (needs-follow-up)
+- Hunter's real 451/403/429 bodies and whether a 451 consumes a Credit were not verified; fixtures are hand-made stand-ins (scripted transport, no new fixture files).
+- Name-only (finder) suppression has no identity prune_flagged can match (it keys on email/linkedin_url); the merge engine must match it by name+domain.
+- Merge/orchestrator behavior of the flagged contribution was not tested end to end.
+
+### Self-review findings
+Fixed:
+- Defect: a restricted address (verifier 451) could still carry contact data in the SAME batch from a finder or domain-search answer for that address (16.6 "contribute no contact data"). `normalize` now drops any search item, finder answer or verifier answer whose address is in `restricted_verifications`. Test-first: `test_a_restricted_address_never_keeps_contact_data_from_the_finder` failed, then passed.
+- Added tests: end to end through the real orchestrator + RetryPolicy (403 -> RATE_LIMITED, 3 attempts, 2 retries; 429 -> QUOTA_EXHAUSTED, 1 attempt, other source OK; restricted address -> source OK with one flagged contribution; domain-search 451 -> COMPLIANCE_RESTRICTED, 1 attempt, no PII in outcome.error); the per-question catch lets 403/404/503/CancelledError through on finder and verifier.
+- Mutation-checked (all killed, file restored byte-for-byte): 403 and 429 mapping dropped, 451 not compliance, subject = body, 429 retryable, catch widened to SourceError, 451 aborts batch, refused-address filter off.
+Verified, no change: suppressed only (not opt_out) is consistent with CONTEXT.md Suppression (avoids "opt-out"); HubSpot's both-flags choice is its own (13.1) and prune_flagged honours either flag; 451 assumed unbilled (research.md is silent; credits_in counts only delivered answers); caches keep restricted questions from being re-asked on retry.
+Known gaps:
+- SPEC GAP: a per-question 451 never reaches the orchestrator as COMPLIANCE_RESTRICTED; the only record is the flagged contribution (source status OK). 16.6 and the design's Error Categories row say "record restriction on the lead", so the letter is met, but a run report / 18.2 per-source failure counts will not count restricted addresses. needs-follow-up: decide whether SourceOutcome needs a restricted count.
+- needs-follow-up: a finder (name-only) restriction carries first_name/last_name/domain and no email or LinkedIn, so prune_flagged (11.6) cannot match it; it helps only if the Merge Engine (16.x) joins first+last into full_name and matches it. Hunter will be asked again in later runs.
+- needs-follow-up: `yields_suppression` stays False (Hunter is paid; the ordering rule is for free sources) though Hunter now emits suppressed flags.
+- needs-follow-up: a 451 for an address does not remove it from an answer given earlier by another source or tier; that rests on the merge's OR semantics.
