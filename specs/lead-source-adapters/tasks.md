@@ -184,7 +184,7 @@ task = one commit.
   - Shield the transaction scope from run-timeout cancellation so a cancelled source is either fully written or fully rolled back, never torn
   - _Requirements: 9.6_
 
-- [ ] 6.5 (P) Retain raw provider payloads under a retention policy
+- [x] 6.5 (P) Retain raw provider payloads under a retention policy
   - Land raw payloads only in the dedicated raw-response table, never on the canonical tables, reachable only through an explicit repository call so default queries exclude them
   - Set retention to indefinite in synthetic mode and to a configurable window defaulting to thirty days in live mode, with a purge routine that deletes expired rows
   - Blocked on 6.1 and 6.3; parallel with 6.6, which touches the contribution-field mapping instead
