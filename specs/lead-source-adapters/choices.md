@@ -864,3 +864,29 @@ Process note: the implementer wrote tests and module in one step, so there is no
 
 ### Known gap (needs-follow-up)
 - The retry policy uses `RetryPolicy()` defaults because no retry configuration exists, while design.md says `max_attempts` comes from config. A later task (config or orchestrator) must pass a configured policy into `build_pacing`.
+
+## Task 7.4 — Prove plug-and-play with a runtime-registered throwaway source (2026-10-05)
+
+Evidence: wrote test_plug_and_play.py first; ran it and saw 4 failures (`SourceRegistry` has no `register`) before adding the method; then ruff format/check, mypy clean, pytest 1270 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Added public `SourceRegistry.register(cls)` delegating to `_add` (same duplicate rule); rejected a module-level/global registration hook or decorator (design says no global state).
+- Registration is per registry instance; a later `discover()` does not see the class. Rejected persisting it into the adapter package.
+- No orchestrator exists (task 11), so "synthetic ingestion run" is composed inside the test: `active(factory)` -> `fetch_raw` -> `normalize_checked` -> persist (SourceRun, raw response, `write_contribution` via `StoreWriter`) -> `read_contribution` on migrated SQLite. Rejected building a run helper in src (speculative, task 11's scope).
+- Zero sockets asserted by patching connect, connect_ex, getaddrinfo (not `socket.socket`, which the event loop needs).
+- Throwaway class lives in the test module, not the adapter package, so discovery is not polluted.
+### Known gaps (needs-follow-up)
+- The run path should be replaced or backed by the real orchestrator test once task 11 exists.
+- Postgres leg not exercised for this run (SQLite only).
+- Serena/GitNexus blast-radius not queried; `register` is new, no existing callers.
+
+### Self-review findings
+Fixed:
+- registry.py `register`: accepted non-classes, `BaseLeadSource` itself, abstract subclasses and blank names (AttributeError or silent bad entry). Now raises TypeError and registers nothing. New test `test_runtime_registration_rejects_non_sources_and_abstract_classes`.
+- Mutation survivor: bypassing `normalize_checked` passed the run test. The throwaway now emits a NOT_APPLICABLE absence and the test spies `validate_absence`; bypass now fails.
+- Socket guard did not cover unconnected UDP `sendto`; added it, plus `test_socket_guard_blocks_every_outbound_path` (connect, connect_ex, sendto, getaddrinfo, create_connection) so a dead patch is detected.
+- Mutations verified killed: duplicate rule skipped, register no-op, no validation, not visible in active, normalize_checked bypass, guard off, global registry leak. Files restored. Tests, ruff, mypy all pass (1272 passed).
+Known gaps:
+- needs-follow-up: zero-socket guard patches connect/connect_ex/sendto/getaddrinfo only. Not covered: subprocess, socket.sendmsg/sendall on pre-connected sockets, AF_UNIX, third-party C-level resolvers. Guard is best-effort evidence, not proof.
+- needs-follow-up: re-registering the same class raises DuplicateSourceNameError (same name rule); intentional, untested.
+- needs-follow-up: no orchestrator (task 11); run is wired in the test, so it proves seams, not the real pipeline.

@@ -219,7 +219,7 @@ task = one commit.
   - Classify each source's live access as available, gated, or unavailable, declared on the adapter with an optional configuration override
   - _Requirements: 3.5, 3.6_
 
-- [ ] 7.4 Prove plug-and-play with a runtime-registered throwaway source
+- [x] 7.4 Prove plug-and-play with a runtime-registered throwaway source
   - Register a throwaway adapter subclass at runtime, assert it appears in the registry listing, and assert it completes a synthetic ingestion run end to end
   - Treat this as the load-bearing falsifiable form of the plug-and-play claim; a passing adapter count proves nothing this test does not
   - _Requirements: 3.2_

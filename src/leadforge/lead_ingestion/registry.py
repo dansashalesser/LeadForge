@@ -255,6 +255,30 @@ class SourceRegistry:
         """Configured names no registered source declares (typo or deferred source)."""
         return tuple(sorted(set(self._config) - set(self._classes)))
 
+    def register(self, source_class: type[BaseLeadSource]) -> None:
+        """Register one concrete source class at runtime (3.2).
+
+        Same path and same duplicate-name rule as discovery. It changes this
+        registry only; a later ``discover()`` does not see the class. A non-source,
+        an abstract class, or a blank name raises ``TypeError`` and registers nothing.
+        """
+        if (
+            not isinstance(source_class, type)
+            or not issubclass(source_class, BaseLeadSource)
+            or source_class is BaseLeadSource
+        ):
+            raise TypeError(f"{source_class!r} is not a BaseLeadSource subclass")
+        if inspect.isabstract(source_class):
+            missing = ", ".join(sorted(source_class.__abstractmethods__))
+            raise TypeError(f"{source_class.__name__} is abstract: implement {missing}")
+        name = getattr(source_class, "name", None)
+        if not isinstance(name, str) or not name.strip():
+            raise TypeError(
+                f"{source_class.__name__} must declare a non-blank str name, "
+                f"got {name!r}"
+            )
+        self._add(source_class)
+
     def _add(self, source_class: type[BaseLeadSource]) -> None:
         name = source_class.name
         key = _collision_key(name)
