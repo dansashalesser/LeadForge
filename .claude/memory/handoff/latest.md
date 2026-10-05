@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T15:33:43+00:00
+- Written: 2026-10-05T15:37:41+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 15.1 review expanded the task considerably. It found the finder/verifier routing and the confidence rule belong to 15.1, and built them with cached calls, input hygiene and 117 tests. One real design tension is flagged as a spec gap in the ledger: Hunter's finder and verifier work per person, but the source declares per-company charging. The orchestrator's per-company dedupe would therefore pass one Lead per company, and other people at that company would never be found or verified. That needs your decision, and I'll include it in the summary. Finishing the task.
+I committed and pushed the session-state files. Task 15.2's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
