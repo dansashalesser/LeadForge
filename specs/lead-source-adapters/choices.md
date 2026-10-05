@@ -374,3 +374,7 @@ Least-confident first.
 Counts: sound 6, unsound 0, needs-user 2. The audit was done by the parent, not an independent auditor.
 Signals: none. No `unsound` entries and no clustering.
 Note: the first commit (1809b75) did not include `tasks.md` (4.1 marked `[x]`) or this ledger; they are committed afterwards.
+
+### Task 4.1 — user decisions on the two `needs-user` entries (2026-10-05)
+1. **Timeouts (connect 5 s, read 30 s):** confirmed by the user. Now **sound**.
+2. **Transport construction from the endpoint map:** accepted as a stopgap. The user requires task 12 to fix it; recorded as a detail bullet on 12.1 (bind the transport through `BaseLeadSource.__init__`, endpoint map taken from the adapter itself). Stays open until 12.1 lands.

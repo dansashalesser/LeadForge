@@ -352,6 +352,7 @@ task = one commit.
   - Send technographic filters as snake_case technology identifiers drawn from the Target Profile's Apollo vocabulary, never hard-coded, and check each against a dated snapshot of Apollo's published supported-technology list at startup
   - Warn, naming the identifier, when a configured identifier returns no matches across an entire run
   - Cap page size at one hundred client-side and stop paging at the five-hundred-page ceiling
+  - Bind the transport to the adapter: `BaseLeadSource.__init__` takes the transport (design: `__init__(transport, mode, config)`), the adapter never chooses its own, and the transport's endpoint map is the adapter's own `endpoints` rather than a separately passed copy. Resolves the task 4.1 `needs-user` entry on transport construction; 13.x, 14.x, and 15.x inherit the result
   - Parallel with 13.x, 14.x, and 15.x — each adapter owns its own module and fixture directory. Within this major, run 12.1 before 12.2 and 12.3
   - _Requirements: 12.1, 12.2, 12.8, 12.10, 12.12, 12.13_
 
