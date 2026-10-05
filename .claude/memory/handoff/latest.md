@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T15:54:25+00:00
+- Written: 2026-10-05T15:59:59+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 16.1's code stays uncommitted until its implementer reports and the self-review is done.
+The 16.1 review earned its keep. It confirmed the cross-task bug I suspected. Suppression pruning compared bare `email` paths while the adapters write `person.email`, so a HubSpot opt-out never matched an Apollo-shaped work list. Worse, HubSpot read only the bare path, so with real Apollo output it looked up no emails at all. Both are fixed with an end-to-end test, along with four normalisation defects (Unicode name forms, `ß` folding, private suffixes such as github.io, and punycode spellings). Finishing the task.
 
 ## In-flight todos
 _(none captured)_
