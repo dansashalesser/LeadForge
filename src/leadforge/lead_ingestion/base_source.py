@@ -248,6 +248,11 @@ class BaseLeadSource(ABC):
     # Names of the environment variables holding credentials; values are never declared
     # here, only resolved from the process environment (2.5, 10.4).
     required_env: ClassVar[tuple[str, ...]]
+    # Provider documentation page named in the generated credential example file (10.2).
+    # Defaulted, so a keyless adapter declares nothing; when blank, the generator falls
+    # back to the first rate bucket's doc_url and fails if an adapter with credentials
+    # has neither.
+    docs_url: ClassVar[str] = ""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
