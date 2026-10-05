@@ -235,7 +235,7 @@ task = one commit.
   - Parallel with 8.2, 8.3, and 8.4 — four separate modules, no shared writes
   - _Requirements: 4.2, 4.3, 4.4_
 
-- [ ] 8.2 (P) Load the environment file without overriding the process environment
+- [x] 8.2 (P) Load the environment file without overriding the process environment
   - Load a present environment file at startup while leaving any variable already set in the process environment untouched
   - Parallel with 8.1, 8.3, and 8.4
   - _Requirements: 10.6_
