@@ -378,3 +378,11 @@ Note: the first commit (1809b75) did not include `tasks.md` (4.1 marked `[x]`) o
 ### Task 4.1 — user decisions on the two `needs-user` entries (2026-10-05)
 1. **Timeouts (connect 5 s, read 30 s):** confirmed by the user. Now **sound**.
 2. **Transport construction from the endpoint map:** accepted as a stopgap. The user requires task 12 to fix it; recorded as a detail bullet on 12.1 (bind the transport through `BaseLeadSource.__init__`, endpoint map taken from the adapter itself). Stays open until 12.1 lands.
+
+### Task 4.1 — independent self-review (spec-refactor-agent, 2026-10-05)
+Found one real bug, fixed in d33651b (suite 437 passed, ruff and mypy clean, re-run by the parent):
+- A placeholder value of `..` produced `/v1/people/..`, which httpx collapses to `/v1`, escaping the declared endpoint map (Req 11.1). `_fill_path` now rejects `""`, `"."` and `".."` with `ValueError`.
+- `follow_redirects=False` is now pinned explicitly, with a test that a 302 is returned and its `Location` is never requested.
+- A vacuous non-JSON-body test was replaced with a real 204 empty-body request; added tests for the placeholder values.
+
+Known gaps, not fixed (**needs-follow-up**): `None` and list query values are stringified (`"None"`, `"['a']"`), a query-contract design call for the adapter tasks; no response-size cap; a missing path parameter raises plain `ValueError`, not a typed `SourceError`; `%2e%2e` is sent encoded and server-side decoding is out of our control. The new dot-segment test was not run against the old code; the bug was confirmed by probing httpx directly.
