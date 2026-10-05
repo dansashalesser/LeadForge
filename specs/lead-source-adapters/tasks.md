@@ -138,7 +138,7 @@ task = one commit.
 
 ---
 
-- [ ] 5. Normalization and provenance emission
+- [x] 5. Normalization and provenance emission
 - [x] 5.1 Emit per-field provenance from declarative field rules
   - Declare each provider's field mapping as data — canonical path, raw field path, untrusted marker, optional transform — and emit provenance mechanically from that declaration rather than from hand-written assignments
   - Emit exactly one provenance record for each rule whose raw path resolves to a value, and zero for each that resolves to nothing, leaving the canonical field empty
@@ -153,7 +153,7 @@ task = one commit.
   - Hold each untrusted field to a configured maximum length, truncating and flagging with the original length preserved rather than storing unbounded provider text
   - _Requirements: 22.2, 22.4_
 
-- [ ] 5.3 Raise a named normalization error identifying provider and field
+- [x] 5.3 Raise a named normalization error identifying provider and field
   - Fail fast when a raw payload violates the adapter's declared raw schema, naming the provider, the offending raw field path, and the canonical path it was mapping to
   - Never coerce or substitute a value at this boundary
   - _Requirements: 2.6_
