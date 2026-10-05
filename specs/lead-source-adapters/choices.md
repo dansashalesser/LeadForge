@@ -1615,3 +1615,30 @@ Evidence: wrote tests/test_conflicts.py first; first run = collection ModuleNotF
 - Confidence is the model's already-normalised 0-1 Strength (validated finite). confidence_raw is never touched. No cross-scale normalisation is done here.
 
 - **Fixed by the parent after review (24.4):** the reviewer left as a follow-up that Signal Strength sat inside signal values and so affected value equality and the sha256 tie-break; the 24.4 test hid this by skipping the agreeing/superseded lists for signals. The test now compares winner, agreeing and superseded for every path (seen failing), and `_without_strength` removes the strength from the compared value (a Signal is compared by type and its other fields; the winning candidate keeps its original value). **SPEC GAP stays open:** multi-valued fields (signals, employments, domains) are still compared whole rather than unioned.
+
+## Task 16.4 — Retain losing values as superseded provenance (2026-10-05)
+Evidence: wrote tests/test_superseded.py first; first run = collection ModuleNotFoundError (superseded.py missing), red seen. After superseded.py: 15 tests pass; ruff format/check, mypy, full pytest green.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Only superseded (different-value) candidates are marked; winner and agreeing stay unmarked as corroboration counted by 8.7. Rejected marking agreeing too (would erase the agreement signal).
+- retain_superseded returns a ClusterResolution (idempotent, same type 16.5 consumes); provenance_records flattens to persistable rows ordered path, winner, agreeing, superseded. Rejected a new merged-lead type (that is 16.5).
+- Marking is derived via model_copy on new objects; no stored row edited. A marked winner/agreeing input raises ValueError naming path and source only. Rejected silently re-marking or ignoring it.
+- agreeing_source_count = distinct sources holding the winning value including the winner. Rejected excluding the winner and counting candidates rather than sources.
+- contributing_sources = sorted distinct names from candidates and absences. Rejected taking it from the cluster (not available to a pure ClusterResolution function).
+- 8.6 is satisfied by the existing winner.source_name; no new code beyond a test.
+- Absences pass through untouched, never become provenance rows.
+### Known gaps (needs-follow-up)
+- A contribution with neither values nor absences is invisible to contributing_sources; 16.5 should take the set from the cluster.
+- Not wired into any caller or persistence (canonical_field_provenance.superseded_field_ids belongs to 16.5/store). Store has no superseded column.
+- Agreement is canonical-JSON equality (carried from 16.3). No mutation run.
+
+### Self-review findings
+Fixed:
+- superseded.py: a winner/agreeing record carrying a stale superseded flag now has the flag cleared instead of raising ValueError. The mark is derived (8.12), the store keeps no superseded column, and a record that lost in an earlier run can win in a later one. Output now equals the result from unmarked inputs and stays idempotent. Test-first: the stale-mark test failed on the raising code.
+- tests: replaced the raise test and the ValueError PII test with a stale-mark and repr-PII test. Added 7 tests: record multiset retained once (duplicates, same source twice), superseded set equal to 16.3's, exact case/whitespace comparison, Signal Strength-only difference not superseded (24.4), whole-compared multi-valued signals, invisible empty contribution, and 100 shuffles with idempotence.
+- Mutation-checked (marked winner, losers unmarked, agreeing marked, a record dropped, agreeing omitted from records, source count not distinct): each caught by a test, file restored.
+Verified: no persistence gap. Store has canonical_field_provenance.superseded_field_ids (8.5 persisted by id) and winning_field_id/agreeing_source_count; marks stay derived, no superseded column needed.
+Gaps left:
+- needs-follow-up: contributing_sources cannot see a contribution with neither values nor absences; ClusterResolution does not carry it. 16.5 should take the set from cluster.contributions[*].source_name (8.7). Documented by a test.
+- SPEC GAP (shared with 16.3): multi-valued fields (signals, employments, domains) are compared whole, so a differing list from a lower-ranked source is marked superseded rather than unioned. Documented by a test.
+- needs-follow-up: agreeing candidates are unmarked and persist only as an agreeing_source_count plus their immutable contribution rows. Reading 8.5 as losing = different value; confirm with the owner.

@@ -468,7 +468,7 @@ task = one commit.
   - Parallel with 16.1; blocked only on 2.2 for the provenance shape
   - _Requirements: 1.9, 8.4, 8.10_
 
-- [ ] 16.4 Retain losing values as superseded provenance
+- [x] 16.4 Retain losing values as superseded provenance
   - Persist every losing value with its own provenance record marked superseded rather than dropping it
   - Resolve each field on the merged Lead back to the source that supplied the winning value
   - Carry on the merged Lead the set of all contributing source names and a per-field count of agreeing sources
