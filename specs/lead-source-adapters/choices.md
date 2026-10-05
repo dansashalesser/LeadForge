@@ -61,3 +61,84 @@ wording were named implementer's choices.
 Evidence: partial — the refactor and production-readiness agents were not spawned (the
 subagent has no Agent tool). Serena diagnostics run by the parent: only `reportMissingImports`
 for third-party packages (Pyright not pointed at `.venv`); mypy strict inside the venv is clean.
+
+## Pass 2 — 2026-10-05 (task 2.1)
+
+Gates overridden by the user ("proceed anyway") with the directive to test extensively and build
+real Employment↔Company Signal linking. Not logged: test layout, seeded `random.Random` loops
+instead of `hypothesis` (not a dependency), `Any`-typed aliases in tests for deliberately
+ill-typed input, compliance flags defaulting to `False` (OR-merge belongs to the merge task).
+
+### At most one current Employment per Lead (hard rejection)
+- **Verdict:** needs-user
+- **Spec said:** "historical employments persist alongside the current one" (24.2); nothing on concurrent jobs or on what happens when a provider reports two current roles
+- **Chose:** `CanonicalLead` raises if more than one Employment has `is_current is True`
+- **Alternatives:** allow several current Employments; keep the Lead and flag/demote extras at normalization; pick one deterministically
+- **Provisional:** reversible — delete one validator clause; no stored data exists yet. Risk to watch: real providers do emit two "current" roles, and this turns a usable Lead into a normalization failure
+- **Evidence:** `models.py:164-165`, tests in `test_canonical_entities.py`
+
+### Company Signal identity key `company_id` (new field)
+- **Verdict:** needs-user
+- **Spec said:** share one Company Signal across Leads (24.3); the merge design keys employment matching on registrable domain (design Key 3), not on an opaque id
+- **Chose:** added `CompanySignal.company_id: NonBlank`, used by `share_company_signals` for dedup and conflict detection and by the in-Lead conflict check
+- **Alternatives:** key on the registrable domain set; key on `(name, domains)`; content equality only
+- **Provisional:** reversible while only 2.1 depends on it, but later tasks (merge, normalization) will bind to it. Decide before the merge task: who assigns `company_id`, and how does it relate to domain-based matching?
+- **Evidence:** `models.py` `CompanySignal`, `share_company_signals`; `ConflictingCompanySignalError` in `errors.py`
+
+### Email typed as `str` with a hand-written check, not `EmailStr`
+- **Verdict:** needs-user
+- **Spec said:** design Domain section declares `email: EmailStr | None`; the design's own risk note says `EmailStr` rejects some real provider addresses and failures must be named, not coerced
+- **Chose:** plain `str` plus `_check_email`, stored verbatim, because `email-validator` is not installed and no dependency was added
+- **Alternatives:** add `email-validator` and use `EmailStr` as designed
+- **Provisional:** reversible — swap the annotation and add the dependency; a deviation from the approved design, so confirm
+- **Evidence:** `models.py:76-87`
+
+### `Employment.company` holds the `CompanySignal` object, not an id
+- **Verdict:** sound
+- **Spec said:** an Employment names a Company Signal; shared across Leads rather than copied (1.7, 24.2, 24.3)
+- **Chose:** object reference, giving real shared identity (`is`); Pydantic revalidation left off so instances are not copied
+- **Evidence:** `models.py` `Employment`; identity tests
+
+### Frozen, `extra="forbid"`, tuple collections, hashable entities
+- **Verdict:** sound
+- **Spec said:** reject undeclared fields, frozen against mutation (1.4, 24.1); design names the config
+- **Chose:** shared `_Entity` base with `ConfigDict(extra="forbid", frozen=True)`
+- **Evidence:** `models.py:49-50`
+
+### Person identity is any of email, LinkedIn URL, full name (non-blank)
+- **Verdict:** sound
+- **Spec said:** a record with no person identity is never a Lead (1.5)
+- **Chose:** at least one non-blank identity attribute; `email_status` defaults to `UNKNOWN`, and any other status without an email is rejected; `linkedin_url` is `HttpUrl`
+- **Evidence:** `models.py:145-160`
+
+### Duplicate Employment rejected; same company with different stints allowed
+- **Verdict:** sound
+- **Spec said:** silent
+- **Chose:** exact-duplicate Employment raises; a conflicting `CompanySignal` under one `company_id` inside a Lead raises
+- **Evidence:** `models.py:161-175`
+
+### `is_current: bool | None` and optional non-blank `title`
+- **Verdict:** sound
+- **Spec said:** title and current flag "where the provider supplies them" (24.2)
+- **Chose:** `None` means unknown, never coerced to past
+- **Evidence:** `models.py:120-128`
+
+### Company Signal shape and Signal ranges
+- **Verdict:** sound
+- **Spec said:** fields open
+- **Chose:** needs a name or at least one domain; domains unique, no whitespace, stored verbatim; `Signal.strength` finite float in [0, 1]; `TechSignal` and `IntentSignal` are non-interchangeable subclasses
+- **Evidence:** `models.py:61-118`
+
+### `share_company_signals` semantics
+- **Verdict:** sound
+- **Spec said:** share one Company Signal across Leads (24.3)
+- **Chose:** equal copies collapse to the first-seen instance; conflicting content raises; idempotent and non-mutating
+- **Evidence:** `models.py:177-201`
+
+### Deferred to later tasks
+- **Verdict:** sound
+- **Chose:** `contributing_sources`, `provenance` on the Lead, and `UntrustedText` left out; `full_name` is a non-blank `str` for now (2.2 and normalization own them)
+
+Evidence: partial — `spec-refactor-agent` and `validate-production-agent` were not run by the
+subagent (no Agent tool). Parent re-ran pytest: 196 passed. Commit 74a1532 is local and unpushed;
+`tasks.md` shows 2.1 `[x]` but is uncommitted (specs/ is not committed by harness rule).

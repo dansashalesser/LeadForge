@@ -43,7 +43,7 @@ task = one commit.
 ---
 
 - [ ] 2. Canonical Lead model with per-field provenance
-- [ ] 2.1 Define the Lead, Company Signal, and Employment entities
+- [x] 2.1 Define the Lead, Company Signal, and Employment entities
   - Expose exactly one canonical Lead type as the only lead type a downstream stage may consume, rejecting undeclared fields at construction and frozen against mutation
   - Carry identity attributes (email with its verification status, LinkedIn URL, full name), zero or more Employments, technographic evidence, intent evidence, and compliance flags for Suppression
   - Expose Company Signal as a separate entity for organization-level information; a record with no person identity is never a Lead
