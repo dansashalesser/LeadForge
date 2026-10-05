@@ -1,0 +1,46 @@
+# Worked example Target Profile (requirement 23.5): one complete file so a clean
+# clone runs the demo with no edits. Copy it, then change terms and columns.
+#
+# EVERY IDENTIFIER BELOW IS AN EXAMPLE VALUE. The Apollo technology identifiers are
+# snake_case guesses in Apollo's published style, NOT checked against its supported
+# technology list (task 9.3 / 12.1 add that startup check). Search phrases are plain
+# text. Nothing here is a credential.
+#
+# Layout: technologies / competitors -> <term> -> <source name> -> vocabulary.
+#   * A source gets a column for a term only if that source has a surface for it
+#     (3.3). HubSpot (CRM-state lookup) and Hunter (email discovery) take no
+#     technology filter, so they have no column and are Not Applicable, never
+#     "no match".
+#   * Source names must equal the adapter's registered name exactly. No adapter is
+#     registered yet, so every column currently surfaces as an unregistered-source
+#     warning. Tasks 12-15 register them and turn that into a real check.
+#   * keyword_templates: "{term}" is replaced by the term key below.
+#   * Unknown top-level keys and duplicate keys are errors.
+
+technologies:
+  apache_cassandra:
+    apollo: [apache_cassandra]
+    google_search:
+      - "Apache Cassandra"
+      - "Cassandra database"
+  datastax:
+    apollo: [datastax]
+    google_search:
+      - "DataStax"
+      - "DataStax Astra"
+
+competitors:
+  mongodb:
+    apollo: [mongodb]
+    google_search:
+      - "MongoDB"
+      - "MongoDB Atlas"
+  couchbase:
+    apollo: [couchbase]
+    google_search:
+      - "Couchbase"
+
+keyword_templates:
+  - "{term} migration"
+  - "hiring {term} engineer"
+  - "{term} alternative"
