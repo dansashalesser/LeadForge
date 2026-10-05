@@ -14,6 +14,14 @@ Provisional decisions (see choices.md, task 7.1):
   being skipped, because a skipped adapter is indistinguishable from an unconfigured
   one.
 * Discovery never instantiates an adapter; names are read from the class.
+
+Provisional decisions (see choices.md, task 7.2):
+
+* ``active(factory)`` is the only place an adapter is constructed, and only for
+  enabled sources. The caller injects ``factory`` because construction inputs
+  (resolved data mode, transport, credentials) belong to tasks 8.1 and 12.1.
+* Order is Source Trust Rank descending, then name; registration order is irrelevant.
+* A factory failure propagates unchanged; an empty active list is not an error.
 """
 
 from __future__ import annotations
@@ -21,7 +29,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from types import ModuleType
 
@@ -34,6 +42,7 @@ from leadforge.lead_ingestion.errors import (
 __all__ = [
     "ADAPTER_PACKAGE",
     "LOWEST_TRUST_RANK",
+    "SourceFactory",
     "SourceRegistry",
     "SourceSettings",
 ]
@@ -42,6 +51,10 @@ ADAPTER_PACKAGE = "leadforge.lead_ingestion.adapters"
 
 # A higher Source Trust Rank wins a field conflict (8.4), so the lowest is the floor.
 LOWEST_TRUST_RANK = 0
+
+
+# Builds one adapter from its class; the registry never decides how (mode, transport).
+SourceFactory = Callable[[type[BaseLeadSource]], BaseLeadSource]
 
 
 @dataclass(frozen=True)
@@ -108,6 +121,33 @@ class SourceRegistry:
         if name not in self._classes:
             raise KeyError(name)
         return self._config.get(name, SourceSettings())
+
+    def enabled_names(self) -> tuple[str, ...]:
+        """Names of sources not disabled in configuration, in active order.
+
+        Highest Source Trust Rank first, ties by name, so the order never depends
+        on registration or import order.
+        """
+        enabled = [n for n in self._classes if self.settings(n).enabled]
+        return tuple(sorted(enabled, key=lambda n: (-self.settings(n).trust_rank, n)))
+
+    def active(self, factory: SourceFactory) -> tuple[BaseLeadSource, ...]:
+        """Construct the enabled sources, and only those (3.4).
+
+        A disabled class is never passed to ``factory``, so no object exists for it
+        and no provider call is reachable. A factory error propagates unchanged.
+        """
+        sources: list[BaseLeadSource] = []
+        for name in self.enabled_names():
+            source_class = self._classes[name]
+            source = factory(source_class)
+            if not isinstance(source, source_class):
+                raise TypeError(
+                    f"factory returned {type(source).__name__} for source {name!r}, "
+                    f"expected {source_class.__name__}"
+                )
+            sources.append(source)
+        return tuple(sources)
 
     @property
     def unknown_config_names(self) -> tuple[str, ...]:
