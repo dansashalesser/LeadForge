@@ -490,7 +490,7 @@ task = one commit.
   - Blocked on 16.1 — shares the key-extraction module, so not parallel with it
   - _Requirements: 8.13_
 
-- [ ] 16.7 Disqualify addresses reported against two distinct person names
+- [x] 16.7 Disqualify addresses reported against two distinct person names
   - Structurally bar from acting as a Match Key any address that any source reports against two or more distinct normalized person names, independently of the configured Identity Exclusions
   - Prove a role address that two sources attach to different people never merges them, with no entry added to the exclusion set
   - Blocked on 16.1 — shares the key-extraction module

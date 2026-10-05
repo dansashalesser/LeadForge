@@ -1706,3 +1706,30 @@ Requirement 8.13: "SHALL read a configured set of Identity Exclusions — specif
 - needs-follow-up: store-backed "recompute with zero contribution mutation" test.
 
 - **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** bullet 1 (read exclusions from config) is delivered and reviewed; bullet 2 (bump `projection_version` when the exclusion set changes, recomputing projections) is not: the store has only an integer `canonical_lead.projection_version` column, no recompute code exists, and nothing persists the previous exclusion token. `IdentityExclusions.version_token` is the seam. It needs a store-side decision (where the previous token lives, and what triggers the recompute).
+
+## Task 16.7 — Disqualify addresses reported against two distinct person names (2026-10-05)
+Evidence: new tests/test_role_addresses.py (39 tests): first run was a collection ImportError on DisqualifiedAddresses (red). After the code, a mutation (clustering no longer passes the disqualified set) made 9 of them fail, then restored. Final: `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 2269 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Design: `DisqualifiedAddresses.from_contributions` (match_keys.py) is a first pass over the whole set; `extract_match_keys(..., disqualified=)` skips the address. `cluster_contributions` computes it itself; rejected a caller-supplied parameter (structural rule, could disagree with the contributions) and a config list.
+- A disqualified address is treated like a barred key: skipped, kind kept in `barred_kinds` so it still counts as PRESENT for 8.2/8.3 (rejected plain removal: lets name+domain merge people; a test proves it).
+- Independent of Identity Exclusions; both apply (union of barred kinds). Rejected folding it into IdentityExclusions (would alter version_token and config).
+- "Distinct name" = the match-key name (`_full_name`: full_name, else first+last; NFKC, casefold, whitespace collapse). Rejected fuzzy matching and reordering: `Doe, Jane` is a distinct name (disqualifies, i.e. under-merges).
+- A missing/blank name, or any name containing `*` (masked), is not a name (adapter convention for obfuscated last names). Rejected prefix-unmasking.
+- Addresses of every email_status count when collecting names (deliverable is not non-shared); only VERIFIED addresses were ever keys. Rejected counting verified only.
+- No role-word list (local-part info/sales unused): 8.14 and the design name only distinct names.
+- Edited existing 16.6 test `test_the_repair_projects_two_people_to_two_leads_end_to_end`: its fixture reported two names on one address, which 16.7 now disqualifies unaided; rewrote with nameless carriers so the exclusion is still the only repair.
+- Result type hides addresses from repr (field repr=False), like IdentityExclusions.
+### Known gaps (needs-follow-up)
+- Bullet 1 (structural bar, normalized names, independent of exclusions): delivered. Bullet 2 (role address two sources attach to different people never merges, no exclusion entry): delivered. Bullet 3 (blocked on 16.1): satisfied.
+- No projection_version or run-report surface for the disqualified set (not in the task; 8.13's bump concerns only the exclusion set). Merge logging is 16.12.
+- Hunter `type: generic` still passes through unflagged (by design); the merge-side rule catches it only once two names are seen.
+- A role address reported with one name (or none) is undetectable and still merges; the 16.8 detector is the visibility defence.
+
+### Self-review findings
+- Fixed: nothing in src; no defects confirmed. Added 3 tests (42 total in test_role_addresses.py): NFC/NFD + NBSP name equality, non-text name is a TypeError echoing no value, disqualified address stays on the projected Lead (16.5 data not erased).
+- Mutation-checked (all caught, files restored byte-identical): threshold >2, masked names counted, last-name-wins (order dependent), first pass skipped in clustering, key not removed, kind not kept in barred_kinds.
+- Edited 16.6 test: judged acceptable. Names had to go because 16.7 now disqualifies the shared address unaided; nameless carriers keep it proving that only the exclusion separates (barred key stays present-but-unusable, 3 leads, nothing mutated). Lost: the assertion on the people's names (needs-follow-up, minor).
+- Requirement 8.14 wording ("disqualify as a match key", "two or more distinct normalized person names", no role-word list per design.md and ADR-0003) is fully matched; no role-word list is required, none built.
+- Delivered: all three 16.7 bullets (structural bar independent of exclusions; role-address proof with empty exclusion set; shares the key-extraction module).
+- Known gaps: disqualified unverified/accept_all address still counts as corroborating evidence (not a key, so within 8.14) needs-follow-up if the owner wants it dropped; zero-width characters in names make names distinct (same as the name key; under-merge only) needs-follow-up.

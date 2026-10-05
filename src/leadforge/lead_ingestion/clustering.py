@@ -37,8 +37,11 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
   turn its holder into an email bridge). Rejected: exclusions naming cluster ids
   (pseudonyms that change) or pairs of identities with a split rule (the requirement
   bars values, and the over-merge rule stays global and order-free).
-  Role-address disqualification (16.7) and the over-merge detector (16.8) are not
-  built and no parameter reserves a seam for them.
+* Role-address disqualification (16.7, 8.14) is computed here from the whole set
+  (``DisqualifiedAddresses``), not passed in: it is structural, needs no config, and a
+  caller-supplied set could disagree with the contributions. Disqualified addresses
+  are barred like exclusions (kind stays PRESENT). The over-merge detector (16.8) is
+  not built and no parameter reserves a seam for it.
 * Errors name types only; cluster and key data is personal data.
 """
 
@@ -55,6 +58,7 @@ from pydantic import BaseModel
 
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.match_keys import (
+    DisqualifiedAddresses,
     IdentityExclusions,
     MatchKeyKind,
     MatchKeys,
@@ -164,13 +168,17 @@ def cluster_contributions(
     """Cluster ``contributions`` by Match Key; the result ignores arrival order.
 
     ``exclusions`` bars values from acting as a key (8.13); it can only split clusters.
+    So does the structural rule that bars an address reported against two names (8.14).
     """
     # Canonical order first, so nothing downstream depends on arrival. Byte-identical
     # contributions are interchangeable, so their relative order is immaterial.
     items = sorted(
         ((canonical_json(c), c) for c in contributions), key=lambda pair: pair[0]
     )
-    keys = [extract_match_keys(c, exclusions) for _, c in items]
+    # 8.14: a first pass over the whole set, so an address is disqualified for every
+    # contribution that carries it, whichever arrived first.
+    shared = DisqualifiedAddresses.from_contributions(c for _, c in items)
+    keys = [extract_match_keys(c, exclusions, shared) for _, c in items]
     forest = _UnionFind(len(items))
     _link_linkedin(keys, forest)
     _link_email(keys, forest)

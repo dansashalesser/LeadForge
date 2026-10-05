@@ -37,6 +37,19 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   personal data: hidden from ``repr``, errors name no value. ``version_token`` is a
   digest of the set, so a change is observable (8.13's ``projection_version`` bump);
   storing that bump is the store's job and not built here.
+* Role addresses (task 16.7, 8.14) are disqualified structurally: an address reported
+  against two or more DISTINCT names anywhere in the contribution set being clustered.
+  ``DisqualifiedAddresses.from_contributions`` is that first pass (a pure function of
+  the whole set, so arrival order cannot matter); ``extract_match_keys`` takes it as
+  ``disqualified`` and skips the address like a barred key, keeping its kind in
+  ``barred_kinds`` for the same reason (plain removal would make the holder look
+  key-less and let name+domain merge people). Names are compared as the name key is
+  (``_full_name``: NFKC, casefold, whitespace collapse; no reordering or fuzzy match, so
+  ``Doe, Jane`` is another name: that only ever under-merges). A missing, blank or
+  masked name (any ``*``, as a provider obfuscates last names) is not a name. Addresses
+  of EVERY ``email_status`` count, since the status says deliverable, not unshared.
+  No role-word list. The set is independent of Identity Exclusions; both bar. The
+  address stays on the contribution and in provenance; it just is not a key.
 * Values are read at the paths the adapters write (``person.*``, ``company.*``).
 """
 
@@ -54,6 +67,7 @@ from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.models import EmailStatus, UntrustedText
 
 __all__ = [
+    "DisqualifiedAddresses",
     "IdentityExclusions",
     "MatchKey",
     "MatchKeyKind",
@@ -74,6 +88,7 @@ _TITLE = "person.title"
 _COMPANY_NAME = "company.name"
 _COMPANY_DOMAIN = "company.domain"
 
+_MASK = "*"
 _NAME_DOMAIN_SEPARATOR = "\x1f"
 _CORROBORATING_STATUSES = frozenset({EmailStatus.UNVERIFIED, EmailStatus.ACCEPT_ALL})
 
@@ -151,17 +166,41 @@ class IdentityExclusions:
         return sha256("\x1e".join(entries).encode("utf-8")).hexdigest()
 
 
+@dataclass(frozen=True)
+class DisqualifiedAddresses:
+    """Normalised addresses reported against two or more distinct names (8.14)."""
+
+    addresses: frozenset[str] = field(default=frozenset(), repr=False)
+
+    @classmethod
+    def from_contributions(
+        cls, contributions: Iterable[LeadContribution]
+    ) -> "DisqualifiedAddresses":
+        """The addresses any contributions attach to different people; order-free."""
+        names: dict[str, set[str]] = {}
+        for contribution in contributions:
+            values = contribution.values
+            address = normalize_email(_text(values, _EMAIL))
+            name = _full_name(values)
+            if address and name and _MASK not in name:
+                names.setdefault(address, set()).add(name)
+        return cls(frozenset(a for a, found in names.items() if len(found) > 1))
+
+
 def corroborates(a: MatchKeys, b: MatchKeys) -> bool:
     """True when two contributions share a title or an employer (8.3's further gate)."""
     return bool(a.titles & b.titles) or bool(a.employers & b.employers)
 
 
 def extract_match_keys(
-    contribution: LeadContribution, exclusions: IdentityExclusions | None = None
+    contribution: LeadContribution,
+    exclusions: IdentityExclusions | None = None,
+    disqualified: DisqualifiedAddresses | None = None,
 ) -> MatchKeys:
     """The Match Keys of ``contribution``, strongest kind first, and its evidence.
 
     Keys named by ``exclusions`` are skipped (8.13); their kinds go to ``barred_kinds``.
+    So are ``disqualified`` addresses (8.14), identically.
     """
     values = contribution.values
     keys: set[MatchKey] = set()
@@ -191,6 +230,8 @@ def extract_match_keys(
     barred = (
         {k for k in keys if exclusions.bars(k)} if exclusions is not None else set()
     )
+    if disqualified is not None and email in disqualified.addresses:
+        barred |= {k for k in keys if k.kind is MatchKeyKind.VERIFIED_EMAIL}
     return MatchKeys(
         keys=tuple(sorted(keys - barred)),
         barred_kinds=frozenset(k.kind for k in barred),

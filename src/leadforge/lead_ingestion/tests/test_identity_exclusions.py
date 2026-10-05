@@ -377,18 +377,18 @@ def named(source: str, name: str, **extra: Any) -> LeadContribution:
 def test_the_repair_projects_two_people_to_two_leads_end_to_end() -> None:
     from leadforge.lead_ingestion.projection import project_lead
 
+    # No name is reported against the shared address (with two names, 16.7 would
+    # disqualify it unaided), so only the exclusion can repair this over-merge.
     pool = [
-        named(
+        li(
             "a",
-            "Ann Lee",
-            person__linkedin_url="linkedin.com/in/ann",
+            "linkedin.com/in/ann",
             person__email="info@x.com",
             person__email_status=V,
         ),
-        named(
+        li(
             "b",
-            "Bob Ray",
-            person__linkedin_url="linkedin.com/in/bob",
+            "linkedin.com/in/bob",
             person__email="info@x.com",
             person__email_status=V,
         ),
@@ -396,16 +396,12 @@ def test_the_repair_projects_two_people_to_two_leads_end_to_end() -> None:
     ]
     ranks = {"a": 1, "b": 2, "c": 3}
 
-    def leads(ex: IdentityExclusions) -> list[str]:
+    def leads(ex: IdentityExclusions) -> int:
         out = [project_lead(c, ranks).lead for c in cluster_contributions(pool, ex)]
-        return sorted(str(lead.full_name) if lead else "-" for lead in out)
+        return sum(1 for lead in out if lead is not None)
 
-    assert len(leads(NONE)) == 1
-    assert leads(IdentityExclusions.from_values(emails=["INFO@x.com"])) == [
-        "Ann Lee",
-        "Bob Ray",
-        "None",  # the nameless address-only record is its own lead
-    ]
+    assert leads(NONE) == 1
+    assert leads(IdentityExclusions.from_values(emails=["INFO@x.com"])) == 3
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13
