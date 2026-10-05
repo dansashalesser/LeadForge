@@ -258,7 +258,7 @@ task = one commit.
 ---
 
 - [ ] 9. Target Profile configuration
-- [ ] 9.1 Read targeting terms and provider vocabularies from configuration
+- [x] 9.1 Read targeting terms and provider vocabularies from configuration
   - Read the targeting definition — technologies, competitors, and keyword templates — from a Target Profile in configuration, with no module, test, or requirement naming a specific vendor as a built-in assumption
   - Store for each canonical term the per-provider vocabulary that expresses it, since providers use mutually incompatible identifiers for the same technology
   - Keep adding a term to one configuration file, and adding a source to one module plus that source's column in the same file
