@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T14:03:56+00:00
+- Written: 2026-10-05T14:13:22+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,14 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 11.7's code stays uncommitted until its implementer reports and the self-review is done.
+The 12.1 implementer is running in the background. I'll wait for its report before the self-review.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ awk '/^- \[ \] 10\.3/{f=1} f{print} /^- \[.\] 11\.1/{exit}' specs/lead-source-adapters/tasks.md | cut -c1-700; ls src/
-- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/finish.sh
 - /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/ledger-10.3.md
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 10.3 "feat(lea
 - $ grep -n "^- \[ \] [0-9]*\.[0-9]" specs/lead-source-adapters/tasks.md | cut -c1-120
@@ -55,3 +53,9 @@ old="            self._error = str(
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.4 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.5 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.6 "feat(lea
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.7 "feat(lea
+- $ python3 - <<'PY'
+import re
+p="specs/lead-source-adapters/tasks.md"
+L=open(p).read().split("\n")
+# parent lines look li
