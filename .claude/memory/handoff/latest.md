@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T16:41:15+00:00
+- Written: 2026-10-05T16:45:51+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-16.6 is partly done. The reviewer built the config loader (bullet 1) and confirmed the "barred value" reading against requirement 8.13. It also showed the over-merge repair works end to end through the projection. The projection-version bump (bullet 2) isn't delivered, because the store has only a bare integer column and no recompute code. As with 14.2, I'll commit the finished work and leave the task unchecked rather than overstate it.
+I committed and pushed the session-state files. Task 16.7's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
