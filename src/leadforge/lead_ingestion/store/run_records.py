@@ -6,7 +6,10 @@ the ``ingestion_run`` row and one ``source_run`` row per enabled source (name, r
 mode, reason) together, so a run never exists without its modes. ``finish`` is the only
 update: it sets ``status``, ``exit_code`` and ``finished_at`` once, and refuses a second
 completion, an unknown run, or a status and exit code that contradict each other. The
-``source_run`` rows are not touched after ``start`` here; their counts are task 18.2.
+``record_source_counts`` (task 18.2) is the only other write: it sets each source's
+figures on its own ``source_run`` row, and refuses a source the run never listed. Call
+it in the same ``write_batch`` as ``finish`` so a run is never finished without its
+counts, nor counted without being finished.
 Instants are normalised to aware UTC before binding and re-tagged UTC on read, as
 ``tie_resolutions`` does.
 """
@@ -22,6 +25,7 @@ from leadforge.lead_ingestion.run_record import (
     RunRecord,
     RunRecordError,
     RunStatus,
+    SourceCounts,
     SourceMode,
     StoredRun,
 )
@@ -62,6 +66,7 @@ class RunRecordRepository:
                     source_name=source.source_name,
                     resolved_mode=source.mode.value,
                     mode_reason=source.reason,
+                    live_access=source.live_access,
                 )
             )
         self._session.flush()
@@ -100,6 +105,31 @@ class RunRecordRepository:
             raise RunRecordError("unknown run")
         raise RunRecordError("run is already finished")
 
+    def record_source_counts(
+        self, run_id: uuid.UUID, counts: tuple[SourceCounts, ...]
+    ) -> None:
+        """Write each source's figures to its row. Raises ``RunRecordError`` for a
+        source the run did not list."""
+        for c in counts:
+            updated = self._session.execute(
+                sa.update(SourceRun)
+                .where(
+                    SourceRun.run_id == run_id, SourceRun.source_name == c.source_name
+                )
+                .values(
+                    failure_class=c.failure_class,
+                    leads_found=c.leads_found,
+                    retries=c.retries,
+                    throttle_waits=c.throttle_waits,
+                    http_429_count=c.http_429_count,
+                    quota_remaining=c.quota_remaining,
+                    warnings=c.warnings,
+                )
+                .execution_options(synchronize_session="fetch")
+            )
+            if updated.rowcount != 1:  # type: ignore[attr-defined]
+                raise RunRecordError("unknown source for this run")
+
     def get(self, run_id: uuid.UUID) -> StoredRun | None:
         run = self._session.get(IngestionRun, run_id)
         if run is None:
@@ -119,7 +149,10 @@ class RunRecordRepository:
             config_snapshot=run.config_snapshot,
             sources=tuple(
                 SourceMode(
-                    r.source_name, DataMode(r.resolved_mode), r.mode_reason or ""
+                    r.source_name,
+                    DataMode(r.resolved_mode),
+                    r.mode_reason or "",
+                    r.live_access,
                 )
                 for r in rows
             ),

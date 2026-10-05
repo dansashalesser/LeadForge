@@ -1122,3 +1122,53 @@ async def test_a_run_record_is_written_at_start_and_completed_through_the_writer
     assert done is not None
     assert (done.status, done.exit_code, done.finished_at) == ("completed", 0, NOW)
     assert done.sources == started.sources
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.2
+async def test_per_source_counts_commit_with_the_finish_on_each_engine(
+    backend: Backend,
+) -> None:
+    from leadforge.lead_ingestion.run_record import (
+        RunRecord,
+        RunStatus,
+        SourceCounts,
+        SourceMode,
+    )
+    from leadforge.lead_ingestion.store.run_records import RunRecordRepository
+
+    record = RunRecord(
+        T0,
+        2,
+        {},
+        (
+            SourceMode("alpha", DataMode.LIVE, "r", live_access=True),
+            SourceMode("bravo", DataMode.SYNTHETIC, "r", live_access=False),
+        ),
+    )
+    writer = StoreWriter(backend.engine)
+    run_id = await writer.write_batch(lambda s: RunRecordRepository(s).start(record))
+
+    def finish(session: Session) -> None:
+        repo = RunRecordRepository(session)
+        repo.finish(run_id, status=RunStatus.COMPLETED, exit_code=0, finished_at=NOW)
+        repo.record_source_counts(
+            run_id,
+            (
+                SourceCounts("alpha", "rate_limited", 4, 2, 1, 3, {"api": 5}, ["w"]),
+                SourceCounts("bravo", None, 0, 0, 0, 0, None, None),
+            ),
+        )
+
+    await writer.write_batch(finish)
+    with Session(backend.engine) as s:
+        rows = {r.source_name: r for r in s.scalars(sa.select(m.SourceRun))}
+    a = rows["alpha"]
+    assert (a.failure_class, a.leads_found, a.retries, a.throttle_waits) == (
+        "rate_limited",
+        4,
+        2,
+        1,
+    )
+    assert (a.http_429_count, a.quota_remaining, a.warnings) == (3, {"api": 5}, ["w"])
+    assert (a.live_access, rows["bravo"].live_access) == (True, False)
+    assert (a.credits_consumed, a.credential_present) == (None, None)

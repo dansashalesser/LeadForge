@@ -19,6 +19,32 @@ Provisional decisions (see choices.md, task 18.1):
 * A mode reason is cut to its column (255 characters, ending in an ellipsis so the cut
   shows) so a long variable list cannot make the start-of-run write fail; reasons name
   variables, never values (8.1). Sources are listed by name, as ``get`` returns them.
+
+Per-source counts (task 18.2; Requirement 21.2). Provisional decisions (choices.md,
+18.2):
+
+* ``live_access`` (boolean column) is whether the source's effective classification (the
+  configured override, else the adapter's declaration) is anything but ``unavailable``:
+  a gated source "could run live", only an unavailable one is synthetic-only by
+  necessity. Being boolean it cannot tell gated from available, so the three-valued
+  classification is also kept in ``config_snapshot["sources"][name]["live_access"]``
+  (3.6). Both are written at start with the modes. ``credential_present`` stays
+  unset: the orchestrator reads no environment.
+* ``leads_found`` is the number of Leads normalized (contributions) across the source's
+  phases. The schema has no column for raw records fetched or for Leads merged into
+  existing records, and ``run`` merges nothing; neither is invented.
+  ``contributions_written`` is not touched: ``run`` persists no contribution.
+* ``failure_class`` is the source's final ``SourceStatus`` value, or ``None`` when it
+  ended ``ok``. A source with no result at all (Enrichment with an empty work list)
+  keeps the start row's zeros and no class.
+* ``retries`` is the call ledger's count, ``throttle_waits`` and ``http_429_count`` come
+  from the source's throttle snapshot (zero for a synthetic source, which has none).
+  ``quota_remaining`` is only what the provider itself stated (per-window response
+  headers, 12.5; last response) and ``NULL`` when none was: the local limiter's tokens
+  are never reported as a quota. Only an adapter exposing ``allowances`` reports any.
+  ``credits_consumed`` stays ``NULL``: no adapter reports Credits to the run.
+* ``warnings`` holds the source's PII-safe outcome message when it has one, nothing
+  else; a person named by an error never reaches it (``SourceOutcome.error``).
 """
 
 from __future__ import annotations
@@ -30,8 +56,10 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from leadforge.lead_ingestion.base_source import LiveAccess
 from leadforge.lead_ingestion.mode_resolution import ModeResolution
 from leadforge.lead_ingestion.models import DataMode
+from leadforge.lead_ingestion.orchestrator import SourceResult, SourceStatus
 from leadforge.lead_ingestion.registry import SourceSettings
 
 __all__ = [
@@ -39,9 +67,11 @@ __all__ = [
     "RunRecord",
     "RunRecordError",
     "RunStatus",
+    "SourceCounts",
     "SourceMode",
     "StoredRun",
     "build_run_record",
+    "build_source_counts",
 ]
 
 MAX_REASON_CHARS = 255  # source_run.mode_reason
@@ -64,6 +94,7 @@ class SourceMode:
     source_name: str
     mode: DataMode
     reason: str
+    live_access: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +121,55 @@ class StoredRun:
     sources: tuple[SourceMode, ...]
 
 
+@dataclass(frozen=True)
+class SourceCounts:
+    """One source's figures for a finished run, as written to its ``source_run`` row."""
+
+    source_name: str
+    failure_class: str | None
+    leads_found: int
+    retries: int
+    throttle_waits: int
+    http_429_count: int
+    quota_remaining: dict[str, int] | None
+    warnings: list[str] | None
+
+
+def build_source_counts(results: tuple[SourceResult, ...]) -> tuple[SourceCounts, ...]:
+    """One ``SourceCounts`` per source, ordered by name. Pure.
+
+    A source run in both phases has one result per phase, each carrying the cumulative
+    ledger and throttle figures, so the later result is the whole run's; Leads are
+    summed over the phases.
+    """
+    latest: dict[str, SourceResult] = {}
+    leads: dict[str, int] = {}
+    for r in results:
+        latest[r.outcome.source_name] = r
+        leads[r.outcome.source_name] = leads.get(r.outcome.source_name, 0) + len(
+            r.contributions or ()
+        )
+    counts = []
+    for name in sorted(latest):
+        r = latest[name]
+        status = r.outcome.status
+        counts.append(
+            SourceCounts(
+                source_name=name,
+                failure_class=None if status is SourceStatus.OK else status.value,
+                leads_found=leads[name],
+                retries=r.outcome.retries,
+                throttle_waits=0 if r.throttle is None else r.throttle.throttle_waits,
+                http_429_count=(
+                    0 if r.throttle is None else r.throttle.throttled_responses
+                ),
+                quota_remaining=dict(r.allowances) if r.allowances else None,
+                warnings=None if r.outcome.error is None else [r.outcome.error],
+            )
+        )
+    return tuple(counts)
+
+
 def _cut(reason: str) -> str:
     """Cut to the column by characters (never half a character), marking the cut."""
     if len(reason) <= MAX_REASON_CHARS:
@@ -105,6 +185,7 @@ def build_run_record(
     max_concurrent_sources: int,
     run_timeout_s: float,
     global_mode: DataMode | None,
+    live_access: Mapping[str, LiveAccess] | None = None,
 ) -> RunRecord:
     """Assemble the start-of-run record. Pure: no I/O, no environment read."""
     if started_at.tzinfo is None:
@@ -126,6 +207,10 @@ def build_run_record(
                 None if s.live_access is None else s.live_access.value
             ),
         }
+        # The effective three-valued classification (3.6): the boolean column cannot
+        # tell a gated source from an available one.
+        if live_access is not None and name in live_access:
+            sources[name]["live_access"] = live_access[name].value
     return RunRecord(
         started_at=started_at,
         pool_size=max_concurrent_sources,
@@ -136,7 +221,16 @@ def build_run_record(
             "sources": sources,
         },
         sources=tuple(
-            SourceMode(name, resolutions[name].mode, _cut(resolutions[name].reason))
+            SourceMode(
+                name,
+                resolutions[name].mode,
+                _cut(resolutions[name].reason),
+                (
+                    None
+                    if live_access is None or name not in live_access
+                    else live_access[name] is not LiveAccess.UNAVAILABLE
+                ),
+            )
             for name in ordered
         ),
     )

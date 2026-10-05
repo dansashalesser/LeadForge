@@ -555,7 +555,7 @@ task = one commit.
   - Create one persisted run record at run start carrying the run identifier, start time, the pool bound, a configuration snapshot that makes the run reproducible, and the resolved mode of every enabled source
   - _Requirements: 21.1_
 
-- [ ] 18.2 Persist per-source counts and failure classes
+- [x] 18.2 Persist per-source counts and failure classes
   - On run completion, persist per source the counts of records fetched, Leads normalized, Leads merged into existing records, and failures by class, alongside throttle waits, retries, throttling responses, Credits consumed, remaining per-window allowances, and warnings
   - Record each source's live-access classification so the report states which sources could run live and which are synthetic-only by necessity
   - Blocked on 18.1; shares the run-report warning surface with 16.8

@@ -1965,3 +1965,39 @@ Known gaps:
 - needs-follow-up: `config_snapshot` holds pool bound, timeout, global mode and per-source trust rank and overrides only; it does not capture the target profile or fixture versions. SPEC GAP candidate: 18.1 says the snapshot "makes the run reproducible", which this only partly delivers.
 - The status vocabulary running / completed / aborted has no spec text and no DB CHECK; it is the implementer's choice.
 - The credential canary runs through the real resolver; the snapshot reads typed settings only, so it cannot carry environment values by construction.
+
+## Task 18.2 — Persist per-source counts and failure classes (2026-10-05)
+Evidence: new tests/test_run_source_counts.py and a dual-engine test in test_persistence_both_engines.py were run first and SEEN FAILING (ImportError: SourceCounts missing; sqlite and postgres legs both red). After the code: `uv run ruff format src`, `ruff check src`, `mypy` (146 files) clean; `uv run pytest -q` 2873 passed, 1 skipped (Postgres leg ran). Not mutation-checked.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Counts are written in the SAME write_batch as the run finish (StoreRunRecorder.finish: finish + record_source_counts), not per source. Rejected: per-source batch writes (a run could finish without counts). Consequence: a failing count write leaves the run `running`.
+- Aborted run gets NO counts (results never leave `_execute` on an exception); rows keep start values. Rejected: threading ledgers out of `_execute` (scope).
+- leads_found = contributions normalized across both phases; no column or data for raw "fetched" or "merged into existing" (run merges nothing). contributions_written untouched (run persists none).
+- failure_class = final SourceStatus value; NULL for ok. A source with no result (empty-work-list Enrichment) is NULL/zeros, indistinguishable from ok. Rejected: inventing a "skipped" status.
+- live_access (bool) = effective classification is not UNAVAILABLE (gated counts as could-run-live), written at start via a new `live_access` kwarg on RunRecorder.start and SourceMode.live_access. Rejected: a 3-valued string (column is Boolean).
+- quota_remaining = local limiter tokens left per bucket (tightest window, floored), not provider quota; throttle_waits and http_429_count from SourceThrottle.snapshot (new optional SourceResult.throttle/allowances); retries from the call ledger.
+- warnings = [outcome.error] when set (PII-safe by 11.2/12.3); no other warning.
+- RunRecorder.start Protocol gained a required `live_access` kwarg (only StoreRunRecorder implements it).
+### Known gaps (needs-follow-up)
+- Bullet 1 DELIVERED for: leads normalized, failure class, throttle waits, retries, 429 responses, remaining allowances, warnings. DEFERRED: records fetched and merged-into-existing (no column, no producer in `run`; needs migration plus merge wiring); Credits consumed (credits_consumed stays NULL: no adapter-to-run channel, credits_in is an unverified one-per-call assumption); failure counts per class (only the final class is stored, call-level failed/skipped counts have no column).
+- Bullet 2 PARTLY: live_access delivered; credential_present deferred (orchestrator reads no environment).
+- Deferred counts, each needs a column or JSON key plus a producer wired in the run: merge-log failures, over-merge suspects, tie fallbacks (merge/projection runs outside `run`), Hunter poll give-ups and compliance-restricted addresses (never reach SourceOutcome; need a count on the outcome).
+- Retries via RetryPolicy give no ThrottleFeedback, so throttle_snapshot.retries is not used.
+- 18.3 (report from queries) not started; StoredRun/get does not expose counts yet.
+
+### Self-review findings
+Fixed (test-first, seen red then green):
+- quota_remaining held the LOCAL token-bucket state (a false provider quota). Now only provider-stated allowances (an adapter's `allowances`, e.g. 12.5 per-window headers, read through the `ReportsAllowances` protocol in orchestrator.py); NULL otherwise. SourceResult.allowances is now Mapping[str, int]. This supersedes the quota_remaining decision above.
+- live_access boolean column could not tell gated from available (3.6 asks for every source's classification). The three-valued value is now also stored in ingestion_run.config_snapshot["sources"][name]["live_access"]; the boolean stays "could run live". RunRecorder.start now takes Mapping[str, LiveAccess]; the bool is derived in build_run_record.
+- Added tests: all-SourceStatus failure-class mapping, provider-allowance persisted, no-allowance is NULL, three-valued snapshot. Mutation-checked the new tests (class dropped/swapped/ok-gets-class, counts not stored, finish and counts in separate transactions, redaction removed, first-phase-only, leads not summed, gated mapped false, snapshot dropped, empty-dict quota, waits, retries, ordering, allowance wiring): all caught.
+Checked and left as is: counts and finish are one transaction (dual-engine test green on sqlite and postgres); one row per source (later phase result, leads summed, so no double-counted attempts); never-started sources get timed_out; warnings use the 11.2 redacted message, adapter endpoint paths are static templates, Apollo error codes are identifier-shaped.
+Bullets: 18.2 bullet 1 delivered for normalized leads, failures by class, throttle waits, retries, 429s, allowances (Apollo only), warnings; deferred for fetched, merged, Credits. Bullet 2 live-access delivered; credential_present deferred.
+Known gaps:
+- SPEC GAP: Req 21.2 fetched and merged-into-existing counts: no source_run column and no producer in `run` (needs a migration plus a merge in run).
+- SPEC GAP: credits_consumed: credits_in(batch) exists only as per-adapter module functions (Apollo enrichment batches only, Hunter) with no BaseLeadSource contract, and the orchestrator may not import adapters. needs-follow-up: an adapter-neutral credits hook.
+- needs-follow-up: aborted runs persist no per-source counts (18.2 says "on completion"; outcomes live in _execute ledgers and are lost on exception).
+- needs-follow-up: NULL failure_class means ok OR not run (aborted, enrichment with no work); 18.3 must read ingestion_run.status to disambiguate.
+- needs-follow-up: a failed counts write rolls the finish back and leaves the run `running`; the caller sees the error but no aborted marker is written.
+- needs-follow-up: warnings redaction is an allowlist of one class (compliance subject); a future SourceError carrying personal data in its text would reach the column.
+- needs-follow-up: leads_found sums contributions across phases, so Enrichment contributions about already-found leads count again.
+- needs-follow-up: Apollo allowances are last-response only; a final response without headers yields NULL.

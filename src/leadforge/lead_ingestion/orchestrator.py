@@ -132,7 +132,7 @@ import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import structlog
 
@@ -142,6 +142,7 @@ from leadforge.lead_ingestion.base_source import (
     ChargeUnit,
     EnrichmentRequest,
     LeadContribution,
+    LiveAccess,
     RawBatch,
     SourceRequest,
     enrichment_tiers,
@@ -163,6 +164,7 @@ from leadforge.lead_ingestion.models import DataMode, UntrustedText
 from leadforge.lead_ingestion.pacing import SourcePacing, build_pacing
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.retry import RetryPolicy, RetryStats
+from leadforge.lead_ingestion.throttle import ThrottleSnapshot
 
 __all__ = [
     "AdapterFactory",
@@ -170,6 +172,7 @@ __all__ = [
     "IngestionOrchestrator",
     "ModeResolverWithReason",
     "Phase",
+    "ReportsAllowances",
     "RunRecorder",
     "SourceCallLedger",
     "SourceOutcome",
@@ -191,6 +194,14 @@ AdapterFactory = Callable[
 _log = structlog.get_logger(__name__)
 
 
+@runtime_checkable
+class ReportsAllowances(Protocol):
+    """An adapter that reads per-window allowances from its provider's responses."""
+
+    @property
+    def allowances(self) -> Mapping[str, int]: ...
+
+
 class RunRecorder(Protocol):
     """Persists the run record (task 18.1); the orchestrator knows no store.
 
@@ -205,6 +216,7 @@ class RunRecorder(Protocol):
         *,
         pool_size: int,
         run_timeout_s: float,
+        live_access: Mapping[str, LiveAccess],
     ) -> uuid.UUID: ...
 
     async def finish(
@@ -386,6 +398,12 @@ class SourceResult:
     contributions: tuple[LeadContribution, ...] | None
     outcome: SourceOutcome
     phase: Phase
+    # The source's throttle counters as of this result; ``None`` for a synthetic source,
+    # which has no pacing (18.2).
+    throttle: ThrottleSnapshot | None = None
+    # Requests left per window as the provider itself last stated them (12.5); ``None``
+    # when the adapter reports none. Never the local limiter's own tokens.
+    allowances: Mapping[str, int] | None = None
 
 
 def enrichment_work_list(
@@ -538,6 +556,13 @@ class IngestionOrchestrator:
             {name: self._registry.settings(name) for name in resolutions},
             pool_size=self._max_concurrent_sources,
             run_timeout_s=self._run_timeout_s,
+            live_access={
+                name: (
+                    self._registry.settings(name).live_access
+                    or self._registry.source_class(name).live_access
+                )
+                for name in resolutions
+            },
         )
         try:
             results = await self._execute(request, resolutions)
@@ -593,6 +618,7 @@ class IngestionOrchestrator:
             contributions: tuple[LeadContribution, ...] | None,
         ) -> SourceResult:
             resolution = resolutions[source.name]
+            pacing = pacings[source.name]
             return SourceResult(
                 source.name,
                 resolution.mode,
@@ -601,6 +627,12 @@ class IngestionOrchestrator:
                 contributions,
                 ledgers[source.name].outcome(),
                 phase,
+                throttle=None if pacing is None else pacing.throttle.snapshot(),
+                allowances=(
+                    dict(source.allowances)
+                    if isinstance(source, ReportsAllowances)
+                    else None
+                ),
             )
 
         async def run_one(
