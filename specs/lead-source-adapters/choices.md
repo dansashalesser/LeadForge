@@ -1447,3 +1447,38 @@ Known gaps left:
 - needs-follow-up: IDN domains, domains with a URL scheme and trailing-dot domains are skipped (logged without the value), not converted.
 - An unrecognised verdict raises NormalizationError for the whole batch rather than mapping to unknown: it never overclaims, but a new Hunter verdict would abort a paid batch.
 - `HunterSource` is not registered or wired into a factory (no other adapter is outside tests either).
+
+## Task 15.2 — Implement Hunter verification with bounded polling (2026-10-05)
+Evidence: wrote 21 tests (backlinked 16.4) in tests/adapters/test_hunter_source.py first and ran the file: 23 failed (TypeError: unexpected keyword `clock`/poll args), 116 passed; then implemented in adapters/hunter.py. Replaced the 15.1 test "202 contributes nothing and is not polled" (superseded). `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 1905 passed, 1 skipped. No mutation run; no GitNexus/serena query; self-review not run (no Agent tool).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Poll = repeat the identical verifier GET (Hunter documents no job id) through the same paced `_send`; bound by `poll_attempts` (default 5) AND `poll_budget_s` (default 30s, measured from before the first request, pacing waits included). Rejected: attempts-only (unbounded wall time) or budget-only.
+- Defaults 5 / 30s / 2s interval are invented (spec says only "configured poll budget"); they are constructor arguments, not wired to source_settings/config yet. Rejected: adding a config key now (no per-source settings mechanism for Hunter).
+- Wait before a poll = Retry-After if a number else `poll_interval_s`; raised to the interval floor, clamped to the budget left; HTTP-date hints ignored; no wait after the last poll. Rejected: trusting an unclamped hint, or a floor-less hint (hammering).
+- Give-up = no verdict (nothing contributed, so EmailStatus stays at the unknown default), one `hunter_verification_unfinished` warning with reason (attempts|budget) and poll count only, no exception. Rejected: raising (aborts a paid batch), or contributing an explicit `unknown`.
+- Assumption (unverified): Hunter does not charge for polling; `credits_in` stays one per address, not per poll.
+- Finished polls (verdict or give-up) are cached in the existing per-run `_verified` map so a retried fetch does not re-poll; an error or cancel mid-poll caches nothing and a retry restarts the poll from zero. Rejected: persisting partial poll progress (speculative).
+- Clock and sleep injected into HunterSource (defaults time.monotonic / asyncio.sleep), separate from the throttle's. Cancellation and the run deadline rely on the default sleep being cancellable; no wrapper timeout added.
+- Fixtures not extended: the fixture transport serves final verdicts only; 202 paths are tested with a scripted transport.
+### Known gaps (needs-follow-up)
+- Poll bounds are not exposed in config/CLI; defaults are guesses.
+- Hunter's real 202 semantics (Retry-After presence, body, repeat-call billing, whether a poll of an in-progress address is rate-limited differently) are unverified; fixtures are stand-ins.
+- A transient/rate-limit error mid-poll loses poll progress and the retry restarts at the first request.
+- Budget is per address, so a batch of N unfinished addresses can wait up to N x poll_budget_s sequentially; only the run timeout bounds the total. Polling addresses is sequential, not concurrent.
+- 15.3 (403/429 inversion, 451) untouched: a Hunter 403 during a poll is still SourceUnauthorized.
+
+### Self-review findings
+Fixed (test first, seen failing):
+- `_is_finite` raised a bare `OverflowError` for an int too large for a float (`poll_budget_s=10**400`); now refused with the named `ValueError`. adapters/hunter.py.
+- Added 8 test groups: wrong-kind/huge bounds by name, hostile Retry-After (inf, nan, -5, 0, 1e9, empty, 400 digits) never exceeds budget, budget smaller than interval, polled unknown verdict raises NormalizationError (as 15.1: aborts the whole paid batch on the polled path too), repeated/same-case addresses polled and paid once, 80 paced polls cannot finish under 7s on the real throttle, cancel during a poll request leaves no task and caches nothing.
+- Mutation check (12 mutants: unbounded attempts, budget ignored/unclamped, Retry-After unclamped/ignored, sleep skipped, give-up raises/VERIFIED, address logged, poll bypasses _send, cache dropped, CancelledError swallowed): all killed; file restored byte-identical. Hunter test file runs in ~0.7s (no real sleeping). Full suite 1927 passed, ruff, mypy clean.
+- The removed 15.1 "202 not polled" protection (a 202 contributes nothing, no error) is still covered by the give-up tests (normalize == [], no exception).
+Known gaps:
+- SPEC GAP: poll billing unverified. research.md says only "202 means still running, so poll"; it does not say whether a repeated GET is the same verification or a new billable one, nor whether a 202 is charged. Polling may spend a credit per poll; credits_in assumes one per address. Also credits_in counts a give-up (no verdict) as one credit, unverified. needs-follow-up
+- SPEC GAP: no requirement or design key states poll numbers; 5 / 30s / 2s remain guesses and are not wired to config/sources.yaml (source_settings has only sources/max_concurrent_sources/run_timeout_s; no per-adapter settings convention). needs-follow-up
+- SPEC GAP: tasks.md says "recording budget exhaustion"; only a counts-only log warning is emitted, no run-record entry. needs-follow-up
+- A mid-poll error restarts the poll on retry and may re-pay if Hunter charges per verification. needs-follow-up
+- Per-address budget: N unfinished addresses wait up to N x 30s sequentially; only the run timeout (11.4) bounds the total. Run-deadline test uses asyncio.timeout, not the real Orchestrator. needs-follow-up
+- Pacing is a token bucket (burst 10 plus refill), as decided in earlier tasks; interleaving with other buckets is not starved because buckets are separate (not tested end to end). needs-follow-up
+
+- **Parent note:** the "recording budget exhaustion" bullet is only partly met (a counts-only log warning) because the run record is task 18.2; wire the give-up count into the per-source counts there. 15.2 is ticked for the bounded polling itself.

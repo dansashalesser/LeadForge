@@ -10,10 +10,10 @@ hands it one Lead per company (11.7), and asks each distinct domain, address or 
 pair only once per run. The key travels in the ``X-API-KEY`` header, never in the
 query string (16.1).
 
-Not built here: bounded polling of a verifier answer that is still running (HTTP 202) is
-task 15.2; the 202 answer is recorded as no verdict. The inverted 403/429 mapping and
-the 451 compliance restriction are task 15.3. Until 15.3, the base ``classify_error``
-applies, so a Hunter 403 is still read as an authorization failure.
+A verifier answer that is still running (HTTP 202) is polled (16.4, task 15.2), see
+below. The inverted 403/429 mapping and the 451 compliance restriction are task 15.3.
+Until 15.3, the base ``classify_error`` applies, so a Hunter 403 is still read as an
+authorization failure.
 
 Provisional decisions (see choices.md, task 15.1):
 
@@ -51,11 +51,27 @@ Provisional decisions (see choices.md, task 15.1):
   response's ``data`` minus ``emails``, plus ``email`` (the address record). Finder and
   verifier paths are relative to the response's ``data``. A finder that finds no
   address, and a verifier still running, contribute nothing.
+* Polling (16.4): a 202 asks the same verifier question again, through the same paced
+  ``_send`` (each poll takes verifier capacity), until a final answer, ``poll_attempts``
+  polls (default 5), or ``poll_budget_s`` seconds in all (default 30, measured from
+  before the first request, pacing waits included). The wait before a poll is the
+  ``Retry-After`` hint when it is a number, else ``poll_interval_s`` (default 2); never
+  less than the interval, never more than the budget left, and none after the last
+  poll. Giving up is no verdict (nothing contributed, so the status stays unknown), one
+  ``hunter_verification_unfinished`` warning with the reason and the poll count, and no
+  exception: it must not abort a paid batch. The give-up is cached like a verdict, so a
+  retried fetch does not restart the poll; an error or cancel mid-poll caches nothing.
+  Hunter is ASSUMED not to charge for polling, so the batch still counts one Credit per
+  address, not per poll. The clock and sleep are injected, so tests never wait; the
+  default ``asyncio.sleep`` is cancellable, so a run timeout cuts a poll short.
 * The fixtures under ``fixtures/hunter/`` are hand-made STAND-INS, not captured
   responses; the verifier's ``data`` shape in particular is assumed.
 """
 
+import asyncio
+import math
 import re
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -77,6 +93,7 @@ from leadforge.lead_ingestion.base_source import (
     RawBatch,
     SourceRequest,
     resolve_credentials,
+    retry_after_seconds,
 )
 from leadforge.lead_ingestion.errors import NormalizationError, SourceError
 from leadforge.lead_ingestion.models import (
@@ -92,6 +109,7 @@ from leadforge.lead_ingestion.normalizer import (
     Normalizer,
     validate_raw_payload,
 )
+from leadforge.lead_ingestion.throttle import Clock, Sleep
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 if TYPE_CHECKING:
@@ -99,6 +117,9 @@ if TYPE_CHECKING:
 
 __all__ = [
     "CONFIDENCE_SCALE",
+    "DEFAULT_POLL_ATTEMPTS",
+    "DEFAULT_POLL_BUDGET_S",
+    "DEFAULT_POLL_INTERVAL_S",
     "MAX_EMAILS_PER_DOMAIN",
     "SANDBOX_KEY",
     "HunterSource",
@@ -117,7 +138,10 @@ _EMAIL_PATH = "person.email"
 _SEARCH = Endpoint(method="GET", path="/v2/domain-search", bucket="finder")
 _FINDER = Endpoint(method="GET", path="/v2/email-finder", bucket="finder")
 _VERIFIER = Endpoint(method="GET", path="/v2/email-verifier", bucket="verifier")
-_ACCEPTED = 202  # the verifier is still running; polling it is task 15.2
+_ACCEPTED = 202  # the verifier is still running: ask again (16.4)
+DEFAULT_POLL_ATTEMPTS = 5
+DEFAULT_POLL_BUDGET_S = 30.0
+DEFAULT_POLL_INTERVAL_S = 2.0
 
 _LABEL = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
 _HOSTNAME = re.compile(rf"{_LABEL}(?:\.{_LABEL})+")
@@ -310,8 +334,28 @@ class HunterSource(BaseLeadSource):
         transport: Transport,
         environ: Mapping[str, str] | None = None,
         pacing: "SourcePacing | None" = None,
+        poll_attempts: int = DEFAULT_POLL_ATTEMPTS,
+        poll_budget_s: float = DEFAULT_POLL_BUDGET_S,
+        poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
+        clock: Clock = time.monotonic,
+        sleep: Sleep = asyncio.sleep,
     ) -> None:
         super().__init__(mode, transport=transport, pacing=pacing)
+        if (
+            isinstance(poll_attempts, bool)
+            or not isinstance(poll_attempts, int)
+            or poll_attempts < 0
+        ):
+            raise ValueError("poll_attempts must be a non-negative integer")
+        if not _is_finite(poll_budget_s) or poll_budget_s <= 0:
+            raise ValueError("poll_budget_s must be a positive finite number")
+        if not _is_finite(poll_interval_s) or poll_interval_s < 0:
+            raise ValueError("poll_interval_s must be a non-negative finite number")
+        self._poll_attempts = poll_attempts
+        self._poll_budget_s = float(poll_budget_s)
+        self._poll_interval_s = float(poll_interval_s)
+        self._clock = clock
+        self._sleep = sleep
         self._environ = environ
         # Calls already paid for this run: a retried fetch must not buy them again.
         self._searched: dict[str, Mapping[str, Any]] = {}
@@ -404,13 +448,27 @@ class HunterSource(BaseLeadSource):
     async def _verify(
         self, address: str, headers: Mapping[str, str]
     ) -> Mapping[str, Any] | None:
-        response = await self._send(
-            _VERIFIER, params={"email": address}, json_body=None, headers=headers
-        )
-        if response.status == _ACCEPTED:
-            _log.info("hunter_verification_pending")
-            return None
-        return self._checked(response)
+        started = self._clock()
+        polls = 0
+        while True:
+            response = await self._send(
+                _VERIFIER, params={"email": address}, json_body=None, headers=headers
+            )
+            if response.status != _ACCEPTED:
+                return self._checked(response)
+            left = self._poll_budget_s - (self._clock() - started)
+            if polls >= self._poll_attempts:
+                reason = "attempts"
+            elif left <= 0:
+                reason = "budget"
+            else:
+                hint = retry_after_seconds(response.headers)
+                wanted = self._poll_interval_s if hint is None else hint
+                await self._sleep(min(max(wanted, self._poll_interval_s), left))
+                polls += 1
+                continue
+            _log.warning("hunter_verification_unfinished", reason=reason, polls=polls)
+            return None  # no verdict: the address stays unknown, the batch goes on
 
     def normalize(self, raw: RawBatch) -> list[LeadContribution]:
         context = NormalizationContext(
@@ -455,6 +513,15 @@ class HunterSource(BaseLeadSource):
                 _with_stated_confidence(contribution, data.get("score"))
             )
         return contributions
+
+
+def _is_finite(value: object) -> bool:
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:  # an int too large for a float
+        return False
 
 
 def _with_stated_confidence(

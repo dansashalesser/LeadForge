@@ -1,10 +1,12 @@
-"""Hunter Source adapter: email discovery batched by domain (task 15.1)."""
+"""Hunter Source adapter: email discovery batched by domain (15.1), polling (15.2)."""
 
+import asyncio
 import json
 import socket
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from structlog.testing import capture_logs
@@ -813,19 +815,6 @@ async def test_a_non_text_address_is_a_normalization_error() -> None:
     assert caught.value.canonical_path == "person.email"
 
 
-# Verifies: specs/lead-source-adapters/requirements.md#16.3
-async def test_a_verification_still_running_contributes_nothing_and_is_not_polled() -> (
-    None
-):
-    transport = Routed(verifier=lambda _: TransportResponse(202, {}, None))
-    source = live(transport)
-    with capture_logs() as logs:
-        batch = await source.fetch_raw(enrich(person(email="a@example.com")))
-    assert paths(transport) == [VERIFIER_PATH]  # polling is task 15.2
-    assert source.normalize_checked(batch) == []
-    assert "a@example.com" not in json.dumps(logs, default=str)
-
-
 # Verifies: specs/lead-source-adapters/requirements.md#16.2
 async def test_a_verifier_verdict_becomes_the_email_status_and_stated_confidence() -> (
     None
@@ -1139,3 +1128,382 @@ async def test_an_error_status_on_any_route_names_no_key_or_query(
     for text in (str(caught.value), repr(caught.value), str(logs)):
         for secret in (KEY, "ada@example.com", "Lovelace"):
             assert secret not in text
+
+
+# --- Task 15.2: bounded polling of a verifier answer that is still running (16.4) ---
+
+ADDRESS = "a@example.com"
+
+
+def pending(retry_after: str | None = None) -> TransportResponse:
+    headers = {} if retry_after is None else {"retry-after": retry_after}
+    return TransportResponse(202, headers, None)
+
+
+class Sequence:
+    """Verifier answers in order; the last one repeats."""
+
+    def __init__(self, *answers: TransportResponse) -> None:
+        self.answers = list(answers)
+        self.asked = 0
+
+    def __call__(self, _: Mapping[str, object]) -> TransportResponse:
+        answer = self.answers[min(self.asked, len(self.answers) - 1)]
+        self.asked += 1
+        return answer
+
+
+def polling(
+    transport: Scripted,
+    fake: FakeTime,
+    *,
+    pacing: SourcePacing | None = None,
+    **config: Any,
+) -> HunterSource:
+    return HunterSource(
+        DataMode.LIVE,
+        transport=transport,
+        environ=ENV,
+        pacing=pacing,
+        clock=fake.clock,
+        sleep=fake.sleep,
+        **config,
+    )
+
+
+def verify_one() -> EnrichmentRequest:
+    return enrich(person(email=ADDRESS))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_202_is_polled_until_a_final_verdict_which_maps_conservatively() -> (
+    None
+):
+    fake = FakeTime()
+    transport = Routed(verifier=Sequence(pending(), pending(), verdict("valid")))
+    source = polling(transport, fake)
+    batch = await source.fetch_raw(verify_one())
+    assert paths(transport) == [VERIFIER_PATH] * 3
+    assert [call[1] for call in transport.calls] == [{"email": ADDRESS}] * 3
+    assert all(call[2] == {"X-API-KEY": KEY} for call in transport.calls)
+    [contribution] = source.normalize_checked(batch)
+    assert contribution.values["person.email_status"] is EmailStatus.VERIFIED
+    assert len(fake.sleeps) == 2  # one wait before each poll, none after the verdict
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+@pytest.mark.parametrize(
+    ("final", "expected"),
+    [
+        ("accept_all", EmailStatus.ACCEPT_ALL),
+        ("invalid", EmailStatus.INVALID),
+        ("webmail", EmailStatus.UNKNOWN),
+        ("disposable", EmailStatus.UNKNOWN),
+        ("unknown", EmailStatus.UNKNOWN),
+    ],
+)
+async def test_a_polled_verdict_never_overclaims(
+    final: str, expected: EmailStatus
+) -> None:
+    transport = Routed(verifier=Sequence(pending(), verdict(final)))
+    source = polling(transport, FakeTime())
+    [contribution] = source.normalize_checked(await source.fetch_raw(verify_one()))
+    assert contribution.values["person.email_status"] is expected
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_still_running_verification_gives_up_after_the_poll_attempts() -> None:
+    fake = FakeTime()
+    transport = Routed(verifier=Sequence(pending()))
+    source = polling(transport, fake, poll_attempts=3, poll_budget_s=1000.0)
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(verify_one())
+    assert len(transport.calls) == 4  # the question, then three polls
+    assert len(fake.sleeps) == 3  # never a wait after the last answer
+    assert source.normalize_checked(batch) == []  # no verdict: status stays unknown
+    exhausted = [
+        log for log in logs if log["event"] == "hunter_verification_unfinished"
+    ]
+    assert exhausted == [
+        {
+            "event": "hunter_verification_unfinished",
+            "log_level": "warning",
+            "reason": "attempts",
+            "polls": 3,
+        }
+    ]
+    assert ADDRESS not in json.dumps(logs, default=str)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_polling_stops_when_the_total_wait_budget_is_spent() -> None:
+    fake = FakeTime()
+    transport = Routed(verifier=Sequence(pending("4")))
+    source = polling(
+        transport,
+        fake,
+        poll_attempts=100,
+        poll_budget_s=10.0,
+        poll_interval_s=1.0,
+    )
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(verify_one())
+    assert sum(fake.sleeps) <= 10.0
+    assert fake.sleeps == [4.0, 4.0, 2.0]  # the last wait is clamped to what is left
+    assert len(transport.calls) == 4
+    assert source.normalize_checked(batch) == []
+    [event] = [log for log in logs if log["event"] == "hunter_verification_unfinished"]
+    assert event["reason"] == "budget"
+    assert event["polls"] == 3
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_retry_after_is_honoured_and_clamped_to_the_interval_and_the_budget() -> (
+    None
+):
+    fake = FakeTime()
+    transport = Routed(
+        verifier=Sequence(
+            pending("3"),  # honoured
+            pending("0.001"),  # a hint below the interval is raised to it
+            pending("Wed, 21 Oct 2026 07:28:00 GMT"),  # not a number: the interval
+            pending("999999"),  # clamped to the budget left
+            verdict(),
+        )
+    )
+    source = polling(
+        transport, fake, poll_attempts=10, poll_budget_s=20.0, poll_interval_s=2.0
+    )
+    await source.fetch_raw(verify_one())
+    assert fake.sleeps == [3.0, 2.0, 2.0, 13.0]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_each_poll_takes_capacity_from_the_verifier_bucket_only() -> None:
+    fake = FakeTime()
+    throttle = SourceThrottle(
+        "hunter", HunterSource.rate_limit, clock=fake.clock, sleep=fake.sleep
+    )
+    pacing = SourcePacing(throttle=throttle, retry=RetryPolicy())
+    transport = Routed(verifier=Sequence(pending(), pending(), verdict()))
+    source = polling(transport, fake, pacing=pacing, poll_interval_s=0.0)
+    await source.fetch_raw(verify_one())
+    assert throttle.bucket("verifier").available()[0] == pytest.approx(7, abs=0.1)
+    assert throttle.bucket("finder").available()[0] == pytest.approx(15, abs=0.1)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_poll_is_one_credit_for_the_address_not_one_per_poll() -> None:
+    transport = Routed(verifier=Sequence(pending(), pending(), verdict()))
+    batch = await polling(transport, FakeTime()).fetch_raw(verify_one())
+    assert len(transport.calls) == 3
+    assert credits_in(batch) == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_finished_poll_is_not_restarted_by_a_retried_fetch() -> None:
+    for answers in (
+        Sequence(pending(), verdict()),  # ended in a verdict
+        Sequence(pending()),  # ended in a bounded give-up
+    ):
+        transport = Routed(verifier=answers)
+        source = polling(transport, FakeTime(), poll_attempts=2)
+        first = await source.fetch_raw(verify_one())
+        calls = len(transport.calls)
+        second = await source.fetch_raw(verify_one())  # the orchestrator's retry
+        assert len(transport.calls) == calls
+        assert second.payload == first.payload
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_poll_error_is_raised_by_type_and_a_retry_may_ask_again() -> None:
+    transport = Routed(
+        verifier=Sequence(pending(), TransportResponse(503, {}, None), verdict())
+    )
+    source = polling(transport, FakeTime())
+    with pytest.raises(SourceTransient):
+        await source.fetch_raw(verify_one())
+    batch = await source.fetch_raw(verify_one())  # nothing was cached by the failure
+    assert len(source.normalize_checked(batch)) == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_cancel_during_a_poll_wait_propagates_and_leaves_no_task() -> None:
+    waiting = asyncio.Event()
+    never = asyncio.Event()
+
+    async def sleep(_: float) -> None:
+        waiting.set()
+        await never.wait()
+
+    transport = Routed(verifier=Sequence(pending()))
+    source = HunterSource(DataMode.LIVE, transport=transport, environ=ENV, sleep=sleep)
+    task = asyncio.create_task(source.fetch_raw(verify_one()))
+    await waiting.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task.cancelled()
+    assert asyncio.all_tasks() == {asyncio.current_task()}
+    assert len(transport.calls) == 1  # no poll after the cancel
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_polling_cannot_outlive_a_run_deadline() -> None:
+    async def slow(_: float) -> None:
+        await asyncio.sleep(3600)  # a real sleep, cut short by the deadline
+
+    source = HunterSource(
+        DataMode.LIVE,
+        transport=Routed(verifier=Sequence(pending())),
+        environ=ENV,
+        sleep=slow,
+    )
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.05):
+            await source.fetch_raw(verify_one())
+    assert asyncio.all_tasks() == {asyncio.current_task()}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"poll_attempts": -1},
+        {"poll_attempts": True},
+        {"poll_budget_s": 0.0},
+        {"poll_budget_s": float("inf")},
+        {"poll_budget_s": float("nan")},
+        {"poll_interval_s": -1.0},
+        {"poll_interval_s": float("nan")},
+    ],
+)
+def test_a_poll_bound_that_is_not_a_finite_non_negative_number_is_refused(
+    config: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError, match="poll_"):
+        polling(Routed(), FakeTime(), **config)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_zero_poll_attempts_asks_once_and_records_no_verdict() -> None:
+    transport = Routed(verifier=Sequence(pending(), verdict()))
+    source = polling(transport, FakeTime(), poll_attempts=0)
+    batch = await source.fetch_raw(verify_one())
+    assert len(transport.calls) == 1
+    assert source.normalize_checked(batch) == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"poll_budget_s": 10**400},
+        {"poll_interval_s": 10**400},
+        {"poll_budget_s": True},
+        {"poll_interval_s": False},
+        {"poll_budget_s": "30"},
+        {"poll_attempts": 1.5},
+        {"poll_attempts": "5"},
+        {"poll_attempts": None},
+    ],
+)
+def test_a_poll_bound_of_the_wrong_kind_or_size_is_refused_by_name(
+    config: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError, match="poll_"):
+        polling(Routed(), FakeTime(), **config)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+@pytest.mark.parametrize(
+    "hint", ["inf", "nan", "-5", "0", "1e9", "1000000000", "", "  ", "9" * 400]
+)
+async def test_a_hostile_retry_after_never_exceeds_the_budget(hint: str) -> None:
+    fake = FakeTime()
+    transport = Routed(verifier=Sequence(pending(hint)))
+    source = polling(
+        transport, fake, poll_attempts=50, poll_budget_s=10.0, poll_interval_s=1.0
+    )
+    await source.fetch_raw(verify_one())
+    assert sum(fake.sleeps) <= 10.0
+    assert all(s >= 0 for s in fake.sleeps)
+    assert len(transport.calls) <= 51
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_budget_smaller_than_the_interval_is_still_bounded() -> None:
+    fake = FakeTime()
+    transport = Routed(verifier=Sequence(pending()))
+    source = polling(transport, fake, poll_budget_s=1.0, poll_interval_s=5.0)
+    await source.fetch_raw(verify_one())
+    assert fake.sleeps == [1.0]
+    assert len(transport.calls) == 2
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_polled_unknown_verdict_is_a_normalization_error() -> None:
+    transport = Routed(verifier=Sequence(pending(), verdict("deliverable")))
+    source = polling(transport, FakeTime())
+    batch = await source.fetch_raw(verify_one())
+    with pytest.raises(NormalizationError):
+        source.normalize(batch)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_batch_of_repeated_addresses_polls_and_pays_each_address_once() -> None:
+    transport = Routed(verifier=Sequence(pending(), verdict()))
+    source = polling(transport, FakeTime())
+    work = enrich(
+        person(email="a@example.com"),
+        person(email="A@Example.com"),  # the same address, differently written
+    )
+    batch = await source.fetch_raw(work)
+    again = await source.fetch_raw(work)  # the same address again in the same run
+    assert len(transport.calls) == 2  # one question and one poll, for one address
+    assert credits_in(batch) == 1
+    assert again.payload == batch.payload
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_polling_many_addresses_stays_inside_the_verifier_bucket() -> None:
+    fake = FakeTime()
+    throttle = SourceThrottle(
+        "hunter", HunterSource.rate_limit, clock=fake.clock, sleep=fake.sleep
+    )
+    pacing = SourcePacing(throttle=throttle, retry=RetryPolicy())
+    stamps: list[float] = []
+
+    def answer(params: Mapping[str, object]) -> TransportResponse:
+        stamps.append(fake.now)
+        return pending() if len(stamps) % 2 else verdict()
+
+    transport = Routed(verifier=answer)
+    source = polling(transport, fake, pacing=pacing, poll_interval_s=0.0)
+    work = enrich(*[person(email=f"p{i}@example.com") for i in range(40)])
+    await source.fetch_raw(work)
+    assert len(stamps) == 80  # every poll is a paced request
+    # A burst of ten, then ten a second: 80 requests cannot finish in under 7 seconds.
+    assert stamps[-1] - stamps[0] >= 6.9
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+async def test_a_cancel_during_a_poll_request_propagates_and_leaves_no_task() -> None:
+    inside = asyncio.Event()
+
+    class Hanging(Routed):
+        async def send(self, endpoint: Endpoint, **kwargs: Any) -> TransportResponse:
+            if len(self.calls) == 1:
+                inside.set()
+                await asyncio.Event().wait()
+            return await super().send(endpoint, **kwargs)
+
+    transport = Hanging(verifier=Sequence(pending()))
+    source = polling(transport, FakeTime())
+    task = asyncio.create_task(source.fetch_raw(verify_one()))
+    await inside.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert asyncio.all_tasks() == {asyncio.current_task()}
+    assert source._verified == {}  # nothing cached by a cancelled poll

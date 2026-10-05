@@ -428,7 +428,7 @@ task = one commit.
   - Parallel with 12.x, 13.x, and 14.x. Within this major, run 15.1 before 15.2 and 15.3
   - _Requirements: 16.1, 16.2, 16.3, 16.5, 16.8_
 
-- [ ] 15.2 (P) Implement Hunter verification with bounded polling
+- [x] 15.2 (P) Implement Hunter verification with bounded polling
   - Poll to a verdict when the verifier reports verification still running, stopping at a configured poll budget and recording budget exhaustion rather than blocking indefinitely
   - Map the resulting verdict onto the canonical email verification status, so only a Verified Email becomes eligible as a Match Key
   - Blocked on 15.1; parallel with 12.x, 13.x, and 14.x
