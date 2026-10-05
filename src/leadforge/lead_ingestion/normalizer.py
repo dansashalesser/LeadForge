@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from pydantic import BaseModel, ValidationError
+
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.errors import NormalizationError
 from leadforge.lead_ingestion.models import (
@@ -27,6 +29,7 @@ __all__ = [
     "NormalizationContext",
     "Normalizer",
     "unmapped_raw_paths",
+    "validate_raw_payload",
 ]
 
 # Characters (code points, the unit UntrustedText.original_length uses), not bytes.
@@ -71,10 +74,31 @@ class NormalizationContext:
             raise ValueError("untrusted_max_length must be a positive int")
 
 
-def _resolve(raw: Mapping[str, object], dotted: str) -> object | None:
+def _refusal(rule: FieldRule, context: NormalizationContext) -> NormalizationError:
+    # Names only the rule's declared paths, never a payload value or key.
+    return NormalizationError(
+        context.source_name,
+        raw_field_path=rule.raw_field_path,
+        canonical_path=rule.canonical_path,
+    )
+
+
+def _resolve(
+    raw: Mapping[str, object], rule: FieldRule, context: NormalizationContext
+) -> object | None:
+    """Value at the rule's raw path; None when absent or a parent is null.
+
+    A parent that is present but not a mapping is a wrong shape, not an absence, and
+    raises: treating it as empty would record Negative Evidence for a payload that
+    never answered the question.
+    """
     node: object = raw
-    for key in dotted.split("."):
-        if not isinstance(node, Mapping) or key not in node:
+    for key in rule.raw_field_path.split("."):
+        if node is None:
+            return None
+        if not isinstance(node, Mapping):
+            raise _refusal(rule, context)
+        if key not in node:
             return None
         node = node[key]
     return node
@@ -95,9 +119,13 @@ class Normalizer:
         provenance: list[FieldProvenance] = []
         absences: list[SourceAbsence] = []
         for rule in rules:
-            value = _resolve(raw, rule.raw_field_path)
+            value = _resolve(raw, rule, context)
             if value is not None and rule.transform is not None:
-                value = rule.transform(value)
+                try:
+                    value = rule.transform(value)
+                except Exception:  # noqa: BLE001 - any transform failure is named
+                    # The transform's message may quote untrusted provider text.
+                    raise _refusal(rule, context) from None
             if value is None:
                 absence = self._absence(rule, context)
                 if absence is not None:
@@ -115,11 +143,7 @@ class Normalizer:
     @staticmethod
     def _store(rule: FieldRule, value: object, context: NormalizationContext) -> object:
         def refuse() -> NormalizationError:
-            return NormalizationError(
-                context.source_name,
-                raw_field_path=rule.raw_field_path,
-                canonical_path=rule.canonical_path,
-            )
+            return _refusal(rule, context)
 
         if isinstance(value, UntrustedText):
             # Only the rule's own untrusted flag may produce one; a transform cannot.
@@ -197,3 +221,41 @@ def unmapped_raw_paths(
     return sorted(
         p for p in _leaf_paths(raw) if not any(_covers(d, p) for d in declared)
     )
+
+
+_UNMAPPED = "<unmapped>"
+_PATH_LIMIT = 120
+
+
+def _safe_path(loc: Sequence[int | str]) -> str:
+    # loc can carry a provider-chosen key (extra="forbid"), so escape and bound it.
+    text = ".".join(str(part) for part in loc)
+    return ascii(text)[1:-1][:_PATH_LIMIT]
+
+
+def validate_raw_payload(
+    provider: str,
+    model: type[BaseModel],
+    raw: Mapping[str, object],
+    rules: Sequence[FieldRule],
+) -> Mapping[str, object]:
+    """Check ``raw`` against the adapter's declared raw model before mapping it.
+
+    Returns ``raw`` unchanged (the validated copy is discarded, no coercion) or raises
+    ``NormalizationError`` for the first violation, naming the provider, the raw path
+    and the canonical path of the rule covering it (``<unmapped>`` if none does).
+    Pydantic's message and input value are dropped: they can echo provider text.
+    """
+    try:
+        model.model_validate(raw)
+    except ValidationError as exc:
+        loc = exc.errors(include_input=False, include_url=False)[0]["loc"]
+        raw_path = _safe_path(loc)
+        canonical = next(
+            (r.canonical_path for r in rules if _covers(r.raw_field_path, raw_path)),
+            _UNMAPPED,
+        )
+        raise NormalizationError(
+            provider, raw_field_path=raw_path, canonical_path=canonical
+        ) from None
+    return raw

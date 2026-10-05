@@ -98,9 +98,11 @@ def _rules(*paths: str) -> tuple[FieldRule, ...]:
     return tuple(FieldRule(p, p) for p in paths)
 
 
-def test_path_through_a_non_mapping_resolves_to_nothing() -> None:
-    out = Normalizer().apply({"person": "x"}, RULES[:1], ctx())
-    assert out.provenance == ()
+# Verifies: specs/lead-source-adapters/requirements.md#2.6
+def test_path_through_a_non_mapping_is_a_schema_violation() -> None:
+    # Was "resolves to nothing" in 5.1 (ledger entry 4); 5.3 made it a named error.
+    with pytest.raises(NormalizationError):
+        Normalizer().apply({"person": "x"}, RULES[:1], ctx())
 
 
 def test_transform_returning_none_resolves_to_nothing() -> None:
