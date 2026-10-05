@@ -139,3 +139,13 @@ class InvalidAbsenceError(SourceError):
             source_name,
             f"canonical={canonical_path} raw={raw_field_path}: {reason}",
         )
+
+
+class MissingCredentialError(SourceError):
+    """Declared credential variables are unset or blank; names only, never values."""
+
+    def __init__(self, source_name: str, *, missing: tuple[str, ...]) -> None:
+        self.missing = missing
+        super().__init__(
+            source_name, f"missing environment variables: {', '.join(missing)}"
+        )

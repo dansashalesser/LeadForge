@@ -100,7 +100,7 @@ task = one commit.
   - Treat an empty declaration as Not Applicable for that term rather than as a report of no match, represented as a `SourceAbsence` of kind Not Applicable (task 2.4) so a source with no targeting surface never produces Negative Evidence for a Target Profile term
   - _Requirements: 1.9, 2.8, 23.2_
 
-- [ ] 3.4 Declare read-only endpoints and environment-only credentials
+- [x] 3.4 Declare read-only endpoints and environment-only credentials
   - Declare every provider path an adapter may reach, with read-only expressed in the type system so a write endpoint cannot be constructed
   - Read credentials only through declared environment variable names resolved from the process environment, never from configuration files or source literals
   - Keep the orchestration layer free of any reference to a concrete adapter class, interacting only through the declared contract

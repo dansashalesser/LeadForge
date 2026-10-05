@@ -7,6 +7,7 @@ import pytest
 import leadforge.lead_ingestion as slice_pkg
 from leadforge.lead_ingestion.structure_guard import (
     RAW_SCHEMA_PACKAGE,
+    find_concrete_adapter_references,
     find_raw_schema_imports_outside_slice,
 )
 
@@ -82,3 +83,83 @@ def _fake_tree(tmp_path: Path) -> tuple[Path, Path]:
     slice_root = src_root / "leadforge" / "lead_ingestion"
     slice_root.mkdir(parents=True)
     return src_root, slice_root
+
+
+# ------------------------------------- orchestration stays contract-only (task 3.4)
+
+
+def _slice_with_adapter(tmp_path: Path) -> tuple[Path, Path]:
+    _, slice_root = _fake_tree(tmp_path)
+    adapters = slice_root / "adapters"
+    adapters.mkdir()
+    (adapters / "__init__.py").write_text("")
+    (adapters / "hunter.py").write_text(
+        "from leadforge.lead_ingestion.base_source import BaseLeadSource\n"
+        "class HunterSource(BaseLeadSource): ...\n"
+        "class HunterSubSource(HunterSource): ...\n"
+    )
+    return slice_root, slice_root / "orchestrator.py"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.4
+def test_orchestration_layer_references_no_concrete_adapter() -> None:
+    assert find_concrete_adapter_references(SLICE_ROOT) == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.4
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import leadforge.lead_ingestion.adapters.hunter\n",
+        "from leadforge.lead_ingestion.adapters import hunter\n",
+        "from leadforge.lead_ingestion.adapters.hunter import HunterSource\n",
+        "from .adapters.hunter import HunterSource as H\n",
+        "from .adapters import hunter\n",
+        "x = HunterSource\n",
+        "x = HunterSubSource\n",
+        "import m\nx = m.HunterSource\n",
+    ],
+)
+def test_guard_flags_concrete_adapter_reference_in_orchestration(
+    tmp_path: Path, source: str
+) -> None:
+    slice_root, orchestrator = _slice_with_adapter(tmp_path)
+    orchestrator.write_text(source)
+
+    violations = find_concrete_adapter_references(slice_root)
+
+    assert [v.path for v in violations] == [orchestrator]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.4
+def test_guard_scans_an_orchestration_package_too(tmp_path: Path) -> None:
+    slice_root, _ = _slice_with_adapter(tmp_path)
+    package = slice_root / "orchestrator"
+    package.mkdir()
+    offender = package / "run.py"
+    offender.write_text("from ..adapters import hunter\n")
+
+    assert [v.path for v in find_concrete_adapter_references(slice_root)] == [offender]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.4
+def test_guard_allows_orchestration_that_uses_only_the_contract(
+    tmp_path: Path,
+) -> None:
+    slice_root, orchestrator = _slice_with_adapter(tmp_path)
+    orchestrator.write_text(
+        "from leadforge.lead_ingestion.base_source import BaseLeadSource\n"
+        "def run(sources: list[BaseLeadSource]) -> None: ...\n"
+    )
+
+    assert find_concrete_adapter_references(slice_root) == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.4
+def test_guard_ignores_modules_that_are_not_orchestration(tmp_path: Path) -> None:
+    slice_root, _ = _slice_with_adapter(tmp_path)
+    (slice_root / "registry.py").write_text(
+        "from .adapters.hunter import HunterSource\n"
+    )
+
+    assert find_concrete_adapter_references(slice_root) == []

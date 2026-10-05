@@ -13,6 +13,7 @@ from leadforge.lead_ingestion.base_source import (
     Capability,
     ChargeUnit,
     CostClass,
+    Endpoint,
     LeadContribution,
     RateBucket,
     RateWindow,
@@ -45,6 +46,8 @@ class _Stub(BaseLeadSource):
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_CALL
     yields_suppression: ClassVar[bool] = False
     target_vocabulary: ClassVar[Mapping[str, object]] = {}
+    endpoints: ClassVar[Mapping[str, Endpoint]] = {}
+    required_env: ClassVar[tuple[str, ...]] = ()
 
     async def fetch_raw(self, request: SourceRequest) -> RawBatch:
         return RawBatch(source_name=self.name, payload={"kind": request.kind})
@@ -153,6 +156,8 @@ def test_incomplete_subclass_fails_at_construction(missing: str) -> None:
         "charge_unit": ChargeUnit.PER_CALL,
         "yields_suppression": False,
         "target_vocabulary": {},
+        "endpoints": {},
+        "required_env": (),
     }
     del attrs[missing]
     incomplete = type("Incomplete", (BaseLeadSource,), attrs)
@@ -172,6 +177,8 @@ def test_incomplete_subclass_fails_at_construction(missing: str) -> None:
         "charge_unit",
         "yields_suppression",
         "target_vocabulary",
+        "endpoints",
+        "required_env",
     ],
 )
 def test_subclass_without_a_declaration_fails_at_construction(missing: str) -> None:
@@ -186,6 +193,8 @@ def test_subclass_without_a_declaration_fails_at_construction(missing: str) -> N
         "charge_unit": ChargeUnit.PER_CALL,
         "yields_suppression": False,
         "target_vocabulary": {},
+        "endpoints": {},
+        "required_env": (),
     }
     del attrs[missing]
     cls = type("Undeclared", (BaseLeadSource,), attrs)
@@ -636,7 +645,12 @@ def test_not_applicable_for_an_expressible_term_is_rejected() -> None:
 
 # ------------------------------------------- declarations are immutable (3.3 audit)
 
-_MAPPING_DECLARATIONS = ("rate_limit", "answerable_surfaces", "target_vocabulary")
+_MAPPING_DECLARATIONS = (
+    "rate_limit",
+    "answerable_surfaces",
+    "target_vocabulary",
+    "endpoints",
+)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#2.1

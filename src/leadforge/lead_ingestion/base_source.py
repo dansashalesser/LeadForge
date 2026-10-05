@@ -6,14 +6,15 @@ can answer for (``answerable_surfaces``), so "could answer" versus "never able t
 answer" is data, and every ``SourceAbsence`` is checked against it at the boundary.
 """
 
+import os
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
-from leadforge.lead_ingestion.errors import InvalidAbsenceError
+from leadforge.lead_ingestion.errors import InvalidAbsenceError, MissingCredentialError
 from leadforge.lead_ingestion.models import (
     AbsenceKind,
     DataMode,
@@ -28,6 +29,7 @@ __all__ = [
     "Capability",
     "ChargeUnit",
     "CostClass",
+    "Endpoint",
     "LeadContribution",
     "RateBucket",
     "RateWindow",
@@ -35,6 +37,7 @@ __all__ = [
     "SourceRequest",
     "enrichment_order",
     "enrichment_sort_key",
+    "resolve_credentials",
 ]
 
 
@@ -79,6 +82,33 @@ class RateBucket:
     doc_url: str
 
 
+@dataclass(frozen=True)
+class Endpoint:
+    """One provider path an adapter may reach; every call goes through a declared one.
+
+    ``read_only`` is ``Literal[True]``, so a write endpoint is a type error, and it is
+    also rejected at runtime for callers the type checker does not see (11.1, 11.2).
+    POST is allowed because several read-only search APIs take their query in a body.
+    """
+
+    method: Literal["GET", "POST"]
+    path: str
+    bucket: str  # name of a RateBucket in the adapter's ``rate_limit``
+    read_only: Literal[True] = True
+
+    def __post_init__(self) -> None:
+        if self.read_only is not True:
+            raise ValueError("Endpoint.read_only must be True; no write endpoints")
+        if self.method not in ("GET", "POST"):
+            raise ValueError(
+                f"Endpoint.method must be GET or POST, got {self.method!r}"
+            )
+        for field in ("path", "bucket"):
+            value = getattr(self, field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Endpoint.{field} must be a non-blank str")
+
+
 class SourceRequest(_Entity):
     kind: NonBlank
 
@@ -115,7 +145,12 @@ def _is_empty_vocabulary(value: object) -> bool:
 
 
 # Mapping declarations are copied into read-only views when a subclass is defined.
-_FROZEN_MAPPINGS = ("rate_limit", "answerable_surfaces", "target_vocabulary")
+_FROZEN_MAPPINGS = (
+    "rate_limit",
+    "answerable_surfaces",
+    "target_vocabulary",
+    "endpoints",
+)
 
 _DECLARATIONS = (
     "name",
@@ -126,7 +161,19 @@ _DECLARATIONS = (
     "charge_unit",
     "yields_suppression",
     "target_vocabulary",
+    "endpoints",
+    "required_env",
 )
+
+
+def _is_env_name(name: object) -> bool:
+    return (
+        isinstance(name, str)
+        and bool(name)
+        and "=" not in name
+        and "\0" not in name
+        and not any(c.isspace() for c in name)
+    )
 
 
 class BaseLeadSource(ABC):
@@ -142,6 +189,11 @@ class BaseLeadSource(ABC):
     # Canonical Target Profile term -> this provider's opaque vocabulary for it.
     # An empty value (or an absent term) is Not Applicable, never "no match" (2.8).
     target_vocabulary: ClassVar[Mapping[str, object]]
+    # Every provider path this adapter may reach, keyed by a local label (11.1).
+    endpoints: ClassVar[Mapping[str, Endpoint]]
+    # Names of the environment variables holding credentials; values are never declared
+    # here, only resolved from the process environment (2.5, 10.4).
+    required_env: ClassVar[tuple[str, ...]]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -209,7 +261,32 @@ class BaseLeadSource(ABC):
                 f"{sorted(answerable - expressible)}, vocabulary without answerable "
                 f"surface {sorted(expressible - answerable)}"
             )
+        self._validate_endpoints(cls)
+        self._validate_required_env(cls)
         self._mode = mode
+
+    def _validate_endpoints(self, cls: str) -> None:
+        if not isinstance(self.endpoints, Mapping):
+            raise TypeError(f"{cls}.endpoints must be a Mapping")
+        for label, endpoint in self.endpoints.items():
+            if not isinstance(label, str) or not label.strip():
+                raise TypeError(f"{cls}.endpoints keys must be non-blank str")
+            if not isinstance(endpoint, Endpoint):
+                raise TypeError(f"{cls}.endpoints[{label!r}] must be an Endpoint")
+            if endpoint.bucket not in self.rate_limit:
+                raise TypeError(
+                    f"{cls}.endpoints[{label!r}] uses undeclared rate bucket "
+                    f"{endpoint.bucket!r}"
+                )
+
+    def _validate_required_env(self, cls: str) -> None:
+        names = self.required_env
+        if not isinstance(names, tuple) or not all(_is_env_name(n) for n in names):
+            raise TypeError(
+                f"{cls}.required_env must be a tuple of environment variable names"
+            )
+        if len(set(names)) != len(names):
+            raise TypeError(f"{cls}.required_env must not repeat a name")
 
     @property
     def data_mode(self) -> DataMode:
@@ -291,3 +368,27 @@ def enrichment_sort_key(
 def enrichment_order[S: BaseLeadSource](sources: Iterable[S]) -> list[S]:
     """Sources in Enrichment order, derived from declarations alone (2.7)."""
     return sorted(sources, key=enrichment_sort_key)
+
+
+def resolve_credentials(
+    source: "BaseLeadSource | type[BaseLeadSource]",
+    environ: Mapping[str, str] | None = None,
+) -> Mapping[str, str]:
+    """Values of the source's ``required_env`` names, from the process environment.
+
+    The environment is the only source: no config file, ``.env`` parse or default is
+    consulted here (2.5). An unset or blank variable is missing; every missing name is
+    reported together, and the error carries names only, never values (10.5).
+    """
+    env = os.environ if environ is None else environ
+    resolved: dict[str, str] = {}
+    missing: list[str] = []
+    for name in source.required_env:
+        value = env.get(name, "")
+        if value.strip():
+            resolved[name] = value
+        else:
+            missing.append(name)
+    if missing:
+        raise MissingCredentialError(source.name, missing=tuple(missing))
+    return MappingProxyType(resolved)
