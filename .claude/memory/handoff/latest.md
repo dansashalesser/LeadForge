@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T19:22:36+00:00
+- Written: 2026-10-05T19:30:24+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 19.1 review found real gaps. POST wasn't default-deny at runtime, so a new adapter's POST to an unlisted path would have passed. The MCP transport was a third door that ran no send-prohibition check at all. There were also several bypass tricks, such as percent-encoded paths, joined words like `sendemail`, placeholder paths like `{action}`, and method-override headers. All are fixed test-first, with 14 of 15 mutations killed and the survivor being an equivalent one kept as defence in depth. The denylist's wording still comes from general API knowledge, which is recorded for you. Finishing the task.
+I committed and pushed the session-state files. Task 19.2's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
