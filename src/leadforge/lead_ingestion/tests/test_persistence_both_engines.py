@@ -1172,3 +1172,56 @@ async def test_per_source_counts_commit_with_the_finish_on_each_engine(
     assert (a.http_429_count, a.quota_remaining, a.warnings) == (3, {"api": 5}, ["w"])
     assert (a.live_access, rows["bravo"].live_access) == (True, False)
     assert (a.credits_consumed, a.credential_present) == (None, None)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.5
+async def test_the_run_report_is_built_from_the_store_on_each_engine(
+    backend: Backend,
+) -> None:
+    from leadforge.lead_ingestion.run_record import (
+        RunRecord,
+        RunStatus,
+        SourceCounts,
+        SourceMode,
+    )
+    from leadforge.lead_ingestion.run_report import (
+        build_run_report,
+        render_run_report,
+    )
+    from leadforge.lead_ingestion.store.run_records import RunRecordRepository
+
+    record = RunRecord(
+        T0,
+        2,
+        {"sources": {"alpha": {"live_access": "gated"}}},
+        (
+            SourceMode("bravo", DataMode.SYNTHETIC, "r", live_access=False),
+            SourceMode("alpha", DataMode.LIVE, "r", live_access=True),
+        ),
+    )
+    writer = StoreWriter(backend.engine)
+    run_id = await writer.write_batch(lambda s: RunRecordRepository(s).start(record))
+
+    def finish(session: Session) -> None:
+        repo = RunRecordRepository(session)
+        repo.finish(run_id, status=RunStatus.COMPLETED, exit_code=0, finished_at=NOW)
+        repo.record_source_counts(
+            run_id,
+            (
+                SourceCounts("alpha", "rate_limited", 4, 2, 1, 3, {"api": 5}, ["w"]),
+                SourceCounts("bravo", None, 0, 0, 0, 0, None, None),
+            ),
+        )
+
+    await writer.write_batch(finish)
+    with Session(backend.engine) as s:
+        report = build_run_report(s)
+    assert [r.source_name for r in report.sources] == ["alpha", "bravo"]
+    alpha, bravo = report.sources
+    assert (alpha.live_access, bravo.live_access) == ("gated", "unavailable")
+    assert (alpha.failure_class, alpha.leads_normalized) == ("rate_limited", 4)
+    assert dict(alpha.quota_remaining or {}) == {"api": 5}
+    assert report.started_at == T0
+    text = render_run_report(report)
+    assert "quota=api:5" in text
+    assert "warning: w" in text

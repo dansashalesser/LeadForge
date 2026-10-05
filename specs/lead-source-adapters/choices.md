@@ -2001,3 +2001,38 @@ Known gaps:
 - needs-follow-up: warnings redaction is an allowlist of one class (compliance subject); a future SourceError carrying personal data in its text would reach the column.
 - needs-follow-up: leads_found sums contributions across phases, so Enrichment contributions about already-found leads count again.
 - needs-follow-up: Apollo allowances are last-response only; a final response without headers yields NULL.
+
+## Task 18.3 — Produce the run report entirely from database queries (2026-10-05)
+Evidence: new tests/test_run_report.py (16 tests) run first and SEEN FAILING (ModuleNotFoundError: run_report). Dual-engine test added to test_persistence_both_engines.py was written after the module existed, so not red on its own; made red by a temporary ordering mutation (sqlite and postgres legs both failed), then restored. After: `uv run ruff format src`, `ruff check src`, `mypy` (148 files) clean; `uv run pytest -q` all green (Postgres leg ran). Not otherwise mutation-checked.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- `build_run_report(session, run_id=None) -> RunReport` in new run_report.py queries ingestion_run/source_run directly via store models (no orchestrator/result argument; signature + source tests). Rejected: extending RunRecordRepository.get/StoredRun.
+- No run id = latest by started_at desc, id desc. Unknown id / empty store raise `RunNotFoundError` (subclass of RunRecordError). Rejected: returning None.
+- Per-source counts shown only when run.status == completed; running/aborted render "not recorded" (aborted adds "aborted: no per-source counts recorded"). Rejected: showing the row defaults (zeros).
+- failure_class NULL on a completed run renders "none recorded", not "ok" (ok vs not-run indistinguishable).
+- fetched, merged always "not recorded"; credits NULL "not recorded"; quota NULL "not stated"; leads_normalized labelled "contributions across phases, not distinct leads".
+- Live access: snapshot three-valued value, else boolean False -> "unavailable", else "not recorded". Summary lines: could run live / synthetic-only by necessity / classification not recorded.
+- Control characters escaped (as run_exit); warnings cut at 200 chars with ellipsis. Rendering shows only recorded instants (ISO).
+- CLI not touched: the task text and 21.5 do not say the CLI prints it.
+### Known gaps (needs-follow-up)
+- Task 18.3 has one bullet ("make the run record queryable so the report is a query"): DELIVERED as the report function + renderer + tests.
+- NOT delivered: a CLI path (ingest is still a stub that builds no orchestrator or StoreRunRecorder; a `report` command would need a store URL/engine wiring) and nothing prints the report yet.
+- Not persisted, so absent from the report: over-merge suspects (15), tie fallbacks (18), fetched/merged counts, Credits, failure counts per class beyond the single final class.
+- A crashed run stays "running" (no sweep); the report says "still running or crashed".
+
+### Self-review findings
+Fixed (each test-first, seen red):
+- `DataMode(resolved_mode)` crashed on an unknown/future mode: `SourceReport.mode` is now a plain string, rendered escaped.
+- `live_access` from an older/odd snapshot (non-mapping, non-string, or unknown value) is now tolerated; only available/gated/unavailable are accepted, else the boolean column, else not recorded (an unknown value used to vanish from every group).
+- Quota values were rendered unescaped (forgeable line/ANSI); now escaped.
+- Completed-run NULL failure class: a row with any recorded activity (leads, retries, throttle waits, 429s) now renders `ok`; an all-zero row stays `none recorded` (ok and not-run are not distinguishable from stored fields; attempted/succeeded are not persisted).
+- Report now renders `over-merge suspects: not recorded` and `primary-domain tie fallbacks: not recorded` (8.15, 8.18).
+- New tests: whitelisted-snapshot canary (text and repr), query count constant and SELECT-only, import-direction AST check (aliases included), reason escaping, unknown mode.
+Mutation-checked (all caught, files restored): counts for aborted, counts always shown, wrong latest run, unescaped reason, NULL as 0, credits as 0, orchestrator import, dual-engine (failure class, live_access, ordering, quota; both legs red). Survivor: dropping `ORDER BY source_name` (SQLite serves it from the run_id/source_name index; needs-follow-up if a Postgres order check is wanted).
+Bullets: 18.3's single bullet (queryable record, report from DB queries; Req 21.5) is DELIVERED. No bullet mentions the CLI, so `ingest` was left a stub (needs-follow-up: print the report once the composition root exists).
+Known gaps:
+- SPEC GAP: Req 8.15 (over-merge suspects) and 8.18 (tie fallbacks) say "flag on the run report". Nothing persists them (no column or table) and nothing produces them: the orchestrator `run` never calls clustering/projection/over_merge/tie_resolution. Two missing pieces: persistence and a producer. The report only says "not recorded".
+- Fetched, merged and credits have no producer (18.2): rendered `not recorded`, never 0.
+- needs-follow-up: run_report imports run_record (RunStatus, RunRecordError), which transitively imports orchestrator/registry. The report function takes and uses none, but a strict module graph free of orchestrator needs those moved to a leaf module.
+- needs-follow-up: `_printable` is duplicated (run_exit, run_report); extract at a third call site.
+- `leads_normalized` is labelled as contributions across phases, not distinct leads.

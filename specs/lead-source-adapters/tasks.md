@@ -561,7 +561,7 @@ task = one commit.
   - Blocked on 18.1; shares the run-report warning surface with 16.8
   - _Requirements: 21.2_
 
-- [ ] 18.3 Produce the run report entirely from database queries
+- [x] 18.3 Produce the run report entirely from database queries
   - Make the run record queryable so the report is a query rather than in-memory state
   - Blocked on 18.1 and 18.2
   - _Requirements: 21.5_
