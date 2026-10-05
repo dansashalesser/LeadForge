@@ -295,7 +295,7 @@ task = one commit.
   - Parallel with 10.1
   - _Requirements: 7.3, 7.4_
 
-- [ ] 10.3 Bypass throttling and retry entirely in synthetic mode
+- [x] 10.3 Bypass throttling and retry entirely in synthetic mode
   - Construct neither the bucket nor the retry policy for a source resolved to synthetic, so a synthetic run incurs zero throttle delay and zero retries by absence rather than by a conditional
   - Blocked on 10.1 and 10.2, which it wires together
   - _Requirements: 7.5_

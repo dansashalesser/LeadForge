@@ -849,3 +849,18 @@ Evidence: implementation written by a background agent that the container restar
 ### Self-review findings
 - **Fixed:** the exhaustion check read the caller-supplied cumulative `stats.attempts`, so reusing one `RetryStats` across runs shortened the next run's attempt budget. `run` now counts its own attempts.
 - **Known gaps, not fixed (needs-user):** a caller-supplied `retryable` may include non-retryable-by-design types such as `SourceQuotaExhausted`, the same opt-in as widening to `SourceTimedOut`; `max_retry_after_s` accepts `inf`, matching `throttle.py`; the source-scan test bans any 3-digit number or the word "http" anywhere in `retry.py`, including comments, which is brittle (its AST half is sound); no property test, because `hypothesis` is not a dependency.
+
+## Task 10.3 — Bypass throttling and retry in synthetic mode (2026-10-05)
+
+Evidence: TDD agent report; independent `spec-refactor-agent` review with five mutation checks, each caught and restored; parent re-ran ruff, mypy, pytest (clean).
+Process note: the implementer wrote tests and module in one step, so there is no recorded red phase; the reviewer's mutation checks stand in for it.
+
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Wiring is a free function `build_pacing(source_name, rate_limit, mode)` in a new `pacing.py`, not an adapter method; it returns `SourcePacing(throttle, retry)` for live and `None` for synthetic. The orchestrator must not substitute a no-op.
+- It takes `source_name` and `rate_limit`, not the source class.
+- A mode that is not exactly a `DataMode` member raises `ValueError` (the plain string `"synthetic"` is rejected, never treated as live).
+- No property test.
+
+### Known gap (needs-follow-up)
+- The retry policy uses `RetryPolicy()` defaults because no retry configuration exists, while design.md says `max_attempts` comes from config. A later task (config or orchestrator) must pass a configured policy into `build_pacing`.
