@@ -7,7 +7,7 @@ answer" is data, and every ``SourceAbsence`` is checked against it at the bounda
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, ClassVar
@@ -22,6 +22,7 @@ from leadforge.lead_ingestion.models import (
 )
 
 __all__ = [
+    "TARGET_TERM_PATH_PREFIX",
     "BaseLeadSource",
     "Capability",
     "ChargeUnit",
@@ -95,6 +96,19 @@ class LeadContribution(_Entity):
     absences: tuple[SourceAbsence, ...] = ()
 
 
+TARGET_TERM_PATH_PREFIX = "target_profile."
+
+
+def _is_empty_vocabulary(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, Collection):
+        return len(value) == 0
+    return False
+
+
 _DECLARATIONS = (
     "name",
     "capabilities",
@@ -103,6 +117,7 @@ _DECLARATIONS = (
     "cost_class",
     "charge_unit",
     "yields_suppression",
+    "target_vocabulary",
 )
 
 
@@ -116,6 +131,9 @@ class BaseLeadSource(ABC):
     cost_class: ClassVar[CostClass]
     charge_unit: ClassVar[ChargeUnit]
     yields_suppression: ClassVar[bool]
+    # Canonical Target Profile term -> this provider's opaque vocabulary for it.
+    # An empty value (or an absent term) is Not Applicable, never "no match" (2.8).
+    target_vocabulary: ClassVar[Mapping[str, object]]
 
     def __init__(self, mode: DataMode) -> None:
         cls = type(self).__name__
@@ -152,6 +170,27 @@ class BaseLeadSource(ABC):
                     f"{cls}.answerable_surfaces[{path!r}] has no surface; "
                     "leave an unanswerable path out instead"
                 )
+        if not isinstance(self.target_vocabulary, Mapping):
+            raise TypeError(f"{cls}.target_vocabulary must be a Mapping")
+        for term in self.target_vocabulary:
+            if not isinstance(term, str) or not term.strip():
+                raise TypeError(f"{cls}.target_vocabulary keys must be non-blank str")
+        answerable = {
+            path.removeprefix(TARGET_TERM_PATH_PREFIX)
+            for path in self.answerable_surfaces
+            if path.startswith(TARGET_TERM_PATH_PREFIX)
+        }
+        expressible = {
+            term
+            for term, vocab in self.target_vocabulary.items()
+            if not _is_empty_vocabulary(vocab)
+        }
+        if answerable != expressible:
+            raise TypeError(
+                f"{cls} target terms must match: answerable without vocabulary "
+                f"{sorted(answerable - expressible)}, vocabulary without answerable "
+                f"surface {sorted(expressible - answerable)}"
+            )
         self._mode = mode
 
     @property
@@ -163,6 +202,22 @@ class BaseLeadSource(ABC):
 
     @abstractmethod
     def normalize(self, raw: RawBatch) -> list[LeadContribution]: ...
+
+    def target_term_absence(self, term: str) -> SourceAbsence | None:
+        """``None`` if this source can express ``term``, else a Not Applicable record.
+
+        A source with no vocabulary for a term was never asked, so it cannot have
+        found "no match" (2.8).
+        """
+        if not term.strip():
+            raise ValueError("target term must be non-blank")
+        if not _is_empty_vocabulary(self.target_vocabulary.get(term)):
+            return None
+        return SourceAbsence(
+            canonical_path=f"{TARGET_TERM_PATH_PREFIX}{term}",
+            source_name=self.name,
+            kind=AbsenceKind.NOT_APPLICABLE,
+        )
 
     def validate_absence(self, absence: SourceAbsence) -> SourceAbsence:
         """Return ``absence`` if this source's declarations allow it, else raise."""

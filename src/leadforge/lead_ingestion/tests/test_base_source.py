@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from leadforge.lead_ingestion.base_source import (
+    TARGET_TERM_PATH_PREFIX,
     BaseLeadSource,
     Capability,
     ChargeUnit,
@@ -42,6 +43,7 @@ class _Stub(BaseLeadSource):
     cost_class: ClassVar[CostClass] = CostClass.FREE
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_CALL
     yields_suppression: ClassVar[bool] = False
+    target_vocabulary: ClassVar[Mapping[str, object]] = {}
 
     async def fetch_raw(self, request: SourceRequest) -> RawBatch:
         return RawBatch(source_name=self.name, payload={"kind": request.kind})
@@ -149,6 +151,7 @@ def test_incomplete_subclass_fails_at_construction(missing: str) -> None:
         "cost_class": CostClass.FREE,
         "charge_unit": ChargeUnit.PER_CALL,
         "yields_suppression": False,
+        "target_vocabulary": {},
     }
     del attrs[missing]
     incomplete = type("Incomplete", (BaseLeadSource,), attrs)
@@ -167,6 +170,7 @@ def test_incomplete_subclass_fails_at_construction(missing: str) -> None:
         "cost_class",
         "charge_unit",
         "yields_suppression",
+        "target_vocabulary",
     ],
 )
 def test_subclass_without_a_declaration_fails_at_construction(missing: str) -> None:
@@ -180,6 +184,7 @@ def test_subclass_without_a_declaration_fails_at_construction(missing: str) -> N
         "cost_class": CostClass.FREE,
         "charge_unit": ChargeUnit.PER_CALL,
         "yields_suppression": False,
+        "target_vocabulary": {},
     }
     del attrs[missing]
     cls = type("Undeclared", (BaseLeadSource,), attrs)
@@ -459,3 +464,116 @@ def test_every_charge_unit_is_rankable() -> None:
     for unit in ChargeUnit:
         src = _src(f"u_{unit.value}", CostClass.FREE, unit, False)
         assert enrichment_sort_key(src)[2] >= 0
+
+
+# --- per-source Target Profile vocabulary (task 3.3) -------------------------
+
+
+def _targeting(
+    vocab: Mapping[str, object],
+    surfaces: Mapping[str, frozenset[str]] | None = None,
+    name: str = "alpha",
+) -> BaseLeadSource:
+    cls: type[BaseLeadSource] = type(
+        "Targeting",
+        (_Stub,),
+        {
+            "name": name,
+            "target_vocabulary": vocab,
+            "answerable_surfaces": {} if surfaces is None else surfaces,
+        },
+    )
+    return cls(DataMode.SYNTHETIC)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_vocabulary_is_per_source_and_opaque() -> None:
+    a = _targeting(
+        {"python": {"tech_a": 7}}, {"target_profile.python": frozenset({"t"})}
+    )
+    b = _targeting(
+        {"python": ["other-id"]}, {"target_profile.python": frozenset({"t"})}
+    )
+    assert a.target_vocabulary["python"] == {"tech_a": 7}
+    assert b.target_vocabulary["python"] == ["other-id"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_prefix_constant() -> None:
+    assert TARGET_TERM_PATH_PREFIX == "target_profile."
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+@pytest.mark.parametrize("empty", [None, "", "  ", [], (), {}, frozenset()])
+def test_empty_declaration_is_not_applicable(empty: object) -> None:
+    src = _targeting({"python": empty})
+    absence = src.target_term_absence("python")
+    assert absence is not None
+    assert absence.kind is AbsenceKind.NOT_APPLICABLE
+    assert absence.canonical_path == "target_profile.python"
+    assert absence.source_name == "alpha"
+    assert absence.raw_field_path is None
+    assert src.validate_absence(absence) is absence
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_undeclared_term_is_not_applicable() -> None:
+    absence = _targeting({}).target_term_absence("rust")
+    assert absence is not None
+    assert absence.kind is AbsenceKind.NOT_APPLICABLE
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_expressible_term_has_no_absence() -> None:
+    src = _targeting(
+        {"python": {"tech_a": 1}}, {"target_profile.python": frozenset({"t"})}
+    )
+    assert src.target_term_absence("python") is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+@pytest.mark.parametrize("term", ["", "   "])
+def test_blank_term_is_rejected(term: str) -> None:
+    with pytest.raises(ValueError, match="non-blank"):
+        _targeting({}).target_term_absence(term)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_source_without_targeting_surface_never_yields_negative_evidence() -> None:
+    src = _targeting({})
+    negative = SourceAbsence(
+        canonical_path="target_profile.python",
+        source_name="alpha",
+        kind=AbsenceKind.NEGATIVE_EVIDENCE,
+        raw_field_path="anything",
+    )
+    with pytest.raises(InvalidAbsenceError, match=r"target_profile\.python"):
+        src.validate_absence(negative)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_malformed_vocabulary_is_rejected_at_construction() -> None:
+    class NotAMapping(_Stub):
+        target_vocabulary: ClassVar[Mapping[str, object]] = ["python"]  # type: ignore[assignment]
+
+    class BadKey(_Stub):
+        target_vocabulary: ClassVar[Mapping[str, object]] = {1: "x"}  # type: ignore[dict-item]
+
+    class BlankKey(_Stub):
+        target_vocabulary: ClassVar[Mapping[str, object]] = {" ": "x"}
+
+    for cls in (NotAMapping, BadKey, BlankKey):
+        with pytest.raises(TypeError, match=cls.__name__):
+            cls(DataMode.SYNTHETIC)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_answerable_target_term_without_vocabulary_is_rejected() -> None:
+    with pytest.raises(TypeError, match=r"Targeting.*python"):
+        _targeting({"python": None}, {"target_profile.python": frozenset({"t"})})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_vocabulary_without_answerable_surface_is_rejected() -> None:
+    with pytest.raises(TypeError, match=r"Targeting.*python"):
+        _targeting({"python": {"tech_a": 1}})

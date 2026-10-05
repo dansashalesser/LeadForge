@@ -95,7 +95,7 @@ task = one commit.
   - Make Enrichment order derivable from these declarations so adding a source places it in the correct tier with no edit outside its own module
   - _Requirements: 2.7_
 
-- [ ] 3.3 Declare the per-source Target Profile vocabulary
+- [x] 3.3 Declare the per-source Target Profile vocabulary
   - Declare, for each Target Profile term a source can express, the provider vocabulary that expresses it
   - Treat an empty declaration as Not Applicable for that term rather than as a report of no match, represented as a `SourceAbsence` of kind Not Applicable (task 2.4) so a source with no targeting surface never produces Negative Evidence for a Target Profile term
   - _Requirements: 1.9, 2.8, 23.2_

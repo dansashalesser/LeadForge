@@ -296,3 +296,18 @@ Evidence: TDD agent report; parent re-ran pytest, ruff, mypy.
   5. `enrichment_order` is a free function over declarations and does not filter by capability; 11.6 does that.
 - **Alternatives:** method on the class; ranking paid-suppression ahead of free non-suppression.
 - **Known gap:** ordering tests are example-based only, no property test.
+
+## Task 3.3 — Per-source Target Profile vocabulary (2026-10-05)
+
+Evidence: TDD agent report; parent re-ran pytest (326 passed), ruff, mypy.
+
+### Where the task left freedoms open — provisional and reversible
+- **Verdict:** needs-user (Decision-Budget Gate failed; the task named none of these as delegated)
+- **Chose, in `base_source.py`:**
+  1. `target_vocabulary` is a mandatory ClassVar `Mapping[str, object]`; `{}` is legal (no targeting surface).
+  2. Keys are non-blank canonical term names; values are opaque. None, blank str, or empty collection/mapping counts as an empty declaration.
+  3. A term is expressible only if it has a non-empty vocabulary; every other term is Not Applicable.
+  4. `target_term_absence(term)` returns None if expressible, else a NOT_APPLICABLE `SourceAbsence` at `target_profile.<term>` (`TARGET_TERM_PATH_PREFIX`). Blank term raises ValueError.
+  5. Construction rejects (TypeError) any source whose `target_profile.<term>` keys in `answerable_surfaces` differ from its expressible terms, so Negative Evidence is only possible where a vocabulary exists.
+- **Alternatives:** no cross-check against `answerable_surfaces`; a typed vocabulary value instead of `object`; term-keyed path without a prefix.
+- **Known gap:** vocabulary values are not validated against provider-issued identifiers (task 9.3).
