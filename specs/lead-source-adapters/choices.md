@@ -1757,3 +1757,30 @@ Evidence: wrote tests/test_over_merge.py first; first run = collection ImportErr
 - Delivered: 16.8 bullet 1 (detection, never blocks) and bullet 2 (proof test). Deferred: writing to the run report surface (18.x; task says blocked on/shares 18.1, so wiring out of scope).
 - needs-follow-up: operator handle. Report carries only cluster_id (pseudonym that changes when membership changes, 16.2) and counts; an operator must locate members by recomputing clusters to write a 16.6 Identity Exclusion (barred values). Requirement 8.15 only says "named", so not a SPEC GAP, but 18.x should decide whether the stored report may carry the contributing emails/LinkedIn URLs (never in logs).
 - needs-follow-up: key-less bridge, two verified emails, weak-key merges are not flagged (not in 8.15).
+
+## Task 16.9 — Cluster Company Signals on a registrable-domain set (2026-10-05)
+Evidence: red phase seen per file (test_companies.py ImportError on missing companies module; test_projection.py same; test_orchestrator_per_company.py 4 behavioural failures) before writing companies.py / orchestrator / projection changes; then `uv run ruff format src`, `ruff check src`, `mypy` (122 files) clean; `uv run pytest -q`: 2330 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Webmail: neither 8.x nor an ADR names it; added an explicit 18-entry `WEBMAIL_DOMAINS` set dropped from every company domain set (gmail-only record is a singleton). Rejected: no guard (all gmail users become one company and per-company Credits skipped); rejected: per-address Hunter `webmail` status (not per-domain).
+- Domainless record (none, bare suffix, IP, localhost, webmail-only): singleton keyed by sha256 of its canonical JSON, identical records separate with -2/-3 suffix. Rejected: key by name (merge by name alone).
+- company_id = "co-" + sha256(sorted registrable set)[:16]; changes if the cluster gains a domain. Rejected: anchor on lowest domain (equally unstable).
+- projection: Employment.company.domains is now the registrable set (www/subdomain collapse, display form lost); company with no usable domain gets id from the Lead's cluster_id (per-Lead, never by name). Domain-only company with only unusable domains and no name yields no Employment.
+- Orchestrator `_company_key` removed; per_company_work_list uses `domain_components` (first Lead of each overlap cluster). 11.7 test of equal-set-only dedupe updated deliberately. Reused clustering._UnionFind (private import) rather than a second union-find; made match_keys.registrable_domains public.
+### Known gaps (needs-follow-up)
+- Bullets: 1 (identity = registrable-domain set, same union-find mechanism) delivered; 2 (pinned PSL, no fetch; socket-blocked test) delivered, PSL "dated snapshot" is still the locked tldextract version, not a dated file; 3 (two records, different domains -> one company) delivered at cluster_company_signals level.
+- Cross-lead company clustering is NOT wired into project_lead/store: per-Lead projection only sees its own domain set, so {a.com,a.io} vs {a.com} still get different company_ids, and same-id/different-name Leads still conflict in share_company_signals (16.5 review issue only partly addressed). Needs a cross-lead pass.
+- match_keys name+domain key still treats gmail.com as a domain (not guarded); personal domains (name.com) undetectable.
+- 16.10, 16.11, 16.12 deferred. No mutation checks run. No self-review (parent).
+
+### Self-review findings
+- Fixed: `CompanyCluster.domains` was in `repr` (a person's own domain is personal data); now `repr=False`, test-first (test_companies.py repr test extended).
+- Mutation-checked, each caught: overlap ignored, no transitivity, webmail kept, order-dependent id, PSL fetch enabled, private suffixes off, subdomain not collapsed, no-domain merged by name. Files restored byte-identical.
+- 11.7 test update judged faithful: equal-set dedupe, per_lead untouched, no-domain-kept-individually are all still asserted; only the unequal-overlap expectation changed as intended.
+- Delivered: 16.9 bullets 1 (domain-set identity, union-find, order-independent), 2 (PSL pinned via tldextract bundled snapshot, no fetch, tested), 3 (two records, different domains, one Company Signal). 16.10-16.12 deferred.
+- SPEC GAP: per-Lead `project_lead` still derives company_id from that Lead's own set, so overlapping-but-unequal sets give different ids per Lead, and one id cannot be shared with equal content because name/domains differ per Lead. Fixing needs a company-level resolution stage (name vote = 16.10); not small and pure, not built. needs-follow-up.
+- needs-follow-up: WEBMAIL_DOMAINS is an invented, non-exhaustive list (no requirement/ADR names it); misses yahoo/outlook country variants, 163/126, mail.ru, web.de, gmx.net, pm.me. A webmail-only company is a keyless singleton (safe direction).
+- needs-follow-up: shared hosts absent from the PSL (x.wordpress.com -> wordpress.com) and social URLs in company.domain (linkedin.com/company/x -> linkedin.com) would over-merge unrelated companies.
+- needs-follow-up: company_id changes when a cluster gains a domain (no stable id across runs, cf. 8.9 and the 16.2 cluster_id issue); needs a persisted id mapping.
+- needs-follow-up: project_lead now raises TypeError on a non-text winning company.domain (before: ignored silently); consistent with the orchestrator, error never echoes the value.
+- needs-follow-up: tldextract is pinned only by `>=5` plus uv.lock; no dated-snapshot assertion beyond the offline test.

@@ -3,10 +3,12 @@
 A source declaring ``charge_unit: per_company`` is billed per company, so the
 Enrichment work list it receives holds one Lead per distinct company, not one per Lead.
 A company is identified by the domain set a work-list contribution carries at
-``company.domain``; clustering overlapping sets is task 16.9 and is not built here.
+``company.domain``; overlapping sets are one company (task 16.9, ``companies``).
 The sources are throwaway subclasses that make one provider call per work-list item,
 as an adapter does.
 """
+
+import itertools
 
 import pytest
 
@@ -178,14 +180,63 @@ def test_a_company_is_its_domain_set_ignoring_case_blanks_and_order() -> None:
         lead("b@x", ["acme.io ", "ACME.COM"]),
         lead("c@x", "ACME.com"),
         lead("d@x", frozenset({"acme.com", "acme.io"})),
+        lead("e@x", "other.com"),
     )
 
-    # The first two (and the fourth) are the same two-domain set; "ACME.com" alone is a
-    # different set, because overlap clustering is task 16.9.
+    # Overlapping sets are one company (task 16.9): "ACME.com" alone shares acme.com.
+    assert [c.values["email"] for c in per_company_work_list(items)] == ["a@x", "e@x"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.16
+def test_overlapping_domain_sets_subdomains_and_chains_are_one_company() -> None:
+    items = work(
+        lead("a@x", "acme.io"),
+        lead("b@x", "other.com"),
+        lead("c@x", "mail.acme.com"),
+        lead("d@x", ("acme.com", "acme.io")),  # bridges a and c
+        lead("e@x", "www.other.com"),
+        lead("f@x", "one.github.io"),
+        lead("g@x", "two.github.io"),
+    )
+
     assert [c.values["email"] for c in per_company_work_list(items)] == [
         "a@x",
-        "c@x",
+        "b@x",
+        "f@x",
+        "g@x",
     ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.16
+def test_webmail_and_unusable_domains_never_make_two_leads_one_company() -> None:
+    items = work(
+        lead("a@x", "gmail.com"),
+        lead("b@x", "gmail.com"),
+        lead("c@x", "localhost"),
+        lead("d@x", "localhost"),
+        lead("e@x", "10.0.0.1"),
+        lead("f@x", "10.0.0.1"),
+    )
+
+    assert len(per_company_work_list(items)) == 6
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.16
+def test_the_kept_company_set_does_not_depend_on_work_list_order() -> None:
+    items = work(
+        lead("a@x", "a.com"),
+        lead("b@x", "b.com"),
+        lead("c@x", ("a.com", "b.com")),
+        lead("d@x", "d.com"),
+    )
+
+    for order in itertools.permutations(items):
+        kept = per_company_work_list(order)
+        # The {a, b} cluster once and d once, whatever the order; the first Lead of the
+        # work list always stands for its company.
+        assert len(kept) == 2
+        assert kept[0] is order[0]
+        assert sum(c.values["email"] == "d@x" for c in kept) == 1
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#6.11

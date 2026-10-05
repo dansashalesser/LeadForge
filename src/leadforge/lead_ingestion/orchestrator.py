@@ -112,11 +112,13 @@ Per-company calls (task 11.7, Requirement 6.11; ADR-0002). Provisional decisions
   The ledger therefore counts orchestrator invocations (1), not provider calls.
 * Dedupe runs on the already pruned list, so a suppressed Lead is never the one that
   stands for its company. The input tuple is untouched.
-* A company is the casefolded, stripped domain set at ``company.domain`` (a str, or a
-  tuple, list, set or frozenset of str). Two Leads are one company only when their sets
-  are equal: no Public Suffix List reduction and no overlap clustering exist yet
-  (task 16.9, Requirements 8.16 to 8.18), which will replace ``_company_key``.
-* A Lead with no domain stands for itself and is never merged; a non-text value is a
+* A company is the set of registrable domains at ``company.domain`` (task 16.9,
+  Requirement 8.16): a str or a collection of str, reduced under the pinned Public
+  Suffix List, webmail excluded. Leads whose sets overlap, transitively, are one
+  company (``companies.domain_components``), so ``acme.com`` and ``{acme.com, acme.io}``
+  are one.
+* A Lead with no usable domain (none, blank, a bare suffix, an IP, ``localhost``,
+  webmail only) stands for itself and is never merged; a non-text value is a
   ``TypeError``, not ignored.
 * A company-level result is not copied onto the Leads sharing the company here: the
   Company Signal is shared through Employment (ADR-0001), joined by a later stage.
@@ -140,6 +142,7 @@ from leadforge.lead_ingestion.base_source import (
     SourceRequest,
     enrichment_tiers,
 )
+from leadforge.lead_ingestion.companies import company_domains, domain_components
 from leadforge.lead_ingestion.errors import (
     NormalizationError,
     SourceComplianceRestricted,
@@ -427,50 +430,20 @@ def prune_flagged(
 _COMPANY_DOMAIN_PATH = "company.domain"
 
 
-def _company_key(contribution: LeadContribution) -> frozenset[str] | None:
-    """The domain set naming a contribution's company; ``None`` if it names none."""
-    value = contribution.values.get(_COMPANY_DOMAIN_PATH)
-    if value is None:
-        return None
-    if isinstance(value, str):
-        items: tuple[object, ...] = (value,)
-    elif isinstance(value, tuple | list | set | frozenset):
-        items = tuple(value)
-    else:
-        raise TypeError(
-            f"{_COMPANY_DOMAIN_PATH} must be text or a collection of text, "
-            f"got {type(value).__name__}"
-        )
-    domains: set[str] = set()
-    for item in items:
-        if not isinstance(item, str):
-            raise TypeError(
-                f"{_COMPANY_DOMAIN_PATH} entries must be text, "
-                f"got {type(item).__name__}"
-            )
-        if item.strip():
-            domains.add(item.strip().casefold())
-    return frozenset(domains) or None
-
-
 def per_company_work_list(
     work_list: tuple[LeadContribution, ...],
 ) -> tuple[LeadContribution, ...]:
     """The work list with one Lead per distinct company (Requirement 6.11).
 
-    Keeps the first Lead of each company, in work-list order, and every Lead that names
-    no company. Pure: the input is a tuple and the kept items are the same objects.
+    Companies are clustered on their registrable-domain sets (``companies``, task 16.9):
+    Leads whose sets overlap, transitively, are one company. Keeps the first Lead of
+    each company, in work-list order, and every Lead that names no usable company.
+    Pure: the input is a tuple and the kept items are the same objects.
     """
-    seen: set[frozenset[str]] = set()
-    kept = []
-    for contribution in work_list:
-        key = _company_key(contribution)
-        if key is not None:
-            if key in seen:
-                continue
-            seen.add(key)
-        kept.append(contribution)
-    return tuple(kept)
+    labels = domain_components(
+        [company_domains(c.values.get(_COMPANY_DOMAIN_PATH)) for c in work_list]
+    )
+    return tuple(c for index, c in enumerate(work_list) if labels[index] == index)
 
 
 class IngestionOrchestrator:

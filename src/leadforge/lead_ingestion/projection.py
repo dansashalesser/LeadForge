@@ -35,10 +35,12 @@ Provisional decisions (choices.md, 16.5):
 * ``full_name`` is ``person.full_name``, else ``person.first_name`` and
   ``person.last_name`` joined by a space (both required), as ``match_keys`` does.
 * One ``Employment`` at most, from the winning ``company.name`` / ``company.domain``
-  and ``person.title``. ``company_id`` is a hash of the sorted, casefolded domain set
-  (of the casefolded name when there is no domain); company clustering (16.9-16.11)
-  will replace it. ``is_current`` stays ``None``: no canonical path states it. With no
-  organization name or domain there is no Employment and the title stays in
+  and ``person.title``. ``company_id`` is derived from the registrable-domain set
+  (task 16.9, ``companies``), and ``domains`` is that set, so ``www.x.com`` and
+  ``x.com`` are one id with one content. A Lead whose company has no usable domain gets
+  an id derived from its own cluster id, never from the name (no merge by name alone).
+  ``is_current`` stays ``None``: no canonical path states it. With no organization name
+  or usable domain there is no Employment and the title stays in
   provenance only.
 * Signals are evidence, not competing values: every ``TechSignal`` and
   ``IntentSignal`` found in any candidate of any path is carried, one per (kind,
@@ -49,7 +51,7 @@ Provisional decisions (choices.md, 16.5):
 * Personal data stays out of ``repr`` and no error text is built from it.
 """
 
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from hashlib import sha256
 from typing import Any
@@ -58,6 +60,7 @@ from pydantic import HttpUrl, TypeAdapter, ValidationError
 
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster
+from leadforge.lead_ingestion.companies import company_domains, company_id_for
 from leadforge.lead_ingestion.conflicts import (
     ClusterResolution,
     FieldCandidate,
@@ -129,7 +132,7 @@ def project_lead(
     opt_out = _any_true(resolution, _OPT_OUT)
     suppressed = _any_true(resolution, _SUPPRESSED)
     return ProjectionResult(
-        lead=_build_lead(resolution, opt_out, suppressed),
+        lead=_build_lead(resolution, cluster.cluster_id, opt_out, suppressed),
         contributing_sources=tuple(sources),
         agreement=tuple(
             (f.canonical_path, agreeing_source_count(f)) for f in resolution.fields
@@ -192,7 +195,7 @@ def _text(value: object) -> str | None:
 
 
 def _build_lead(
-    resolution: ClusterResolution, opt_out: bool, suppressed: bool
+    resolution: ClusterResolution, cluster_id: str, opt_out: bool, suppressed: bool
 ) -> CanonicalLead | None:
     email = _valid_email(_text(_winner_value(resolution, _EMAIL)))
     linkedin = _valid_url(_text(_winner_value(resolution, _LINKEDIN)))
@@ -205,7 +208,7 @@ def _build_lead(
         email_status=_email_status(resolution, email),
         linkedin_url=linkedin,
         full_name=full_name,
-        employments=_employments(resolution),
+        employments=_employments(resolution, cluster_id),
         tech_signals=tech,
         intent_signals=intent,
         opt_out=opt_out,
@@ -261,34 +264,27 @@ def _email_status(resolution: ClusterResolution, email: str | None) -> EmailStat
     return EmailStatus.UNKNOWN
 
 
-def _domains(value: object) -> tuple[str, ...]:
-    items: Iterable[object]
-    if isinstance(value, str):
-        items = (value,)
-    elif isinstance(value, Collection):
-        items = value
-    else:
-        return ()
-    cleaned = {i.strip().casefold() for i in items if isinstance(i, str)}
-    return tuple(sorted(d for d in cleaned if d and not any(c.isspace() for c in d)))
-
-
-def _employments(resolution: ClusterResolution) -> tuple[Employment, ...]:
+def _employments(
+    resolution: ClusterResolution, cluster_id: str
+) -> tuple[Employment, ...]:
     name = _text(_winner_value(resolution, _COMPANY_NAME))
-    domains = _domains(_winner_value(resolution, _COMPANY_DOMAIN))
+    domains = tuple(sorted(company_domains(_winner_value(resolution, _COMPANY_DOMAIN))))
     if name is None and not domains:
         return ()
-    basis = (
-        "\x1f".join(domains) if domains else "name:" + (name or "").strip().casefold()
-    )
     company = CompanySignal(
-        company_id="co-" + sha256(basis.encode("utf-8")).hexdigest()[:16],
+        # A company with no usable domain is this Lead's own: never merged by name.
+        company_id=company_id_for(domains) if domains else _lead_company_id(cluster_id),
         name=name,
         domains=domains,
     )
     return (
         Employment(company=company, title=_text(_winner_value(resolution, _TITLE))),
     )
+
+
+def _lead_company_id(cluster_id: str) -> str:
+    basis = "no-domain\x1f" + cluster_id
+    return "co-" + sha256(basis.encode("utf-8")).hexdigest()[:16]
 
 
 def _signals(

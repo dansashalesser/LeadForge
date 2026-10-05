@@ -7,6 +7,7 @@ from typing import Any
 
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster, canonical_json
+from leadforge.lead_ingestion.companies import company_id_for
 from leadforge.lead_ingestion.models import (
     AbsenceKind,
     ConfidenceOrigin,
@@ -426,6 +427,38 @@ def test_company_id_is_one_id_per_domain_set() -> None:
     assert company("X.com ") == company(("x.com",)) == company(frozenset({"x.com"}))
     assert company("x.com") != company("y.com")
     assert company(("x.com", "y.com")) == company(("y.com", "x.com"))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.16
+def test_company_id_and_domains_use_the_registrable_domain_set() -> None:
+    def company(domain: Any) -> Any:
+        out = project(
+            contrib("a", {"person.full_name": "Ann", "company.domain": domain})
+        )
+        assert out.lead is not None
+        return out.lead.employments[0].company
+
+    plain, sub = company("acme.com"), company(("WWW.acme.com", "mail.acme.com"))
+    assert plain.company_id == sub.company_id == company_id_for({"acme.com"})
+    assert plain.domains == sub.domains == ("acme.com",)
+    assert company("one.github.io").company_id != company("two.github.io").company_id
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.16
+def test_a_company_with_no_usable_domain_is_per_lead_never_merged_by_name() -> None:
+    def company(cluster_id: str, domain: Any = None) -> Any:
+        values: dict[str, Any] = {"person.full_name": "Ann", "company.name": "Acme"}
+        if domain is not None:
+            values["company.domain"] = domain
+        out = project_lead(IdentityCluster(cluster_id, (contrib("a", values),)), RANKS)
+        assert out.lead is not None
+        return out.lead.employments[0].company
+
+    one, two = company("lead-1"), company("lead-2")
+    assert one.company_id != two.company_id  # same name, still two companies
+    assert one.company_id == company("lead-1").company_id  # stable
+    assert company("lead-1", "gmail.com").company_id == one.company_id
+    assert company("lead-1", "localhost").domains == ()
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.7

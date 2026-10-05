@@ -77,6 +77,7 @@ __all__ = [
     "normalize_email",
     "normalize_linkedin_url",
     "normalized_person_name",
+    "registrable_domains",
 ]
 
 _LINKEDIN = "person.linkedin_url"
@@ -221,7 +222,7 @@ def extract_match_keys(
 
     name = _full_name(values)
     if name:
-        for domain in _registrable_domains(values.get(_COMPANY_DOMAIN)):
+        for domain in registrable_domains(values.get(_COMPANY_DOMAIN)):
             keys.add(
                 MatchKey(
                     MatchKeyKind.NAME_DOMAIN, name + _NAME_DOMAIN_SEPARATOR + domain
@@ -306,7 +307,8 @@ def normalized_person_name(values: Mapping[str, object]) -> str | None:
     return None if name is None or _MASK in name else name
 
 
-def _registrable_domains(value: object) -> list[str]:
+def registrable_domains(value: object) -> list[str]:
+    """Sorted registrable domains of ``company.domain`` (str or collection of text)."""
     if value is None:
         return []
     if isinstance(value, str):

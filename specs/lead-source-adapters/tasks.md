@@ -502,7 +502,7 @@ task = one commit.
   - Blocked on 16.2; writes to the run-report warning surface, so not concurrent with 18.2
   - _Requirements: 8.15_
 
-- [ ] 16.9 Cluster Company Signals on a registrable-domain set
+- [x] 16.9 Cluster Company Signals on a registrable-domain set
   - Make a Company Signal's identity the set of its normalized registrable domains rather than a single domain, clustered by the same order-independent mechanism used for Leads
   - Derive registrable domains from a Public Suffix List pinned to a dated snapshot, so an upstream list refresh cannot silently change an existing projection
   - Prove two records for one company under different domains resolve to one Company Signal
