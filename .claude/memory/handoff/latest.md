@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T20:12:34+00:00
+- Written: 2026-10-05T20:22:22+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 19.4's code stays uncommitted until its implementer reports and the self-review is done.
+All of 19.4 is done and pushed. I'll tick the remaining parent tasks and check the final state of the spec.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ grep -n "repr(\|SourceTimedOut\|SourceTransient(" src/leadforge/lead_ingestion/transport.py | head -20
 - $ grep -n "SourceTimedOut\|TimeoutException\|ReadTimeout\|def test.*timeout" src/leadforge/lead_ingestion/tests/test_tra
 - $ sed -n 140,152p src/leadforge/lead_ingestion/tests/test_transport.py
 - $ cat >> src/leadforge/lead_ingestion/tests/test_transport.py <<'EOF'
@@ -58,3 +57,4 @@ s=open(p).read()
 s=s.replace("    FieldProvenance,\n   
 - $ git status --short | grep -v "\.claude/memory" | head -20; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb
 - $ git status --short | grep -v "\.claude/memory" | head; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f
+- $ sed -n 595,680p specs/lead-source-adapters/tasks.md | cut -c1-600
