@@ -1,73 +1,21 @@
 # Session Handoff
 
-- Written: 2026-10-05T08:42:03+00:00
+- Written: 2026-10-05T08:54:14+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
 - git branch: claude/happy-sagan-2yrkn0
 
 ## Last user message
-# Implementation Task Executor
-
-## Parse Arguments
-- Feature name: `3.1`
-- Task numbers: `$2` (optional)
-  - Format: "1.1" (single task) or "1,2,3" (multiple tasks)
-  - If not provided: Execute all pending tasks
-
-## Validate
-Check that tasks have been generated:
-- Verify `specs/3.1/` exists
-- Verify `specs/3.1/tasks.md` exists
-
-If validation fails, inform user to complete tasks generation first.
-
-## Task Selection Logic
-
-**Parse task numbers from `$2`** (perform this in Slash Command before invoking Subagent):
-- If `$2` provided: Parse task numbers (e.g., "1.1", "1,2,3")
-- Otherwise: Read `specs/3.1/tasks.md` and find all unchecked tasks (`- [ ]`)
-
-## Phase -1: Pre-Implementation Gates
-
-Before delegating to the TDD agent, run this checklist against `specs/3.1/tasks.md` and `specs/3.1/design.md`. Surface any failure to the user and wait for confirmation before proceeding.
-
-**Simplicity Gate**
-- [ ] Implementation has ≤3 main components for this feature?
-- [ ] No tasks contain "future-proof", "extensible", "generic", or "might need" language?
-
-**Anti-Abstraction Gate**
-- [ ] Tasks use framework features directly — no wrapper layers proposed without explicit rationale?
-- [ ] Single da
+This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-TDD agent finished 3.1. Now running the self-review and production-readiness steps in parallel, after confirming the checks myself.
+Running the self-review on task 3.2 now. First I need the files that commit touched.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ cat >> specs/lead-source-adapters/choices.md <<'EOF'
-
-## Task 2.4 — SourceAbsence (pass audit, 2026-10-05)
-
-### Repres
-- /tmp/claude-0/-home-user-LeadForge/7d565a4d-6c2a-4076-8cd5-fec70446f445/scratchpad/ledger-2.4.md
-- $ cat /tmp/claude-0/-home-user-LeadForge/7d565a4d-6c2a-4076-8cd5-fec70446f445/scratchpad/ledger-2.4.md >> specs/lead-sou
-- $ git add -A .claude/memory specs && git commit -q -m "docs(specs): record task 2.4 done and choices ledger pass
-
-Co-Aut
-- $ cd /home/user/LeadForge/specs/lead-source-adapters && sed -n 83,90p tasks.md; echo ....; sed -n 138,150p tasks.md; ech
-- $ sed -n 94,98p tasks.md
-- /tmp/claude-0/-home-user-LeadForge/7d565a4d-6c2a-4076-8cd5-fec70446f445/scratchpad/edit_tasks.py
-- $ cd /home/user/LeadForge && python3 /tmp/claude-0/-home-user-LeadForge/7d565a4d-6c2a-4076-8cd5-fec70446f445/scratchpad/
-- /tmp/claude-0/-home-user-LeadForge/7d565a4d-6c2a-4076-8cd5-fec70446f445/scratchpad/edit_ledger.py
-- $ python3 /tmp/claude-0/-home-user-LeadForge/7d565a4d-6c2a-4076-8cd5-fec70446f445/scratchpad/edit_ledger.py && git add -
-- $ ls specs/ specs/lead-source-adapters/ 2>&1; ls specs/2.5 2>&1; cat .claude/memory/handoff/latest.md 2>&1 | head -60
-- $ cd /home/user/LeadForge/specs/lead-source-adapters && wc -c tasks.md design.md requirements.md choices.md; ls docs; gr
-- $ sed -n 60,82p tasks.md; sed -n 1,26p tasks.md | cut -c1-300; ls /home/user/LeadForge; ls /home/user/LeadForge/src 2>/d
-- $ grep -n -i -E 'signal strength' requirements.md design.md CONTEXT.md | cut -c1-260 | head -30; ls /home/user/LeadForge
-- $ sed -n 20,30p CONTEXT.md; sed -n 600,618p requirements.md | cut -c1-300; grep -n -i 'signal' design.md | cut -c1-200 |
 - $ cd /home/user/LeadForge && git status --short; git log --oneline -3; git status -sb | head -1
 - $ git status --short; git log --oneline -3; git show --stat HEAD | tail -8; git diff --stat; sed -n '/2\.5/,$p' specs/le
 - $ git add specs/lead-source-adapters/tasks.md specs/lead-source-adapters/choices.md && git commit -q -m "docs(specs): re
@@ -78,3 +26,19 @@ Co-Aut
 - $ sed -n 60,100p src/leadforge/lead_ingestion/models.py; sed -n 160,200p src/leadforge/lead_ingestion/models.py; wc -c s
 - /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/brief-3.1.md
 - $ uv run ruff check src | tail -1; uv run mypy | tail -1; uv run pytest -q 2>&1 | tail -1; git status --short | grep -v 
+- $ cat .gitignore; git ls-files | grep -c "\.pyc$"; git log --oneline --diff-filter=A -- "*.pyc" | tail -2
+- $ git add src/leadforge/lead_ingestion/base_source.py src/leadforge/lead_ingestion/errors.py src/leadforge/lead_ingestio
+- $ uv run ruff format src -q; uv run ruff check src | tail -1; uv run mypy | tail -1; uv run pytest -q 2>&1 | tail -1
+sed
+- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/choices-3.1.md
+- $ git rm -r -q --cached $(git ls-files | grep "\.pyc$") && git add specs src/leadforge/lead_ingestion/base_source.py src
+- $ ls specs/ specs/3.2 2>&1 | head; ls specs/lead-source-adapters 2>&1; head -c 3000 .claude/memory/handoff/latest.md 2>&
+- $ cd /home/user/LeadForge/specs/lead-source-adapters && wc -c *.md; grep -n '^- \[' tasks.md | head -80; git -C /home/us
+- $ sed -n 83,110p tasks.md; sed -n 1,26p tasks.md | cut -c1-400
+- $ grep -n -i -E 'cost.?class|charge.?unit|suppression.?yield|CostClass|ChargeUnit' design.md requirements.md choices.md 
+- $ cd /home/user/LeadForge && git status --short | head -20
+- $ git status --short | head; python3 -m pytest -q src/leadforge/lead_ingestion 2>&1 | tail -3; ruff check src/leadforge/
+- $ uv run pytest -q 2>&1 | tail -3; uv run mypy src/leadforge/lead_ingestion 2>&1 | tail -1; uv run ruff format --check s
+- $ git status --short | grep -v "^ M .claude\|^?? .claude" | head; grep -n "^- \[.\] 3\.1" specs/lead-source-adapters/tas
+- $ git fetch -q origin; git status -sb | head -2; git log --oneline | head -8; grep -n "^## Task 3" specs/lead-source-ada
+- $ git show --stat --format=%s 270509d | grep -v "\.claude/" | head -12; awk '/^- \[x\] 3\.2/{f=1} f{print} /^- \[ \] 3\.

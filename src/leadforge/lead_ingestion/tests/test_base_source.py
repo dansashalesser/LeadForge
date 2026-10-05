@@ -451,3 +451,11 @@ def test_a_new_source_is_placed_without_editing_the_ordering_code() -> None:
     new = _src("brand_new", CostClass.FREE, ChargeUnit.PER_LEAD, True)
     old = [_src("old", CostClass.PAID, ChargeUnit.PER_CALL, True)]
     assert enrichment_order([*old, new])[0] is new
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_every_charge_unit_is_rankable() -> None:
+    # A unit added to the enum without a rank would KeyError at ordering time.
+    for unit in ChargeUnit:
+        src = _src(f"u_{unit.value}", CostClass.FREE, unit, False)
+        assert enrichment_sort_key(src)[2] >= 0
