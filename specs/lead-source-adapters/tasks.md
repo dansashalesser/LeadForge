@@ -452,7 +452,7 @@ task = one commit.
   - Parallel with 16.3, which touches the conflict-ordering module instead, and with all of 12.x through 15.x
   - _Requirements: 8.1, 8.2, 8.3, 8.11_
 
-- [ ] 16.2 Cluster identities order-independently
+- [x] 16.2 Cluster identities order-independently
   - Cluster contributions over the Match Key graph by union-find, so the result is independent of the order contributions arrive in
   - Prove order-independence by shuffling contributions across seeded permutations and comparing a canonical serialization byte for byte
   - Merge a later run's matching contribution into the existing identity rather than creating a second Lead, so re-running ingestion adds no Lead records

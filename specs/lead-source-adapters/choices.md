@@ -1554,3 +1554,34 @@ Known gaps left:
 - `corroborates` is symmetric and order-independent (set intersection, empty sets never corroborate). It compares the contribution's single title/employer, not the specific employment that produced the shared domain.
 - Role-address disqualification is NOT part of 16.1: ADR-0003 and 8.14 define it as an address reported against two or more distinct person names, with no curated word list, so it belongs to 16.7 across contributions.
 - Email normalisation does not validate beyond "local@domain" (no check for a second "@" or inner whitespace); plus-addressing and dots are intentionally kept.
+
+## Task 16.2 — Cluster identities order-independently (2026-10-05)
+Evidence: wrote tests/test_clustering.py first; first run = collection ImportError (clustering missing), red. After clustering.py: two test-side faults found and fixed (transitive test contradicted the 8.2 rule; canonical_json depended on provenance order, fixed in code), then 52 tests pass; `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 2083 passed, 1 skipped. Permutation tests: 25 seeds plus all 720 permutations of 6 contributions; large test (5,000) counts union/find calls (<=3n, <=12n).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Email key (8.2 "absent on either lead"): an email group merges only if some member has no LinkedIn key; that member joins all (transitive closure, so it can bridge two LinkedIn-different people). Rejected: merging on email regardless of LinkedIn, and refusing bridges (needs cluster-level guards that are order-sensitive).
+- Name+domain key (8.3): only contributions with neither a LinkedIn nor a verified-email key take part, and merge only when sharing the key AND a title or employer (bucketed, linear). Rejected: letting keyed records join (a bare record could bridge two keyed people; no unmerge). Under-merges the one-sided case.
+- Contribution identity = canonical JSON (sorted keys, sorted sets, provenance sorted by path); one total order for member order, cluster order, ids. Rejected: pydantic model_dump_json (set order is hash-seed dependent).
+- cluster_id = sha256 hex of the smallest member's canonical JSON, suffix -2, -3 for repeats; stable when later runs add members. Rejected: hashing key text, UUIDs, ids from member sets (change on every added contribution).
+- Byte-identical keyless contributions stay separate singletons (never dropped, never merged without a key); identical keyed duplicates collapse into one cluster but both members are kept.
+- No exclusion-predicate parameter: neither requirement 8.8 nor 8.9 shows 16.2 must accept one.
+- Output type IdentityCluster(cluster_id, contributions) with contributions hidden from repr (PII); errors name types only.
+### Known gaps (needs-follow-up)
+- 8.9 "merge into existing persisted identity" is only the stable cluster_id plus idempotent re-clustering; matching to persisted lead_identity rows is store work (16.10), not done.
+- Employment-date overlap corroboration still absent (16.1 gap carried).
+- HubSpot's bare `email` path is not read by clustering (match_keys reads person.email only); HubSpot emits no email_status so it could never be a key anyway.
+- Exclusions (16.6), role addresses (16.7), over-merge detection (16.8) not built; a shared verified role address still merges until 16.7.
+- No mutation run.
+
+### Self-review findings
+Fixed (each test-first):
+- cluster_id was the hash of the smallest-by-canonical-JSON member, so a later run's contribution that sorted lower changed the id (the docstring claim and the old stability test held by luck). Now the id member is the earliest-fetched one (canonical JSON tiebreak). New test fails before, passes after.
+- canonical_json raised on plain date values; now serialised via isoformat.
+- Error-text mutation (key or value in TypeError) survived; added test with a leaky value and leaky mapping key, both mutations now fail.
+Checked, no defect: 8.2 reading (different LinkedIn plus same email never merge directly, matches "absent on either lead"); name+domain cannot launder (keyed records never take part); iterative union-find (no recursion limit); 300 shuffles and 720 permutations identical; 10 key mutations killed; input unmutated; no I/O or bare except.
+Known gaps:
+- SPEC GAP: 8.9 "merge into persisted lead" needs store matching on identity keys (16.10); a pure id can still change when a new record bridges two clusters. needs-follow-up.
+- A bare verified-email holder bridges two different-LinkedIn people through transitive closure (over-merge path; pairwise-faithful to 8.2). needs-follow-up / needs-user.
+- cluster_id is an unsalted hash of personal data (dictionary-testable): treat as personal data, never log. needs-follow-up for the store (use its UUID).
+- SPEC GAP: 8.3 employment-date overlap corroboration absent; no webmail-domain guard for name+domain (design silent). needs-follow-up.
+- canonical_json still raises TypeError on exotic types (Decimal, UUID, bytes); loud, type-only message.
