@@ -551,7 +551,7 @@ task = one commit.
 ---
 
 - [ ] 18. Run observability and reporting
-- [ ] 18.1 Persist the run record with every source's resolved mode
+- [x] 18.1 Persist the run record with every source's resolved mode
   - Create one persisted run record at run start carrying the run identifier, start time, the pool bound, a configuration snapshot that makes the run reproducible, and the resolved mode of every enabled source
   - _Requirements: 21.1_
 

@@ -128,9 +128,13 @@ from __future__ import annotations
 
 import asyncio
 import math
-from collections.abc import Awaitable, Callable
+import uuid
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Protocol
+
+import structlog
 
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
@@ -166,6 +170,7 @@ __all__ = [
     "IngestionOrchestrator",
     "ModeResolverWithReason",
     "Phase",
+    "RunRecorder",
     "SourceCallLedger",
     "SourceOutcome",
     "SourceResult",
@@ -181,6 +186,30 @@ ModeResolverWithReason = Callable[
 AdapterFactory = Callable[
     [type[BaseLeadSource], DataMode, SourcePacing | None], BaseLeadSource
 ]
+
+
+_log = structlog.get_logger(__name__)
+
+
+class RunRecorder(Protocol):
+    """Persists the run record (task 18.1); the orchestrator knows no store.
+
+    ``finish`` receives the run's results, or ``None`` when the run was aborted by an
+    exception or by cancellation.
+    """
+
+    async def start(
+        self,
+        resolutions: Mapping[str, ModeResolution],
+        settings: Mapping[str, SourceSettings],
+        *,
+        pool_size: int,
+        run_timeout_s: float,
+    ) -> uuid.UUID: ...
+
+    async def finish(
+        self, run_id: uuid.UUID, results: tuple[SourceResult, ...] | None
+    ) -> None: ...
 
 
 class SourceStatus(StrEnum):
@@ -456,6 +485,7 @@ class IngestionOrchestrator:
         max_concurrent_sources: int,
         run_timeout_s: float,
         retry_policy: RetryPolicy | None = None,
+        run_recorder: RunRecorder | None = None,
     ) -> None:
         if (
             not isinstance(max_concurrent_sources, int)
@@ -479,12 +509,20 @@ class IngestionOrchestrator:
         self._max_concurrent_sources = max_concurrent_sources
         self._run_timeout_s = run_timeout_s
         self._retry_policy = retry_policy
+        self._run_recorder = run_recorder
 
     async def run(self, request: SourceRequest) -> tuple[SourceResult, ...]:
         """Fetch from every enabled source, at most the bound in flight at once.
 
         Results follow the registry's active order, not completion order. When the
         run timeout expires, unfinished sources are recorded ``TIMED_OUT``.
+
+        With a ``run_recorder`` the run record is persisted once the modes are
+        resolved and before any source is built or called (Requirement 21.1), and
+        finished with the mapped exit code. Any exception, ``CancelledError`` included,
+        marks it aborted and still propagates. A failing record write is never
+        swallowed: a failed start stops the run, a failed finish raises, and a failed
+        abort marker is attached to the propagating exception as a note.
         """
         resolutions = {
             name: self._resolve_mode(
@@ -492,7 +530,38 @@ class IngestionOrchestrator:
             )
             for name in self._registry.enabled_names()
         }
+        recorder = self._run_recorder
+        if recorder is None:
+            return await self._execute(request, resolutions)
+        run_id = await recorder.start(
+            resolutions,
+            {name: self._registry.settings(name) for name in resolutions},
+            pool_size=self._max_concurrent_sources,
+            run_timeout_s=self._run_timeout_s,
+        )
+        try:
+            results = await self._execute(request, resolutions)
+        except BaseException as exc:
+            # Mark the record aborted, then let the exception go on unchanged.
+            try:
+                await recorder.finish(run_id, None)
+            except Exception as write_error:  # noqa: BLE001 - noted and logged, the original wins
+                _log.error(
+                    "run_record_abort_failed",
+                    run_id=str(run_id),
+                    error=type(write_error).__name__,
+                )
+                exc.add_note(
+                    f"run record {run_id} could not be marked aborted: "
+                    f"{type(write_error).__name__}"
+                )
+            raise
+        await recorder.finish(run_id, results)
+        return results
 
+    async def _execute(
+        self, request: SourceRequest, resolutions: Mapping[str, ModeResolution]
+    ) -> tuple[SourceResult, ...]:
         pacings: dict[str, SourcePacing | None] = {}
 
         def build(source_class: type[BaseLeadSource]) -> BaseLeadSource:

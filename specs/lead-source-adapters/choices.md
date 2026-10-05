@@ -1930,3 +1930,38 @@ Known gaps:
 - The outcome table lives in the test, not the manifest. Judged acceptable: 5.6 metadata is URL plus date only, and the matrix enumerates the real registry, so a new adapter cannot skip it (it also needs a driver in the test). needs-follow-up if per-fixture outcome metadata is wanted.
 - needs-follow-up: items inside an ignored list leaf (HubSpot deal_search `results`) are not walked.
 - The no-match shapes are guesses, flagged hand_made / unverified in all 10 records; tests assert adapter behaviour only.
+
+## Task 18.1 — Persist the run record with every source's resolved mode (2026-10-05)
+Evidence: wrote tests/test_run_record.py first and saw collection fail (ModuleNotFoundError run_record) before any code; then 16 passed. Dual-engine test added to test_persistence_both_engines.py after the code (not seen red; mutation check instead: exit_code=7 in finish failed 4 tests incl. the postgres leg, restored). `uv run ruff format src`, `ruff check src`, `mypy` clean; `pytest -q` 2821 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- No migration: ingestion_run and source_run (0001) already hold every field (run id, started_at, finished_at, status, exit_code, pool_size, config_snapshot; per source resolved_mode, mode_reason). Rejected a new table.
+- Status vocabulary running / completed / aborted (RunStatus). Completed = run returned with an exit code (an all-failed run is completed, exit 1); aborted = exception or cancellation, no exit code. Rejected a "failed" status (exit code already says it).
+- finish() is the only update, completion fields only, once; refuses unknown run, second finish, running status, completed without exit code, aborted with one (RunRecordError). Rejected silent overwrite.
+- config_snapshot = max_concurrent_sources, run_timeout_s, global_mode, per enabled source trust_rank + mode/live_access overrides, built from typed settings only (no env values). Rejected dumping the raw config file.
+- Reason cut to 255 chars (column limit) so start cannot fail on a long variable list; no log_redaction pass because reasons carry only env var names/enum values (8.1); pinned by a test with a real resolution.
+- Written through StoreWriter.write_batch (existing shielded path) rather than begin_run, which cannot write source rows; begin_run left untouched. Rejected extending begin_run (changes the 6.4 API).
+- Source rows read back ordered by name (no ordering column). live_access/credential_present columns not filled (18.2 bullet).
+- Test fixtures use alpha/bravo names (vendor-neutrality test forbids vendor names in tests).
+### Known gaps (needs-follow-up)
+- 18.1 single bullet (create record at start with run id, start time, pool bound, config snapshot, every enabled source's resolved mode): delivered as pure build_run_record + RunRecordRepository (start/finish/get); NOT wired into IngestionOrchestrator.run, which has no store/StoreWriter today. Remaining wiring: inject StoreWriter, build record after mode resolution and before any slot, start via write_batch, finish in try/except BaseException (re-raise, never swallow CancelledError; finish itself goes through the shielded write_batch) marking ABORTED, COMPLETED with map_run_exit code otherwise; global_mode must be passed in.
+- Dual-engine test not observed red (written after code).
+- Per-source counts/failure classes (18.2) and report (18.3) not built.
+
+### Self-review findings
+Fixed (each test-first, seen failing):
+- Wiring was missing though 18.1 and Requirement 21.1 make the orchestrator create the record (this supersedes the "NOT wired" gap above): added optional `run_recorder` (Protocol `RunRecorder`, orchestrator.py) and `StoreRunRecorder` (run_recorder.py; injectable clock, global_mode; writes via `StoreWriter.write_batch`). `run()` starts the record after mode resolution and before any adapter is built or called, finishes `completed` with the `map_run_exit` exit code, and marks `aborted` on any BaseException (CancelledError included), then re-raises. A failed start stops the run, a failed finish raises, a failed abort marker is logged and noted on the propagating exception. None means no persistence, so existing callers are unchanged.
+- `finish` was read-then-write: a stale or concurrent finisher could complete a run twice (lost update). It is now one conditional UPDATE (status must still be running); unknown run and already finished stay named `RunRecordError`.
+- Naive `finished_at` / `started_at` were silently read as local time by `astimezone`; now refused.
+- Reason truncation was silent: a cut now ends with an ellipsis (255 characters in total, whole characters); the exact-limit and multibyte cases are tested.
+- Builder: sources and snapshot sorted by name (matches `get()` order, so it round-trips exactly); a non-`DataMode` mode is refused with a named ValueError; an empty run is a valid record (tested); inputs not mutated (tested).
+- Mutation-checked (all caught; the dual-engine test fails on both the sqlite and postgres legs): mode dropped, reason dropped, double finish allowed, status not updated, exit code not stored or hardcoded, wrong mode stored, no source rows written, no abort marker. Files restored byte-identical.
+Delivered: 18.1 (the single bullet: record at run start with id, start time, pool bound, config snapshot, resolved mode and reason of every enabled source), including the orchestrator wiring. No migration needed: ingestion_run and source_run (0001) hold every field; status String(32), mode String(16), mode_reason String(255) fit.
+Deferred: 18.2 (counts, failure classes, live_access, credential_present, throttle/retry/429 fields on source_run) and 18.3 (report from DB queries).
+Known gaps:
+- needs-follow-up: a record left running by a hard kill is never resolved (no sweep); documented only in run_recorder.py.
+- needs-follow-up: `run()` returns results only; a caller cannot learn the run id except by querying the store (18.3 will need it).
+- needs-follow-up: nothing outside tests constructs `StoreRunRecorder` (no CLI or composition root builds an orchestrator yet).
+- needs-follow-up: `config_snapshot` holds pool bound, timeout, global mode and per-source trust rank and overrides only; it does not capture the target profile or fixture versions. SPEC GAP candidate: 18.1 says the snapshot "makes the run reproducible", which this only partly delivers.
+- The status vocabulary running / completed / aborted has no spec text and no DB CHECK; it is the implementer's choice.
+- The credential canary runs through the real resolver; the snapshot reads typed settings only, so it cannot carry environment values by construction.

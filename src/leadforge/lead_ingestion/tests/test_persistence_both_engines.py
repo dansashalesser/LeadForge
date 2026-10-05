@@ -1081,3 +1081,44 @@ def test_a_tie_resolution_round_trips_and_the_first_write_wins(
         assert TieResolutionRepository(s).get(key) == first
         with pytest.raises(m.AppendOnlyViolationError):
             s.execute(sa.delete(m.PrimaryDomainTieResolution))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.1
+async def test_a_run_record_is_written_at_start_and_completed_through_the_writer(
+    backend: Backend,
+) -> None:
+    from leadforge.lead_ingestion.mode_resolution import ModeResolution
+    from leadforge.lead_ingestion.registry import SourceSettings
+    from leadforge.lead_ingestion.run_record import RunStatus, build_run_record
+    from leadforge.lead_ingestion.store.run_records import RunRecordRepository
+
+    record = build_run_record(
+        {
+            "alpha": ModeResolution(DataMode.LIVE, "all declared credentials present"),
+            "bravo": ModeResolution(DataMode.SYNTHETIC, "global override: synthetic"),
+        },
+        {"alpha": SourceSettings(), "bravo": SourceSettings()},
+        started_at=T0,
+        max_concurrent_sources=4,
+        run_timeout_s=600.0,
+        global_mode=None,
+    )
+    writer = StoreWriter(backend.engine)
+    run_id = await writer.write_batch(lambda s: RunRecordRepository(s).start(record))
+
+    started = await writer.write_batch(lambda s: RunRecordRepository(s).get(run_id))
+    assert started is not None
+    assert started.status == RunStatus.RUNNING
+    assert started.started_at == T0
+    assert started.config_snapshot == record.config_snapshot
+    assert started.sources == tuple(sorted(record.sources, key=lambda x: x.source_name))
+
+    await writer.write_batch(
+        lambda s: RunRecordRepository(s).finish(
+            run_id, status=RunStatus.COMPLETED, exit_code=0, finished_at=NOW
+        )
+    )
+    done = await writer.write_batch(lambda s: RunRecordRepository(s).get(run_id))
+    assert done is not None
+    assert (done.status, done.exit_code, done.finished_at) == ("completed", 0, NOW)
+    assert done.sources == started.sources
