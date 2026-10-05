@@ -325,7 +325,7 @@ task = one commit.
   - Wrap the whole run in a configured wall-clock bound, cancelling in-flight sources on expiry and recording them as timed out
   - _Requirements: 6.6_
 
-- [ ] 11.5 Sequence Discovery before Enrichment over a mechanical work list
+- [x] 11.5 Sequence Discovery before Enrichment over a mechanical work list
   - Run every Discovery-capable source first, then every Enrichment-capable source over the Leads Discovery produced
   - Derive the Enrichment work list mechanically from every Lead Discovery produced, with no scoring or qualification judgment and no reference to any score
   - Treat an Enrichment phase with an empty supplied work list as a no-op rather than an error

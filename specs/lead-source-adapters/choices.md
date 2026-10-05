@@ -1035,3 +1035,34 @@ Known gaps:
 - needs-follow-up: a source that swallows CancelledError or blocks in a non-cancellable section stalls TaskGroup exit, so the timeout is not a hard bound; no test.
 - needs-follow-up: the `if not deadline.expired(): raise` branch is unreachable today and no test kills its mutation (documented defensive code).
 - needs-follow-up: default 600s is a guess; no choices/design row beyond design.md:596; no example config file exists to document it.
+
+## Task 11.5 — Sequence Discovery before Enrichment over a mechanical work list (2026-10-05)
+Evidence: wrote tests/test_orchestrator_phases.py first; ran it and saw collection fail with ImportError (no EnrichmentRequest) before any implementation; after implementing, 14 tests passed (one test-helper bug of mine fixed along the way). ruff format/check, mypy clean; pytest 1401 passed, 1 skipped. No GitNexus/serena query (additive; SourceResult gained a field, its only constructors are orchestrator and test_run_exit). No mutation run.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Work list = `enrichment_work_list(results)`, a pure function over Discovery results: every normalized contribution in result order, unfiltered, unmerged, no score read. Rejected deduping/merging into Leads (the Merge Engine does not exist yet and merging is not an orchestrator concern).
+- Enrichment receives the work list via new `EnrichmentRequest(SourceRequest)` (kind="enrich", `work_list`) in base_source.py. Rejected widening `fetch_raw` or a side channel; the spec names no carrier.
+- A dual-capability source runs in both phases; a source with neither never runs. Rejected treating capability-less sources as Discovery.
+- `SourceResult` is per source per phase (new required `phase` field; test_run_exit helper updated). Rejected one merged result per source (a dual source has two batches).
+- One ledger/pool/deadline across phases: halting failures persist (halted source's Enrichment call recorded as skipped), bound holds across phases, cumulative counts. Rejected per-phase ledgers.
+- Empty work list: Enrichment is a no-op with no Enrichment results recorded. Rejected recording OK/zero-attempt results (map_run_exit would read them as failures).
+- Timeout: Enrichment sources never reached after the deadline are recorded TIMED_OUT even if the work list was empty/partial.
+- Enrichment sources run concurrently in registry order for now (11.6 owns derived ordering and suppression pruning; 11.7 per-company calls act on the same work list).
+### Known gaps (needs-follow-up)
+- map_run_exit lists a dual-capability source once per phase (cumulative counts); not changed (11.3 scope).
+- A run whose only enabled sources are Enrichment-only with no Discovery yields empty results, so map_run_exit says "no enabled sources" (misleading text).
+- The work list holds contributions, not deduped Leads; a lead seen by two Discovery sources appears twice until a merge stage exists.
+- 6.9's "zero-credential run exercises every adapter" is proven with throwaway sources only; real adapters do not exist yet.
+
+### Self-review findings
+Fixed (each test-first, seen failing before the fix):
+- run_exit.map_run_exit listed a source run in both phases twice; now one line per source from its later (cumulative) result. Test added in test_run_exit.py.
+- Empty results read "no enabled sources" even for an Enrichment-only run with no Discovery output; now "no enabled sources ran; nothing succeeded" (true for both cases, exit stays 1, names/classes only).
+- orchestrator.SourceCallLedger.time_out overwrote a halted (unauthorized/quota) source's status with TIMED_OUT when the deadline hit before its Enrichment call; a halted source now keeps its status. Test: test_a_halted_source_stays_halted_when_the_deadline_hits_enrichment.
+- Added test_enrichment_waits_for_a_slow_and_a_failing_discovery_source (deterministic, event-loop ticks, bound=1); the original ordering test could not distinguish slow-Discovery cases.
+Mutation checks (all killed, files restored byte-identical): phases concurrent, work list dropped, Enrichment handed the search request, dual-capability source double-run in Discovery, work list deduplicated.
+Not applicable: "mutate the input list" - work list and results are tuples.
+Gaps left:
+- needs-follow-up: an Enrichment-only run with an empty work list exits 1 and records no result per enabled Enrichment source; spec says no-op is not an error, so a distinct "nothing to enrich" exit/record may be wanted (design decision).
+- needs-follow-up: a source timed out in both phases keeps only the later "not started" error text (outcome counts stay correct).
+- needs-follow-up: Discovery contributions are not deduplicated across sources by design; 11.7 must handle per-company de-dup.

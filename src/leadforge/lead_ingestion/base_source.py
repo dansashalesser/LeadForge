@@ -34,6 +34,7 @@ __all__ = [
     "ChargeUnit",
     "CostClass",
     "Endpoint",
+    "EnrichmentRequest",
     "LeadContribution",
     "LiveAccess",
     "RateBucket",
@@ -176,6 +177,17 @@ class LeadContribution(_Entity):
                     "whether its value is UntrustedText"
                 )
         return self
+
+
+class EnrichmentRequest(SourceRequest):
+    """The request an Enrichment-phase source receives (task 11.5, Requirement 6.9).
+
+    ``work_list`` is every contribution Discovery produced, in run order, unfiltered
+    and unranked. It is the one extra thing an Enrichment call can be told, so it is a
+    named subclass of the closed ``SourceRequest`` rather than a widened ``fetch_raw``.
+    """
+
+    work_list: tuple[LeadContribution, ...]
 
 
 TARGET_TERM_PATH_PREFIX = "target_profile."

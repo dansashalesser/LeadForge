@@ -10,6 +10,7 @@ import pytest
 
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import (
+    Phase,
     SourceOutcome,
     SourceResult,
     SourceStatus,
@@ -21,6 +22,7 @@ def _result(
     name: str,
     status: SourceStatus,
     *,
+    phase: Phase = Phase.DISCOVERY,
     attempted: int = 1,
     succeeded: int = 0,
     failed: int = 0,
@@ -30,7 +32,7 @@ def _result(
     outcome = SourceOutcome(
         name, status, attempted, succeeded, failed, skipped, 0, error
     )
-    return SourceResult(name, DataMode.LIVE, "test", None, None, outcome)
+    return SourceResult(name, DataMode.LIVE, "test", None, None, outcome, phase)
 
 
 def _ok(name: str, attempted: int = 1) -> SourceResult:
@@ -165,3 +167,31 @@ def test_control_characters_in_a_source_name_cannot_forge_summary_lines() -> Non
 
     assert len(run.summary.split("\n")) == 2
     assert "\x1b" not in run.summary
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#6.5
+def test_a_source_run_in_both_phases_is_listed_once_with_its_cumulative_counts() -> (
+    None
+):
+    discovery = _result("dual", SourceStatus.OK, attempted=1, succeeded=1)
+    enrichment = _result(
+        "dual", SourceStatus.OK, phase=Phase.ENRICHMENT, attempted=2, succeeded=2
+    )
+
+    run = map_run_exit((discovery, _ok("solo"), enrichment))
+
+    lines = run.summary.split("\n")
+    assert lines == [
+        "dual: attempted=2 succeeded=2 failed=0",
+        "solo: attempted=1 succeeded=1 failed=0",
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#6.4
+def test_an_empty_result_does_not_claim_sources_were_never_enabled() -> None:
+    # An Enrichment-only run with no Discovery output records no results at all, so
+    # the message must be true of that case as well as of "nothing enabled".
+    run = map_run_exit(())
+
+    assert run.exit_code == 1
+    assert "no enabled sources ran" in run.summary

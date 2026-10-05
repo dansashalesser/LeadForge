@@ -56,6 +56,30 @@ clock with ``asyncio.timeout``. Provisional decisions (choices.md, 11.4):
   and any other exception, still propagate (``asyncio.timeout`` turns only its own
   expiry into ``TimeoutError``, which is checked with ``expired()``).
 * Results still follow the registry's active order.
+
+Two-phase run (task 11.5, Requirement 6.9; ADR-0002). Provisional decisions
+(choices.md, 11.5):
+
+* Discovery runs every ``search``-capable source; once all have finished, Enrichment
+  runs every ``enrich``-capable source over ``enrichment_work_list``. A source
+  declaring both runs in both phases; one declaring neither never runs.
+* The work list is a pure function of the Discovery results alone: every contribution
+  a Discovery source normalized, in result order, none filtered, ranked or merged. It
+  reads no score and makes no qualification judgment. Enrichment sources receive it
+  as ``EnrichmentRequest.work_list``.
+* An empty work list makes Enrichment a no-op: no enrichment source is called and no
+  Enrichment result is recorded. After a timeout, Enrichment sources never reached are
+  still recorded ``TIMED_OUT``.
+* One pool, one deadline, one ledger per source span both phases, so the bound, the
+  run timeout and a halting failure (unauthorized, quota) hold across them. A halted
+  source's Enrichment call is recorded as skipped, not attempted.
+* ``SourceResult`` is per source per phase (``phase`` field); Discovery results come
+  first, then Enrichment results, each in registry order. ``outcome`` is the source's
+  cumulative ledger when that result was built.
+* Enrichment sources run concurrently in registry order for now. The seam for task
+  11.6 is the list of Enrichment sources in ``run``: it derives the order and the
+  suppression-driven pruning of the work list. Task 11.7 (per-company calls) acts on
+  the same work list.
 """
 
 from __future__ import annotations
@@ -68,6 +92,8 @@ from enum import StrEnum
 
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
+    Capability,
+    EnrichmentRequest,
     LeadContribution,
     RawBatch,
     SourceRequest,
@@ -93,10 +119,12 @@ __all__ = [
     "Attempt",
     "IngestionOrchestrator",
     "ModeResolverWithReason",
+    "Phase",
     "SourceCallLedger",
     "SourceOutcome",
     "SourceResult",
     "SourceStatus",
+    "enrichment_work_list",
 ]
 
 ModeResolverWithReason = Callable[
@@ -233,7 +261,10 @@ class SourceCallLedger:
 
         A call in flight was cancelled: it counts as one failed call with the attempts
         made so far. Otherwise the source was never reached and nothing is counted.
+        A halted source keeps its halting status: it was not going to be called anyway.
         """
+        if self._status in _HALTING:
+            return
         self._status = SourceStatus.TIMED_OUT
         limit = f"run timeout of {run_timeout_s:g}s exceeded"
         if self._in_flight is None:
@@ -258,12 +289,17 @@ class SourceCallLedger:
         )
 
 
+class Phase(StrEnum):
+    DISCOVERY = "discovery"
+    ENRICHMENT = "enrichment"
+
+
 @dataclass(frozen=True)
 class SourceResult:
     """What one source produced in a run, with the mode it ran in and why.
 
     ``batch`` and ``contributions`` are ``None`` when the source failed or was
-    skipped; ``outcome`` says why.
+    skipped; ``outcome`` says why. ``phase`` is the phase this result belongs to.
     """
 
     source_name: str
@@ -272,6 +308,24 @@ class SourceResult:
     batch: RawBatch | None
     contributions: tuple[LeadContribution, ...] | None
     outcome: SourceOutcome
+    phase: Phase
+
+
+def enrichment_work_list(
+    results: tuple[SourceResult, ...],
+) -> tuple[LeadContribution, ...]:
+    """Every contribution Discovery produced, in result order (Requirement 6.9).
+
+    Mechanical: it reads only ``phase`` and ``contributions``, so no score, field value
+    or qualification judgment can enter it. A failed or skipped source has no
+    contributions and adds none.
+    """
+    return tuple(
+        contribution
+        for result in results
+        if result.phase is Phase.DISCOVERY and result.contributions is not None
+        for contribution in result.contributions
+    )
 
 
 class IngestionOrchestrator:
@@ -343,10 +397,11 @@ class IngestionOrchestrator:
             ledgers[source.name] = SourceCallLedger(
                 source.name, retry=None if pacing is None else pacing.retry
             )
-        finished: dict[str, SourceResult] = {}
+        finished: dict[tuple[str, Phase], SourceResult] = {}
 
         def result_of(
             source: BaseLeadSource,
+            phase: Phase,
             batch: RawBatch | None,
             contributions: tuple[LeadContribution, ...] | None,
         ) -> SourceResult:
@@ -358,41 +413,75 @@ class IngestionOrchestrator:
                 batch,
                 contributions,
                 ledgers[source.name].outcome(),
+                phase,
             )
 
-        async def run_one(source: BaseLeadSource) -> None:
+        async def run_one(
+            source: BaseLeadSource, phase: Phase, phase_request: SourceRequest
+        ) -> None:
             ledger = ledgers[source.name]
 
             async def fetch_and_normalize() -> tuple[
                 RawBatch, tuple[LeadContribution, ...]
             ]:
-                batch = await source.fetch_raw(request)
+                batch = await source.fetch_raw(phase_request)
                 return batch, tuple(source.normalize_checked(batch))
 
             async with slots:
                 attempt = await ledger.call(fetch_and_normalize)
             fetched = attempt.value
-            finished[source.name] = result_of(
+            finished[(source.name, phase)] = result_of(
                 source,
+                phase,
                 None if fetched is None else fetched[0],
                 None if fetched is None else fetched[1],
             )
 
-        try:
-            async with asyncio.timeout(self._run_timeout_s) as deadline:
-                async with asyncio.TaskGroup() as group:
-                    tasks = [group.create_task(run_one(source)) for source in sources]
+        async def run_phase(
+            members: list[BaseLeadSource], phase: Phase, phase_request: SourceRequest
+        ) -> None:
+            async with asyncio.TaskGroup() as group:
+                tasks = [
+                    group.create_task(run_one(source, phase, phase_request))
+                    for source in members
+                ]
             for task in tasks:
                 task.result()  # a source's own CancelledError still propagates
+
+        discovery = [s for s in sources if Capability.SEARCH in s.capabilities]
+        enrichment = [s for s in sources if Capability.ENRICH in s.capabilities]
+        timed_out = False
+        try:
+            async with asyncio.timeout(self._run_timeout_s) as deadline:
+                await run_phase(discovery, Phase.DISCOVERY, request)
+                work_list = enrichment_work_list(
+                    tuple(
+                        finished[(s.name, Phase.DISCOVERY)]
+                        for s in discovery
+                        if (s.name, Phase.DISCOVERY) in finished
+                    )
+                )
+                if work_list:
+                    await run_phase(
+                        enrichment,
+                        Phase.ENRICHMENT,
+                        EnrichmentRequest(kind="enrich", work_list=work_list),
+                    )
         except TimeoutError:
             # Only the deadline's own expiry is a record; any other TimeoutError
             # (there is no such path today) must not be mistaken for it.
             if not deadline.expired():
                 raise
+            timed_out = True
         results = []
-        for source in sources:
-            if source.name not in finished:
-                ledgers[source.name].time_out(self._run_timeout_s)
-                finished[source.name] = result_of(source, None, None)
-            results.append(finished[source.name])
+        phases = ((Phase.DISCOVERY, discovery), (Phase.ENRICHMENT, enrichment))
+        for phase, members in phases:
+            for source in members:
+                key = (source.name, phase)
+                if key not in finished:
+                    if phase is Phase.ENRICHMENT and not timed_out:
+                        continue  # empty work list: Enrichment is a no-op
+                    ledgers[source.name].time_out(self._run_timeout_s)
+                    finished[key] = result_of(source, phase, None, None)
+                results.append(finished[key])
         return tuple(results)
