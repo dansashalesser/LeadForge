@@ -1,0 +1,17 @@
+# repo-requirements.txt — Python packages that must live in the TARGET REPO's venv.
+#
+# Only for packages that must import inside the repo's own interpreter, alongside
+# the repo's own source. Everything the harness merely calls for itself belongs in
+# harness-requirements.txt instead (installed into .venv-tools, prune-immune).
+#
+# Each package here is BOTH installed into the repo's venv AND declared in the
+# repo's own manifest (pyproject.toml dependency-group `harness`, or
+# requirements-harness.txt), so a dependency prune or lockfile regen in that repo
+# no longer silently deletes it. Undeclared installs were the whole bug.
+#
+# Consumed by: scripts/setup/check-harness-deps.sh
+# Format: <pip-spec> [import-name]   (see harness-requirements.txt)
+#
+# Opt out of the manifest declaration with SDD_SKIP_DEP_DECLARE=1.
+
+raindrop-ai    raindrop

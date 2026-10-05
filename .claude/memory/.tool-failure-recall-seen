@@ -1,0 +1,6 @@
+195f1f78-30ad-4445-a5d0-f5072f21c898|mcp__lean-ctx__ctx_read(mode,path)
+12ef2665-58d6-4f24-8ce6-7c06e73dc8cf|mcp__serena__get_diagnostics_for_file(min_severity,relative_path)
+8e78dd37-82f1-492f-9a7d-bf5401f2eca7|mcp__lean-ctx__ctx_read(mode,path)
+499ec272-69c5-4707-bafa-3489fffadb6d|mcp__lean-ctx__ctx_read(mode,path)
+499ec272-69c5-4707-bafa-3489fffadb6d|mcp__lean-ctx__ctx_shell(command,cwd)
+0f452f72-83a9-4eb1-99c8-c04b571db74b|mcp__lean-ctx__ctx_read(mode,path)
