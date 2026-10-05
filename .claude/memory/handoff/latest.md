@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T13:06:36+00:00
+- Written: 2026-10-05T13:08:30+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,16 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-Continuing task by task in spec order, starting with 10.3. First the task text and the repo state.
+10.3 is committed and pushed. Now I'll list what's left, in spec order, to pick the next one.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- /home/user/LeadForge/.claude/memory/handoff/latest.md
-- $ ls specs/lead-source-adapters/ && wc -c specs/lead-source-adapters/* && grep -nE '^\s*- \[[ x]\]' specs/lead-source-ad
-- $ grep -nE '^\s*- \[[ x]\]' specs/lead-source-adapters/tasks.md | cut -c1-150; git status --short | head -20; git log --
-- $ sed -n 111,140p specs/lead-source-adapters/tasks.md; tail -c 2500 specs/lead-source-adapters/choices.md; git show --st
 - $ git log --oneline | head -3 && uv run pytest -q 2>&1 | tail -2 && uv run ruff check . | tail -1 && grep -n '\[x\] 4.3'
 - $ uv run ruff check src | tail -3; uv run ruff check . 2>&1 | grep -E '^\s*-->' | cut -d: -f1 | sort | uniq -c | sort -r
 - $ git log --oneline | head -3 && uv run pytest -q 2>&1 | tail -1 && git status --short && git push -u origin claude/happ
@@ -41,3 +37,7 @@ _(none captured)_
 - $ git add src specs .claude/memory && git commit -q -m "feat(lead_ingestion): apply bounded jittered retry over the erro
 - $ git fetch -q; git status -sb | head -2; git status --short | grep -v "\.claude/memory"; git log --oneline | head -3; g
 - $ awk '/^- \[ \] 10\.3/{f=1} f{print} /^- \[.\] 11\.1/{exit}' specs/lead-source-adapters/tasks.md | cut -c1-700; ls src/
+- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/finish.sh
+- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/ledger-10.3.md
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 10.3 "feat(lea
+- $ grep -n "^- \[ \] [0-9]*\.[0-9]" specs/lead-source-adapters/tasks.md | cut -c1-120
