@@ -116,7 +116,7 @@ task = one commit.
   - Confine a transport change to the owning adapter module and its fixtures
   - _Requirements: 20.1, 20.3, 20.4_
 
-- [ ] 4.2 (P) Add the fixture transport for synthetic mode
+- [x] 4.2 (P) Add the fixture transport for synthetic mode
   - Load the provider's stored JSON response for the requested endpoint and return it through the same port the REST implementation satisfies
   - Hold no socket, so a synthetic run makes zero outbound HTTP or MCP calls as a structural property rather than a policed behaviour
   - Traverse the identical raw-schema validation and normalization body that live mode traverses, with no mode conditional inside any adapter
