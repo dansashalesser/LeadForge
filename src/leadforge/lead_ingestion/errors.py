@@ -119,3 +119,23 @@ class ConflictingCompanySignalError(_Picklable):
             f"company_id {company_id!r} names two Company Signals with different "
             "content; one organization must have one Company Signal"
         )
+
+
+class InvalidAbsenceError(SourceError):
+    """A ``SourceAbsence`` contradicts what the source declares it can answer."""
+
+    def __init__(
+        self,
+        source_name: str,
+        *,
+        canonical_path: str,
+        raw_field_path: str | None,
+        reason: str,
+    ) -> None:
+        self.canonical_path = canonical_path
+        self.raw_field_path = raw_field_path
+        self.reason = reason
+        super().__init__(
+            source_name,
+            f"canonical={canonical_path} raw={raw_field_path}: {reason}",
+        )

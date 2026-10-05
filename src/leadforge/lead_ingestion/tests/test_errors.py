@@ -8,6 +8,7 @@ import pytest
 from leadforge.lead_ingestion.errors import (
     DuplicateSourceNameError,
     FixtureSchemaError,
+    InvalidAbsenceError,
     NoAccessibleAccountError,
     NormalizationError,
     SourceComplianceRestricted,
@@ -31,6 +32,12 @@ SOURCE_ERRORS: list[SourceError] = [
         "apollo", raw_field_path="person.email", canonical_path="Lead.email"
     ),
     NoAccessibleAccountError("hubspot"),
+    InvalidAbsenceError(
+        "hunter",
+        canonical_path="email",
+        raw_field_path="data.email",
+        reason="surface not declared",
+    ),
 ]
 
 
@@ -154,3 +161,25 @@ def test_errors_round_trip_through_pickle_and_copy(error: Exception) -> None:
         assert clone.args == error.args
         assert vars(clone) == vars(error)
         assert str(clone) == str(error)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#1.9
+def test_invalid_absence_names_provider_both_paths_and_reason() -> None:
+    err = InvalidAbsenceError(
+        "hunter",
+        canonical_path="Lead.email",
+        raw_field_path="data.email",
+        reason="surface not declared",
+    )
+    assert isinstance(err, SourceError)
+    assert (err.canonical_path, err.raw_field_path) == ("Lead.email", "data.email")
+    assert err.reason == "surface not declared"
+    text = str(err)
+    for part in ("hunter", "Lead.email", "data.email", "surface not declared"):
+        assert part in text
+    assert (
+        InvalidAbsenceError(
+            "hunter", canonical_path="x", raw_field_path=None, reason="r"
+        ).raw_field_path
+        is None
+    )
