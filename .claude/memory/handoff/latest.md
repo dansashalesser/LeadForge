@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T18:27:19+00:00
+- Written: 2026-10-05T18:33:02+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 18.1 review earned its keep. The orchestrator wiring was this task's responsibility, so the reviewer built it: an optional run recorder, started after mode resolution and before any source call, finished with the real exit code, and an aborted marker on any interruption that re-raises. It also fixed a race that let two concurrent finishers complete the same run twice. A snapshot gap is recorded as a spec gap for you: the target profile and fixture versions aren't in the config snapshot, so "reproducible" is only partly met. The task's bullets are delivered, so I'll tick it. Finishing the task.
+I committed and pushed the session-state files. Task 18.2's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
