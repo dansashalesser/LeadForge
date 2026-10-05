@@ -161,3 +161,30 @@ subagent (no Agent tool). Parent re-ran pytest: 196 passed. Commit 74a1532 is lo
 ### Notes for the merge task (from the 2.1 follow-up self-review)
 - `provider_ids` and `domains` compare by tuple order, so one company with the same ids in a different order reads as a conflict. The merge task should canonicalise the order (for example, sort) before comparing.
 - `share_company_signals` raises when two signals share a `company_id` but carry different `provider_ids`; it does not union them. The merge task must unify Company Signals across providers before calling it.
+
+## Task 2.2 — FieldProvenance (pass audit)
+
+### Confidence invariants by Confidence Origin
+- **Verdict:** sound
+- **Spec said:** record Field Confidence verbatim with its scale; origin none records no fabricated number (1.2, 1.8)
+- **Chose:** `none` requires `confidence`, `confidence_raw`, `confidence_scale` all None (even 0.0 rejected); `provider_stated` requires raw and scale, normalized `confidence` optional; `heuristic` requires a `confidence` number and forbids raw and scale
+- **Evidence:** `models.py:102`, `tests/test_provenance.py`
+- **Note:** the `heuristic` rule is the least obvious; revisit if a heuristic ever needs to cite a scale.
+
+### Invariant violations raise pydantic `ValidationError`, no taxonomy error
+- **Verdict:** sound
+- **Chose:** consistent with 2.1 entities; adapter layer wraps into `NormalizationError` later, since it holds the source name and raw path
+
+### `confidence` reuses the [0, 1] `Strength` type
+- **Verdict:** sound
+- **Chose:** finite 0.0-1.0, matching design.md's normalized-for-comparison scale
+
+### `fetched_at` must be timezone-aware
+- **Verdict:** sound
+- **Chose:** naive datetimes rejected (`AwareDatetime`); merge recency ordering needs an unambiguous instant. Reversible.
+
+### Blank strings, verbatim raw, enum placement, deferred fields
+- **Verdict:** sound
+- **Chose:** `NonBlank` on path/source/raw/scale fields; `confidence_raw` a verbatim string; `DataMode` in models.py per design.md; `untrusted`, `CanonicalLead.provenance`, `contributing_sources` left to 2.3 and the normalizer/merge tasks; `superseded` defaults False
+
+Evidence: partial — `spec-refactor-agent` and `validate-production-agent` not run by the subagent (no Agent tool). Parent re-ran pytest: 227 passed. Commit ce27828 is local and unpushed; `tasks.md` shows 2.2 `[x]` but is uncommitted (specs/ not committed by harness rule).

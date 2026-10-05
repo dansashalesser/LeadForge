@@ -51,7 +51,7 @@ task = one commit.
   - Share one Company Signal across every Lead employed there rather than copying it per Lead
   - _Requirements: 1.1, 1.4, 1.5, 1.7, 24.1, 24.2, 24.3_
 
-- [ ] 2.2 Define the provenance record with Field Confidence and Confidence Origin
+- [x] 2.2 Define the provenance record with Field Confidence and Confidence Origin
   - Attach to every populated field a provenance record carrying source name, data mode, fetch timestamp, and the provider's raw field path
   - Record Field Confidence as the provider's own stated certainty, retaining its verbatim raw value and the name of the scale it was expressed on
   - Record a Confidence Origin of provider-stated, heuristic, or none; a field with no provider certainty records none rather than a fabricated default number

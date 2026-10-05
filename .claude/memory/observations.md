@@ -25,3 +25,4 @@
 - 2026-10-05 [behavior-update]: created probe-failure-reporting — 4 supporting observations show probes timing out or failing converted to zeros/silence, cascading into false agreement. Evidence: [detector-down] timeout, [keep-rate] empty cohort handling, [seed-target:systematic-debugging] jq failure, [insight] "failed probe must emit sentinel".
 - 2026-10-05 [seed-target:dependency-management]: command failed (exit 1): python3 << 'PYEND' import json  ledger_file = ".claude/memor
 - 2026-10-05 [detector-down]: session signal detection did not run — `claude --print` timed out after 120s
+- 2026-10-05 [friction]: tool rejected (wrong_target) — "<agent-message from="aa2c6bfbd53de5dcf"> [Subagent hand-back] The text below is the final report of a subagent this sess"
