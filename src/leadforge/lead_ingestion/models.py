@@ -26,6 +26,7 @@ from pydantic import (
 from leadforge.lead_ingestion.errors import ConflictingCompanySignalError
 
 __all__ = [
+    "AbsenceKind",
     "CanonicalLead",
     "CompanySignal",
     "ConfidenceOrigin",
@@ -37,6 +38,7 @@ __all__ = [
     "IntentSignal",
     "ProviderCompanyId",
     "Signal",
+    "SourceAbsence",
     "TechSignal",
     "UntrustedText",
     "share_company_signals",
@@ -156,6 +158,38 @@ class FieldProvenance(_Entity):
                     raise ValueError(
                         "a heuristic confidence claims no provider raw value or scale"
                     )
+        return self
+
+
+class AbsenceKind(StrEnum):
+    """Why a source gave no value for a canonical path (plain absence is neither)."""
+
+    NEGATIVE_EVIDENCE = "negative_evidence"  # asked, reported no match
+    NOT_APPLICABLE = "not_applicable"  # API has no such field; never able to answer
+
+
+class SourceAbsence(_Entity):
+    """A source's explicit non-answer for one canonical path.
+
+    Separate from ``FieldProvenance``: a field with no value stays ``None`` with zero
+    provenance rows, and an absence record exists only when a source's coverage of
+    the path is itself known. ``raw_field_path`` names the provider surface that was
+    asked, so it is required for Negative Evidence and forbidden for Not Applicable;
+    a source with no surface therefore cannot construct Negative Evidence.
+    """
+
+    canonical_path: NonBlank
+    source_name: NonBlank
+    kind: AbsenceKind
+    raw_field_path: NonBlank | None = None
+
+    @model_validator(mode="after")
+    def _surface_matches_kind(self) -> Self:
+        asked = self.kind is AbsenceKind.NEGATIVE_EVIDENCE
+        if asked and self.raw_field_path is None:
+            raise ValueError("negative evidence needs the provider surface asked")
+        if not asked and self.raw_field_path is not None:
+            raise ValueError("not applicable means no provider surface exists")
         return self
 
 
