@@ -210,7 +210,7 @@ task = one commit.
   - Default a source absent from configuration to enabled at lowest Source Trust Rank, so adding a source stays one module rather than a module plus a mandatory configuration entry
   - _Requirements: 3.1, 3.3_
 
-- [ ] 7.2 Exclude disabled sources without instantiating them
+- [x] 7.2 Exclude disabled sources without instantiating them
   - Omit a source disabled in configuration from the active source list and never construct its adapter object, so no provider call is reachable for it
   - _Requirements: 3.4_
 
