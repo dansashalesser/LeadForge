@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T17:26:57+00:00
+- Written: 2026-10-05T17:33:04+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 16.11 review found no defects in what was built and ran 13 mutations, all killed. Two of the task's bullets (the projection reading the stored answer, and the run-report counter) are only seams until the projection and orchestrator wiring exists. The port also has no timeout or cancellation story, so a hung resolver would hang the run, which is recorded as a follow-up. Because the persistence is delivered and the wiring is not, I'll commit the work and leave 16.11 unchecked, as with 14.2 and 16.6.
+I committed and pushed the session-state files. Task 16.12's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
