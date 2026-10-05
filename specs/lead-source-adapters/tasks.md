@@ -64,7 +64,7 @@ task = one commit.
   - Mark the corresponding provenance record as untrusted external text
   - _Requirements: 1.6, 22.1_
 
-- [ ] 2.4 Distinguish Negative Evidence from Not Applicable
+- [x] 2.4 Distinguish Negative Evidence from Not Applicable
   - Record Negative Evidence when a source could answer for a canonical path, was asked, and reported no match
   - Record Not Applicable when a source's API carries no such field, so it was never able to answer
   - Keep both distinguishable downstream and both distinct from the plain absence of a value

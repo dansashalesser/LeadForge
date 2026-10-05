@@ -217,3 +217,23 @@ Evidence: partial — `spec-refactor-agent` and `validate-production-agent` not 
 - **Chose:** `UntrustedText` in `models.py` (design.md name, existing single-module layout), extends `_Entity` (frozen, extra=forbid), `value: StrictStr`. `model_dump`/JSON keep `value` so the 22.3 round trip works; explicit access is `.value`
 
 Evidence: re-verified by parent — pytest 240 passed, mypy clean, ruff clean on the slice. Commit 890288f is local and unpushed. Subagent did not run spec-refactor-agent, validate-production-agent, or a blast-radius scan (no Agent tool); change is a defaulted field plus a new type. Repo-wide ruff 842 errors were not investigated.
+
+## Task 2.4 — SourceAbsence (pass audit, 2026-10-05)
+
+### Representation of Negative Evidence / Not Applicable (design.md silent)
+- **Verdict:** needs-user
+- **Spec said:** "Record Negative Evidence when a source could answer... Record Not Applicable when a source's API carries no such field... both distinguishable... distinct from plain absence" (2.4); design.md line 307: absence = `None`, zero provenance rows
+- **Chose:** separate frozen `SourceAbsence(_Entity)` in `models.py` with `canonical_path`, `source_name`, `kind: AbsenceKind` (`NEGATIVE_EVIDENCE` | `NOT_APPLICABLE`), optional `raw_field_path`. `CanonicalLead` and `FieldProvenance` untouched
+- **Alternatives:** `kind`/`asked` flag on `FieldProvenance` (needs valueless provenance, breaks line 307); sentinel values in fields (pollutes every type); redundant `asked: bool`; generic three-state `Coverage` union (over-built)
+- **Provisional:** reversible — a new record type with no consumers yet; swap freely until task 3.1 or the merge tasks (16.x) consume it
+- **Evidence:** `models.py` SourceAbsence; `tests/test_source_absence.py` (9 tests)
+
+### No-surface rule enforced structurally via raw_field_path
+- **Verdict:** sound
+- **Chose:** Negative Evidence requires `raw_field_path`; Not Applicable forbids it, so a source with no surface cannot build Negative Evidence (ValidationError)
+- **Note:** the model cannot verify the named path exists in the source's API; task 3.1 (capability declaration) must add that check
+
+### fetched_at / data_mode omitted from SourceAbsence
+- **Verdict:** sound (revisit if merge/audit tasks need absence timestamps)
+
+Evidence: parent re-ran pytest: 251 passed. Commit 5a70831 pushed. Subagent did not run spec-refactor-agent, validate-production-agent or a blast-radius scan (additive types only, no consumers).
