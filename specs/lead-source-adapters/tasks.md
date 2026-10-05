@@ -346,7 +346,7 @@ task = one commit.
 ---
 
 - [ ] 12. Apollo Source adapter
-- [ ] 12.1 (P) Implement Apollo Discovery search with technographic targeting
+- [x] 12.1 (P) Implement Apollo Discovery search with technographic targeting
   - Authenticate by custom key header only; never send the key as a bearer token
   - Call the credit-free mixed-people search endpoint, which returns no email or phone attributes and obfuscated last names, and contribute person identity, organization firmographics, and technology-stack evidence
   - Send technographic filters as snake_case technology identifiers drawn from the Target Profile's Apollo vocabulary, never hard-coded, and check each against a dated snapshot of Apollo's published supported-technology list at startup

@@ -1124,3 +1124,42 @@ Known gaps:
 - needs-follow-up: no normalizer/adapter emits "company.domain" yet, so in production the dedupe is a no-op until a mapping supplies it; 16.9 must also fix the path name (Company Signal field is `domains`).
 - needs-follow-up: overlapping domain sets (A={a.com,a.io}, B={a.com}) are called separately (under-merge); 16.9 clustering and PSL reduction replace _company_key.
 - needs-follow-up: company-level result is not fanned back to the skipped Leads at the company.
+
+## Task 12.1 — Implement Apollo Discovery search with technographic targeting (2026-10-05)
+Evidence: wrote tests/adapters/test_apollo_source.py (29) and tests/test_transport_binding.py (5) first; saw collection ModuleNotFoundError (adapters.apollo) and 5 failures (no `transport` kwarg, no `build_transport`) before any code. After: ruff format/check clean, mypy clean (90 files), pytest 1467 passed, 1 skipped. No serena/GitNexus blast-radius query run; the base `__init__` change is keyword-only and defaulted, and the full suite is green.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Transport binding is `BaseLeadSource.__init__(mode, *, transport=None)`, not the design's positional `(transport, mode, config)`; rejected the design order because it breaks ~67 existing call sites in 10 test files, and `SourceConfig` does not exist. Apollo itself requires `transport` (keyword-only). Unbound adapters raise RuntimeError on `.transport`.
+- Added `BaseLeadSource.base_url` (defaulted "") and classmethod `build_transport(mode, fixtures_root=None)` so the transport is always built from the adapter's own `endpoints`; rejected leaving callers to build `RestTransport(name, url, endpoints)` by hand (the copy-drift the task wants gone).
+- Per-UID searches (one call series per technology UID), not one any_of search, so a zero-match UID can be named; rejected any_of because it cannot attribute matches. Costs more calls. People deduped by Apollo id.
+- UID is sent as a plain string query value per request; rejected list values because the transport stringifies lists (known 4.1 gap).
+- Capabilities {SEARCH} only; cost_class FREE, charge_unit PER_CALL for now; 12.2 must flip these (rejected declaring PAID/PER_LEAD early). live_access GATED; rate bucket 600/3600s with documented=False (plan-dependent).
+- Default `target_vocabulary` is datastax/apache_cassandra (design default); the profile's effective vocabulary is passed as `vocabulary=` and replaces it. No profile loading inside the adapter.
+- Canonical paths invented: person.provider_id, person.first_name, person.last_name (raw last_name_obfuscated), person.title, person.linkedin_url, company.name, company.technologies. No `full_name` (last name is obfuscated).
+- Warnings (unknown UID at startup, UID with zero matches) are structlog warnings (`apollo_unknown_technology_uid`, `apollo_technology_no_matches`); rejected a run-record channel because none exists yet.
+- Non-2xx raises a plain SourceError (message has status only); 12.3 will classify. Synthetic mode sends no key; live resolves APOLLO_API_KEY at fetch start.
+- Apollo tests live in tests/adapters/ (path part `adapters` is exempt from the 23.1 vendor-neutrality scan); rejected tests/ top level because the scan forbids vendor names there.
+- Edited two existing tests the new real adapter broke: test_plug_and_play factory now passes a built transport; test_example_target_profile no longer asserts an empty adapter package. Regenerated .env.example (+APOLLO_API_KEY).
+### Known gaps (needs-follow-up)
+- fixtures/apollo/supported_technologies.csv is a hand-made 4-row snapshot (uid,name,category), NOT Apollo's real CSV (not fetchable here); real column layout unverified. Must be replaced by a real dated snapshot (17.x); the date is only a constant.
+- Technology-stack evidence is contributed only if Apollo returns organization.current_technologies; the search page documents no such field, and the filter match itself is not materialised as a value.
+- Raw model assumes search fields from research.md (linkedin_url, current_technologies unverified on this endpoint); extra fields are ignored, not forbidden.
+- Profile terms beyond the declared surfaces (mongodb, couchbase in the shipped example) are sent as UIDs but have no answerable surface, so no Negative Evidence for them.
+- 12.2 (Enrichment), 12.3 (error codes, retry-after, quota headers) not built; no per-run quota record. Live path (RestTransport) not exercised against the network.
+- RawBatch carries no fetch timestamp, so provenance fetched_at is normalize time.
+
+### Self-review findings
+Fixed (each test-first, seen failing, then green; full suite 1480 passed, ruff and mypy clean):
+- apollo.py: first/last name, title and company.name were bare str; now `untrusted=True` (UntrustedText, 1.6/22.1). Test updated; asserts provenance.untrusted and confidence origin none.
+- base_source.py `build_transport`: live mode accepted any base_url; now refuses non-https (the key rides in a header). Tests added in test_transport_binding.py.
+- apollo.py docstring: raw-model extra-field tolerance documented; the CSV flagged as a hand-made stand-in and the date constant as the stand-in's date.
+- Tests added: autouse socket guard (none existed for Apollo), key never in logs/repr/exception text, people/match refused by the transport and endpoint map immutable, no live transport built in synthetic mode (Apollo and base), search yields no absences, raw model refuses wrong/missing id and bad technology uid naming both paths.
+- Mutation-checked, all killed, files restored identical: read_only=False endpoint, key logged, bearer header, Negative Evidence on queried paths, search first UID only, live transport in synthetic, per_page uncapped. One survivor (dropping validate_raw_payload, masked by the untrusted rule) is now killed by the new raw-model tests.
+- Verified, no change: RestTransport and FixtureTransport reject undeclared endpoints, redirects off, UID goes in the encoded query string (checked with httpx), no bare except, CancelledError untouched, key read only via resolve_credentials from env.
+### Known gaps (needs-follow-up)
+- needs-follow-up: Apollo does not pace. The orchestrator hands `pacing` to the factory, but ApolloSource takes none and never calls the throttle before `transport.send`; up to 500 pages per UID can exceed the 600/hour bucket. Where pacing binds (base `__init__` or adapter) is a design call; settle with 12.3.
+- needs-follow-up: a zero-match UID only logs a warning; no Negative Evidence for target_profile.<term> is emitted though those surfaces are declared answerable. Decide who emits it.
+- needs-follow-up: no total cap on people accumulated (up to 50,000 per UID in memory); only the 100/500 paging bounds.
+- needs-follow-up: a synthetic-mode adapter can still be handed a RestTransport by a caller; only `build_transport` guarantees the pairing (test doubles rely on `__init__` accepting any transport).
+- needs-follow-up: UIDs are not checked for snake_case shape (non-blank only); company.technologies and linkedin_url stay untrusted=False (list and URL) and are unverified on the search endpoint; empty-string values are stored as populated (shared Normalizer behaviour).
+- needs-follow-up: the design's positional `(transport, mode, config)` deviation is not yet in choices.md or design.md.

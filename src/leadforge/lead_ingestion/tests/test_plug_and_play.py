@@ -203,7 +203,8 @@ async def test_runtime_registered_source_completes_a_synthetic_run(
     built: list[BaseLeadSource] = []
 
     def factory(cls: type[BaseLeadSource]) -> BaseLeadSource:
-        built.append(cls(DataMode.SYNTHETIC))
+        transport = cls.build_transport(DataMode.SYNTHETIC)
+        built.append(cls(DataMode.SYNTHETIC, transport=transport))
         return built[-1]
 
     sources = [s for s in registry.active(factory) if s.name == "throwaway"]

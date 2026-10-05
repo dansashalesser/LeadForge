@@ -11,8 +11,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from types import MappingProxyType
-from typing import Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -26,6 +27,9 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
     _Entity,
 )
+
+if TYPE_CHECKING:
+    from leadforge.lead_ingestion.transport import Transport
 
 __all__ = [
     "TARGET_TERM_PATH_PREFIX",
@@ -267,6 +271,9 @@ class BaseLeadSource(ABC):
     # back to the first rate bucket's doc_url and fails if an adapter with credentials
     # has neither.
     docs_url: ClassVar[str] = ""
+    # Provider host for live mode (``https://api.example.com``); blank for a source
+    # that never goes live over REST. Read by ``build_transport`` only.
+    base_url: ClassVar[str] = ""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -278,7 +285,7 @@ class BaseLeadSource(ABC):
                 # can be used to mutate the declaration.
                 setattr(cls, declaration, MappingProxyType(dict(declared)))
 
-    def __init__(self, mode: DataMode) -> None:
+    def __init__(self, mode: DataMode, *, transport: "Transport | None" = None) -> None:
         cls = type(self).__name__
         missing = [d for d in _DECLARATIONS if not hasattr(type(self), d)]
         if missing:
@@ -339,6 +346,36 @@ class BaseLeadSource(ABC):
         self._validate_endpoints(cls)
         self._validate_required_env(cls)
         self._mode = mode
+        self._transport = transport
+
+    @classmethod
+    def build_transport(
+        cls, mode: DataMode, *, fixtures_root: Path | None = None
+    ) -> "Transport":
+        """The transport for ``mode``, built from this adapter's own ``endpoints``.
+
+        The caller resolves the mode and hands the result to the constructor; the
+        adapter never chooses its transport. Taking the endpoint map from the class
+        means a transport cannot be built over a copy that drifted from it (11.1).
+        """
+        from leadforge.lead_ingestion.transport import FixtureTransport, RestTransport
+
+        if mode is DataMode.SYNTHETIC:
+            return FixtureTransport(
+                cls.name, cls.endpoints, fixtures_root=fixtures_root
+            )
+        if not cls.base_url.strip():
+            raise ValueError(f"{cls.name} declares no base_url for live mode")
+        if not cls.base_url.startswith("https://"):
+            # Credentials ride in headers: never over cleartext.
+            raise ValueError(f"{cls.name} base_url must be https")
+        return RestTransport(cls.name, cls.base_url, cls.endpoints)
+
+    @property
+    def transport(self) -> "Transport":
+        if self._transport is None:
+            raise RuntimeError(f"{self.name} was constructed without a transport")
+        return self._transport
 
     def _validate_endpoints(self, cls: str) -> None:
         if not isinstance(self.endpoints, Mapping):

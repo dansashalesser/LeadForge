@@ -1,0 +1,41 @@
+{
+  "total_entries": 2,
+  "people": [
+    {
+      "id": "apollo-person-1",
+      "first_name": "Ada",
+      "last_name_obfuscated": "Lo***",
+      "title": "VP Engineering",
+      "last_refreshed_at": "2026-09-01T00:00:00.000+00:00",
+      "has_email": true,
+      "has_city": true,
+      "has_state": true,
+      "has_country": true,
+      "has_direct_phone": "Yes",
+      "organization": {
+        "name": "Example Data Corp",
+        "has_industry": true,
+        "has_phone": true,
+        "has_employee_count": true
+      }
+    },
+    {
+      "id": "apollo-person-2",
+      "first_name": "Grace",
+      "last_name_obfuscated": "Ho***",
+      "title": "Director of Data Platform",
+      "last_refreshed_at": "2026-09-02T00:00:00.000+00:00",
+      "has_email": false,
+      "has_city": true,
+      "has_state": false,
+      "has_country": true,
+      "has_direct_phone": "No",
+      "organization": {
+        "name": "Sample Systems",
+        "has_industry": true,
+        "has_phone": false,
+        "has_employee_count": true
+      }
+    }
+  ]
+}
