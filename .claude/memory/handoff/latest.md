@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T14:59:53+00:00
+- Written: 2026-10-05T15:04:47+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,20 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 14.1's code stays uncommitted until its implementer reports and the self-review is done.
+The existing transport test does catch that mutation, so redirects are covered and the reviewer's note was a false alarm. I'll correct that in the ledger and finish the task.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ grep -n "error=\|\.error\|str(err\|str(exc\|error:" src/leadforge/lead_ingestion/orchestrator.py | head -20; grep -n "
-- $ grep -n "Compliance" src/leadforge/lead_ingestion/tests/test_orchestrator_isolation.py | head; sed -n 185,198p src/lea
-- $ sed -n 55,150p src/leadforge/lead_ingestion/tests/test_orchestrator_isolation.py
-- $ grep -n "outcome\b\|\.outcome\|await .*run(" src/leadforge/lead_ingestion/tests/test_orchestrator_isolation.py | head 
-- $ cat >> src/leadforge/lead_ingestion/tests/test_orchestrator_isolation.py <<'EOF'
-
-
-# Verifies: specs/lead-source-adapt
 - $ python3 - <<'PY'
 p="src/leadforge/lead_ingestion/orchestrator.py"
 s=open(p).read()
@@ -57,3 +49,8 @@ old='raise SourceTimedOut(self._provid
 - $ sed -i '112s/.*/            # Name the error type only: a library message may carry a URL or person data./' src/leadfo
 - $ sed -i '112s/.*/            # Name the error type only: a library message may carry a URL or data./' src/leadforge/lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 12.3 "feat(lea
+- $ grep -rn "follow_redirects" src/leadforge/lead_ingestion --include=*.py | head
+- $ sed -n 1,60p src/leadforge/lead_ingestion/tests/test_transport.py | grep -n "BASE\|LOOKUP\|def make\|import\|headers" 
+- $ sed -n 176,195p src/leadforge/lead_ingestion/tests/test_transport.py
+- $ F=src/leadforge/lead_ingestion/transport.py && B=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f68929908
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Correction by the 
