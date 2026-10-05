@@ -575,7 +575,7 @@ task = one commit.
   - Parallel with 19.2 and 19.4 — separate static test modules
   - _Requirements: 11.1, 11.2, 11.3_
 
-- [ ] 19.2 (P) Assert a synthetic run opens zero sockets
+- [x] 19.2 (P) Assert a synthetic run opens zero sockets
   - Run the full synthetic path with socket construction patched to raise, proving no outbound network connection of any kind is opened
   - Parallel with 19.1 and 19.4
   - _Requirements: 4.1, 11.5_

@@ -2074,3 +2074,38 @@ Known gaps:
 - needs-follow-up (accepted residual, not catchable by AST): paths built with `join`, `%`, `.format` of non-literals, variables or data; a client reached through a third-party wrapper; raw `asyncio` connections. The runtime check and the declared-endpoint transport are the backstop.
 - The allowlist is keyed by path alone, not provider; a path allowed for one provider is allowed for all. Tighten if provider paths collide.
 - `sent` is not a listed word (a field name, not an endpoint word); `sender` and `emails` are.
+
+## Task 19.2 — Assert a synthetic run opens zero sockets (2026-10-05)
+Evidence: test file written first, run, red (ModuleNotFoundError: tests.socket_guard) before the helper existed; then green (89 tests). Mutations: install() a no-op -> 86 failed; httpx.AsyncClient target removed -> 5 failed (channel test, live test, synthetic probe, live probe, mis-built-live-transport test). Final: ruff format/check clean, mypy clean, pytest 3213 passed 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Zero-socket scope is PROVIDER/network traffic; the run uses local SQLite (AF_UNIX and sqlite file I/O allowed, everything else flagged). Rejected: forbidding all DB connections (would exclude Postgres only by fiat) or allowing a Postgres engine in a synthetic run.
+- Violations are recorded AND raised (assert_clean at end), so an adapter that swallows the error still fails. Rejected: raise-only.
+- Live mode: guard records attempts and neutralises them (no real network) instead of passing through. Rejected: real localhost connect attempts.
+- Any subprocess/os.system/posix_spawn start is a violation regardless of command. Rejected: allow-list of non-network tools.
+- No composition root exists (cli.py is a stub): the run is composed in the test (registry.discover, resolve_data_mode, per-adapter builders, StoreRunRecorder, build_run_report, cluster_contributions + project_lead).
+- Test file placed in tests/adapters/ (names providers; test_vendor_neutrality exempts that dir); helper tests/socket_guard.py is vendor-neutral.
+- Older per-adapter guards not migrated to the shared helper (not trivial/safe).
+### Known gaps (needs-follow-up)
+- Bullet 1 (full synthetic path with socket construction patched to raise): delivered. Bullet 2 (parallel with 19.1/19.4): n/a, no conflict.
+- Contributions are merged in memory only; raw_responses/contribution rows are NOT persisted (no persistence wiring exists; only the run record + source runs hit SQLite).
+- Native C-level connect(2)/resolvers below Python are not intercepted; Postgres engine not covered (a socket by nature).
+- Per-adapter builder for synthetic runs lives in the test; production composition root still missing (task 20 territory).
+- Python-level only: subclasses that cached a reference to a patched function before install (from-imports taken at import time, e.g. `from socket import getaddrinfo`) bypass the module-attribute patch.
+
+### Self-review findings
+Fixed (each seen failing first, then green; 89 -> 148 tests in the module; full suite 3272 passed, ruff and mypy clean):
+- Guard holes closed: direct `_socket.socket(...)` (swapped for a guarded subclass; the C type cannot be patched), direct `_socket.getaddrinfo/gethostbyname(_ex)/gethostbyaddr/getnameinfo`, `os.fork/forkpty/execv/execve/posix_spawnp` and `_posixsubprocess.fork_exec` (so `os.spawn*` and `multiprocessing` are refused). The exec probe names a nonexistent path so a missing guard cannot replace the test process.
+- Defect: AF_UNIX via asyncio (`open_unix_connection`, `create_unix_connection`) was refused (`sock_connect` target lacked `local_ok`, and the local check read the loop, not the socket). Fixed.
+- Defect: violation text dropped the first argument of module-level calls (the host of `getaddrinfo`). Fixed.
+- Live mode could not prove "no wire if the stop leaks": the non-enforcing guard now installs an enforcing backstop beneath itself; a leaky-guard test proves it. The `sock_connect` probe is bounded (2s) so a missing guard fails instead of waiting on a blackholed address.
+- Probing-adapter tests resolved LIVE (no required_env) while named synthetic; now pinned with `SourceSettings(mode=SYNTHETIC)`.
+- Added: wrapper/thread/executor/to_thread/loop.getaddrinfo/smtplib/ftplib/requests/HTTPSConnection/os.popen/subprocess.run/multiprocessing-fork/listening-socket tests; allowed-local tests (socketpair, fromfd, unix paths); connect on a re-wrapped fd refused; clean removal (nested, after an exception, originals identical) plus a loopback round trip after; a violation swallowed by `except Exception` in the adapter still fails; every source's fixture endpoints served through FixtureTransport (a Seed discovery source feeds Hunter/HubSpot; the Hunter verifier has its own test); tie resolver never built, tie flagged provisional; over-merge detection in the run; a LIVE-resolved source with fixtures fails the purity check.
+- Mutation-checked, files restored byte-identical: guard install no-op (139 fail), channel removed (named), violation not recorded (98 fail), Google built with a live transport, a source skipped, credential env left set, raw-socket swap removed, backstop removed. Each caught.
+Delivered: 19.2 bullet 1 (full synthetic path, socket construction patched to raise, and beyond: DNS, TLS, processes, HTTP stacks); bullet 2 is a parallel marker. 19.3 and 19.4 untouched.
+Known gaps:
+- needs-follow-up: no composition root exists, so the run is composed in the test (real orchestrator, registry, FixtureTransport, SQLite recorder, report); point the test at the root when one lands. Contributions are not persisted, so SQLite holds run records only.
+- needs-follow-up: ctypes, native extensions calling connect(2), and a child that has already started cannot be seen (documented in the helper). Postgres engine out of scope (a connection).
+- needs-follow-up: Hunter 202 polling has no fixture, so polling is not driven from fixtures; the Hunter verifier is not reached in the composed run because HubSpot's opt-out report prunes the email lead (6.10), so it has a direct guarded test instead.
+- Decisions: any inet socket creation is refused, including a loopback listener (bind); socketpair and fd-wrapping are allowed (local), and connect on a wrapped inet fd is still refused.
+- aiohttp is not installed (not tested). The helper has no except clauses; the one broad catch is a thread-capture in a test that re-raises to the caller.
