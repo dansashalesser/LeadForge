@@ -227,7 +227,7 @@ task = one commit.
 ---
 
 - [ ] 8. Data mode resolution and credential manifest
-- [ ] 8.1 (P) Resolve live versus synthetic mode with a stated reason
+- [x] 8.1 (P) Resolve live versus synthetic mode with a stated reason
   - Resolve in precedence order: per-source configuration override first, then a global mode override, then a live-access classification of unavailable, then all declared credentials present, then synthetic with the missing variable names as the reason
   - Honour a per-source override even when a credential is present
   - Emit one structured log line per source naming the resolved mode and the reason for it
