@@ -1,5 +1,8 @@
 """Named error taxonomy for every failure class in the ingestion slice."""
 
+import copy
+import pickle
+
 import pytest
 
 from leadforge.lead_ingestion.errors import (
@@ -132,3 +135,22 @@ def test_retry_dispatch_by_type_distinguishes_every_failure_class() -> None:
         if k not in {"SourceTransient", "SourceRateLimited"}
     }
     assert not any(others.values())
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#6.3
+@pytest.mark.parametrize(
+    "error",
+    [
+        *SOURCE_ERRORS,
+        FixtureSchemaError("hunter", field="f"),
+        DuplicateSourceNameError("apollo"),
+        UndeclaredEndpointError("apollo", path="/p"),
+    ],
+    ids=lambda e: type(e).__name__,
+)
+def test_errors_round_trip_through_pickle_and_copy(error: Exception) -> None:
+    for clone in (pickle.loads(pickle.dumps(error)), copy.copy(error)):
+        assert type(clone) is type(error)
+        assert clone.args == error.args
+        assert vars(clone) == vars(error)
+        assert str(clone) == str(error)

@@ -5,8 +5,24 @@ exception type, never on an HTTP status. Every error names its provider and, whe
 applicable, the offending raw field path and canonical path.
 """
 
+from typing import Any
 
-class SourceError(Exception):
+
+def _rebuild(cls: "type[BaseException]", args: tuple[Any, ...]) -> BaseException:
+    """Recreate an exception without calling its keyword-only ``__init__``."""
+    obj = BaseException.__new__(cls)
+    obj.args = args
+    return obj
+
+
+class _Picklable(Exception):
+    """Round-trips through pickle/copy despite required keyword-only init args."""
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return _rebuild, (type(self), self.args), self.__dict__
+
+
+class SourceError(_Picklable):
     """Root of every failure attributable to a single provider."""
 
     def __init__(self, source_name: str, detail: str = "") -> None:
@@ -74,20 +90,20 @@ class NoAccessibleAccountError(SourceError):
     """The provider has no account reachable with the configured credentials."""
 
 
-class FixtureSchemaError(Exception):
+class FixtureSchemaError(_Picklable):
     def __init__(self, provider: str, *, field: str) -> None:
         self.provider = provider
         self.field = field
         super().__init__(f"[{provider}] FixtureSchemaError: field={field}")
 
 
-class DuplicateSourceNameError(Exception):
+class DuplicateSourceNameError(_Picklable):
     def __init__(self, name: str) -> None:
         self.name = name
         super().__init__(f"duplicate source name: {name}")
 
 
-class UndeclaredEndpointError(Exception):
+class UndeclaredEndpointError(_Picklable):
     def __init__(self, provider: str, *, path: str) -> None:
         self.provider = provider
         self.path = path
