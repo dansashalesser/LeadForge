@@ -550,7 +550,7 @@ task = one commit.
 
 ---
 
-- [ ] 18. Run observability and reporting
+- [x] 18. Run observability and reporting
 - [x] 18.1 Persist the run record with every source's resolved mode
   - Create one persisted run record at run start carrying the run identifier, start time, the pool bound, a configuration snapshot that makes the run reproducible, and the resolved mode of every enabled source
   - _Requirements: 21.1_
@@ -568,7 +568,7 @@ task = one commit.
 
 ---
 
-- [ ] 19. Structural guardrails
+- [x] 19. Structural guardrails
 - [x] 19.1 (P) Assert no adapter reaches a send-capable endpoint
   - Issue only read-oriented provider operations, never one that sends an email, message, connection request, or sequence enrollment, and never one that creates, updates, or deletes a record in a provider's system of record
   - Add a static test asserting no adapter references a send, sequence, or messaging endpoint path
