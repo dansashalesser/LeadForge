@@ -2,6 +2,7 @@
 
 import json
 import re
+import shutil
 from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
@@ -52,6 +53,7 @@ def write_tree(
     d = root / provider
     d.mkdir(parents=True, exist_ok=True)
     for r in records:
+        (d / r["file"]).parent.mkdir(parents=True, exist_ok=True)
         (d / r["file"]).write_text(json.dumps({"body": SECRET_BODY}))
     (d / "manifest.json").write_text(
         json.dumps({"provider": provider, "fixtures": records})
@@ -459,3 +461,77 @@ def test_shipped_records_claim_no_verification_nobody_made() -> None:
         for rec in manifest.fixtures:
             assert rec.schema_status is SchemaStatus.UNVERIFIED
             assert rec.schema_verified_on is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#5.5
+def test_an_outcome_variant_in_a_subdirectory_names_its_endpoint_by_file_name(
+    tmp_path: Path,
+) -> None:
+    write_tree(
+        tmp_path,
+        [
+            record(),
+            record(file="lookup.json", endpoint="lookup"),
+            record(file="empty/search.json", endpoint="search"),
+        ],
+    )
+    manifest = validate_fixture_tree(tmp_path, ENDPOINTS)["prov"]
+    assert [r.file for r in manifest.fixtures] == [
+        "search.json",
+        "lookup.json",
+        "empty/search.json",
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#5.5
+def test_an_outcome_variant_must_still_match_its_file_name(tmp_path: Path) -> None:
+    write_tree(
+        tmp_path,
+        [record(), record(file="empty/search.json", endpoint="lookup")],
+    )
+    with pytest.raises(FixtureSchemaError) as exc:
+        load_manifest(tmp_path / "prov")
+    assert "endpoint" in field_of(exc)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#5.1
+def test_a_variant_does_not_stand_in_for_the_default_fixture(tmp_path: Path) -> None:
+    # FixtureTransport serves only <endpoint>.json at the provider root, so an
+    # endpoint whose only record is a variant would fail at run time.
+    write_tree(
+        tmp_path,
+        [
+            record(file="empty/search.json", endpoint="search"),
+            record(file="lookup.json", endpoint="lookup"),
+        ],
+    )
+    with pytest.raises(FixtureSchemaError) as exc:
+        validate_fixture_tree(tmp_path, ENDPOINTS)
+    assert exc.value.provider == "prov"
+    assert "search.json" in field_of(exc)
+
+
+ONLY_SEARCH: Mapping[str, Mapping[str, Endpoint]] = {"prov": {"search": SEARCH}}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#5.1
+def test_a_symlinked_variant_file_or_variant_directory_is_rejected(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "search.json").write_text("{}")
+    write_tree(tmp_path / "file", [record(), record(file="empty/search.json")])
+    (tmp_path / "file" / "prov" / "empty" / "search.json").unlink()
+    (tmp_path / "file" / "prov" / "empty" / "search.json").symlink_to(
+        outside / "search.json"
+    )
+    with pytest.raises(FixtureSchemaError) as exc:
+        validate_fixture_tree(tmp_path / "file", ONLY_SEARCH)
+    assert "empty/search.json" in field_of(exc)
+    write_tree(tmp_path / "dir", [record(), record(file="empty/search.json")])
+    shutil.rmtree(tmp_path / "dir" / "prov" / "empty")
+    (tmp_path / "dir" / "prov" / "empty").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(FixtureSchemaError) as exc:
+        validate_fixture_tree(tmp_path / "dir", ONLY_SEARCH)
+    assert exc.value.provider == "prov"

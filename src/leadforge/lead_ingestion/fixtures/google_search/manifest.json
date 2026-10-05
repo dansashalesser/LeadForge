@@ -12,6 +12,18 @@
       "api_version": null,
       "redaction": null,
       "note": "Hand-made stand-in for a SerpApi organic result page; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "no_results/search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://serpapi.com/search-api",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a result page with no organic result; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
     }
   ]
 }

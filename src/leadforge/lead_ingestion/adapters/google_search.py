@@ -85,6 +85,7 @@ from leadforge.lead_ingestion.normalizer import (
     FieldRule,
     NormalizationContext,
     Normalizer,
+    unmapped_raw_paths,
     validate_raw_payload,
 )
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
@@ -185,6 +186,12 @@ class GoogleSearchSource(BaseLeadSource):
     # a result's own publication date is not the retrieval date).
     IGNORED: ClassVar[frozenset[str]] = frozenset(
         {"result.position", "result.displayed_link", "result.source", "result.date"}
+    )
+
+    # Page-level fields beside the result blocks: the engine's own status and counts.
+    # Leaves are named, not subtrees, so a field added there still fails the guard.
+    ENVELOPE_IGNORED: ClassVar[frozenset[str]] = frozenset(
+        {"search_metadata.status", "search_information.total_results"}
     )
 
     def __init__(
@@ -378,6 +385,25 @@ class GoogleSearchSource(BaseLeadSource):
             raise _unmapped(cls.name, "<response>")
         for block, result, model, rules in cls._blocks_of(body):
             cls._checked(block, result, model, rules, "fixture", date.min)
+
+    @classmethod
+    def unmapped_fixture_paths(cls, endpoint: str, body: object) -> list[str]:
+        if endpoint != "search":
+            return super().unmapped_fixture_paths(endpoint, body)
+        if not isinstance(body, Mapping):
+            raise _unmapped(cls.name, "<response>")
+        blocks = cls._blocks_of(body)
+        read = {"organic_results", "answer_box", "knowledge_graph"}
+        envelope = {k: v for k, v in body.items() if k not in read}
+        found = unmapped_raw_paths(envelope, (), cls.ENVELOPE_IGNORED)
+        for block, result, _, rules in blocks:
+            if not isinstance(result, Mapping):
+                raise _unmapped(cls.name, block)
+            found += [
+                f"{block}.{path.removeprefix('result.')}"
+                for path in unmapped_raw_paths({"result": result}, rules, cls.IGNORED)
+            ]
+        return found
 
     def _page_evidence(
         self,

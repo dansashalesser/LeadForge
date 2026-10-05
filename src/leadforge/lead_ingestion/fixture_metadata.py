@@ -11,6 +11,9 @@ Provisional decisions (see choices.md, task 17.1):
 * The layout is the design's: ``manifest.json`` per provider directory, not a sidecar
   per fixture. A JSON file's ``endpoint`` must equal its file stem, the convention
   ``FixtureTransport`` already serves; a non-JSON reference file has ``endpoint`` None.
+* Task 17.3: a second outcome for one endpoint is a variant in a subdirectory
+  (``no_match/search.json``), recorded like any fixture and named by its file name; the
+  root ``<endpoint>.json`` stays mandatory: it is the file the transport serves.
 * Every failure is a ``FixtureSchemaError`` naming the provider and the offending
   field path. No metadata value and no fixture content is ever put in a message.
 * ``schema_status`` is explicit. A date is recorded only when the schema was checked
@@ -23,7 +26,7 @@ Provisional decisions (see choices.md, task 17.1):
 from collections.abc import Mapping
 from datetime import date
 from enum import StrEnum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated
 
 from pydantic import (
@@ -125,7 +128,9 @@ def load_manifest(provider_dir: Path, *, today: date | None = None) -> FixtureMa
             raise FixtureSchemaError(provider, field=f"{where}.file")
         seen.add(rec.file)
         is_json = rec.file.endswith(".json")
-        if rec.endpoint != (rec.file.removesuffix(".json") if is_json else None):
+        # An outcome variant lives in a subdirectory (``no_match/search.json``) and
+        # names its endpoint by file name, as the default file does.
+        if rec.endpoint != (PurePosixPath(rec.file).stem if is_json else None):
             raise FixtureSchemaError(provider, field=f"{where}.endpoint")
         if rec.recorded_on > limit:
             raise FixtureSchemaError(provider, field=f"{where}.recorded_on")
@@ -161,6 +166,12 @@ def validate_fixture_tree(
             raise FixtureSchemaError(provider, field=f"endpoint {undeclared}")
         for missing in sorted(declared[provider].keys() - recorded_endpoints):
             raise FixtureSchemaError(provider, field=f"endpoint {missing}")
+        recorded_files = {r.file for r in manifest.fixtures}
+        # ``FixtureTransport`` serves only ``<endpoint>.json`` at the provider root, so
+        # an outcome variant never stands in for the default fixture.
+        for endpoint in sorted(declared[provider]):
+            if f"{endpoint}.json" not in recorded_files:
+                raise FixtureSchemaError(provider, field=f"file {endpoint}.json")
         on_disk = {
             p.relative_to(provider_dir).as_posix()
             for p in provider_dir.rglob("*")
@@ -170,7 +181,6 @@ def validate_fixture_tree(
             raise FixtureSchemaError(
                 provider, field=f"file {link.relative_to(provider_dir).as_posix()}"
             )
-        recorded_files = {r.file for r in manifest.fixtures}
         for orphan in sorted(on_disk ^ recorded_files):
             raise FixtureSchemaError(provider, field=f"file {orphan}")
         manifests[provider] = manifest

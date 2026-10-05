@@ -73,6 +73,7 @@ from leadforge.lead_ingestion.normalizer import (
     FieldRule,
     NormalizationContext,
     Normalizer,
+    unmapped_raw_paths,
     validate_raw_payload,
 )
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
@@ -239,6 +240,12 @@ class HubSpotSource(BaseLeadSource):
             "contact.properties.lastmodifieddate",
         }
     )
+
+    # Search envelope fields no rule reads: the contact search takes its answer from
+    # ``results``, the deal search from ``total`` alone (a limit of one, so its single
+    # result is never read).
+    CONTACT_SEARCH_IGNORED: ClassVar[frozenset[str]] = frozenset({"total"})
+    DEAL_SEARCH_IGNORED: ClassVar[frozenset[str]] = frozenset({"results"})
 
     def __init__(
         self,
@@ -423,6 +430,32 @@ class HubSpotSource(BaseLeadSource):
             _open_deal_total(cls.name, body)
         else:
             super().validate_fixture(endpoint, body)
+
+    @classmethod
+    def unmapped_fixture_paths(cls, endpoint: str, body: object) -> list[str]:
+        if endpoint == "contact_search":
+            results = _results_of(cls.name, body)
+            assert isinstance(body, Mapping)  # _results_of refused anything else
+            envelope = {k: v for k, v in body.items() if k != "results"}
+            found = unmapped_raw_paths(envelope, (), cls.CONTACT_SEARCH_IGNORED)
+            for contact in results:
+                found += [
+                    f"results.{path.removeprefix('contact.')}"
+                    for path in unmapped_raw_paths(
+                        {"contact": contact}, cls.RULES, cls.IGNORED
+                    )
+                ]
+            return found
+        if endpoint == "deal_search":
+            total = _open_deal_total(cls.name, body)
+            assert isinstance(body, Mapping)  # _open_deal_total refused anything else
+            record = {"open_deals_total": total} | {
+                k: v for k, v in body.items() if k != "total"
+            }
+            return unmapped_raw_paths(
+                record, cls.RULES, cls.IGNORED | cls.DEAL_SEARCH_IGNORED
+            )
+        return super().unmapped_fixture_paths(endpoint, body)
 
     def _records(self, lookups: list[object]) -> list[Mapping[str, object]]:
         """One record per contact found, or one empty record for an unknown email."""

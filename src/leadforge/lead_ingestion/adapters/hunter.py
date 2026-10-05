@@ -126,6 +126,7 @@ from leadforge.lead_ingestion.normalizer import (
     FieldRule,
     NormalizationContext,
     Normalizer,
+    unmapped_raw_paths,
     validate_raw_payload,
 )
 from leadforge.lead_ingestion.throttle import Clock, Sleep
@@ -342,6 +343,20 @@ class HunterSource(BaseLeadSource):
         FieldRule("suppressed", "restricted"),
     )
     VERIFIER_IGNORED: ClassVar[frozenset[str]] = frozenset({"score"})
+    # Beside ``data``, every response carries ``meta``: an echo of the request and the
+    # result counts. Nothing in it is a lead field; each leaf is named, not the subtree,
+    # so a field Hunter adds there still fails the fixture guard.
+    ENVELOPE_IGNORED: ClassVar[frozenset[str]] = frozenset(
+        {
+            "meta.results",
+            "meta.limit",
+            "meta.offset",
+            "meta.params.domain",
+            "meta.params.first_name",
+            "meta.params.last_name",
+            "meta.params.email",
+        }
+    )
     # Domain-level flags and fields of the address record that 16.2 does not ask for.
     IGNORED: ClassVar[frozenset[str]] = frozenset(
         {
@@ -574,6 +589,45 @@ class HunterSource(BaseLeadSource):
                 cls.name, raw_field_path="data", canonical_path="<unmapped>"
             )
         validate_raw_payload(cls.name, model, body, rules)
+
+    @classmethod
+    def unmapped_fixture_paths(cls, endpoint: str, body: object) -> list[str]:
+        if endpoint not in cls.endpoints:
+            return super().unmapped_fixture_paths(endpoint, body)
+        data = body.get("data") if isinstance(body, Mapping) else None
+        if not isinstance(body, Mapping) or not isinstance(data, Mapping):
+            raise NormalizationError(
+                cls.name, raw_field_path="data", canonical_path="<unmapped>"
+            )
+        envelope = {k: v for k, v in body.items() if k != "data"}
+        found = unmapped_raw_paths(envelope, (), cls.ENVELOPE_IGNORED)
+        if endpoint == "domain_search":
+            emails = data.get("emails")
+            if not isinstance(emails, list):
+                raise NormalizationError(
+                    cls.name, raw_field_path="data.emails", canonical_path="<unmapped>"
+                )
+            shared = {k: v for k, v in data.items() if k != "emails"}
+            found += [
+                f"data.{path}"
+                for path in unmapped_raw_paths(shared, cls.RULES, cls.IGNORED)
+            ]
+            for item in emails:
+                found += [
+                    f"data.emails.{path.removeprefix('email.')}"
+                    for path in unmapped_raw_paths(
+                        {"email": item}, cls.RULES, cls.IGNORED
+                    )
+                ]
+            return found
+        rules, ignored = (
+            (cls.FINDER_RULES, cls.FINDER_IGNORED)
+            if endpoint == "email_finder"
+            else (cls.VERIFIER_RULES, cls.VERIFIER_IGNORED)
+        )
+        return found + [
+            f"data.{path}" for path in unmapped_raw_paths(data, rules, ignored)
+        ]
 
     def normalize(self, raw: RawBatch) -> list[LeadContribution]:
         context = NormalizationContext(

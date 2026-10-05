@@ -89,6 +89,7 @@ from leadforge.lead_ingestion.normalizer import (
     FieldRule,
     NormalizationContext,
     Normalizer,
+    unmapped_raw_paths,
     validate_raw_payload,
 )
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
@@ -243,6 +244,9 @@ class ApolloSource(BaseLeadSource):
             "match_confidence",
         }
     )
+
+    # Search envelope fields that carry no lead: the size of the whole result set.
+    SEARCH_ENVELOPE_IGNORED: ClassVar[frozenset[str]] = frozenset({"total_entries"})
 
     def __init__(
         self,
@@ -427,6 +431,27 @@ class ApolloSource(BaseLeadSource):
             )
         for person in people:
             validate_raw_payload(cls.name, _Person, _require(person), cls.RULES)
+
+    @classmethod
+    def unmapped_fixture_paths(cls, endpoint: str, body: object) -> list[str]:
+        if endpoint == "match":
+            return unmapped_raw_paths(_require(body), cls.MATCH_RULES, cls.IGNORED)
+        if endpoint != "search":
+            return super().unmapped_fixture_paths(endpoint, body)
+        checked = _require(body)
+        people = checked.get("people")
+        if not isinstance(people, list):
+            raise NormalizationError(
+                cls.name, raw_field_path="people", canonical_path="<unmapped>"
+            )
+        envelope = {k: v for k, v in checked.items() if k != "people"}
+        found = unmapped_raw_paths(envelope, (), cls.SEARCH_ENVELOPE_IGNORED)
+        for person in people:
+            found += [
+                f"people.{path}"
+                for path in unmapped_raw_paths(_require(person), cls.RULES, cls.IGNORED)
+            ]
+        return found
 
     @classmethod
     def validate_reference_file(cls, file: str, text: str) -> None:

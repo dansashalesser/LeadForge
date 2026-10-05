@@ -36,6 +36,30 @@
       "api_version": null,
       "redaction": null,
       "note": "Hand-made four-row stand-in for the supported-technologies CSV; real column layout unverified; replace with a dated snapshot. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "no_match/search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-api-search",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a search that matched no person for the technology filter; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "no_match/match.json",
+      "endpoint": "match",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-enrichment",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a match call with match_confidence none; the shape of a no-match answer is itself unverified; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
     }
   ]
 }

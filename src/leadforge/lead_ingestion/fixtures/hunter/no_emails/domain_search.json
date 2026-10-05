@@ -1,0 +1,12 @@
+{
+  "data": {
+    "domain": "example.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": null,
+    "organization": "Example Data Corp",
+    "emails": []
+  },
+  "meta": {"results": 0, "limit": 100, "offset": 0, "params": {"domain": "example.com"}}
+}

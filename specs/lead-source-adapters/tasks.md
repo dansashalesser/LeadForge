@@ -542,7 +542,7 @@ task = one commit.
   - Blocked on 17.1; parallel with 17.3 — separate test modules
   - _Requirements: 5.3, 5.4_
 
-- [ ] 17.3 (P) Cover positive and negative outcomes per provider contribution
+- [x] 17.3 (P) Cover positive and negative outcomes per provider contribution
   - Give every adapter a positive and a negative fixture for whatever that provider actually contributes — a Target Profile match and no match where it supports technographic targeting, a Suppression and a non-Suppression where it reports CRM state, a Verified Email and an unverifiable address where it verifies addresses
   - Scope the criterion to each provider's own capability, so no fixture carries a field its provider's documented schema does not define
   - Blocked on 17.1; parallel with 17.2

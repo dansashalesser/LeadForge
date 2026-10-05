@@ -36,6 +36,66 @@
       "api_version": null,
       "redaction": null,
       "note": "Hand-made stand-in; verifier data shape unverified; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "no_emails/domain_search.json",
+      "endpoint": "domain_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a domain search that found no address; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "not_found/email_finder.json",
+      "endpoint": "email_finder",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a finder call that found no address; the not-found shape is unverified; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "invalid/email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a verifier verdict of invalid; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "accept_all/email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a verifier verdict of accept_all; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "unknown/email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a verifier verdict of unknown; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
     }
   ]
 }

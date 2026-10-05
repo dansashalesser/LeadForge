@@ -503,6 +503,19 @@ class BaseLeadSource(ABC):
         raise FixtureSchemaError(cls.name, field=f"{endpoint}: no raw schema declared")
 
     @classmethod
+    def unmapped_fixture_paths(cls, endpoint: str, body: object) -> list[str]:
+        """Leaf paths of one endpoint's fixture that no rule maps and no ignore lists.
+
+        The fixture counterpart of ``validate_fixture`` (5.5): an adapter that ships a
+        fixture overrides this, reshaping the body into the records its rules read and
+        returning ``unmapped_raw_paths`` for each. The default refuses, so a source
+        with fixtures and no declared coverage cannot pass.
+        """
+        raise FixtureSchemaError(
+            cls.name, field=f"{endpoint}: no field coverage declared"
+        )
+
+    @classmethod
     def validate_reference_file(cls, file: str, text: str) -> None:
         """Check a non-JSON reference file with the adapter's own loader (5.3)."""
         raise FixtureSchemaError(cls.name, field=f"{file}: no loader declared")

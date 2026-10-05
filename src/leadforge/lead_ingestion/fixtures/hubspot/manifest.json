@@ -24,6 +24,42 @@
       "api_version": null,
       "redaction": null,
       "note": "Hand-made stand-in; deal association filter unverified; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "not_opted_out/contact_search.json",
+      "endpoint": "contact_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a contact found who has not opted out; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "not_found/contact_search.json",
+      "endpoint": "contact_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a contact search with no result; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "no_open_deals/deal_search.json",
+      "endpoint": "deal_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a deal search with no open deal; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
     }
   ]
 }

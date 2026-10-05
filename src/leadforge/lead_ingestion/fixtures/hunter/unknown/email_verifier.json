@@ -1,0 +1,8 @@
+{
+  "data": {
+    "status": "unknown",
+    "score": 0,
+    "email": "ada.lovelace@example.com"
+  },
+  "meta": {"params": {"email": "ada.lovelace@example.com"}}
+}
