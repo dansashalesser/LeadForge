@@ -10,7 +10,8 @@
 #   * A source gets a column for a term only if that source has a surface for it
 #     (3.3). HubSpot (CRM-state lookup) and Hunter (email discovery) take no
 #     technology filter, so they have no column and are Not Applicable, never
-#     "no match".
+#     "no match". A column here OVERRIDES an adapter's built-in default for that
+#     term (per term, replacing it whole); no column lets the default apply.
 #   * Source names must equal the adapter's registered name exactly. No adapter is
 #     registered yet, so every column currently surfaces as an unregistered-source
 #     warning. Tasks 12-15 register them and turn that into a real check.

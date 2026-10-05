@@ -15,11 +15,13 @@ from pathlib import Path
 import pytest
 
 from leadforge.lead_ingestion.errors import ConfigurationError
+from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.target_profile import (
     DEFAULT_TARGET_PROFILE_PATH,
     TargetProfile,
     check_against_registry,
+    effective_vocabulary,
     load_target_profile,
 )
 
@@ -396,7 +398,7 @@ class {cls}(BaseLeadSource):
     name = {name!r}
     capabilities: ClassVar[frozenset[Capability]] = frozenset()
     rate_limit: ClassVar[Mapping[str, RateBucket]] = {{}}
-    answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {{}}
+    answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {surfaces!r}
     cost_class: ClassVar[CostClass] = CostClass.FREE
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_CALL
     yields_suppression: ClassVar[bool] = False
@@ -415,8 +417,13 @@ _counter = itertools.count()
 MakePackage = Callable[[dict[str, str]], str]
 
 
-def source_module(cls: str, name: str, vocab: dict[str, object] | None = None) -> str:
-    return HEADER.format(cls=cls, name=name, vocab=vocab or {})
+def source_module(
+    cls: str,
+    name: str,
+    vocab: dict[str, object] | None = None,
+    surfaces: dict[str, frozenset[str]] | None = None,
+) -> str:
+    return HEADER.format(cls=cls, name=name, vocab=vocab or {}, surfaces=surfaces or {})
 
 
 @pytest.fixture
@@ -460,39 +467,167 @@ def test_columns_for_unregistered_sources_are_returned_as_warnings_not_errors(
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.2
-def test_a_column_contradicting_a_declared_not_applicable_term_is_an_error(
+def test_a_column_may_make_a_term_expressible_that_the_adapter_never_declared(
     write: Write, make_package: MakePackage
 ) -> None:
     path = write(PROFILE)
-    # The adapter declares tech_alpha as Not Applicable, yet the column supplies it.
-    pkg = make_package(
-        {"one.py": source_module("One", "provider_one", {"tech_alpha": ""})}
-    )
+    pkg = make_package({"one.py": source_module("One", "provider_one")})
     registry = SourceRegistry.discover(pkg)
+    profile = load_target_profile(path)
 
-    with pytest.raises(ConfigurationError) as caught:
-        check_against_registry(load_target_profile(path), registry, path=path)
-
-    assert caught.value.key_path == "technologies.tech_alpha.provider_one"
-    assert str(path) in str(caught.value)
-    assert "uid_1" not in str(caught.value)
+    assert check_against_registry(profile, registry, path=path) == ("provider_two",)
+    effective = effective_vocabulary(profile, registry.source_class("provider_one"))
+    assert dict(effective) == {
+        "tech_alpha": ("uid_1", "uid_2"),
+        "tech_beta": "uid_3",
+    }
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.2
-def test_an_empty_column_for_a_declared_not_applicable_term_is_consistent(
+def test_the_adapter_default_fills_a_term_the_configuration_does_not_cover(
+    write: Write, make_package: MakePackage
+) -> None:
+    path = write(PROFILE)
+    pkg = make_package(
+        {
+            "one.py": source_module(
+                "One",
+                "provider_two",
+                {"rival_one": ["default rival"], "tech_beta": "default_beta"},
+                {
+                    "target_profile.rival_one": frozenset({"raw.a"}),
+                    "target_profile.tech_beta": frozenset({"raw.b"}),
+                },
+            )
+        }
+    )
+    registry = SourceRegistry.discover(pkg)
+    profile = load_target_profile(path)
+
+    effective = effective_vocabulary(profile, registry.source_class("provider_two"))
+
+    # tech_beta has no provider_two column: the default fills it. rival_one has one:
+    # the configuration replaces the default whole (no merging of values).
+    assert effective["tech_beta"] == "default_beta"
+    assert effective["rival_one"] == ("rival one",)
+    assert effective["tech_alpha"] == ("phrase one", "phrase two")
+    assert check_against_registry(profile, registry, path=path) == ("provider_one",)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_configuration_replaces_a_default_mapping_without_deep_merging(
+    write: Write, make_package: MakePackage
+) -> None:
+    path = write("technologies:\n  tech_alpha:\n    provider_one: {b: 2}\n")
+    pkg = make_package(
+        {
+            "one.py": source_module(
+                "One",
+                "provider_one",
+                {"tech_alpha": {"a": 1, "b": 1}},
+                {"target_profile.tech_alpha": frozenset({"raw.a"})},
+            )
+        }
+    )
+    registry = SourceRegistry.discover(pkg)
+
+    effective = effective_vocabulary(
+        load_target_profile(path), registry.source_class("provider_one")
+    )
+
+    assert dict(effective["tech_alpha"]) == {"b": 2}  # type: ignore[call-overload]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_an_adapter_default_for_a_term_outside_the_profile_is_inert(
+    write: Write, make_package: MakePackage
+) -> None:
+    path = write("technologies:\n  tech_alpha:\n    provider_one: [uid_1]\n")
+    pkg = make_package(
+        {
+            "one.py": source_module(
+                "One",
+                "provider_one",
+                {"stale_term": ["old"]},
+                {"target_profile.stale_term": frozenset({"raw.a"})},
+            )
+        }
+    )
+    registry = SourceRegistry.discover(pkg)
+    profile = load_target_profile(path)
+
+    effective = effective_vocabulary(profile, registry.source_class("provider_one"))
+
+    assert dict(effective) == {"tech_alpha": ("uid_1",)}
+    assert check_against_registry(profile, registry, path=path) == ()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_an_explicit_empty_column_blanks_a_default_that_has_no_surface_dependency(
+    write: Write, make_package: MakePackage
+) -> None:
+    # An empty column is the explicit "no surface" of the configuration. A source whose
+    # adapter default is a vocabulary must declare the matching surface (3.3), so a
+    # blank-out contradicts it: that is a named startup error, never a silent N/A.
+    path = write("technologies:\n  tech_alpha:\n    provider_one: []\n")
+    pkg = make_package(
+        {
+            "one.py": source_module(
+                "One",
+                "provider_one",
+                {"tech_alpha": ["secret_default_id"]},
+                {"target_profile.tech_alpha": frozenset({"raw.a"})},
+            )
+        }
+    )
+    registry = SourceRegistry.discover(pkg)
+    profile = load_target_profile(path)
+
+    assert "tech_alpha" not in effective_vocabulary(
+        profile, registry.source_class("provider_one")
+    )
+    with pytest.raises(ConfigurationError) as caught:
+        check_against_registry(profile, registry, path=path)
+
+    assert caught.value.key_path == "technologies.tech_alpha.provider_one"
+    assert str(path) in str(caught.value)
+    assert "secret_default_id" not in str(caught.value)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_an_empty_column_for_a_term_the_adapter_never_declared_is_consistent(
     write: Write, make_package: MakePackage
 ) -> None:
     path = write("technologies:\n  tech_alpha:\n    provider_one: []\n")
-    pkg = make_package(
-        {"one.py": source_module("One", "provider_one", {"tech_alpha": ""})}
+    pkg = make_package({"one.py": source_module("One", "provider_one")})
+    registry = SourceRegistry.discover(pkg)
+
+    assert check_against_registry(load_target_profile(path), registry, path=path) == ()
+    assert (
+        dict(
+            effective_vocabulary(
+                load_target_profile(path), registry.source_class("provider_one")
+            )
+        )
+        == {}
     )
 
-    assert (
-        check_against_registry(
-            load_target_profile(path), SourceRegistry.discover(pkg), path=path
-        )
-        == ()
-    )
+
+# Verifies: specs/lead-source-adapters/requirements.md#23.2
+def test_target_term_absence_follows_the_effective_vocabulary(
+    write: Write, make_package: MakePackage
+) -> None:
+    path = write(PROFILE)
+    pkg = make_package({"one.py": source_module("One", "provider_one")})
+    registry = SourceRegistry.discover(pkg)
+    cls = registry.source_class("provider_one")
+    source = cls(DataMode.SYNTHETIC)
+    effective = effective_vocabulary(load_target_profile(path), cls)
+
+    # The adapter alone declares nothing, so without the merge it is Not Applicable.
+    assert source.target_term_absence("tech_alpha") is not None
+    assert source.target_term_absence("tech_alpha", vocabulary=effective) is None
+    assert source.target_term_absence("rival_one", vocabulary=effective) is not None
 
 
 # ---- plug-and-play: one file per term, one module plus one column per source -----

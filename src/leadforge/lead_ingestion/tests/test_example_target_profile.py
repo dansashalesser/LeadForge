@@ -117,7 +117,7 @@ def test_keywords_render_deterministically_for_every_term() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#23.5
 def test_against_the_empty_adapter_package_columns_are_warnings_not_errors() -> None:
     # Tasks 12-15 register the providers; each warning then becomes a real check
-    # against that source's own Not Applicable declaration.
+    # against that source's declared surfaces (config overrides adapter defaults).
     profile = load_target_profile(SHIPPED)
     registry = SourceRegistry.discover(adapters)
     assert registry.names() == ()

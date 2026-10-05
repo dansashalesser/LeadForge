@@ -240,7 +240,8 @@ class BaseLeadSource(ABC):
     # Whether the provider can run live for a demo operator (3.6). Defaulted, so a new
     # adapter stays one class; a configuration override may replace it per source.
     live_access: ClassVar[LiveAccess] = LiveAccess.AVAILABLE
-    # Canonical Target Profile term -> this provider's opaque vocabulary for it.
+    # Canonical Target Profile term -> this provider's opaque DEFAULT vocabulary for it.
+    # The Target Profile configuration overrides it per term (effective_vocabulary).
     # An empty value (or an absent term) is Not Applicable, never "no match" (2.8).
     target_vocabulary: ClassVar[Mapping[str, object]]
     # Every provider path this adapter may reach, keyed by a local label (11.1).
@@ -362,15 +363,20 @@ class BaseLeadSource(ABC):
     @abstractmethod
     def normalize(self, raw: RawBatch) -> list[LeadContribution]: ...
 
-    def target_term_absence(self, term: str) -> SourceAbsence | None:
+    def target_term_absence(
+        self, term: str, *, vocabulary: Mapping[str, object] | None = None
+    ) -> SourceAbsence | None:
         """``None`` if this source can express ``term``, else a Not Applicable record.
 
         A source with no vocabulary for a term was never asked, so it cannot have
-        found "no match" (2.8).
+        found "no match" (2.8). ``vocabulary`` is the effective vocabulary (the
+        Target Profile over the adapter default, ``effective_vocabulary``); without
+        it only the adapter default is consulted.
         """
         if not isinstance(term, str) or not term.strip():
             raise ValueError("target term must be non-blank")
-        if not _is_empty_vocabulary(self.target_vocabulary.get(term)):
+        known = self.target_vocabulary if vocabulary is None else vocabulary
+        if not _is_empty_vocabulary(known.get(term)):
             return None
         return SourceAbsence(
             canonical_path=f"{TARGET_TERM_PATH_PREFIX}{term}",

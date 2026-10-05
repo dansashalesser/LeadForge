@@ -16,7 +16,8 @@ identifiers for one technology. The file is ``config/target_profile.yaml``::
 
 Adding a term is one block in this file. Adding a source is one adapter module plus
 one ``<source name>:`` line under each term it can express. A term with no line for
-a source, or an empty one, is Not Applicable for that source (3.3), never "no match".
+a source, or an empty one, is Not Applicable for that source (3.3), never "no match",
+unless the adapter declares a default for that term (see ``effective_vocabulary``).
 
 Provisional decisions (see choices.md, task 9.1):
 
@@ -24,8 +25,9 @@ Provisional decisions (see choices.md, task 9.1):
   an explicit argument; there is no environment override.
 * Source names are checked exactly (no case folding), like ``config/sources.yaml``.
 * A column for a source that is not registered is a warning the caller prints
-  (deferred providers keep their columns); a column contradicting a registered
-  source's own Not Applicable declaration is a ``ConfigurationError``.
+  (deferred providers keep their columns); an empty column over a term the source
+  declares answerable is a ``ConfigurationError``.
+* The adapter's ``target_vocabulary`` is a default; a column replaces it per term.
 * Keyword rendering is plain ``{term}`` substitution with ``str.replace``.
 """
 
@@ -36,7 +38,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 
-from leadforge.lead_ingestion.base_source import _is_empty_vocabulary
+from leadforge.lead_ingestion.base_source import (
+    TARGET_TERM_PATH_PREFIX,
+    BaseLeadSource,
+    _is_empty_vocabulary,
+)
 from leadforge.lead_ingestion.config_file import (
     check_name,
     freeze,
@@ -50,6 +56,7 @@ __all__ = [
     "DEFAULT_TARGET_PROFILE_PATH",
     "TargetProfile",
     "check_against_registry",
+    "effective_vocabulary",
     "load_target_profile",
 ]
 
@@ -99,6 +106,14 @@ class TargetProfile:
                 value = columns.get(provider)
                 return None if _is_empty_vocabulary(value) else value
         return None
+
+    def has_column(self, provider: str, term: str) -> bool:
+        """Whether the file names the provider under the term, empty or not."""
+        for vocabularies in (self.technologies, self.competitors):
+            columns = vocabularies.get(term)
+            if columns is not None:
+                return provider in columns
+        return False
 
     def vocabulary_for(self, provider: str) -> Mapping[str, object]:
         """Every term the provider can express, with its vocabulary."""
@@ -209,27 +224,58 @@ def _read_templates(file: Path, raw: object) -> tuple[str, ...]:
     return tuple(raw)
 
 
+def effective_vocabulary(
+    profile: TargetProfile, source: type[BaseLeadSource]
+) -> Mapping[str, object]:
+    """Per profile term, the vocabulary the source is asked with (config overrides).
+
+    Per term, never per value: a column present for the source wins whole (no deep
+    merge); an explicitly empty column means no surface and drops the term; with no
+    column the adapter's own default fills the gap. Only terms of the profile are
+    considered, so an adapter default for a term the profile no longer lists is inert.
+    A term absent from the result is Not Applicable for the source (3.3).
+    """
+    defaults = source.target_vocabulary
+    effective: dict[str, object] = {}
+    for term in profile.terms():
+        value = (
+            profile.vocabulary(source.name, term)
+            if profile.has_column(source.name, term)
+            else defaults.get(term)
+        )
+        if not _is_empty_vocabulary(value):
+            effective[term] = value
+    return MappingProxyType(effective)
+
+
 def check_against_registry(
     profile: TargetProfile, registry: SourceRegistry, *, path: str | Path
 ) -> tuple[str, ...]:
     """Cross-check the profile with each registered source's own declaration.
 
-    Raises if a column supplies a vocabulary for a term the source explicitly
-    declares Not Applicable (3.3). Returns the sources named by a column but not
-    registered: the caller reports them as a startup warning, not an error.
+    The configuration overrides the adapter default (3.3), so a column may make a term
+    expressible. What it may not do is contradict a declared surface: a source that
+    declares ``target_profile.<term>`` answerable (Negative Evidence possible) needs an
+    effective vocabulary for it, so an empty column over such a term raises. Returns
+    the sources named by a column but not registered: the caller reports them as a
+    startup warning, not an error.
     """
     registered = set(registry.names())
     for section in _SECTIONS:
         for term, columns in getattr(profile, section).items():
-            for source, vocabulary in columns.items():
-                if source not in registered or _is_empty_vocabulary(vocabulary):
+            for source in columns:
+                if source not in registered:
                     continue
-                declared = registry.source_class(source).target_vocabulary
-                if term in declared and _is_empty_vocabulary(declared[term]):
+                cls = registry.source_class(source)
+                surface = f"{TARGET_TERM_PATH_PREFIX}{term}"
+                if surface in cls.answerable_surfaces and term not in (
+                    effective_vocabulary(profile, cls)
+                ):
                     raise ConfigurationError(
                         str(path),
                         key_path=join_path(join_path(section, term), source),
-                        detail="source declares this term Not Applicable; remove "
-                        "the column or change the adapter's declaration",
+                        detail="source declares a surface for this term, so the "
+                        "column cannot be empty; give it a vocabulary or change "
+                        "the adapter's declaration",
                     )
     return profile.unregistered_providers(registered)
