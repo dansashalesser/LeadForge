@@ -192,6 +192,24 @@ def test_surface_declaration_with_an_empty_surface_set_is_rejected() -> None:
         EmptySurface(DataMode.SYNTHETIC)
 
 
+# Verifies: specs/lead-source-adapters/requirements.md#1.9
+def test_malformed_declarations_are_rejected_at_construction() -> None:
+    class StrSurface(_Stub):  # a bare str would turn `in` into a substring test
+        answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {
+            "email": "person.email"  # type: ignore[dict-item]
+        }
+
+    class NoneName(_Stub):
+        name: ClassVar[str] = None  # type: ignore[assignment]
+
+    class BadRate(_Stub):
+        rate_limit: ClassVar[Mapping[str, RateBucket]] = None  # type: ignore[assignment]
+
+    for cls in (StrSurface, NoneName, BadRate):
+        with pytest.raises(TypeError, match=cls.__name__):
+            cls(DataMode.SYNTHETIC)
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#2.1
 def test_contract_models_are_frozen_and_closed() -> None:
     with pytest.raises(ValidationError):

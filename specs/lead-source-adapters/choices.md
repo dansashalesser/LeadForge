@@ -260,3 +260,24 @@ Evidence: parent re-ran pytest: 251 passed. Commit 5a70831 pushed. Subagent did 
 - **Proves today (structural only):** no field a merge resolves (identity, employments, provenance) carries or derives from strength; leads/companies differing only in strength have identical dumps outside the signal tuples; no entity defines `__lt__`-style ordering; only Signal types own a `strength` field
 - **Cannot prove:** that a merge run ignores strength. No Merge Engine or resolution hook exists, and none was built. 16.3 must add a real run over leads differing only in strength
 - **Evidence:** `tests/test_signal_strength.py`; uv run pytest 265 passed, mypy and ruff clean on the slice
+
+## Task 3.1 — Adapter contract and capability flags (2026-10-05)
+
+Evidence: TDD agent report; `spec-refactor-agent` run (one hole fixed); `validate-production-agent` run (0 critical). Parent re-ran pytest, ruff, mypy: clean.
+
+### Where the task left freedoms open — all provisional and reversible
+- **Verdict:** needs-user (Decision-Budget Gate failed; the task named none of these as delegated)
+- **Chose, in `base_source.py`:**
+  1. One module holds `Capability`, `RateWindow`, `RateBucket`, `SourceRequest`, `RawBatch`, `LeadContribution`, `BaseLeadSource`.
+  2. `SourceRequest`, `RawBatch`, `LeadContribution` are minimal frozen models (`kind`; `source_name` + verbatim `payload`; `source_name` + `absences`). Later tasks extend them.
+  3. One ClassVar `answerable_surfaces: Mapping[str, frozenset[str]]` holds both answerable canonical paths (keys) and their provider surfaces (values).
+  4. Boundary check is the concrete `validate_absence` plus `normalize_checked`, raising the new `InvalidAbsenceError`. The orchestrator is expected to call `normalize_checked`.
+  5. `__init__` takes only `mode`; it raises `TypeError` for missing or malformed declarations. The transport argument arrives in 4.1.
+  6. `capabilities` may be empty (neither search nor enrich).
+- **Alternatives:** separate path and surface declarations; check inside `normalize` via `__init_subclass__` wrapping (rejected as too magic).
+
+### Known gaps, not fixed (self-review)
+- **Verdict:** needs-follow-up
+- `normalize_checked` checks a contribution's absences but not that the contribution's own `source_name` equals the adapter's `name`.
+- A subclass can override `normalize_checked` and skip validation; Python has no final methods. The registry or contract suite (3.x) should assert the override is absent.
+- The declaration mappings are plain dicts checked at construction only and are shared across subclasses; they can be mutated afterwards.
