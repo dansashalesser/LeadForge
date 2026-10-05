@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T17:42:18+00:00
+- Written: 2026-10-05T17:46:43+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 17.1's code stays uncommitted until its implementer reports and the self-review is done.
+The 17.1 review fixed what I flagged. All nine records had claimed a schema-verified date that nothing in the repo could back. The schema now requires an explicit verified-or-unverified status, and every shipped record is honestly `unverified`. The reviewer also closed path traversal, symlinks and future dates, and added a scan showing no secrets or personal data in the fixtures. The one thing left is a spec gap: requirement 5.6 wants the date each schema was verified, and nobody has checked the live docs yet. That's recorded for you. The task's bullets are delivered, so I'll tick it. Finishing the task.
 
 ## In-flight todos
 _(none captured)_
