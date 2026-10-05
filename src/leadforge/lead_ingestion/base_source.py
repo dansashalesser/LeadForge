@@ -29,7 +29,8 @@ from leadforge.lead_ingestion.models import (
 )
 
 if TYPE_CHECKING:
-    from leadforge.lead_ingestion.transport import Transport
+    from leadforge.lead_ingestion.pacing import SourcePacing
+    from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 __all__ = [
     "TARGET_TERM_PATH_PREFIX",
@@ -285,7 +286,13 @@ class BaseLeadSource(ABC):
                 # can be used to mutate the declaration.
                 setattr(cls, declaration, MappingProxyType(dict(declared)))
 
-    def __init__(self, mode: DataMode, *, transport: "Transport | None" = None) -> None:
+    def __init__(
+        self,
+        mode: DataMode,
+        *,
+        transport: "Transport | None" = None,
+        pacing: "SourcePacing | None" = None,
+    ) -> None:
         cls = type(self).__name__
         missing = [d for d in _DECLARATIONS if not hasattr(type(self), d)]
         if missing:
@@ -347,6 +354,7 @@ class BaseLeadSource(ABC):
         self._validate_required_env(cls)
         self._mode = mode
         self._transport = transport
+        self._pacing = pacing
 
     @classmethod
     def build_transport(
@@ -376,6 +384,26 @@ class BaseLeadSource(ABC):
         if self._transport is None:
             raise RuntimeError(f"{self.name} was constructed without a transport")
         return self._transport
+
+    async def _send(
+        self,
+        endpoint: Endpoint,
+        *,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str],
+    ) -> "TransportResponse":
+        """Dispatch through the transport, first awaiting the endpoint's rate bucket.
+
+        Every provider call goes through here, so each call, retries included, takes
+        capacity from the bucket the endpoint declares (7.1). A source with no pacing
+        (synthetic mode) awaits nothing. Retry stays with the caller's ``RetryPolicy``.
+        """
+        if self._pacing is not None:
+            await self._pacing.throttle.bucket(endpoint.bucket).acquire()
+        return await self.transport.send(
+            endpoint, params=params, json_body=json_body, headers=headers
+        )
 
     def _validate_endpoints(self, cls: str) -> None:
         if not isinstance(self.endpoints, Mapping):

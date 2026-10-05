@@ -3,6 +3,7 @@
 import json
 import socket
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -12,12 +13,19 @@ from leadforge.lead_ingestion.adapters.apollo import (
     MAX_PAGE,
     MAX_PER_PAGE,
     ApolloSource,
+    credits_in,
 )
 from leadforge.lead_ingestion.base_source import (
     Capability,
+    ChargeUnit,
+    CostClass,
     Endpoint,
+    EnrichmentRequest,
+    LeadContribution,
     RawBatch,
     SourceRequest,
+    enrichment_order,
+    enrichment_sort_key,
 )
 from leadforge.lead_ingestion.errors import (
     MissingCredentialError,
@@ -25,12 +33,21 @@ from leadforge.lead_ingestion.errors import (
     SourceError,
     UndeclaredEndpointError,
 )
-from leadforge.lead_ingestion.models import ConfidenceOrigin, DataMode, UntrustedText
+from leadforge.lead_ingestion.models import (
+    ConfidenceOrigin,
+    DataMode,
+    FieldProvenance,
+    UntrustedText,
+)
 from leadforge.lead_ingestion.normalizer import unmapped_raw_paths
+from leadforge.lead_ingestion.pacing import SourcePacing
+from leadforge.lead_ingestion.retry import RetryPolicy
+from leadforge.lead_ingestion.throttle import SourceThrottle
 from leadforge.lead_ingestion.transport import RestTransport, TransportResponse
 
 UID_PARAM = "currently_using_any_of_technology_uids[]"
 SEARCH_PATH = "/api/v1/mixed_people/api_search"
+MATCH_PATH = "/api/v1/people/match"
 FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "apollo"
 REQUEST = SourceRequest(kind="discovery")
 KEY = "test-key-not-real"
@@ -102,12 +119,11 @@ ONE_TERM: Mapping[str, object] = {"datastax": ["datastax"]}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.8
-def test_declares_the_credit_free_search_endpoint_and_discovery_only() -> None:
+def test_declares_the_credit_free_search_and_the_one_credit_match_endpoint() -> None:
     assert ApolloSource.name == "apollo"
-    assert ApolloSource.capabilities == frozenset({Capability.SEARCH})
     assert ApolloSource.required_env == ("APOLLO_API_KEY",)
     paths = {(e.method, e.path) for e in ApolloSource.endpoints.values()}
-    assert paths == {("POST", SEARCH_PATH)}
+    assert paths == {("POST", SEARCH_PATH), ("POST", MATCH_PATH)}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.1
@@ -402,14 +418,14 @@ async def test_a_missing_key_error_names_the_variable_and_holds_no_value() -> No
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.8
-async def test_only_the_declared_read_only_search_endpoint_is_reachable() -> None:
+async def test_only_the_two_declared_read_only_endpoints_are_reachable() -> None:
     assert all(e.read_only is True for e in ApolloSource.endpoints.values())
     transport = ApolloSource.build_transport(DataMode.SYNTHETIC)
-    enrich = Endpoint(method="POST", path="/api/v1/people/match", bucket="default")
+    bulk = Endpoint(method="POST", path="/api/v1/people/bulk_match", bucket="default")
     with pytest.raises(UndeclaredEndpointError):
-        await transport.send(enrich, params=None, json_body=None, headers={})
+        await transport.send(bulk, params=None, json_body=None, headers={})
     with pytest.raises(TypeError):
-        ApolloSource.endpoints["enrich"] = enrich  # type: ignore[index]
+        ApolloSource.endpoints["bulk"] = bulk  # type: ignore[index]
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.1
@@ -464,3 +480,349 @@ def test_the_raw_model_refuses_a_wrong_or_missing_field_naming_both_paths(
     assert "apollo" in text
     assert raw_path in text
     assert canonical in text
+
+
+# ---------------------------------------------------------------- 12.2: enrichment
+
+MATCH = ApolloSource.endpoints["match"]
+SEARCH = ApolloSource.endpoints["search"]
+
+
+def lead(provider_id: str | None, *, source: str = "apollo") -> LeadContribution:
+    values = {} if provider_id is None else {"person.provider_id": provider_id}
+    provenance = (
+        ()
+        if provider_id is None
+        else (
+            FieldProvenance(
+                canonical_path="person.provider_id",
+                source_name=source,
+                data_mode=DataMode.LIVE,
+                fetched_at=datetime.now(UTC),
+                raw_field_path="id",
+                confidence_origin=ConfidenceOrigin.NONE,
+                untrusted=False,
+            ),
+        )
+    )
+    return LeadContribution(source_name=source, values=values, provenance=provenance)
+
+
+def enrich(*leads: LeadContribution) -> EnrichmentRequest:
+    return EnrichmentRequest(kind="enrich", work_list=leads)
+
+
+def matched(confidence: str = "high", person_id: str = "p1") -> TransportResponse:
+    body: dict[str, object] = {"match_confidence": confidence}
+    body["person"] = (
+        None
+        if confidence == "none"
+        else {"id": person_id, "first_name": "A", "last_name": "Bee"}
+    )
+    return TransportResponse(status=200, headers={}, body=body)
+
+
+def enrichment_source(transport: Scripted) -> ApolloSource:
+    return live(transport, vocabulary=ONE_TERM)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+def test_declares_both_discovery_and_enrichment_capabilities() -> None:
+    assert ApolloSource.capabilities == frozenset(
+        {Capability.SEARCH, Capability.ENRICH}
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.8
+def test_declared_cost_orders_apollo_enrichment_after_free_sources() -> None:
+    assert ApolloSource.cost_class is CostClass.PAID
+    assert ApolloSource.charge_unit is ChargeUnit.PER_LEAD
+    assert ApolloSource.yields_suppression is False  # match returns no opt-out flag
+
+    class Free(ApolloSource):
+        name = "free-after-apollo-alphabetically"
+        cost_class = CostClass.FREE
+        yields_suppression = True
+
+    assert enrichment_sort_key(ApolloSource)[0] is True
+    transport = Scripted(lambda _: matched())
+    apollo = ApolloSource(DataMode.SYNTHETIC, transport=transport, vocabulary=ONE_TERM)
+    free = Free(DataMode.SYNTHETIC, transport=transport, vocabulary=ONE_TERM)
+    assert enrichment_order([apollo, free]) == [free, apollo]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.8
+def test_the_match_endpoint_is_the_people_match_post_in_the_declared_bucket() -> None:
+    assert (MATCH.method, MATCH.path) == ("POST", MATCH_PATH)
+    assert MATCH.read_only is True
+    assert MATCH.bucket in ApolloSource.rate_limit
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_enrichment_matches_each_work_list_lead_once_by_apollo_id() -> None:
+    transport = Scripted(lambda params: matched(person_id=str(params["id"])))
+    source = enrichment_source(transport)
+    batch = await source.fetch_raw(enrich(lead("p1"), lead("p2"), lead("p1")))
+    assert [(c[0], c[1]) for c in transport.calls] == [
+        (MATCH, {"id": "p1"}),
+        (MATCH, {"id": "p2"}),
+    ]
+    assert [m["lookup"] for m in batch.payload["matches"]] == ["p1", "p2"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_enrichment_makes_no_call_for_an_empty_work_list_or_unkeyed_lead() -> (
+    None
+):
+    transport = Scripted(lambda _: matched())
+    source = enrichment_source(transport)
+    await source.fetch_raw(enrich())
+    await source.fetch_raw(enrich(lead(None), lead("hs-9", source="other")))
+    assert transport.calls == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_discovery_never_calls_match_and_enrichment_never_searches() -> None:
+    transport = Scripted(lambda params: page(0, 0) if "page" in params else matched())
+    source = enrichment_source(transport)
+    await source.fetch_raw(REQUEST)
+    await source.fetch_raw(enrich(lead("p1")))
+    assert [c[0] for c in transport.calls] == [SEARCH, MATCH]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.1
+async def test_the_match_call_carries_the_key_in_x_api_key_and_no_bearer() -> None:
+    transport = Scripted(lambda _: matched())
+    await enrichment_source(transport).fetch_raw(enrich(lead("p1")))
+    headers = transport.calls[0][2]
+    assert headers == {"x-api-key": KEY}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.14
+async def test_no_phone_waterfall_or_webhook_is_requested() -> None:
+    transport = Scripted(lambda _: matched())
+    await enrichment_source(transport).fetch_raw(enrich(lead("p1")))
+    _, params, _ = transport.calls[0]
+    assert set(params) == {"id"}
+    assert not [e for e in ApolloSource.endpoints.values() if "webhook" in e.path]
+    assert not [r for r in ApolloSource.MATCH_RULES if "phone" in r.canonical_path]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.8
+async def test_a_non_success_match_status_is_not_swallowed() -> None:
+    transport = Scripted(lambda _: TransportResponse(status=402, headers={}, body=None))
+    with pytest.raises(SourceError):
+        await enrichment_source(transport).fetch_raw(enrich(lead("p1")))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.8
+async def test_a_match_body_that_is_not_an_object_is_a_normalization_error() -> None:
+    transport = Scripted(
+        lambda _: TransportResponse(status=200, headers={}, body=["x"])
+    )
+    with pytest.raises(NormalizationError):
+        await enrichment_source(transport).fetch_raw(enrich(lead("p1")))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_a_none_confidence_match_contributes_no_lead_and_no_credit() -> None:
+    transport = Scripted(lambda _: matched("none"))
+    source = enrichment_source(transport)
+    batch = await source.fetch_raw(enrich(lead("p1")))
+    assert source.normalize_checked(batch) == []
+    assert credits_in(batch) == 0
+    # The no-match outcome stays in the raw evidence.
+    assert batch.payload["matches"][0]["response"]["match_confidence"] == "none"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_one_credit_is_counted_per_real_match_only() -> None:
+    answers = {"p1": "high", "p2": "none", "p3": "low", "p4": "medium"}
+    transport = Scripted(
+        lambda params: matched(answers[str(params["id"])], str(params["id"]))
+    )
+    source = enrichment_source(transport)
+    batch = await source.fetch_raw(enrich(*(lead(i) for i in answers)))
+    assert credits_in(batch) == 3
+    assert len(source.normalize_checked(batch)) == 3
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_a_no_match_is_logged_naming_the_lookup_and_never_the_key() -> None:
+    transport = Scripted(lambda _: matched("none"))
+    source = enrichment_source(transport)
+    batch = await source.fetch_raw(enrich(lead("p1")))
+    with capture_logs() as logs:
+        source.normalize(batch)
+    assert [(e["event"], e["lookup"]) for e in logs] == [("apollo_no_match", "p1")]
+    assert KEY not in repr(logs)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+def test_a_billed_match_without_a_person_is_a_normalization_error() -> None:
+    source = enrichment_source(Scripted(lambda _: matched()))
+    body = {"match_confidence": "high", "person": None}
+    batch = RawBatch(
+        source_name="apollo",
+        payload={"matches": [{"lookup": "p1", "response": body}]},
+    )
+    with pytest.raises(NormalizationError) as caught:
+        source.normalize(batch)
+    assert "person" in str(caught.value)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+def test_an_unknown_match_confidence_is_refused_not_billed_silently() -> None:
+    source = enrichment_source(Scripted(lambda _: matched()))
+    body = {"match_confidence": "certain", "person": {"id": "p1"}}
+    batch = RawBatch(
+        source_name="apollo",
+        payload={"matches": [{"lookup": "p1", "response": body}]},
+    )
+    with pytest.raises(NormalizationError) as caught:
+        source.normalize(batch)
+    assert "match_confidence" in str(caught.value)
+
+
+async def fixture_match() -> tuple[ApolloSource, RawBatch]:
+    transport = ApolloSource.build_transport(DataMode.SYNTHETIC)
+    source = ApolloSource(DataMode.SYNTHETIC, transport=transport, vocabulary=ONE_TERM)
+    return source, await source.fetch_raw(enrich(lead("apollo-person-1")))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_fixture_match_contributes_contact_identity_with_provenance() -> None:
+    source, batch = await fixture_match()
+    [contribution] = source.normalize_checked(batch)
+    plain = {
+        path: value.value if isinstance(value, UntrustedText) else value
+        for path, value in contribution.values.items()
+    }
+    assert plain == {
+        "person.provider_id": "apollo-person-1",
+        "person.first_name": "Ada",
+        "person.last_name": "Lovelace",
+        "person.title": "VP Engineering",
+        "person.linkedin_url": "http://www.linkedin.com/in/ada-lovelace",
+        "person.email": "ada@example.com",
+        "person.email_status": "verified",
+        "company.name": "Example Data Corp",
+        "company.technologies": [
+            {"uid": "datastax", "name": "DataStax", "category": "Databases"}
+        ],
+    }
+    # One provenance record per populated field, none stated by Apollo per field.
+    assert {p.canonical_path for p in contribution.provenance} == set(
+        contribution.values
+    )
+    assert all(
+        p.confidence_origin is ConfidenceOrigin.NONE for p in contribution.provenance
+    )
+    assert all(p.data_mode is DataMode.SYNTHETIC for p in contribution.provenance)
+    untrusted = {p.canonical_path for p in contribution.provenance if p.untrusted}
+    assert untrusted == {
+        "person.first_name",
+        "person.last_name",
+        "person.title",
+        "company.name",
+    }
+    for path in untrusted:
+        assert isinstance(contribution.values[path], UntrustedText)
+    assert contribution.absences == ()
+    assert credits_in(batch) == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_every_match_fixture_field_is_mapped_or_intentionally_ignored() -> None:
+    _, batch = await fixture_match()
+    response = batch.payload["matches"][0]["response"]
+    assert (
+        unmapped_raw_paths(response, ApolloSource.MATCH_RULES, ApolloSource.IGNORED)
+        == []
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_a_synthetic_enrichment_needs_no_key_and_sends_none() -> None:
+    transport = Scripted(lambda _: matched())
+    source = ApolloSource(DataMode.SYNTHETIC, transport=transport, vocabulary=ONE_TERM)
+    await source.fetch_raw(enrich(lead("p1")))
+    assert transport.calls[0][2] == {}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_a_live_enrichment_without_the_key_fails_before_any_call() -> None:
+    transport = Scripted(lambda _: matched())
+    source = ApolloSource(DataMode.LIVE, transport=transport, environ={})
+    with pytest.raises(MissingCredentialError):
+        await source.fetch_raw(enrich(lead("p1")))
+    assert transport.calls == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+def test_normalizing_a_payload_of_neither_shape_is_a_normalization_error() -> None:
+    source = enrichment_source(Scripted(lambda _: matched()))
+    with pytest.raises(NormalizationError):
+        source.normalize(RawBatch(source_name="apollo", payload={"other": []}))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#7.1
+async def test_search_and_match_both_take_capacity_from_the_declared_bucket() -> None:
+    throttle = SourceThrottle("apollo", ApolloSource.rate_limit)
+    pacing = SourcePacing(throttle=throttle, retry=RetryPolicy())
+    seen: list[float] = []
+
+    def respond(params: Mapping[str, object]) -> TransportResponse:
+        seen.append(throttle.bucket("default").available()[0])
+        return page(0, 0) if "page" in params else matched()
+
+    source = ApolloSource(
+        DataMode.LIVE,
+        transport=Scripted(respond),
+        vocabulary=ONE_TERM,
+        environ=ENV,
+        pacing=pacing,
+    )
+    await source.fetch_raw(REQUEST)
+    await source.fetch_raw(enrich(lead("p1")))
+    # Each call had already taken its token when the transport saw it.
+    assert seen[0] == pytest.approx(599, abs=0.1)
+    assert seen[1] == pytest.approx(598, abs=0.1)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#7.5
+async def test_a_synthetic_source_is_built_without_pacing_and_still_calls() -> None:
+    transport = Scripted(lambda params: page(0, 0))
+    source = ApolloSource(DataMode.SYNTHETIC, transport=transport, vocabulary=ONE_TERM)
+    await source.fetch_raw(REQUEST)
+    assert len(transport.calls) == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.8
+async def test_a_blank_apollo_id_is_never_sent_to_match() -> None:
+    transport = Scripted(lambda _: matched())
+    await enrichment_source(transport).fetch_raw(enrich(lead(""), lead("  ")))
+    assert transport.calls == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_a_retried_enrichment_does_not_pay_again_for_an_id_already_matched() -> (
+    None
+):
+    failing = {"p2": 1}
+
+    def respond(params: Mapping[str, object]) -> TransportResponse:
+        who = str(params["id"])
+        if failing.get(who):
+            failing[who] -= 1
+            return TransportResponse(status=503, headers={}, body=None)
+        return matched(person_id=who)
+
+    transport = Scripted(respond)
+    source = enrichment_source(transport)
+    work = enrich(lead("p1"), lead("p2"))
+    with pytest.raises(SourceError):
+        await source.fetch_raw(work)
+    batch = await source.fetch_raw(work)  # the orchestrator's retry of the fetch
+    assert [c[1]["id"] for c in transport.calls] == ["p1", "p2", "p2"]
+    assert [m["lookup"] for m in batch.payload["matches"]] == ["p1", "p2"]

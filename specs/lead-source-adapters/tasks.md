@@ -356,7 +356,7 @@ task = one commit.
   - Parallel with 13.x, 14.x, and 15.x — each adapter owns its own module and fixture directory. Within this major, run 12.1 before 12.2 and 12.3
   - _Requirements: 12.1, 12.2, 12.8, 12.10, 12.12, 12.13_
 
-- [ ] 12.2 (P) Implement Apollo Credit-bearing Enrichment match
+- [x] 12.2 (P) Implement Apollo Credit-bearing Enrichment match
   - Declare both Discovery and Enrichment capabilities, invoking Enrichment only for Leads the pipeline has already placed on the work list
   - Call the people-match endpoint as a distinct call costing one Credit per match, keeping it the only Credit-bearing path
   - Record a no-match outcome contributing neither a Lead nor a Credit when Apollo reports a match confidence of none

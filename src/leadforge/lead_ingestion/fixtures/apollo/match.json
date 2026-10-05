@@ -1,0 +1,18 @@
+{
+  "match_confidence": "high",
+  "person": {
+    "id": "apollo-person-1",
+    "first_name": "Ada",
+    "last_name": "Lovelace",
+    "title": "VP Engineering",
+    "linkedin_url": "http://www.linkedin.com/in/ada-lovelace",
+    "email": "ada@example.com",
+    "email_status": "verified",
+    "organization": {
+      "name": "Example Data Corp",
+      "current_technologies": [
+        {"uid": "datastax", "name": "DataStax", "category": "Databases"}
+      ]
+    }
+  }
+}

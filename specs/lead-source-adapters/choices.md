@@ -1163,3 +1163,40 @@ Fixed (each test-first, seen failing, then green; full suite 1480 passed, ruff a
 - needs-follow-up: a synthetic-mode adapter can still be handed a RestTransport by a caller; only `build_transport` guarantees the pairing (test doubles rely on `__init__` accepting any transport).
 - needs-follow-up: UIDs are not checked for snake_case shape (non-blank only); company.technologies and linkedin_url stay untrusted=False (list and URL) and are unverified on the search endpoint; empty-string values are stored as populated (shared Normalizer behaviour).
 - needs-follow-up: the design's positional `(transport, mode, config)` deviation is not yet in choices.md or design.md.
+
+## Task 12.2 — Implement Apollo Credit-bearing Enrichment match (2026-10-05)
+Evidence: wrote 7 pacing tests (tests/test_base_source_pacing.py) and 25 Apollo 12.2 tests first; saw 7 failures (`pacing` kwarg unknown) and a collection ImportError (`credits_in`) before any code. After: ruff format/check clean, mypy clean (91 files), pytest 1509 passed, 1 skipped. No serena/GitNexus blast-radius query run; the base change is a defaulted keyword-only `pacing` plus one new method, and the full suite is green. Edited two existing Apollo tests the new endpoint/capability broke (declaration test; undeclared-endpoint test now uses bulk_match).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Pacing binds in the BASE class: `BaseLeadSource.__init__(..., pacing=None)` and `_send(endpoint, ...)` which awaits `pacing.throttle.bucket(endpoint.bucket).acquire()` before `transport.send`; Apollo search and match both use it. Basis: the orchestrator cannot know the bucket (11.2 note) and the existing pool test source acquires inside `fetch_raw`. The design's sequence diagram shows the orchestrator awaiting capacity once per fetch; rejected that (one token per fetch, not per call, so 500-page searches go unpaced). Rejected acquiring in the transport (it would need pacing and mode logic).
+- Retry NOT wired in the adapter: the orchestrator already runs each fetch through `pacing.retry` (SourceCallLedger); adapter retry would double-retry. Tests prove a retried fetch re-acquires per attempt and a non-retryable error gets one token. No `note_rate_limited` feedback is passed (needs 12.3 classification).
+- Match endpoint is a read-only `Endpoint` (POST, params in query, no body): it reads a person and writes nothing to Apollo data; the credit spend is a billing effect, not a provider-data write. Rejected a new "credit-bearing" Endpoint flag (nothing consumes it).
+- Type of request picks the path: `EnrichmentRequest` -> match, anything else -> search. Rejected branching on `request.kind` text.
+- Match only leads from the work list carrying Apollo's own `person.provider_id` (sent as `id`), one call per distinct id; other sources' leads are not matched. Rejected linkedin_url/email keying (no cross-source canonical path convention yet; the orchestrator reads `linkedin_url`/`email`, Apollo contributes `person.*`).
+- Declared PAID, PER_LEAD, yields_suppression False for the class; Discovery is still free. Rejected splitting per-phase declarations (the contract has one set).
+- Raw Enrichment batch is `{"matches": [{"lookup", "response"}]}`, responses verbatim; `credits_in(batch)` is a pure count (no run-record channel). No-match logs `apollo_no_match` (lookup id only). `match_confidence` is a closed Literal; unknown value, or non-none with no person, is a NormalizationError.
+- Field Confidence stays origin none for every field: Apollo's `match_confidence` is per record, not per field; rejected inventing a high/medium/low -> number map.
+- Contributed from match: person id/first/last/title/linkedin_url/email/email_status and company name/technologies. Free text is UntrustedText; email and email_status are plain (identifier/enum-like). email_status is Apollo's raw string, not yet mapped to EmailStatus. No Negative Evidence emitted (no queried_paths).
+- `fixtures/apollo/match.json` is hand-made from research.md's response shape, not a captured Apollo response.
+### Known gaps (needs-follow-up)
+- Credits and no-match outcomes are not on any run record: `credits_in` exists but nothing calls it (source_run.credits_consumed unwired). Needs the run-record channel.
+- Leads from other sources are never enriched by Apollo until a canonical identity path convention exists.
+- Match response shape (email_status values, current_technologies on match, extra fields) is from research.md, unverified live; live path not exercised against the network.
+- No per-window allowance, 402/429 classification or Retry-After feedback to the throttle (12.3); any non-2xx is a plain SourceError. Throttle feedback `note_rate_limited` is therefore never called.
+- Credits spent are not capped or budgeted per run; a large work list spends one credit per distinct id.
+- Pacing is wired in the base class but HubSpot/Google/Hunter adapters do not exist yet to prove inheritance; `fetch_raw` in a source that bypasses `_send` is unpaced (a convention, not enforced).
+- Rate bucket `default` is shared by search and match (design lists one 600/hour bucket).
+
+### Self-review findings
+Fixed:
+- Retry double-spend: the orchestrator retries the whole fetch, so a failure on the Nth id re-matched ids 1..N-1 and spent their credits again. ApolloSource now keeps a per-instance `_matched` cache (lookup -> response), so an id is paid for once per run (new test test_a_retried_enrichment_does_not_pay_again..., seen failing first). `_match` extracted from `_enrich`.
+- Mutation survivor: a blank/whitespace Apollo id was still matched when the `.strip()` guard was removed; added test_a_blank_apollo_id_is_never_sent_to_match (seen failing under the mutation).
+- Mutation-checked, killed: bucket not awaited, awaited in synthetic, awaited once per fetch instead of per call, match called twice per id, other-source leads matched, credits doubled, none-counted-as-credit, key leaked into params. Files restored; ruff, mypy, 1511 tests pass.
+Verified OK: the pacing deviation from the sequence diagram matches orchestrator.py's docstring and choices.md 11.1 (adapter paces, orchestrator never acquires, so no double pacing) and is recorded; every adapter call path uses `_send` (only auth.py's token fetch sends directly, not an adapter); an endpoint naming an undeclared bucket is refused at construction.
+Known gaps:
+- needs-follow-up: SPEC GAP. Requirement 12 does not say whose leads Apollo matches. research.md says match accepts id, email, linkedin_url or first_name+last_name+domain, so Apollo enriching other sources' leads is an open reading; the implementation matches only Apollo's own person.provider_id, so a lead found only by another source is never enriched by Apollo. Needs a user decision and a canonical email/linkedin identity path.
+- needs-follow-up: the `_matched` cache gives once-per-run per instance; if a run ever makes two Enrichment batches on one instance, credits_in would count a cached id in both.
+- needs-follow-up: a real no-match that omits match_confidence would raise NormalizationError (field is required); unverified against live Apollo.
+- needs-follow-up: credits_in raises on a malformed batch rather than returning a count; a credit spent in a fetch that later fails normalization is not billed anywhere (no run-record channel).
+- needs-follow-up: person.email and email_status are contributed but not in answerable_surfaces, so no Negative Evidence can be recorded for them.
+- Suppressed-lead pruning for PAID sources is the orchestrator's generic tier logic (tested there with fake sources); not re-proven with Apollo itself.
