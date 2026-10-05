@@ -108,3 +108,14 @@ class UndeclaredEndpointError(_Picklable):
         self.provider = provider
         self.path = path
         super().__init__(f"[{provider}] UndeclaredEndpointError: path={path}")
+
+
+class ConflictingCompanySignalError(_Picklable):
+    """Two Company Signals share one ``company_id`` but disagree on content."""
+
+    def __init__(self, company_id: str) -> None:
+        self.company_id = company_id
+        super().__init__(
+            f"company_id {company_id!r} names two Company Signals with different "
+            "content; one organization must have one Company Signal"
+        )
