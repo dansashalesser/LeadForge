@@ -35,6 +35,7 @@ __all__ = [
     "CostClass",
     "Endpoint",
     "LeadContribution",
+    "LiveAccess",
     "RateBucket",
     "RateWindow",
     "RawBatch",
@@ -53,6 +54,14 @@ class Capability(StrEnum):
 class CostClass(StrEnum):
     FREE = "free"
     PAID = "paid"  # Credit-bearing
+
+
+class LiveAccess(StrEnum):
+    """Whether a provider can run live for a demo operator (3.6)."""
+
+    AVAILABLE = "available"
+    GATED = "gated"  # live is possible only behind an approval or plan we may lack
+    UNAVAILABLE = "unavailable"  # decided synthetic-only
 
 
 class ChargeUnit(StrEnum):
@@ -228,6 +237,9 @@ class BaseLeadSource(ABC):
     cost_class: ClassVar[CostClass]
     charge_unit: ClassVar[ChargeUnit]
     yields_suppression: ClassVar[bool]
+    # Whether the provider can run live for a demo operator (3.6). Defaulted, so a new
+    # adapter stays one class; a configuration override may replace it per source.
+    live_access: ClassVar[LiveAccess] = LiveAccess.AVAILABLE
     # Canonical Target Profile term -> this provider's opaque vocabulary for it.
     # An empty value (or an absent term) is Not Applicable, never "no match" (2.8).
     target_vocabulary: ClassVar[Mapping[str, object]]
@@ -268,6 +280,8 @@ class BaseLeadSource(ABC):
             raise TypeError(f"{cls}.charge_unit must be a ChargeUnit")
         if not isinstance(self.yields_suppression, bool):
             raise TypeError(f"{cls}.yields_suppression must be a bool")
+        if not isinstance(self.live_access, LiveAccess):
+            raise TypeError(f"{cls}.live_access must be a LiveAccess")
         for path, surfaces in self.answerable_surfaces.items():
             # A bare str would make `in` a substring test, so demand a real set.
             if not isinstance(surfaces, frozenset) or not all(

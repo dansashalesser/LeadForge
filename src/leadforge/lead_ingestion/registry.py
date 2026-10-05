@@ -28,20 +28,29 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import os
 import pkgutil
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from enum import StrEnum
 from types import ModuleType
 
-from leadforge.lead_ingestion.base_source import BaseLeadSource
+from leadforge.lead_ingestion.base_source import (
+    BaseLeadSource,
+    Capability,
+    LiveAccess,
+)
 from leadforge.lead_ingestion.errors import (
     DuplicateSourceNameError,
     SourceDiscoveryError,
 )
+from leadforge.lead_ingestion.models import DataMode
 
 __all__ = [
     "ADAPTER_PACKAGE",
     "LOWEST_TRUST_RANK",
+    "ModeResolver",
+    "SourceDescriptor",
     "SourceFactory",
     "SourceRegistry",
     "SourceSettings",
@@ -56,6 +65,9 @@ LOWEST_TRUST_RANK = 0
 # Builds one adapter from its class; the registry never decides how (mode, transport).
 SourceFactory = Callable[[type[BaseLeadSource]], BaseLeadSource]
 
+# Seam for task 8.1: picks a source's data mode. 7.3 only records the answer.
+ModeResolver = Callable[[type[BaseLeadSource], "SourceSettings"], DataMode]
+
 
 @dataclass(frozen=True)
 class SourceSettings:
@@ -63,8 +75,16 @@ class SourceSettings:
 
     enabled: bool = True
     trust_rank: int = LOWEST_TRUST_RANK
+    # Per-source overrides (3.6, 4.3); None means "no override, use the default".
+    mode: DataMode | None = None
+    live_access: LiveAccess | None = None
 
     def __post_init__(self) -> None:
+        # Strings (as read from YAML) are coerced; anything else must already be right.
+        object.__setattr__(self, "mode", _coerce(DataMode, "mode", self.mode))
+        object.__setattr__(
+            self, "live_access", _coerce(LiveAccess, "live_access", self.live_access)
+        )
         if not isinstance(self.enabled, bool):
             raise TypeError(f"enabled must be a bool, got {self.enabled!r}")
         # bool is an int subclass; True would silently mean rank 1.
@@ -74,6 +94,46 @@ class SourceSettings:
             raise ValueError(
                 f"trust_rank must be >= {LOWEST_TRUST_RANK}, got {self.trust_rank}"
             )
+
+
+def _coerce[E: StrEnum](enum: type[E], field: str, value: object) -> E | None:
+    if value is None or isinstance(value, enum):
+        return value
+    if not isinstance(value, str):
+        raise TypeError(f"{field} must be a {enum.__name__} or str, got {value!r}")
+    try:
+        return enum(value)
+    except ValueError:
+        allowed = ", ".join(m.value for m in enum)
+        raise ValueError(f"{field} must be one of {allowed}, got {value!r}") from None
+
+
+@dataclass(frozen=True)
+class SourceDescriptor:
+    """What the registry publishes about one source (3.5, 3.6).
+
+    Carries credential *names* and found/missing facts only, never a value (10.5).
+    """
+
+    name: str
+    enabled: bool
+    capabilities: tuple[Capability, ...]  # sorted by value, so output is stable
+    resolved_mode: DataMode
+    live_access: LiveAccess  # declared on the adapter, or the configured override
+    credential_present: bool  # every declared variable set and non-blank
+    missing_env: tuple[str, ...]  # declared order
+    # True only if every declared bucket is a provider-published limit; a source with
+    # no declared bucket has no published limit to report.
+    rate_limit_documented: bool
+
+    def to_dict(self) -> dict[str, object]:
+        """JSON-ready form: enums as their values, tuples as lists."""
+        raw = asdict(self)
+        raw["capabilities"] = [c.value for c in self.capabilities]
+        raw["missing_env"] = list(self.missing_env)
+        raw["resolved_mode"] = self.resolved_mode.value
+        raw["live_access"] = self.live_access.value
+        return raw
 
 
 def _collision_key(name: str) -> str:
@@ -122,6 +182,47 @@ class SourceRegistry:
             raise KeyError(name)
         return self._config.get(name, SourceSettings())
 
+    def describe(
+        self,
+        environ: Mapping[str, str] | None = None,
+        *,
+        resolve_mode: ModeResolver | None = None,
+    ) -> tuple[SourceDescriptor, ...]:
+        """One descriptor per registered source, disabled ones included, by name.
+
+        Reads classes only, so no adapter is constructed. ``environ`` defaults to the
+        process environment (3.4); only declared names are looked up and only
+        found/missing is kept. The mode is the per-source override, else
+        ``resolve_mode`` (the task 8.1 seam), else synthetic.
+        """
+        env = os.environ if environ is None else environ
+        return tuple(self._describe_one(n, env, resolve_mode) for n in self.names())
+
+    def _describe_one(
+        self,
+        name: str,
+        env: Mapping[str, str],
+        resolve_mode: ModeResolver | None,
+    ) -> SourceDescriptor:
+        source_class = self._classes[name]
+        settings = self.settings(name)
+        missing = tuple(
+            n for n in source_class.required_env if not env.get(n, "").strip()
+        )
+        buckets = source_class.rate_limit.values()
+        return SourceDescriptor(
+            name=name,
+            enabled=settings.enabled,
+            capabilities=tuple(
+                sorted(source_class.capabilities, key=lambda c: c.value)
+            ),
+            resolved_mode=_mode_for(source_class, settings, resolve_mode),
+            live_access=settings.live_access or source_class.live_access,
+            credential_present=not missing,
+            missing_env=missing,
+            rate_limit_documented=bool(buckets) and all(b.documented for b in buckets),
+        )
+
     def enabled_names(self) -> tuple[str, ...]:
         """Names of sources not disabled in configuration, in active order.
 
@@ -161,6 +262,24 @@ class SourceRegistry:
             raise DuplicateSourceNameError(name)
         self._collision_keys.add(key)
         self._classes[name] = source_class
+
+
+def _mode_for(
+    source_class: type[BaseLeadSource],
+    settings: SourceSettings,
+    resolve_mode: ModeResolver | None,
+) -> DataMode:
+    if settings.mode is not None:
+        return settings.mode
+    if resolve_mode is None:
+        return DataMode.SYNTHETIC  # the no-credentials default (4.1) until 8.1 lands
+    mode = resolve_mode(source_class, settings)
+    if not isinstance(mode, DataMode):
+        raise TypeError(
+            f"mode resolver returned {mode!r} for source {source_class.name!r}, "
+            "expected a DataMode"
+        )
+    return mode
 
 
 def _import(name: str) -> ModuleType:
