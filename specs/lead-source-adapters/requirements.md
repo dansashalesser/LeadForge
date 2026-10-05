@@ -81,6 +81,7 @@ adding a source is one new class and nothing else; the full demo runs with zero 
    - Verify: Enrichment order is computed from declared attributes; adding a source places it in the correct tier with no edit outside its own module.
 8. The `BaseLeadSource` class SHALL declare, for each Target Profile term it can express, the provider vocabulary it uses; a source declaring none SHALL be recorded as not-applicable for that term rather than as reporting no match.
    - Verify: A provider with no targeting surface never contributes negative evidence for a Target Profile term.
+   - Convention: a Target Profile term's canonical path is `target_profile.<term>`. A vocabulary is empty when it is absent, a blank string, or an empty collection; any other value, including `0` and `false`, is a real provider identifier. A source answers a term (and may therefore report Negative Evidence for it) if and only if its vocabulary for that term is non-empty.
 
 ---
 

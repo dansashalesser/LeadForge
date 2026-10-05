@@ -1,6 +1,7 @@
 """Adapter contract, capability flags, and absence validation (task 3.1)."""
 
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any, ClassVar
 
 import pytest
@@ -631,3 +632,86 @@ def test_not_applicable_for_an_expressible_term_is_rejected() -> None:
     )
     with pytest.raises(InvalidAbsenceError):
         src.validate_absence(na)
+
+
+# ------------------------------------------- declarations are immutable (3.3 audit)
+
+_MAPPING_DECLARATIONS = ("rate_limit", "answerable_surfaces", "target_vocabulary")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.1
+@pytest.mark.parametrize("declaration", _MAPPING_DECLARATIONS)
+def test_mapping_declarations_cannot_be_mutated_after_class_creation(
+    declaration: str,
+) -> None:
+    declared: Any = getattr(_Stub, declaration)
+    with pytest.raises(TypeError):
+        declared["injected"] = object()
+    with pytest.raises(TypeError):
+        del declared[next(iter(declared), "absent")]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.1
+@pytest.mark.parametrize("declaration", _MAPPING_DECLARATIONS)
+def test_instances_and_subclasses_see_frozen_declarations(declaration: str) -> None:
+    class Child(_Stub):
+        name: ClassVar[str] = "child"
+
+    declared: Any = getattr(Child(DataMode.SYNTHETIC), declaration)
+    with pytest.raises(TypeError):
+        declared["injected"] = object()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.1
+def test_mutating_the_original_dict_after_class_creation_changes_nothing() -> None:
+    surfaces = {"email": frozenset({"person.email"})}
+
+    class Mutable(_Stub):
+        name: ClassVar[str] = "mutable"
+        answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = surfaces
+
+    surfaces["phone"] = frozenset({"person.phone"})
+    assert set(Mutable.answerable_surfaces) == {"email"}
+    assert set(Mutable(DataMode.SYNTHETIC).answerable_surfaces) == {"email"}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.1
+def test_a_subclass_redeclaring_a_mapping_does_not_mutate_its_parent() -> None:
+    class Wider(_Stub):
+        name: ClassVar[str] = "wider"
+        answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {
+            "email": frozenset({"person.email"}),
+            "phone": frozenset({"person.phone"}),
+        }
+
+    assert set(_Stub.answerable_surfaces) == {"email"}
+    assert set(Wider.answerable_surfaces) == {"email", "phone"}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.1
+def test_a_non_mapping_declaration_is_still_rejected_at_construction() -> None:
+    class Broken(_Stub):
+        name: ClassVar[str] = "broken"
+        rate_limit: ClassVar[Any] = None
+
+    with pytest.raises(TypeError, match="rate_limit"):
+        Broken(DataMode.SYNTHETIC)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.1
+def test_a_proxy_over_a_mutable_dict_and_an_inherited_mixin_dict_are_frozen() -> None:
+    backing = {"email": frozenset({"person.email"})}
+
+    class Mixin:
+        rate_limit: ClassVar[Any] = {}
+
+    class Viaproxy(Mixin, _Stub):
+        name: ClassVar[str] = "viaproxy"
+        answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = MappingProxyType(
+            backing
+        )
+
+    backing["phone"] = frozenset({"person.phone"})
+    assert set(Viaproxy.answerable_surfaces) == {"email"}
+    with pytest.raises(TypeError):
+        Viaproxy.rate_limit["x"] = object()

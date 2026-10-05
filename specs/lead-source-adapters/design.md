@@ -386,6 +386,8 @@ class CanonicalLead(BaseModel):
 - Declares the six members named in 2.1 plus three additions each traceable to a requirement: `live_access` (3.6), `required_env` (10.4), `endpoints` (11.1, 11.2).
 - ABC with `@abstractmethod` on `fetch_raw` and `normalize`, so an incomplete subclass raises `TypeError` at construction, before any network call (2.2).
 - Credentials are read only via `required_env` names resolved from the process environment (2.5).
+- Target Profile terms live under the canonical path `target_profile.<term>` (2.8); the Merge Engine (16.3) consumes that path. A vocabulary is empty when absent, a blank string, or an empty collection — any other value, including `0` and `false`, is a real provider identifier. A term is answerable if and only if its vocabulary is non-empty, and construction rejects a source whose `target_profile.*` entries in `answerable_surfaces` disagree with its non-empty vocabularies.
+- Declared mappings (`rate_limit`, `answerable_surfaces`, `target_vocabulary`; `endpoints` joins them in task 3.4) are copied into read-only views when the subclass is defined, so the mapping itself cannot be changed at runtime. Freezing is top-level only: `answerable_surfaces` and `rate_limit` values are already immutable, but `target_vocabulary` values are opaque and are not deep-frozen.
 
 **Contracts**: Service [x]
 

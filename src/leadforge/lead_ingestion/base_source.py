@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Any, ClassVar
 
 from leadforge.lead_ingestion.errors import InvalidAbsenceError
@@ -100,6 +101,10 @@ TARGET_TERM_PATH_PREFIX = "target_profile."
 
 
 def _is_empty_vocabulary(value: object) -> bool:
+    """A vocabulary is empty if it is None, a blank str, or an empty collection.
+
+    Any other value, including 0 and False, is a real provider identifier.
+    """
     if value is None:
         return True
     if isinstance(value, str):
@@ -108,6 +113,9 @@ def _is_empty_vocabulary(value: object) -> bool:
         return len(value) == 0
     return False
 
+
+# Mapping declarations are copied into read-only views when a subclass is defined.
+_FROZEN_MAPPINGS = ("rate_limit", "answerable_surfaces", "target_vocabulary")
 
 _DECLARATIONS = (
     "name",
@@ -134,6 +142,16 @@ class BaseLeadSource(ABC):
     # Canonical Target Profile term -> this provider's opaque vocabulary for it.
     # An empty value (or an absent term) is Not Applicable, never "no match" (2.8).
     target_vocabulary: ClassVar[Mapping[str, object]]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        for declaration in _FROZEN_MAPPINGS:
+            # getattr, not __dict__: an inherited mixin dict must be frozen too.
+            declared = getattr(cls, declaration, None)
+            if isinstance(declared, Mapping):
+                # Always copy, so neither the author's dict nor a proxy over one
+                # can be used to mutate the declaration.
+                setattr(cls, declaration, MappingProxyType(dict(declared)))
 
     def __init__(self, mode: DataMode) -> None:
         cls = type(self).__name__
