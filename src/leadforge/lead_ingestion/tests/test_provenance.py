@@ -24,6 +24,7 @@ def prov(**kw: Any) -> FieldProvenance:
         "fetched_at": NOW,
         "raw_field_path": "person.email",
         "confidence_origin": ConfidenceOrigin.NONE,
+        "untrusted": False,
     }
     base.update(kw)
     return FieldProvenance(**base)

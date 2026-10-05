@@ -192,7 +192,8 @@ Evidence: partial — `spec-refactor-agent` and `validate-production-agent` not 
 ## Task 2.3 — UntrustedText (pass audit, 2026-10-05)
 
 ### `untrusted` defaults to False on FieldProvenance, nothing yet ties it to the value type
-- **Verdict:** needs-user
+- **Verdict:** resolved by user — field made required (no default); the normalizer must state it for every field. Task 5.1 may still add the `UntrustedText`-value cross-check
+- **Original verdict:** needs-user
 - **Spec said:** "Mark the corresponding provenance record as untrusted external text" (2.3); design.md shows a plain bool
 - **Chose:** `untrusted: bool = False`. A normalizer that forgets to set it silently labels provider text as trusted. Enforcement is deferred to the `FieldMap` untrusted flag (task 5.1)
 - **Alternatives:** make it required (no default); or have 5.1 reject an `UntrustedText` value whose provenance is not `untrusted=True`

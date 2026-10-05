@@ -121,7 +121,8 @@ class FieldProvenance(_Entity):
     name of the scale it was expressed on. When ``confidence_origin`` is ``NONE`` the
     provider stated no certainty and all three are ``None`` - never a default number.
     ``superseded`` marks a losing contribution retained rather than dropped.
-    ``untrusted`` marks the field as untrusted external provider text.
+    ``untrusted`` is required, so the normalizer must state it for every field; True
+    marks the field as untrusted external provider text.
     """
 
     canonical_path: NonBlank
@@ -130,11 +131,11 @@ class FieldProvenance(_Entity):
     fetched_at: AwareDatetime
     raw_field_path: NonBlank
     confidence_origin: ConfidenceOrigin
+    untrusted: bool
     confidence: Strength | None = None
     confidence_raw: NonBlank | None = None
     confidence_scale: NonBlank | None = None
     superseded: bool = False
-    untrusted: bool = False
 
     @model_validator(mode="after")
     def _confidence_matches_origin(self) -> Self:

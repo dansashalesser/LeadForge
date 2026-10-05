@@ -99,6 +99,7 @@ def test_survives_serialisation_round_trip() -> None:
 
 
 def _prov(**kw: Any) -> FieldProvenance:
+    kw.setdefault("untrusted", False)
     return FieldProvenance(
         canonical_path="bio",
         source_name="apollo",
@@ -116,5 +117,13 @@ def test_provenance_marks_untrusted_external_text() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.6
-def test_provenance_defaults_to_trusted() -> None:
-    assert _prov().untrusted is False
+def test_provenance_requires_an_explicit_untrusted_flag() -> None:
+    with pytest.raises(ValidationError):
+        FieldProvenance(  # type: ignore[call-arg]
+            canonical_path="bio",
+            source_name="apollo",
+            data_mode=DataMode.SYNTHETIC,
+            fetched_at=datetime(2026, 10, 5, tzinfo=UTC),
+            raw_field_path="person.bio",
+            confidence_origin=ConfidenceOrigin.NONE,
+        )
