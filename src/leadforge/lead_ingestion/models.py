@@ -55,6 +55,10 @@ NonBlank = Annotated[str, AfterValidator(_non_blank)]
 
 # Signal Strength: finite, 0.0 (no weight) to 1.0 (maximum weight).
 Strength = Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
+# A Signal's one strength: the same range, but no bool or numeric-string coercion.
+SignalStrength = Annotated[
+    float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)
+]
 
 
 class _Entity(BaseModel):
@@ -197,7 +201,7 @@ class Signal(_Entity):
     """One piece of evidence, carrying its own Signal Strength."""
 
     label: NonBlank
-    strength: Strength
+    strength: SignalStrength
 
 
 class TechSignal(Signal):
