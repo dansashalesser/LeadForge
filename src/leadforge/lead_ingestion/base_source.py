@@ -209,7 +209,7 @@ class BaseLeadSource(ABC):
         A source with no vocabulary for a term was never asked, so it cannot have
         found "no match" (2.8).
         """
-        if not term.strip():
+        if not isinstance(term, str) or not term.strip():
             raise ValueError("target term must be non-blank")
         if not _is_empty_vocabulary(self.target_vocabulary.get(term)):
             return None

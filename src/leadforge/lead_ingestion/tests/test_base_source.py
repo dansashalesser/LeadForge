@@ -577,3 +577,57 @@ def test_answerable_target_term_without_vocabulary_is_rejected() -> None:
 def test_vocabulary_without_answerable_surface_is_rejected() -> None:
     with pytest.raises(TypeError, match=r"Targeting.*python"):
         _targeting({"python": {"tech_a": 1}})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+@pytest.mark.parametrize("term", [None, 1, b"python"])
+def test_non_str_term_is_rejected(term: object) -> None:
+    with pytest.raises(ValueError, match="non-blank"):
+        _targeting({}).target_term_absence(term)  # type: ignore[arg-type]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_negative_evidence_for_a_target_term_is_rejected_by_normalize_checked() -> None:
+    class Rogue(_Stub):
+        name: ClassVar[str] = "alpha"
+        target_vocabulary: ClassVar[Mapping[str, object]] = {"java": {"tech_a": 1}}
+        answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {
+            "target_profile.java": frozenset({"t"})
+        }
+
+        def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+            return [
+                LeadContribution(
+                    source_name="alpha",
+                    absences=(
+                        SourceAbsence(
+                            canonical_path="target_profile.python",
+                            source_name="alpha",
+                            kind=AbsenceKind.NEGATIVE_EVIDENCE,
+                            raw_field_path="t",
+                        ),
+                    ),
+                )
+            ]
+
+    src = Rogue(DataMode.SYNTHETIC)
+    assert src.target_term_absence("java") is None
+    na = src.target_term_absence("python")
+    assert na is not None
+    assert src.validate_absence(na) is na
+    with pytest.raises(InvalidAbsenceError, match=r"target_profile\.python"):
+        src.normalize_checked(RawBatch(source_name="alpha", payload={}))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.8
+def test_not_applicable_for_an_expressible_term_is_rejected() -> None:
+    src = _targeting(
+        {"python": {"tech_a": 1}}, {"target_profile.python": frozenset({"t"})}
+    )
+    na = SourceAbsence(
+        canonical_path="target_profile.python",
+        source_name="alpha",
+        kind=AbsenceKind.NOT_APPLICABLE,
+    )
+    with pytest.raises(InvalidAbsenceError):
+        src.validate_absence(na)
