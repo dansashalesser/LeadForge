@@ -303,7 +303,7 @@ task = one commit.
 ---
 
 - [ ] 11. Ingestion Orchestrator
-- [ ] 11.1 Run enabled sources through a bounded worker pool
+- [x] 11.1 Run enabled sources through a bounded worker pool
   - Execute registered sources concurrently behind a cross-source bound read from configuration and defaulting to four
   - Keep the cross-source bound and each adapter's own pacing as separate mechanisms, so neither can relax the other and cross-source parallelism never lifts a provider's declared throttle
   - Assert both that peak in-flight count never exceeds the bound with eight registered sources, and that the bound came from configuration rather than a literal

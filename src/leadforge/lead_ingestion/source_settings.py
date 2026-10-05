@@ -2,6 +2,7 @@
 
 Builds the ``Mapping[str, SourceSettings]`` the registry takes (7.1)::
 
+    max_concurrent_sources: 4   # cross-source worker pool bound (6.7); default 4
     sources:
       <exact source name>:
         enabled: true        # default true
@@ -14,7 +15,10 @@ Provisional decisions (see choices.md, task 9.1):
 * A missing or empty file means "no configuration": every source defaults to
   enabled at the lowest rank (7.1), so adding a source never needs this file.
 * Unknown keys are errors, so a misspelt ``enabeld`` cannot silently leave a source
-  enabled. Later tasks that add keys (the concurrency bound, 6.7) extend ``_TOP``.
+  enabled. Later tasks that add keys extend ``_TOP``.
+* The cross-source concurrency bound (task 11.1, 6.7) is a top-level key beside
+  ``sources``, read by ``load_max_concurrent_sources``; it must be a positive integer
+  and defaults to ``DEFAULT_MAX_CONCURRENT_SOURCES`` when the file or key is absent.
 * Values are validated here, with the key path, rather than by ``SourceSettings``,
   whose own messages echo the offending value.
 """
@@ -35,11 +39,18 @@ from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.registry import LOWEST_TRUST_RANK, SourceSettings
 
-__all__ = ["DEFAULT_SOURCES_PATH", "load_source_settings"]
+__all__ = [
+    "DEFAULT_MAX_CONCURRENT_SOURCES",
+    "DEFAULT_SOURCES_PATH",
+    "load_max_concurrent_sources",
+    "load_source_settings",
+]
 
 DEFAULT_SOURCES_PATH = Path("config/sources.yaml")
 
-_TOP = ("sources",)
+DEFAULT_MAX_CONCURRENT_SOURCES = 4
+
+_TOP = ("sources", "max_concurrent_sources")
 _FIELDS = ("enabled", "trust_rank", "mode", "live_access")
 
 
@@ -47,21 +58,9 @@ def load_source_settings(
     path: str | Path | None = None,
 ) -> Mapping[str, SourceSettings]:
     """Read ``sources.yaml`` into a read-only mapping keyed by exact source name."""
-    file = Path(path) if path is not None else DEFAULT_SOURCES_PATH
-    document = read_yaml_document(file, missing_ok=True)
+    file, document = _read_top(path)
     if document is None:
         return MappingProxyType({})
-    if not isinstance(document, Mapping):
-        raise ConfigurationError(
-            str(file), key_path="", detail="top level must be a mapping"
-        )
-    for key in document:
-        if key not in _TOP:
-            raise ConfigurationError(
-                str(file),
-                key_path=key if isinstance(key, str) else "",
-                detail=f"unknown top-level key; expected one of {', '.join(_TOP)}",
-            )
     raw = document.get("sources")
     if raw is None:
         return MappingProxyType({})
@@ -75,6 +74,40 @@ def load_source_settings(
             for name, entry in raw.items()
         }
     )
+
+
+def load_max_concurrent_sources(path: str | Path | None = None) -> int:
+    """The cross-source concurrency bound (6.7); 4 when the file or key is absent."""
+    file, document = _read_top(path)
+    if document is None or "max_concurrent_sources" not in document:
+        return DEFAULT_MAX_CONCURRENT_SOURCES
+    value = document["max_concurrent_sources"]
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ConfigurationError(
+            str(file),
+            key_path="max_concurrent_sources",
+            detail="must be an integer >= 1",
+        )
+    return value
+
+
+def _read_top(path: str | Path | None) -> tuple[Path, Mapping[object, object] | None]:
+    file = Path(path) if path is not None else DEFAULT_SOURCES_PATH
+    document = read_yaml_document(file, missing_ok=True)
+    if document is None:
+        return file, None
+    if not isinstance(document, Mapping):
+        raise ConfigurationError(
+            str(file), key_path="", detail="top level must be a mapping"
+        )
+    for key in document:
+        if key not in _TOP:
+            raise ConfigurationError(
+                str(file),
+                key_path=key if isinstance(key, str) else "",
+                detail=f"unknown top-level key; expected one of {', '.join(_TOP)}",
+            )
+    return file, document
 
 
 def _read_entry(file: Path, name: str, entry: object) -> SourceSettings:

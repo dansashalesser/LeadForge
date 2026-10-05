@@ -918,3 +918,35 @@ Evidence: wrote tests/test_identifier_validation.py first; with only an empty-re
 - needs-follow-up: lookups run sequentially (deterministic, but slow with many sources); cancellation propagates untouched (not separately tested).
 
 - **Also fixed by the parent after review:** a lookup returning one bare string was split into characters, flagging every identifier; it now raises `TypeError` (test added, red first).
+
+## Task 11.1 — Run enabled sources through a bounded worker pool (2026-10-05)
+Evidence: wrote test_orchestrator_pool.py and test_concurrency_setting.py first; ran them and saw collection fail with ImportError (no `orchestrator` module, no `DEFAULT_MAX_CONCURRENT_SOURCES`) before any implementation; then 26 passed. Mutation: replacing `async with slots` with `if True` made the two peak-in-flight tests fail (restored). ruff format/check, mypy clean, pytest 1316 passed, 1 skipped. No serena/GitNexus query (new module; the source_settings change is additive).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- The bound is a top-level `max_concurrent_sources` key in `config/sources.yaml` (positive int, default 4 in `source_settings.DEFAULT_MAX_CONCURRENT_SOURCES`, read by `load_max_concurrent_sources`); rejected a separate config file or a literal/default inside the orchestrator (its constructor argument is required).
+- Module is `orchestrator.py` (named so the 2.4 structure guard applies); `IngestionOrchestrator(registry, *, resolve_mode, build_source, max_concurrent_sources)` with `run(SourceRequest) -> tuple[SourceResult, ...]` (name, mode, reason, batch, in active order); rejected building the design's RunRequest/RunResult/SourceOutcome now (store, counts and phases are 11.2-11.7 and 20).
+- Mode resolution and adapter construction are injected callables: `resolve_mode` returns `ModeResolution` (with reason) and `build_source(cls, mode, pacing)` is called from `SourceRegistry.active`; rejected the orchestrator reading env or building transports.
+- Every enabled source's mode and pacing (`build_pacing`; `None` for synthetic) are fixed before any adapter runs or any slot is taken; pacing is handed to the adapter, which paces its own provider calls. Rejected the orchestrator acquiring a bucket itself, because it cannot know an endpoint's bucket.
+- The semaphore is created per `run`; a slot is held only around `fetch_raw`.
+- A source failure is not isolated: `asyncio.TaskGroup` cancels siblings and raises an `ExceptionGroup`; rejected `gather(return_exceptions=True)` as an unrequested isolation policy (11.2).
+- Invalid bound: `ValueError` in the constructor, `ConfigurationError` (no value echo) in the loader.
+### Known gaps (needs-follow-up)
+- Retry policy is still `RetryPolicy()` defaults via `build_pacing` (10.3 gap unchanged); no retry configuration exists and the orchestrator does not call `RetryPolicy.run`. Backoff on 429 is 11.2 and needs the adapter or orchestrator to run calls through `pacing.retry`.
+- No adapter consumes `pacing` yet; the 6.8 test uses a throwaway source acquiring its own bucket, with real 50 ms timing and a loose 0.8 lower bound.
+- No persistence, SourceRun rows, phases (Discovery/Enrichment), timeout or exit code: tasks 11.2-11.7 and 20.
+- Nothing wires the CLI to the orchestrator; no default `resolve_mode` binding to `resolve_data_mode`.
+- A result carries the raw batch only; normalization is not called.
+- No property test (hypothesis is not a dependency); no self-review run.
+
+### Self-review findings
+Fixed (tests only; orchestrator.py and source_settings.py needed no change):
+- test_concurrency_setting.py: invalid-value test now asserts ConfigurationError.path, key_path == "max_concurrent_sources", and that the offending value is not echoed.
+- test_orchestrator_pool.py: added bound 1 and bound > source count peaks, empty source list, result order when completion order is reversed, and cancelling a run (slot released, CancelledError propagates, no leaked tasks). Added a `delay` ClassVar to the test source.
+- Mutation-checked (each fails a test, files restored byte-identical): no semaphore, bound +1, bound -1, forced sequential, literal 4, pacing built for synthetic, accept 0, accept bool, sorted-by-completion/name results, mode re-resolved inside the slot.
+- Structure guard passes on orchestrator.py; it only touches BaseLeadSource members (name, rate_limit, fetch_raw). Full suite, ruff, ruff format and mypy are clean.
+Known gaps:
+- needs-follow-up: first failure cancels siblings and raises ExceptionGroup (by design until 11.2). No tasks leak; CancelledError is not swallowed.
+- needs-follow-up: no env override for the bound; only config/sources.yaml (the task does not require env).
+- needs-follow-up: adapters are all constructed before any slot is taken (registry.active is eager), so a construction error aborts the run before any fetch.
+- needs-follow-up: the structure guard is static AST and does not catch getattr or string-built adapter lookups; not hardened here.
+- Duplicate source names are rejected by the registry, not the orchestrator; not re-tested here.
