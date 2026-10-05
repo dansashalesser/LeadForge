@@ -24,7 +24,7 @@ task = one commit.
 
 ---
 
-- [ ] 1. Scaffold the ingestion slice
+- [x] 1. Scaffold the ingestion slice
 - [x] 1.1 Create the vertical slice package with pinned dependencies and tooling
   - Set up one folder owning adapters, canonical types, normalization, merge, store, migrations, fixtures, and tests — no shared `models/`, `db/`, `utils/`, or `common/` package
   - Pin the dependency set: Pydantic v2, SQLAlchemy 2.x, Alembic, `httpx`, `tenacity`, `structlog`, Typer, PyYAML, `python-dotenv`, and a registrable-domain library with a dated Public Suffix List snapshot
@@ -108,7 +108,7 @@ task = one commit.
 
 ---
 
-- [ ] 4. Transport port
+- [x] 4. Transport port
 - [x] 4.1 Define the transport port with the REST implementation
   - One send interface over which every provider call travels, carrying an endpoint, parameters, body, and headers, with no transport-specific type or branch visible above the adapter contract
   - REST implementation with an explicit connect and read timeout on every request, never relying on library defaults
