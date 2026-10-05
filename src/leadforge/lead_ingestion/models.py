@@ -11,6 +11,7 @@ from typing import Annotated, Self
 
 from pydantic import (
     AfterValidator,
+    AwareDatetime,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -26,9 +27,12 @@ from leadforge.lead_ingestion.errors import ConflictingCompanySignalError
 __all__ = [
     "CanonicalLead",
     "CompanySignal",
+    "ConfidenceOrigin",
     "ConflictingCompanySignalError",
+    "DataMode",
     "EmailStatus",
     "Employment",
+    "FieldProvenance",
     "IntentSignal",
     "ProviderCompanyId",
     "Signal",
@@ -59,6 +63,62 @@ class EmailStatus(StrEnum):
     UNVERIFIED = "unverified"
     INVALID = "invalid"
     UNKNOWN = "unknown"
+
+
+class DataMode(StrEnum):
+    LIVE = "live"
+    SYNTHETIC = "synthetic"
+
+
+class ConfidenceOrigin(StrEnum):
+    """Whether a Field Confidence was stated by the provider or inferred by us."""
+
+    PROVIDER_STATED = "provider_stated"
+    HEURISTIC = "heuristic"
+    NONE = "none"
+
+
+class FieldProvenance(_Entity):
+    """Where one populated canonical field came from, and how sure the source was.
+
+    ``confidence`` is the Field Confidence normalized to 0.0-1.0 for comparison only;
+    ``confidence_raw`` and ``confidence_scale`` keep the provider's own value and the
+    name of the scale it was expressed on. When ``confidence_origin`` is ``NONE`` the
+    provider stated no certainty and all three are ``None`` - never a default number.
+    ``superseded`` marks a losing contribution retained rather than dropped.
+    """
+
+    canonical_path: NonBlank
+    source_name: NonBlank
+    data_mode: DataMode
+    fetched_at: AwareDatetime
+    raw_field_path: NonBlank
+    confidence_origin: ConfidenceOrigin
+    confidence: Strength | None = None
+    confidence_raw: NonBlank | None = None
+    confidence_scale: NonBlank | None = None
+    superseded: bool = False
+
+    @model_validator(mode="after")
+    def _confidence_matches_origin(self) -> Self:
+        stated = (self.confidence_raw, self.confidence_scale)
+        match self.confidence_origin:
+            case ConfidenceOrigin.NONE:
+                if self.confidence is not None or any(v is not None for v in stated):
+                    raise ValueError("origin 'none' must carry no confidence payload")
+            case ConfidenceOrigin.PROVIDER_STATED:
+                if any(v is None for v in stated):
+                    raise ValueError(
+                        "a provider-stated confidence needs its raw value and scale"
+                    )
+            case ConfidenceOrigin.HEURISTIC:
+                if self.confidence is None:
+                    raise ValueError("a heuristic confidence needs a number")
+                if any(v is not None for v in stated):
+                    raise ValueError(
+                        "a heuristic confidence claims no provider raw value or scale"
+                    )
+        return self
 
 
 class Signal(_Entity):
