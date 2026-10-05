@@ -41,6 +41,7 @@ __all__ = [
     "Base",
     "CanonicalFieldProvenance",
     "CanonicalLeadRow",
+    "ColumnValueError",
     "ContributionField",
     "IdentityKey",
     "IngestionRun",
@@ -53,6 +54,13 @@ __all__ = [
 
 class AppendOnlyViolationError(Exception):
     """An update or delete of an append-only table was attempted."""
+
+
+class ColumnValueError(ValueError):
+    """A String column value that the supported engines would not treat alike.
+
+    The message names the table and column, never the value (it may be untrusted).
+    """
 
 
 def _utc(**kw: Any) -> Mapped[datetime]:
@@ -249,6 +257,40 @@ class CanonicalFieldProvenance(Base):
     agreeing_source_count: Mapped[int] = mapped_column(Integer)
     superseded_field_ids: Mapped[list[Any]] = mapped_column(JSON)
 
+
+def _check_string_columns(mapper: Mapper[Any], connection: Any, target: Any) -> None:
+    """Refuse String values that only some engines would refuse (task 6.7).
+
+    SQLite ignores ``String(n)`` and stores NUL and, through Python, refuses lone
+    surrogates; PostgreSQL enforces ``n`` and rejects NUL. Checking here, from the
+    column metadata and with no backend branch, makes every engine behave like the
+    strictest one, so a value that passes on the default SQLite file cannot fail
+    later on Postgres. JSON columns are not affected: both engines keep NUL and
+    lone surrogates there as escapes.
+    """
+    for attr in mapper.column_attrs:
+        column = attr.columns[0]
+        if not isinstance(column.type, String):
+            continue
+        value = getattr(target, attr.key, None)
+        if not isinstance(value, str):
+            continue
+        where = f"{mapper.class_.__tablename__}.{column.name}"
+        limit = column.type.length
+        if limit is not None and len(value) > limit:
+            raise ColumnValueError(f"{where} is longer than its {limit} characters")
+        if "\x00" in value:
+            raise ColumnValueError(f"{where} contains a NUL character")
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:
+            raise ColumnValueError(
+                f"{where} contains a lone surrogate (not valid UTF-8 text)"
+            ) from None
+
+
+event.listen(Base, "before_insert", _check_string_columns, propagate=True)
+event.listen(Base, "before_update", _check_string_columns, propagate=True)
 
 _APPEND_ONLY = (SourceContribution, ContributionField)
 _APPEND_ONLY_TABLES = frozenset(c.__tablename__ for c in _APPEND_ONLY)
