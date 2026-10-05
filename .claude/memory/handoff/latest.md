@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T16:33:14+00:00
+- Written: 2026-10-05T16:36:35+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 16.5 review found the projection logic sound: compliance flags are ORed across every source, and email status never overclaims. It added a test that kills a surviving mutation. It also listed decisions for you in the ledger. The notable ones: 8.7 says the Lead itself carries the contributing-source set, but it rides on the projection result; a blank or invalid winning value drops a valid lower-ranked candidate; and Apollo's masked last names (like "Sm***") become a full name on the Lead. Finishing the task.
+I committed and pushed the session-state files. Task 16.6's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
