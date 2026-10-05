@@ -12,14 +12,18 @@ from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, Self
+
+from pydantic import Field, model_validator
 
 from leadforge.lead_ingestion.errors import InvalidAbsenceError, MissingCredentialError
 from leadforge.lead_ingestion.models import (
     AbsenceKind,
     DataMode,
+    FieldProvenance,
     NonBlank,
     SourceAbsence,
+    UntrustedText,
     _Entity,
 )
 
@@ -141,6 +145,28 @@ class LeadContribution(_Entity):
 
     source_name: NonBlank
     absences: tuple[SourceAbsence, ...] = ()
+    # Canonical path -> the value this source supplied; one provenance record each.
+    values: Mapping[str, Any] = Field(default_factory=dict)
+    provenance: tuple[FieldProvenance, ...] = ()
+
+    @model_validator(mode="after")
+    def _provenance_matches_values(self) -> Self:
+        paths = [p.canonical_path for p in self.provenance]
+        if len(set(paths)) != len(paths) or set(paths) != set(self.values):
+            raise ValueError(
+                "values and provenance must name the same canonical paths, "
+                "one provenance record each"
+            )
+        for record in self.provenance:
+            if record.source_name != self.source_name:
+                raise ValueError("provenance attributed to a different source")
+            wrapped = isinstance(self.values[record.canonical_path], UntrustedText)
+            if wrapped != record.untrusted:
+                raise ValueError(
+                    f"untrusted marking of {record.canonical_path!r} must match "
+                    "whether its value is UntrustedText"
+                )
+        return self
 
 
 TARGET_TERM_PATH_PREFIX = "target_profile."
