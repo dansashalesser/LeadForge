@@ -21,7 +21,16 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
 )
 
-__all__ = ["FieldRule", "NormalizationContext", "Normalizer", "unmapped_raw_paths"]
+__all__ = [
+    "DEFAULT_UNTRUSTED_MAX_LENGTH",
+    "FieldRule",
+    "NormalizationContext",
+    "Normalizer",
+    "unmapped_raw_paths",
+]
+
+# Characters (code points, the unit UntrustedText.original_length uses), not bytes.
+DEFAULT_UNTRUSTED_MAX_LENGTH = 4000
 
 
 @dataclass(frozen=True)
@@ -54,6 +63,12 @@ class NormalizationContext:
     fetched_at: datetime
     answerable_surfaces: Mapping[str, frozenset[str]]
     queried_paths: frozenset[str] = frozenset()
+    untrusted_max_length: int = DEFAULT_UNTRUSTED_MAX_LENGTH
+
+    def __post_init__(self) -> None:
+        bound = self.untrusted_max_length
+        if type(bound) is not int or bound < 1:
+            raise ValueError("untrusted_max_length must be a positive int")
 
 
 def _resolve(raw: Mapping[str, object], dotted: str) -> object | None:
@@ -113,7 +128,13 @@ class Normalizer:
             return value
         if not isinstance(value, str):
             raise refuse()  # never coerce provider data into text
-        return UntrustedText(value=value, truncated=False, original_length=len(value))
+        # Verbatim prefix: no marker, no trimming, no normalization of the text.
+        kept = value[: context.untrusted_max_length]
+        return UntrustedText(
+            value=kept,
+            truncated=len(kept) < len(value),
+            original_length=len(value),
+        )
 
     @staticmethod
     def _provenance(rule: FieldRule, context: NormalizationContext) -> FieldProvenance:
