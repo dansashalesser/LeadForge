@@ -238,3 +238,25 @@ Evidence: re-verified by parent — pytest 240 passed, mypy clean, ruff clean on
 - **Verdict:** sound (revisit if merge/audit tasks need absence timestamps)
 
 Evidence: parent re-ran pytest: 251 passed. Commit 5a70831 pushed. Subagent did not run spec-refactor-agent, validate-production-agent or a blast-radius scan (additive types only, no consumers).
+
+## Task 2.5 — Signals and Signal Strength (2026-10-05)
+
+### Most of 2.5 was already built in 2.1
+- **Verdict:** sound
+- **Found:** `Signal`/`TechSignal`/`IntentSignal` with `label` and `strength` (0.0-1.0), and `tech_signals`/`intent_signals` tuples on both `CanonicalLead` and `CompanySignal`, shipped with 2.1. 2.5 added tests and one tightening, not new entities
+
+### Representation, scale, shape (design.md silent)
+- **Verdict:** sound, reversible
+- **Chose:** Signal Strength is one `float` in 0.0-1.0, finite, field `strength` on `Signal`. Signal = `label` + `strength`; two kinds (tech, intent). Collections are `tech_signals` / `intent_signals` tuples, default empty, on both entities
+- **Alternatives:** one mixed `signals` tuple with a kind field (loses typing, 2.1 already split); ordinal enum (loses granularity)
+
+### "Exactly one strength" enforcement
+- **Verdict:** sound
+- **Chose:** required field (no default), `extra="forbid"` blocks a second one, and new `SignalStrength` type is strict (rejects bool, numeric strings, sequences, None). Field Confidence keeps the lax `Strength` type, untouched
+- **Note:** strict applies in python mode; JSON round trip still accepts JSON numbers (tested)
+
+### What the "no merge outcome" test proves
+- **Verdict:** needs-follow-up in 16.3
+- **Proves today (structural only):** no field a merge resolves (identity, employments, provenance) carries or derives from strength; leads/companies differing only in strength have identical dumps outside the signal tuples; no entity defines `__lt__`-style ordering; only Signal types own a `strength` field
+- **Cannot prove:** that a merge run ignores strength. No Merge Engine or resolution hook exists, and none was built. 16.3 must add a real run over leads differing only in strength
+- **Evidence:** `tests/test_signal_strength.py`; uv run pytest 265 passed, mypy and ruff clean on the slice

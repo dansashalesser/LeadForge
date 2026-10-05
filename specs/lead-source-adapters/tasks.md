@@ -42,7 +42,7 @@ task = one commit.
 
 ---
 
-- [ ] 2. Canonical Lead model with per-field provenance
+- [x] 2. Canonical Lead model with per-field provenance
 - [x] 2.1 Define the Lead, Company Signal, and Employment entities
   - Expose exactly one canonical Lead type as the only lead type a downstream stage may consume, rejecting undeclared fields at construction and frozen against mutation
   - Carry identity attributes (email with its verification status, LinkedIn URL, full name), zero or more Employments, technographic evidence, intent evidence, and compliance flags for Suppression
@@ -72,7 +72,7 @@ task = one commit.
   - Done as `SourceAbsence` with `AbsenceKind` in `models.py` (choices.md, 2.4). The model enforces only the shape (Negative Evidence names a raw field path, Not Applicable has none); checking against the adapter's declared surface is task 3.1, emitting it is 3.3 and 5.1, and consuming it is 16.3
   - _Requirements: 1.9_
 
-- [ ] 2.5 Carry Signals with Signal Strength on both entities
+- [x] 2.5 Carry Signals with Signal Strength on both entities
   - Attach zero or more Signals to a Lead and to a Company Signal, each with exactly one Signal Strength
   - Record Signal Strength during ingestion only; it never participates in resolving a field conflict
   - Prove by test that changing a Signal Strength alters no merge outcome
