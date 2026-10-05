@@ -1236,3 +1236,41 @@ Known gaps:
 - Scratch dir `scratchpad/rev` could not be deleted (rm denied); it holds only helper scripts and .bak copies, none in the repo.
 
 - **Also fixed by the parent after review:** `transport.py` put `repr(exc)` in the `SourceTimedOut` text, which can carry a URL, query string or person data into `outcome.error` and the run record (Apollo match sends its parameters in the query string). It now names only the exception type (test added, red first).
+
+## Task 13.1 — Implement the HubSpot CRM-state lookup on the date-versioned path (2026-10-05)
+Evidence: wrote test_hubspot_source.py first; first run failed at collection (ImportError, no adapters.hubspot module), then built the adapter; 38 new tests pass. `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 1641 passed, 1 skipped. `.env.example` regenerated with `uv run python -m leadforge.lead_ingestion.env_example`.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- API version is `HUBSPOT_API_VERSION`, listed in `required_env` (so it appears in .env.example and live mode needs it), validated as YYYY-MM, no code default; rejected a constructor kwarg with a literal default and a sources.yaml key (unknown keys are errors there).
+- Endpoint path uses the `{version}` placeholder that RestTransport fills; synthetic mode sends no version or credentials.
+- Enrichment-only (`ENRICH`), FREE, PER_LEAD, yields_suppression True; rejected PER_CALL and a SEARCH capability.
+- Canonical paths invented for CRM state: `crm.contact_exists`, `crm.lifecycle_stage`, `crm.owner`, `crm.last_activity_date`, `crm.has_open_deal`; no canonical model fields exist for them.
+- `hs_email_optout` sets BOTH `opt_out` and `suppressed`; rejected setting `opt_out` only.
+- Open deal presence needs a second read-only POST, `deals/search` (associations.contact + hs_is_closed=false), once per contact found; rejected GET associations (cannot tell open from closed).
+- Lookup is by email only, for any work-list lead from any source; leads without email get no call. Rejected LinkedIn or name lookups.
+- One contribution per contact found (duplicates OR together via prune_flagged); unknown email gives one contribution of Negative Evidence for every CRM path, including opt_out and suppressed.
+- Up to 100 contacts per email, no paging; lookups cached per source instance so a retried fetch repeats nothing.
+- Lifecycle stage and owner are plain identifiers, not UntrustedText; no free-text property requested.
+- Only the `search` bucket (5/s, documented) is declared; no account-burst bucket since no endpoint uses it. Error classification is the base default (13.2 owns policyName handling).
+- Non-enrichment request raises SourceError rather than silently returning nothing.
+### Known gaps (needs-follow-up)
+- Property names (notes_last_updated, hs_email_optout, hs_is_closed, hubspot_owner_id) and the associations.contact filter are from memory and research.md; developers.hubspot.com was blocked, so not verified against docs or a live portal.
+- Fixtures contact_search.json and deal_search.json are hand-made stand-ins; FixtureTransport serves one fixed answer per endpoint, so the opted-out contact is the only fixture case (the non-suppression and not-found cases are covered with scripted transports).
+- Client-side throttling and policyName backoff (13.2) not built; pacing relies on the base class when a SourcePacing is passed.
+- Nothing yet builds HubSpotSource with real config (no bootstrap exists); the 13.4 to 13.6 behaviour is unverified.
+- No property test; self-review (spec-refactor-agent) not run (no Agent tool).
+
+### Self-review findings
+
+Fixed (test-first, seen failing):
+- Unknown email emitted Negative Evidence for `crm.has_open_deal` though no deal search was made for it (an answer never asked). `normalize` now uses a per-record context that leaves `crm.has_open_deal` out of `queried_paths` for an unknown email. Test `test_an_email_unknown_to_hubspot_records_negative_evidence_not_a_flag` updated.
+- Mutation gap: unbounded search `limit` survived. Added `test_every_search_is_bounded_and_never_pages` (contact limit capped, deal limit 1, no `after`).
+
+Checked and kept: `HUBSPOT_API_VERSION` as required_env matches the research.md env list (the version sits in the path via `{version}`; 13.3 says config); both endpoints are `read_only=True` (the default, enforced); the email travels in the POST body only, never in errors or paths; no logging in the module; no policyName handling (13.2 untouched); free plus yields_suppression lands in the first enrichment tier; the retry cache mirrors Apollo `_matched`. Mutations (suppressed dropped, version echoed, extra token header, unbounded limit) are all caught.
+
+Known gaps:
+- needs-follow-up: `crm.*` canonical path names are invented; no convention is fixed in the spec; Merge Engine 16.x will consume them.
+- needs-follow-up: opt-out sets both `opt_out` and `suppressed` (13.7 says compliance flags; CONTEXT.md Suppression avoids the word opt-out); owner decision.
+- needs-follow-up: `.env.example` leaves `HUBSPOT_API_VERSION=` empty with no documented value (research.md suggests 2026-09).
+- needs-follow-up: a contact search with total above 100 is silently truncated, and one deal search is made per contact found (no total call cap beyond the work list).
+- needs-follow-up: HubSpot property names and the `associations.contact` deal filter are unverified against a live portal; fixtures are hand-made.

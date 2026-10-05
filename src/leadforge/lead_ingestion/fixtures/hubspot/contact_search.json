@@ -1,0 +1,21 @@
+{
+  "total": 1,
+  "results": [
+    {
+      "id": "501",
+      "properties": {
+        "createdate": "2025-11-03T09:12:44.123Z",
+        "email": "ada@example.com",
+        "hs_email_optout": "true",
+        "hs_object_id": "501",
+        "hubspot_owner_id": "9001",
+        "lastmodifieddate": "2026-09-20T14:05:10.456Z",
+        "lifecyclestage": "customer",
+        "notes_last_updated": "2026-09-20T14:05:00.000Z"
+      },
+      "createdAt": "2025-11-03T09:12:44.123Z",
+      "updatedAt": "2026-09-20T14:05:10.456Z",
+      "archived": false
+    }
+  ]
+}

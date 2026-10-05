@@ -1,0 +1,17 @@
+{
+  "total": 1,
+  "results": [
+    {
+      "id": "7001",
+      "properties": {
+        "createdate": "2026-08-01T10:00:00.000Z",
+        "dealname": "Example renewal",
+        "hs_lastmodifieddate": "2026-09-01T10:00:00.000Z",
+        "hs_object_id": "7001"
+      },
+      "createdAt": "2026-08-01T10:00:00.000Z",
+      "updatedAt": "2026-09-01T10:00:00.000Z",
+      "archived": false
+    }
+  ]
+}

@@ -375,7 +375,7 @@ task = one commit.
 ---
 
 - [ ] 13. HubSpot Source adapter
-- [ ] 13.1 (P) Implement the HubSpot CRM-state lookup on the date-versioned path
+- [x] 13.1 (P) Implement the HubSpot CRM-state lookup on the date-versioned path
   - Authenticate with a private app access token as a bearer token; never use the retired key scheme
   - Target the date-based API version path with the version string held in configuration rather than as a code literal, and never the legacy versioned path
   - Contribute CRM-state Signals — record existence, lifecycle stage, owner, last activity date, open deal presence, and marketing Suppression
