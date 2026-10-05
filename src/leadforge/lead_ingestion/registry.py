@@ -65,7 +65,7 @@ LOWEST_TRUST_RANK = 0
 # Builds one adapter from its class; the registry never decides how (mode, transport).
 SourceFactory = Callable[[type[BaseLeadSource]], BaseLeadSource]
 
-# Seam for task 8.1: picks a source's data mode. 7.3 only records the answer.
+# Seam for task 8.1 (mode_resolution.make_mode_resolver): picks a source's data mode.
 ModeResolver = Callable[[type[BaseLeadSource], "SourceSettings"], DataMode]
 
 
@@ -269,17 +269,17 @@ def _mode_for(
     settings: SourceSettings,
     resolve_mode: ModeResolver | None,
 ) -> DataMode:
-    if settings.mode is not None:
-        return settings.mode
     if resolve_mode is None:
-        return DataMode.SYNTHETIC  # the no-credentials default (4.1) until 8.1 lands
+        return settings.mode or DataMode.SYNTHETIC  # the no-credentials default (4.1)
+    # The resolver runs even for an overridden source so it can log (4.4); the
+    # per-source override still has the last word here, whatever a resolver says.
     mode = resolve_mode(source_class, settings)
     if not isinstance(mode, DataMode):
         raise TypeError(
             f"mode resolver returned {mode!r} for source {source_class.name!r}, "
             "expected a DataMode"
         )
-    return mode
+    return settings.mode or mode
 
 
 def _import(name: str) -> ModuleType:
