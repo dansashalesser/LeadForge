@@ -1054,3 +1054,30 @@ async def test_concurrent_source_batches_all_commit_on_each_engine(
     assert len({r.contribution_id for r in results}) == 4
     assert _count(backend.engine, m.SourceContribution) == 4
     assert _count(backend.engine, m.RawResponse) == 4
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.18
+def test_a_tie_resolution_round_trips_and_the_first_write_wins(
+    backend: Backend,
+) -> None:
+    from leadforge.lead_ingestion.store.tie_resolutions import (
+        TieResolutionRepository,
+    )
+    from leadforge.lead_ingestion.tie_resolution import (
+        TieResolutionRecord,
+        tie_key,
+    )
+
+    key = tie_key(("a.com", "b.com", "c.com"), ("a.com", "b.com"))
+    first = TieResolutionRecord("b.com", ("a.com", "b.com"), "fake", "p1", T0)
+    second = TieResolutionRecord("a.com", ("a.com", "b.com"), "other", "p2", NOW)
+    with Session(backend.engine) as s:
+        assert TieResolutionRepository(s).put(key, first) == first
+        s.commit()
+    with Session(backend.engine) as s:
+        assert TieResolutionRepository(s).put(key, second) == first
+        s.commit()
+    with Session(backend.engine) as s:
+        assert TieResolutionRepository(s).get(key) == first
+        with pytest.raises(m.AppendOnlyViolationError):
+            s.execute(sa.delete(m.PrimaryDomainTieResolution))

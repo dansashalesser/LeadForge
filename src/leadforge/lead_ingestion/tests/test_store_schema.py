@@ -27,6 +27,7 @@ EXPECTED_TABLES = {
     "contribution_field",
     "lead_identity",
     "identity_key",
+    "primary_domain_tie_resolution",
     "canonical_lead",
     "canonical_field_provenance",
 }

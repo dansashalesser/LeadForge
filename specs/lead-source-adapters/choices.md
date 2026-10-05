@@ -1811,3 +1811,24 @@ Evidence: wrote tests/test_primary_domain.py first; first run = collection Impor
 - Weight = rank - LOWEST + 1 (lowest and unranked weigh 1): design choice, consistent with conflicts default of LOWEST_TRUST_RANK.
 - needs-follow-up: a Signal with several provider_ids and several domains credits every source to every domain (flat model cannot say which source supplied which); fine only while adapters emit one source per Signal.
 - needs-follow-up: 16.9 SPEC GAP (project_lead per Lead gives different company_ids for overlapping sets) untouched by this task.
+
+## Task 16.11 — Persist the constrained primary-domain tie resolution (2026-10-05)
+Evidence: ran each new test file before its code (test_tie_resolution.py: ImportError at collection; test_tie_resolution_store.py: ImportError at collection); then `uv run ruff format src`, `uv run ruff check src`, `uv run mypy`, `uv run pytest -q` all clean (2408 passed, 1 unrelated skip), including the Postgres leg of test_persistence_both_engines.py. The Postgres test and the EXPECTED_TABLES edit were written after the implementation (no observed red for those two).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Port is `TieResolver.choose(candidates, *, timeout)` with `model`/`prompt_version` properties; payload is only the tied candidates (not the company's other domains). Rejected: passing the whole domain set or cluster.
+- Answer validation is exact (`str` equal to a candidate); case/whitespace/www variants are rejected, not normalised. Rejected: casefold/strip leniency.
+- Rejected answer, port failure (`TieResolverError`/`TimeoutError`) and no configured resolver all fall back to the lowest-sorted candidate with a counts-only WARNING and a `TieOutcome.flagged`; not persisted. Other exceptions and CancelledError propagate.
+- Tie key = sha256(sorted company domain set, sorted candidates), not the cluster id.
+- First write wins, no supersede; `put` returns the stored record (retry/race adopts it). Rejected: overwrite or explicit supersede.
+- Table is append-only (ORM guard extended to it) so recompute stays byte-identical.
+- A stored record is read in any mode, including synthetic (synthetic never writes/calls). Rejected: ignoring stored records in synthetic.
+- Timeout is a module constant (10 s) passed through the port; no retry added.
+- Flag on run report is the `TieOutcome.flagged` seam + log line (18.x run report not built, as in 16.8).
+### Known gaps (needs-follow-up)
+- Bullet 1 (constrained escalation via port): delivered. Bullet 2 (persist record with chosen domain, candidates, model, prompt version, timestamp; projection reads it): delivered as `read_stored_primary_domain` + migration 0004 + repository; `projection.py` does not yet call the primary domain at all (it never used 16.10), so wiring it in is deferred.
+- Bullet 3 (synthetic never calls, lowest-sorted, flagged): delivered except that the run-report field itself is deferred to 18.x.
+- No concrete LLM adapter (not required); no caller of `resolve_primary_domain` exists yet (orchestrator wiring, resolver factory from LLM_PROVIDER/LLM_MODEL) is deferred.
+- A rejected/failed answer is not persisted, so a later escalation call asks again (bounded per call, not per run).
+
+- **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** the port, the validation, the append-only persistence (migration 0004, both engines) and the synthetic-mode bypass are delivered and reviewed. The projection reading the stored answer and the run-report counter are only seams (`read_stored_primary_domain`, `TieOutcome.flagged`) until the projection/orchestrator wiring (and task 18) exists. Also open: the resolver port is synchronous with no asyncio timeout/cancellation story (a hung resolver would hang a live run), and a blank or over-long model label raises after the paid call.

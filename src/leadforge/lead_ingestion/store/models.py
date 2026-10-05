@@ -46,6 +46,7 @@ __all__ = [
     "IdentityKey",
     "IngestionRun",
     "LeadIdentity",
+    "PrimaryDomainTieResolution",
     "RawResponse",
     "SourceContribution",
     "SourceRun",
@@ -258,6 +259,24 @@ class CanonicalFieldProvenance(Base):
     superseded_field_ids: Mapped[list[Any]] = mapped_column(JSON)
 
 
+class PrimaryDomainTieResolution(Base):
+    """Append-only: the stored answer to one exact primary-domain tie (8.18).
+
+    ``tie_key`` is the sha256 of the company's domain set and the candidate set (see
+    ``tie_resolution.tie_key``); the projection reads this row and never calls a model.
+    """
+
+    __tablename__ = "primary_domain_tie_resolution"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tie_key: Mapped[str] = mapped_column(String(64), unique=True)
+    chosen_domain: Mapped[str] = mapped_column(String(255))
+    candidates: Mapped[list[Any]] = mapped_column(JSON)
+    model: Mapped[str] = mapped_column(String(128))
+    prompt_version: Mapped[str] = mapped_column(String(64))
+    resolved_at: Mapped[datetime] = _utc()
+
+
 def _check_string_columns(mapper: Mapper[Any], connection: Any, target: Any) -> None:
     """Refuse String values that only some engines would refuse (task 6.7).
 
@@ -292,7 +311,7 @@ def _check_string_columns(mapper: Mapper[Any], connection: Any, target: Any) -> 
 event.listen(Base, "before_insert", _check_string_columns, propagate=True)
 event.listen(Base, "before_update", _check_string_columns, propagate=True)
 
-_APPEND_ONLY = (SourceContribution, ContributionField)
+_APPEND_ONLY = (SourceContribution, ContributionField, PrimaryDomainTieResolution)
 _APPEND_ONLY_TABLES = frozenset(c.__tablename__ for c in _APPEND_ONLY)
 
 
