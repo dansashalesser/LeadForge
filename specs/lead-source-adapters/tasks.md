@@ -410,7 +410,7 @@ task = one commit.
   - Blocked on 14.1; parallel with 12.x, 13.x, and 15.x
   - _Requirements: 14.4, 14.5, 14.6_
 
-- [ ] 14.3 (P) Tell SerpApi throughput exhaustion from balance exhaustion
+- [x] 14.3 (P) Tell SerpApi throughput exhaustion from balance exhaustion
   - Mark the source rate-limited on a throttling response and surface which of the two causes applied — hourly throughput exceeded or search balance exhausted
   - Blocked on 14.1; parallel with 12.x, 13.x, and 15.x
   - _Requirements: 14.8_

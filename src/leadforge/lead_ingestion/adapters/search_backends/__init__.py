@@ -1,7 +1,8 @@
 """The search backend port the Google Search adapter delegates to (14.1).
 
 A backend only describes its provider: the endpoint, rate bucket and credential names
-it needs, how one page of one query is requested, and whether another page follows.
+it needs, how one page of one query is requested, whether another page follows, and
+which limit a 429 answer hit (read, never acted on).
 It never sends anything. Dispatch, pacing, error classification and the per-run page
 cache stay in the adapter, so every backend is paced and classified the same way and
 holds no key of its own.
@@ -25,14 +26,29 @@ import pkgutil
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import ClassVar
 
 from leadforge.lead_ingestion.base_source import Endpoint, RateBucket
 from leadforge.lead_ingestion.errors import ConfigurationError, DuplicateSourceNameError
 
-__all__ = ["DEFAULT_BACKEND_NAME", "SearchBackend", "SearchCall", "select_backend"]
+__all__ = [
+    "DEFAULT_BACKEND_NAME",
+    "SearchBackend",
+    "SearchCall",
+    "ThrottleCause",
+    "select_backend",
+]
 
 DEFAULT_BACKEND_NAME = "serpapi"
+
+
+class ThrottleCause(Enum):
+    """Why a backend refused a request for exceeding its limits (14.8)."""
+
+    THROUGHPUT = "throughput"  # a per-period rate limit: waiting clears it
+    BALANCE = "balance"  # the searches paid for are used up: waiting does not
+    UNRECOGNIZED = "unrecognized"  # the answer does not say
 
 
 @dataclass(frozen=True)
@@ -70,6 +86,14 @@ class SearchBackend(ABC):
     @abstractmethod
     def has_next_page(self, body: object) -> bool:
         """Whether the answer says another page follows; unreadable means no."""
+
+    def throttle_cause(self, body: object) -> ThrottleCause:
+        """Which limit a 429 answer hit, read from its body; never raises.
+
+        Only reads the provider's signal; the adapter turns the verdict into an error
+        type, once. A backend that cannot tell leaves the default, ``UNRECOGNIZED``.
+        """
+        return ThrottleCause.UNRECOGNIZED
 
 
 def select_backend(name: str) -> type[SearchBackend]:

@@ -5,7 +5,7 @@ classification of an error status, credential resolution, the per-run page cache
 delegates what is provider-specific to a ``SearchBackend``: how one page of a query is
 requested and whether another follows. Swapping the backend changes none of this.
 Reading results as Company Signals with untrusted text is task 14.2, and telling
-throughput from balance exhaustion on a 429 is task 14.3.
+throughput from balance exhaustion on a 429 is task 14.3 (``classify_error``).
 
 Provisional decisions (see choices.md, task 14.1):
 
@@ -21,6 +21,14 @@ Provisional decisions (see choices.md, task 14.1):
 * Cost is PAID and PER_CALL (a search spends balance); no vocabulary or answerable
   surface is declared until 14.2 defines what the adapter contributes.
 * ``fixtures/google_search/search.json`` is a hand-made STAND-IN, not captured.
+
+Provisional decisions (see choices.md, task 14.3):
+
+* A 429 is classified once, here: the backend only reads which limit the body names
+  (``throttle_cause``), so a new backend needs no change to this logic. Balance spent is
+  ``SourceQuotaExhausted`` (source halted, no retry); hourly throughput and an
+  unreadable or unknown answer are ``SourceRateLimited`` (bounded retry), cause
+  ``hourly_throughput`` or ``unrecognized_throttle``.
 
 Provisional decisions (see choices.md, task 14.2):
 
@@ -48,6 +56,7 @@ from pydantic import BaseModel, StrictStr
 from leadforge.lead_ingestion.adapters.search_backends import (
     DEFAULT_BACKEND_NAME,
     SearchBackend,
+    ThrottleCause,
     select_backend,
 )
 from leadforge.lead_ingestion.base_source import (
@@ -62,11 +71,14 @@ from leadforge.lead_ingestion.base_source import (
     RawBatch,
     SourceRequest,
     resolve_credentials,
+    retry_after_seconds,
 )
 from leadforge.lead_ingestion.errors import (
     ConfigurationError,
     NormalizationError,
     SourceError,
+    SourceQuotaExhausted,
+    SourceRateLimited,
 )
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.normalizer import (
@@ -75,7 +87,7 @@ from leadforge.lead_ingestion.normalizer import (
     Normalizer,
     validate_raw_payload,
 )
-from leadforge.lead_ingestion.transport import Transport
+from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 if TYPE_CHECKING:
     from leadforge.lead_ingestion.pacing import SourcePacing
@@ -217,6 +229,33 @@ class GoogleSearchSource(BaseLeadSource):
         self._environ = environ
         # Pages already paid for this run: a retried fetch must not buy them again.
         self._pages: dict[tuple[str, int], Mapping[str, Any]] = {}
+
+    def classify_error(
+        self, response: TransportResponse, *, endpoint: Endpoint
+    ) -> SourceError | None:
+        """The conventional mapping, telling throughput from balance on a 429 (14.8).
+
+        The backend reads which limit was hit; this is the one place it becomes an
+        error type. A spent balance is ``SourceQuotaExhausted``: no retry can fix it.
+        Exceeded throughput is ``SourceRateLimited`` with ``Retry-After`` when usable.
+        An unrecognized answer is also ``SourceRateLimited``: its retry is bounded,
+        whereas halting would drop evidence on a limit that may clear within the hour.
+        Error text names the cause, never the body. Every other status is the default.
+        """
+        if response.status != 429:
+            return super().classify_error(response, endpoint=endpoint)
+        cause = self._backend.throttle_cause(response.body)
+        if cause is ThrottleCause.BALANCE:
+            return SourceQuotaExhausted(self.name, "cause=search_balance_exhausted")
+        return SourceRateLimited(
+            self.name,
+            cause=(
+                "hourly_throughput"
+                if cause is ThrottleCause.THROUGHPUT
+                else "unrecognized_throttle"
+            ),
+            retry_after_s=retry_after_seconds(response.headers),
+        )
 
     @property
     def backend(self) -> SearchBackend:

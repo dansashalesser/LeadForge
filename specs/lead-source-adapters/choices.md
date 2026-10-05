@@ -1376,3 +1376,29 @@ Independent review. No code changes made; the implementation held up. Verified: 
 - Zero-result search: no Negative Evidence (no answerable surface declared); consistent with 1.9 only if web search is not an answerable source, unconfirmed.
 
 - **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** the code is committed and safe (prompt-injection handling verified by mutation), but the task text says "as Signals / Company Signals" with Signal Strength recorded at ingestion (24.4). The adapter emits flat `company.web_evidence.*` values with no strength, no tech-vs-intent kind and no company name or domain, so no Company Signal can be built from them and nothing can attach them to a company. Completing it needs two decisions: how a query maps to a company (identity), and what Signal Strength an organic result gets when the provider states none.
+
+## Task 14.3 — Tell SerpApi throughput exhaustion from balance exhaustion (2026-10-05)
+Evidence: new tests/adapters/test_google_search_throttle.py run first (collection ImportError on ThrottleCause = red), then implemented; 19 new tests pass; `uv run ruff format src`, `ruff check src`, `mypy` clean; full `uv run pytest -q` 1759 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Placement: adapter `classify_error` maps the verdict to an error type once; the backend only READS the signal via a new non-abstract `SearchBackend.throttle_cause(body) -> ThrottleCause` (default UNRECOGNIZED). Rejected: parsing SerpApi text in the adapter (breaks backend swap, 14.1) and an abstract method (breaks existing custom backends).
+- Signal: top-level string `error`, case-insensitive. "run out of searches" (documented text) = BALANCE -> SourceQuotaExhausted (halt, no retry). Rejected: treating any 429 as balance.
+- "throughput" substring = THROUGHPUT -> SourceRateLimited cause=hourly_throughput. The hourly wording is NOT documented (serpapi.com blocked by egress); marker is an assumption. Rejected: no marker (14.8 could never surface throughput).
+- Absent/non-JSON/non-str/unknown -> SourceRateLimited cause=unrecognized_throttle (bounded retry), as HubSpot 13.2. Rejected: halting the source on an unknown 429.
+- Error text carries only the cause token; body, key, query never copied.
+### Known gaps (needs-follow-up)
+- Hourly-throughput error wording unverified; fixtures are hand-made stand-ins.
+- No orchestrator-level test (status RATE_LIMITED vs QUOTA_EXHAUSTED, attempt counts) as HubSpot has; types follow errors.py/retry.py convention.
+- The Account API is not queried to disambiguate an unrecognized 429.
+- No property test. Self-review not run (no Agent tool).
+
+### Self-review findings
+Fixed:
+- test_google_search_throttle.py had no end-to-end coverage (the HubSpot 13.2 file does). Added 7 tests: key/body absent from str/repr/__cause__/__context__; throughput Retry-After spacing through RetryPolicy ([3.0, 3.0]); orchestrator balance 429 -> QUOTA_EXHAUSTED, 1 attempt, 0 retries, other source OK; persistent throughput/unknown/None-body 429 -> RATE_LIMITED, 3 attempts, 2 retries; a retried fetch does not re-send an answered paid query (3 transport calls for 2 queries). Now 26 tests.
+- Mutation-checked (all caught, file restored byte-for-byte): balance->RateLimited, throughput->Quota, unknown->Quota, body echoed, key/environ leaked in text.
+- No production code changed. retry.py/orchestrator.py/base_source._send read no body or status text; 401/403 -> SourceUnauthorized via super().
+Known gaps:
+- needs-follow-up: "Your account has run out of searches." is NOT in specs/research.md (no such string there); its provenance is the implementer's claim only. Verify against serpapi.com docs.
+- needs-follow-up: throughput marker "throughput" is unverified wording; if the real text differs, throughput 429s fall to UNRECOGNIZED, still SourceRateLimited (safe outcome, less precise cause label).
+- Substring match: text naming both markers resolves to balance (halt). Provider-origin text only; accepted. Unknown/absent -> RateLimited matches 13.2.
+- needs-follow-up: 402 and other SerpApi exhaustion statuses are undocumented in research.md; they take the base default (402 -> plain SourceError, one attempt).
