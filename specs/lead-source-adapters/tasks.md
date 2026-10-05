@@ -270,7 +270,7 @@ task = one commit.
   - Blocked on 9.1 for the profile schema; parallel with 9.3
   - _Requirements: 23.5_
 
-- [ ] 9.3 (P) Validate provider-issued targeting identifiers at startup
+- [x] 9.3 (P) Validate provider-issued targeting identifiers at startup
   - Check configured provider-issued identifiers against the provider's own lookup surface at startup in live mode, warning and naming any identifier the provider does not recognise
   - Make a stale identifier produce a named startup warning rather than silently returning no matches
   - Blocked on 9.1; parallel with 9.2

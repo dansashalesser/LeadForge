@@ -890,3 +890,31 @@ Known gaps:
 - needs-follow-up: zero-socket guard patches connect/connect_ex/sendto/getaddrinfo only. Not covered: subprocess, socket.sendmsg/sendall on pre-connected sockets, AF_UNIX, third-party C-level resolvers. Guard is best-effort evidence, not proof.
 - needs-follow-up: re-registering the same class raises DuplicateSourceNameError (same name rule); intentional, untested.
 - needs-follow-up: no orchestrator (task 11); run is wired in the test, so it proves seams, not the real pipeline.
+
+## Task 9.3 — Validate provider-issued targeting identifiers at startup (2026-10-05)
+
+Evidence: wrote tests/test_identifier_validation.py first; with only an empty-returning stub, ran it and saw 7 of 9 fail at assertion level (2 passed trivially) before implementing identifier_validation.py; then ruff format/check, mypy clean, pytest 1281 passed, 1 skipped. No serena/GitNexus query (new module, no existing callers; imports target_profile, registry, errors, models unchanged).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- The provider's lookup surface is a caller-supplied async callable per source name (`IdentifierLookup`, returns recognised identifiers); rejected adding an adapter attribute/BaseLeadSource method, since no adapter exists to define the surface (speculative).
+- Warnings are returned as `UnrecognisedIdentifier(source, term, identifier)` for the caller to print (like `check_against_registry`); rejected logging inside the module (nothing wires startup logging yet).
+- Checks the effective vocabulary (config column overrides adapter default); rejected checking profile columns only.
+- Identifiers are text or a list of text, compared exactly (no case folding); any other shape (mapping, numbers) for a source with a lookup raises ConfigurationError without echoing the value; rejected skipping such values silently.
+- Lookup failure propagates; rejected catching it and warning "could not validate".
+- Lookup runs once per source and only if it has identifiers; synthetic mode calls nothing; non-DataMode raises ValueError (as in pacing.py).
+- A lookup for an unregistered source raises KeyError; rejected ignoring it.
+### Known gaps (needs-follow-up)
+- No adapter exists, so no real lookup (e.g. Apollo supported-technologies CSV snapshot, design line 881) is implemented; the snapshot fixture belongs to the adapter task.
+- Nothing calls validate_identifiers at startup yet (CLI/orchestrator wiring); the 12.13 zero-match run warning is out of scope.
+- No property test (hypothesis is not a dependency); no mutation probes; no self-review run.
+
+### Self-review findings
+- No defects found in identifier_validation.py; source unchanged.
+- Added 4 tests (test_identifier_validation.py): wrong shapes (non-str list item, int, bool, None item) raise ConfigurationError; exact match (case/whitespace); failing lookup after an earlier success still propagates; warning order follows lookup-mapping then profile order.
+- Mutation-checked (all killed): skip a source, declared vocabulary instead of effective, class defaults only, lookups in synthetic mode, swallowed lookup failure, drop no-identifier guard, case/whitespace-insensitive match, coerced shapes, unknown mode treated as live.
+- needs-follow-up: a lookup returning a bare str (a Collection[str]) is split into characters and flags everything; no guard.
+- needs-follow-up: duplicate identifiers in one term yield duplicate warnings; the same id under two terms warns per term (intentional).
+- needs-follow-up: disabled sources are checked if the caller supplies a lookup; wiring decision belongs to the caller.
+- needs-follow-up: lookups run sequentially (deterministic, but slow with many sources); cancellation propagates untouched (not separately tested).
+
+- **Also fixed by the parent after review:** a lookup returning one bare string was split into characters, flagging every identifier; it now raises `TypeError` (test added, red first).

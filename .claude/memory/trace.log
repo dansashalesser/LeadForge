@@ -63,3 +63,5 @@
 2026-10-05 13:07 | spec-refactor-agent | inherit | error | medium
 2026-10-05 13:10 | spec-tdd-impl-agent | inherit | pass | medium
 2026-10-05 13:12 | spec-refactor-agent | inherit | error | medium
+2026-10-05 13:14 | spec-tdd-impl-agent | inherit | error | medium
+2026-10-05 13:16 | spec-refactor-agent | inherit | error | medium
