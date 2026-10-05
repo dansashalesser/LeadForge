@@ -1096,3 +1096,31 @@ Gaps (needs-follow-up):
 - needs-follow-up: tiers skipped because pruning emptied the work list record no result (consistent with 11.5 empty-list rule); 11.3 exit mapping not re-verified against that.
 - needs-follow-up: a flag value that is truthy but not literally True (e.g. "true") is ignored.
 - needs-follow-up: a source in a tier that fails (non-halting) is not tested for later-tier call counts beyond the unauthorized case.
+
+## Task 11.7 — Call per-company sources once per distinct Company Signal (2026-10-05)
+Evidence: wrote tests/test_orchestrator_per_company.py (11 tests) first; ran it and saw collection fail with ImportError (per_company_work_list missing) before any implementation; after implementing, all passed (no individual red per test beyond the collection failure). ruff format/check, mypy clean; pytest 1432 passed, 1 skipped. One mutation (dedupe disabled) failed 2 tests (5 per_company calls vs 1; 2 vs 1), file restored. No GitNexus/serena query (additive: one new function and one changed request in run()).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Company identity now = casefolded/stripped domain set at contribution value path `company.domain` (str or tuple/list/set/frozenset of str); equal sets are one company. Rejected: building PSL reduction or overlap clustering (task 16.9, 8.16-8.18, not built); keying on name or email domain; reading CompanySignal.company_id (work-list items are LeadContributions, which carry no CompanySignal). 16.9 replaces `_company_key`.
+- A Lead with no domain is kept and stands for itself (never merged). Rejected: dropping it from the per-company list (silent loss) or grouping all unkeyed together (false merge).
+- Non-text `company.domain` raises TypeError. Rejected: ignoring it (silent fallback).
+- Per-company work list = first Lead of each company in work-list order, same objects, input tuple untouched; applied per tier (tier shares one charge_unit) on the already pruned list, so a suppressed Lead never stands for its company. Rejected: dedupe inside enrichment_work_list (11.5/11.6 contract is unfiltered); last-Lead or best-Lead representative (needs a score or ranking, forbidden).
+- "Call" = provider call: the orchestrator still invokes each source once per phase; the source makes one provider call per work-list item, so the item count is the billable count (test sources count one per item). per_lead and per_call tiers still get the whole list. Rejected: one fetch_raw per company/lead (changes the 11.5 request contract and needs a per-call merge into one SourceResult batch).
+- Fan-back: nothing is copied onto the other Leads at one company here; a company-level contribution reaches them through the shared Company Signal and Employment (ADR-0001) in a later stage. Rejected: duplicating the contribution per Lead.
+- Ledger: no new counters; SourceOutcome counts orchestrator invocations (attempted 1, asserted in a test), not provider calls. Rejected: adding a billable-units field (speculative).
+### Known gaps (needs-follow-up)
+- Overlapping but unequal domain sets (acme.com vs {acme.com, acme.io}) and subdomains (mail.acme.com) count as different companies until 16.9 lands, so Credits may be spent twice for one company.
+- No adapter emits `company.domain` yet; the path is a string convention to confirm with 12.x-14.x and the Merge Engine design.
+- Per-company provider-call counts are not visible in the outcome ledger or run summary.
+- Leads with no domain are not deduplicated, so a per-company source may be called for each.
+- Self-review not run (no Agent tool); only one mutation checked.
+
+### Self-review findings
+Fixed:
+- Mutation sweep (12 mutants: dedupe off, dedupe on per_lead / per_call tiers, no casefold, no strip, blank entries kept, domain-less leads collapsed, keep-last, first-domain-only key, nondeterministic order, input mutated, dedupe before pruning). 11 killed; "blank entries kept" survived. Added test_blank_domain_entries_are_not_part_of_the_company (seen failing under the mutant, passing restored). orchestrator.py restored byte-identical (sha checked). No src change.
+Verified: 1 per_company call vs N per_lead calls; ledger shows 1 attempt; keying errs toward under-merge (extra credits, no lost leads); no Lead is dropped from run output, only skipped for that per_company source (Requirement 6.11 says "invoke once per deduplicated CompanySignal", so consistent). ruff, mypy, full suite green.
+Known gaps:
+- needs-follow-up: a non-text company.domain (int, UntrustedText, bytes) raises TypeError inside run(), outside source isolation, aborting the whole run and discarding paid Discovery results (confirmed with a scratch test, deleted). Consider treating as "no company" or isolating; left because the implementer chose fail-loud deliberately.
+- needs-follow-up: no normalizer/adapter emits "company.domain" yet, so in production the dedupe is a no-op until a mapping supplies it; 16.9 must also fix the path name (Company Signal field is `domains`).
+- needs-follow-up: overlapping domain sets (A={a.com,a.io}, B={a.com}) are called separately (under-merge); 16.9 clustering and PSL reduction replace _company_key.
+- needs-follow-up: company-level result is not fanned back to the skipped Leads at the company.

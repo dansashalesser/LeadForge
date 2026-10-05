@@ -338,7 +338,7 @@ task = one commit.
   - Do any reordering by changing declared attributes, never by editing a maintained list
   - _Requirements: 6.10_
 
-- [ ] 11.7 Call per-company sources once per distinct Company Signal
+- [x] 11.7 Call per-company sources once per distinct Company Signal
   - Invoke a source declaring per-company charging once per clustered Company Signal rather than once per Lead
   - Assert that two Leads at one company cause exactly one per-company call
   - _Requirements: 6.11_

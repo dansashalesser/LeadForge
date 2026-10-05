@@ -100,6 +100,26 @@ Enrichment order (task 11.6, Requirement 6.10; ADR-0002). Provisional decisions
 * When pruning empties the work list, the remaining tiers are not called and record no
   result, exactly like an empty work list from Discovery (11.5).
 * Results still follow registry order within each phase.
+
+Per-company calls (task 11.7, Requirement 6.11; ADR-0002). Provisional decisions
+(choices.md, 11.7):
+
+* A tier whose sources declare ``charge_unit: per_company`` is handed
+  ``per_company_work_list(work_list)``: the first Lead of each distinct company, in
+  work-list order. Every other tier keeps the whole list, so a per-lead source still
+  works every Lead. The orchestrator still invokes a source once per phase; the source
+  makes one provider call per work-list item, so the item count is the billable count.
+  The ledger therefore counts orchestrator invocations (1), not provider calls.
+* Dedupe runs on the already pruned list, so a suppressed Lead is never the one that
+  stands for its company. The input tuple is untouched.
+* A company is the casefolded, stripped domain set at ``company.domain`` (a str, or a
+  tuple, list, set or frozenset of str). Two Leads are one company only when their sets
+  are equal: no Public Suffix List reduction and no overlap clustering exist yet
+  (task 16.9, Requirements 8.16 to 8.18), which will replace ``_company_key``.
+* A Lead with no domain stands for itself and is never merged; a non-text value is a
+  ``TypeError``, not ignored.
+* A company-level result is not copied onto the Leads sharing the company here: the
+  Company Signal is shared through Employment (ADR-0001), joined by a later stage.
 """
 
 from __future__ import annotations
@@ -113,6 +133,7 @@ from enum import StrEnum
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
     Capability,
+    ChargeUnit,
     EnrichmentRequest,
     LeadContribution,
     RawBatch,
@@ -146,6 +167,7 @@ __all__ = [
     "SourceResult",
     "SourceStatus",
     "enrichment_work_list",
+    "per_company_work_list",
     "prune_flagged",
 ]
 
@@ -390,6 +412,55 @@ def prune_flagged(
     )
 
 
+_COMPANY_DOMAIN_PATH = "company.domain"
+
+
+def _company_key(contribution: LeadContribution) -> frozenset[str] | None:
+    """The domain set naming a contribution's company; ``None`` if it names none."""
+    value = contribution.values.get(_COMPANY_DOMAIN_PATH)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        items: tuple[object, ...] = (value,)
+    elif isinstance(value, tuple | list | set | frozenset):
+        items = tuple(value)
+    else:
+        raise TypeError(
+            f"{_COMPANY_DOMAIN_PATH} must be text or a collection of text, "
+            f"got {type(value).__name__}"
+        )
+    domains: set[str] = set()
+    for item in items:
+        if not isinstance(item, str):
+            raise TypeError(
+                f"{_COMPANY_DOMAIN_PATH} entries must be text, "
+                f"got {type(item).__name__}"
+            )
+        if item.strip():
+            domains.add(item.strip().casefold())
+    return frozenset(domains) or None
+
+
+def per_company_work_list(
+    work_list: tuple[LeadContribution, ...],
+) -> tuple[LeadContribution, ...]:
+    """The work list with one Lead per distinct company (Requirement 6.11).
+
+    Keeps the first Lead of each company, in work-list order, and every Lead that names
+    no company. Pure: the input is a tuple and the kept items are the same objects.
+    """
+    seen: set[frozenset[str]] = set()
+    kept = []
+    for contribution in work_list:
+        key = _company_key(contribution)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        kept.append(contribution)
+    return tuple(kept)
+
+
 class IngestionOrchestrator:
     def __init__(
         self,
@@ -528,10 +599,16 @@ class IngestionOrchestrator:
                 for tier in enrichment_tiers(enrichment):
                     if not work_list:
                         break
+                    # A tier shares one charge unit (it is part of the tier key).
+                    tier_list = (
+                        per_company_work_list(work_list)
+                        if tier[0].charge_unit is ChargeUnit.PER_COMPANY
+                        else work_list
+                    )
                     await run_phase(
                         tier,
                         Phase.ENRICHMENT,
-                        EnrichmentRequest(kind="enrich", work_list=work_list),
+                        EnrichmentRequest(kind="enrich", work_list=tier_list),
                     )
                     work_list = prune_flagged(
                         work_list,
