@@ -1,0 +1,41 @@
+{
+  "provider": "apollo",
+  "fixtures": [
+    {
+      "file": "search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-api-search",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in shaped from the documented response; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "match.json",
+      "endpoint": "match",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-enrichment",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in shaped from the documented response; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "supported_technologies.csv",
+      "endpoint": null,
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-api-search",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made four-row stand-in for the supported-technologies CSV; real column layout unverified; replace with a dated snapshot. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    }
+  ]
+}

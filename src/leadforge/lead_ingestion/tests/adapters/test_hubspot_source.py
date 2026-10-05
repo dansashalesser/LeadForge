@@ -514,8 +514,11 @@ async def test_the_fixtures_run_end_to_end_with_no_network_and_nothing_unmapped(
     record = payload["lookups"][0]["contacts"][0]
     shaped = {"lookup": "ada@example.com", **record}
     assert unmapped_raw_paths(shaped, HubSpotSource.RULES, HubSpotSource.IGNORED) == []
-    # The fixture directory holds exactly the two hand-made stand-ins this reads.
-    assert sorted(p.name for p in FIXTURE_DIR.glob("*.json")) == [
+    # The fixture directory holds exactly the two hand-made stand-ins this reads
+    # (plus manifest.json, the provenance record, task 17.1).
+    assert sorted(
+        p.name for p in FIXTURE_DIR.glob("*.json") if p.name != "manifest.json"
+    ) == [
         "contact_search.json",
         "deal_search.json",
     ]

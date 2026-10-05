@@ -1,0 +1,29 @@
+{
+  "provider": "hubspot",
+  "fixtures": [
+    {
+      "file": "contact_search.json",
+      "endpoint": "contact_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; property names unverified against a live portal; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "deal_search.json",
+      "endpoint": "deal_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; deal association filter unverified; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    }
+  ]
+}

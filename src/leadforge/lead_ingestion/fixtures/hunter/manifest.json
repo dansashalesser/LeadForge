@@ -1,0 +1,41 @@
+{
+  "provider": "hunter",
+  "fixtures": [
+    {
+      "file": "domain_search.json",
+      "endpoint": "domain_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in shaped from research notes; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "email_finder.json",
+      "endpoint": "email_finder",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; finder response shape unverified; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    },
+    {
+      "file": "email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; verifier data shape unverified; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+    }
+  ]
+}

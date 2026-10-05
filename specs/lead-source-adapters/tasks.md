@@ -530,7 +530,7 @@ task = one commit.
 ---
 
 - [ ] 17. Fixture fidelity contract suite
-- [ ] 17.1 Record fixture provenance metadata per provider endpoint
+- [x] 17.1 Record fixture provenance metadata per provider endpoint
   - Store synthetic fixtures as JSON under a per-provider directory, one file per exercised provider endpoint
   - Record in a sibling metadata entry the provider documentation URL and the date the schema was verified, for every fixture file
   - Touches every adapter's fixture directory, so not concurrent with 12.x through 15.x
