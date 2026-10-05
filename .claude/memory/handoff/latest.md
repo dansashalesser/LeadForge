@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T15:50:59+00:00
+- Written: 2026-10-05T15:54:25+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-15.3 is committed and pushed, which completes the Hunter adapter. I'll tick the parent tasks whose sub-tasks are all done. Parent 14 stays open because 14.2 is unchecked.
+I committed and pushed the session-state files. Task 16.1's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
