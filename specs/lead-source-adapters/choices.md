@@ -188,3 +188,31 @@ subagent (no Agent tool). Parent re-ran pytest: 196 passed. Commit 74a1532 is lo
 - **Chose:** `NonBlank` on path/source/raw/scale fields; `confidence_raw` a verbatim string; `DataMode` in models.py per design.md; `untrusted`, `CanonicalLead.provenance`, `contributing_sources` left to 2.3 and the normalizer/merge tasks; `superseded` defaults False
 
 Evidence: partial — `spec-refactor-agent` and `validate-production-agent` not run by the subagent (no Agent tool). Parent re-ran pytest: 227 passed. Commit ce27828 is local and unpushed; `tasks.md` shows 2.2 `[x]` but is uncommitted (specs/ not committed by harness rule).
+
+## Task 2.3 — UntrustedText (pass audit, 2026-10-05)
+
+### `untrusted` defaults to False on FieldProvenance, nothing yet ties it to the value type
+- **Verdict:** needs-user
+- **Spec said:** "Mark the corresponding provenance record as untrusted external text" (2.3); design.md shows a plain bool
+- **Chose:** `untrusted: bool = False`. A normalizer that forgets to set it silently labels provider text as trusted. Enforcement is deferred to the `FieldMap` untrusted flag (task 5.1)
+- **Alternatives:** make it required (no default); or have 5.1 reject an `UntrustedText` value whose provenance is not `untrusted=True`
+- **Provisional:** reversible — keep the default; task 5.1 must add the cross-check, and if it does not, flip to required
+- **Evidence:** `models.py` FieldProvenance; subagent report item 6
+
+### `__str__` raises TypeError (stricter than design.md)
+- **Verdict:** sound
+- **Spec said:** "no implicit string conversion … a type error" (2.3); design.md only says no `__str__` that returns the payload
+- **Chose:** `__str__` raises; `__repr__` withholds payload and shows lengths, so debuggers and pytest output keep working. `"x" + obj` is a TypeError by construction
+- **Note:** `%s` logging of an UntrustedText will raise inside the logger; callers log `.value` deliberately or the repr
+- **Evidence:** `models.py` UntrustedText; `tests/test_untrusted_text.py`
+
+### Truncation invariant on the wrapper
+- **Verdict:** sound
+- **Chose:** truncated ⇒ `original_length > len(value)`; not truncated ⇒ `original_length == len(value)`; violations raise `ValidationError` (matches 2.1/2.2). Cutting and max length stay with the normalizer (5.2)
+- **Note:** `len` counts characters, not bytes; 5.2 should keep that unit when it applies the configured bound
+
+### Type name, module, base class, serialization
+- **Verdict:** sound
+- **Chose:** `UntrustedText` in `models.py` (design.md name, existing single-module layout), extends `_Entity` (frozen, extra=forbid), `value: StrictStr`. `model_dump`/JSON keep `value` so the 22.3 round trip works; explicit access is `.value`
+
+Evidence: re-verified by parent — pytest 240 passed, mypy clean, ruff clean on the slice. Commit 890288f is local and unpushed. Subagent did not run spec-refactor-agent, validate-production-agent, or a blast-radius scan (no Agent tool); change is a defaulted field plus a new type. Repo-wide ruff 842 errors were not investigated.

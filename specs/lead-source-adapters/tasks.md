@@ -58,7 +58,7 @@ task = one commit.
   - Keep a superseded flag on the record so a losing contribution can be retained rather than dropped
   - _Requirements: 1.2, 1.8_
 
-- [ ] 2.3 Add the untrusted provider-text type
+- [x] 2.3 Add the untrusted provider-text type
   - Wrap all provider-supplied free text — snippets, bios, job descriptions, company descriptions — in a distinct type with no implicit string conversion, so concatenating it into an instruction is a type error rather than a convention breach
   - Carry a truncation flag and the original length on the wrapper
   - Mark the corresponding provenance record as untrusted external text
