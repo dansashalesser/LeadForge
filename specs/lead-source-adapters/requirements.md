@@ -39,7 +39,7 @@ adding a source is one new class and nothing else; the full demo runs with zero 
 #### Acceptance Criteria
 
 1. The Lead Ingestion Layer shall expose exactly one canonical lead type, `CanonicalLead`, as the only lead type visible to any downstream stage.
-   - Verify: No module outside `sources/` imports a provider-specific raw schema.
+   - Verify: No module outside `adapters/` imports a provider-specific raw schema.
 2. When an adapter returns a normalized lead, the Normalizer shall attach to every populated field a provenance record containing source name, data mode, fetch timestamp, and the provider's raw field path.
    - Verify: Every populated canonical field has a non-null provenance record attached.
 3. If a provider supplies no value for a canonical field, then the Lead Ingestion Layer shall leave that field null and record no provenance entry for it.
@@ -91,7 +91,7 @@ adding a source is one new class and nothing else; the full demo runs with zero 
 
 #### Acceptance Criteria
 
-1. When a new module defining a `BaseLeadSource` subclass is placed in `src/leadforge/sources/`, the Source Registry shall discover and register it without any edit to the registry, the orchestrator, the models, or the database layer.
+1. When a new module defining a `BaseLeadSource` subclass is placed in `src/leadforge/lead_ingestion/adapters/`, the Source Registry shall discover and register it without any edit to the registry, the orchestrator, the models, or the database layer.
    - Verify: Adding a source module changes exactly one file plus fixtures.
 2. The repository shall contain an automated test that adds a throwaway `BaseLeadSource` subclass at runtime and asserts it appears in the registry and completes a synthetic ingestion run.
    - Verify: A test registers a dummy source and runs it end-to-end.

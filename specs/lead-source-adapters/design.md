@@ -124,7 +124,7 @@ graph TB
 
 | Option | Layout | Blast radius for this feature | Honours CLAUDE.md | Honours structure.md |
 |---|---|---|---|---|
-| **A — Stage-as-slice** | Keep `structure.md`. This feature touches `sources/`, `models/`, `db/`, `fixtures/`, `config/` | 5 folders | No — `models/` and `db/` are shared modules | Yes |
+| **A — Stage-as-slice** | Keep `structure.md`. This feature touches `adapters/`, `models/`, `db/`, `fixtures/`, `config/` | 5 folders | No — `models/` and `db/` are shared modules | Yes |
 | **B — True vertical slice** | One folder `src/leadforge/lead_ingestion/` containing adapters, canonical types, merge, store, migrations, tests. Downstream stages import `leadforge.lead_ingestion.types.CanonicalLead` from the owning slice | 1 folder | Yes — no neutral shared module; the type has an owner | Amends it |
 | **C — Slice plus thin contracts package** | Option B plus `src/leadforge/contracts/` holding only `CanonicalLead`, `FieldProvenance`, `BaseLeadSource` — types only, never behaviour | 2 folders | Partially — `contracts/` is a shared module, but a types-only one | Partially |
 
