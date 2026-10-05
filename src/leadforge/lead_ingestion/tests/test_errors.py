@@ -123,9 +123,12 @@ def test_non_source_errors_are_not_source_errors() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#6.3
 def test_retry_dispatch_by_type_distinguishes_every_failure_class() -> None:
     retryable = (SourceTransient, SourceRateLimited)
+    flags = {type(e).__name__: isinstance(e, retryable) for e in SOURCE_ERRORS}
     assert flags["SourceTransient"]
     assert flags["SourceRateLimited"]
-    assert flags["SourceTransient"] and flags["SourceRateLimited"]
-    assert not any(
-        v for k, v in flags.items() if k not in {"SourceTransient", "SourceRateLimited"}
-    )
+    others = {
+        k: v
+        for k, v in flags.items()
+        if k not in {"SourceTransient", "SourceRateLimited"}
+    }
+    assert not any(others.values())
