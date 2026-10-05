@@ -14,9 +14,9 @@ Layered by **pipeline stage**, with a `src/` Python package. Each stage depends 
 **Purpose**: all application code, one subpackage per stage (`sources`, `enrichment`, `qualification`, `personalization`, `guardrails`, `triggers`, `delivery`, `reporting`, `db`, `evals`) plus `models` (canonical types) and `cli`.
 
 ### Source adapters
-**Location**: `/src/leadforge/sources/`
+**Location**: `/src/leadforge/lead_ingestion/adapters/`
 **Purpose**: `base.py` holds `BaseLeadSource` and the registry. One module per provider holds its raw schema, the client (REST or MCP), and `normalize()`.
-**Example**: `sources/apollo.py` → `ApolloSource(BaseLeadSource)`
+**Example**: `lead_ingestion/adapters/apollo.py` → `ApolloSource(BaseLeadSource)`
 
 ### Synthetic fixtures
 **Location**: `/fixtures/<provider>/`
@@ -32,7 +32,7 @@ Layered by **pipeline stage**, with a `src/` Python package. Each stage depends 
 **Purpose**: scoring weights and thresholds, enabled sources, trigger rules (YAML). Secrets never go here; they live in `.env`.
 
 ### Tests
-**Location**: `/tests/` mirrors `src/leadforge/` (`tests/sources/test_apollo.py`)
+**Location**: `/tests/` mirrors `src/leadforge/` (`tests/test_apollo.py` beside the adapter slice)
 
 ### Specs
 **Location**: `/specs/<feature>/`
