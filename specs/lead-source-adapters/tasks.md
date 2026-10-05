@@ -190,7 +190,7 @@ task = one commit.
   - Blocked on 6.1 and 6.3; parallel with 6.6, which touches the contribution-field mapping instead
   - _Requirements: 9.8_
 
-- [ ] 6.6 (P) Preserve the untrusted classification across the round trip
+- [x] 6.6 (P) Preserve the untrusted classification across the round trip
   - Persist the untrusted marker, truncation flag, and original length alongside the stored value
   - Prove by test that the classification survives a write and read round trip unchanged
   - Blocked on 6.1 and 6.3; parallel with 6.5
