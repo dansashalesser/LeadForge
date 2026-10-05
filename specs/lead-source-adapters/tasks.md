@@ -475,7 +475,7 @@ task = one commit.
   - Blocked on 16.3
   - _Requirements: 8.5, 8.6, 8.7_
 
-- [ ] 16.5 Recompute the Lead projection non-destructively
+- [x] 16.5 Recompute the Lead projection non-destructively
   - Keep each source's contribution as its own immutable record and derive the canonical Lead as a projection recomputed from those records, with no unmerge or split operation existing anywhere
   - Make the projection a pure function of its cluster and the trust ranking, so running it twice yields identical bytes
   - Prove that changing the match rule and recomputing yields a different canonical set with zero mutation or deletion of contribution records

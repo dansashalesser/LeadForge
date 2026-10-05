@@ -1642,3 +1642,36 @@ Gaps left:
 - needs-follow-up: contributing_sources cannot see a contribution with neither values nor absences; ClusterResolution does not carry it. 16.5 should take the set from cluster.contributions[*].source_name (8.7). Documented by a test.
 - SPEC GAP (shared with 16.3): multi-valued fields (signals, employments, domains) are compared whole, so a differing list from a lower-ranked source is marked superseded rather than unioned. Documented by a test.
 - needs-follow-up: agreeing candidates are unmarked and persist only as an agreeing_source_count plus their immutable contribution rows. Reading 8.5 as losing = different value; confirm with the owner.
+
+## Task 16.5 — Recompute the Lead projection non-destructively (2026-10-05)
+Evidence: wrote tests/test_projection.py first and ran it (collection ImportError, module absent: red); then projection.py (29 tests green); ruff format/check, mypy, full pytest (2166 passed, 1 skipped) clean. Vendor-neutrality test forced neutral wording in the new files.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Contributing sources, agreement counts and provenance ride on `ProjectionResult` beside the lead; rejected adding fields to `CanonicalLead` (model unchanged).
+- Bare `email` path is re-keyed to `person.email` in memory before resolving (stored contribution untouched), unless the contribution already has `person.email`; rejected editing the store or leaving it a separate path.
+- Winner failing model validation (bad email/URL) leaves the field empty; rejected promoting a lower candidate (would break winner-to-provenance resolution).
+- `email_status` only from a candidate whose source also supplied the chosen address, else `unknown`; rejected taking the status winner blindly (could mark another address verified).
+- `opt_out`/`suppressed` = OR over every candidate of every source (not the winner); also kept on the result so a no-identity cluster keeps them.
+- No person identity -> `lead=None`, rest still returned; rejected raising.
+- `full_name` = person.full_name else first+last (adapters emit no full_name).
+- One Employment max; `company_id` = hash of sorted casefolded domain set (name if no domain); `is_current` None; no org => no Employment.
+- Signals: union of every Tech/IntentSignal object in any candidate, first in candidate order keeps its strength; rejected unioning by max strength (strength-dependent).
+### Known gaps (needs-follow-up)
+- "Recompute in one transaction / prior projection valid on rollback" and persisting the projection are store wiring, not built; "changing the match rule" (no rule parameter exists) not proven here.
+- Provenance marks follow the 16.3 winner, so after a status fallback or invalid-winner the lead field may not match the unmarked winner record.
+- Adapters' flat `company.technologies` is not turned into Signals (shares the 14.2 gap); multi-valued fields still compared whole.
+- Status-to-email matching is per source name, not per contribution; a source with two different emails could mismatch.
+- company_id is provisional until 16.9-16.11.
+
+### Self-review findings
+Fixed:
+- tests: added test_re_keying_the_bare_email_leaves_the_stored_contribution_untouched (values, provenance and absences of a HubSpot-style bare `email` contribution stay unmodified). A mutation that wrote person.email into the stored values survived the original 29 tests; now caught. No source change.
+Verified (no defect): winner mapping, OR of opt_out/suppressed over every candidate (suppression is not a rank-resolved conflict; a suppressed Lead stays a Lead), no-identity cluster returns lead=None with flags kept, empty-contribution source is in the set (taken from the cluster), email_status never overclaims, no network, no bare except, 5000 contributions project in 0.5 s, shuffle-identical, projection raised on none of the fuzzed values (bad domains, 100 KB names, bad URLs).
+Mutation-checked (each caught): winner not applied, suppression not ORed, status without stating source, arrival-order source list, no-identity raises with value in text, empty contribution invisible, agreement dropped, opt_out ignored, signals from winner only, no first+last composition. File restored byte-identical (cmp). Survivor "company id domain order reversed" is an equivalent mutation.
+Gaps left:
+- SPEC GAP (needs-user): 8.7 and design.md say the merged Lead carries contributing_sources (and provenance); CanonicalLead has no such field, they ride on ProjectionResult (store maps them to canonical_lead.contributing_sources). Adding fields would change test_canonical_entities field-set checks; not changed.
+- needs-follow-up: a blank or invalid winning email/URL/name (the normalizer does not validate these, so a provider can emit them) leaves the field empty and erases a valid lower-ranked candidate; with no other identity the Lead is None. Fallback to the next valid candidate would break "field resolves to the winning provenance record" (8.6). Decide drop vs fallback vs raise.
+- needs-follow-up: Apollo masked last names ('Sm***') compose into full_name 'Jane Sm***' on the Lead; no masked-name detection exists (also in match_keys).
+- needs-follow-up: company_id hashes raw casefolded domains (no registrable-domain normalisation: 'www.x.com' differs from 'x.com'; a URL string stays a domain) or 'name:<name>' when no domain; two leads at one company with different winning names share a company_id with different content, which share_company_signals rejects. A personal domain (webmail, freelancer's own) would be hashed unsalted; flag as potentially personal data. Superseded by 16.9-16.11.
+- needs-follow-up: _any_true accepts only the boolean True; a future adapter emitting a non-bool flag would fail open.
+- Signals: one per (kind, label), first in deterministic candidate order keeps its strength; duplicates collapse; same-label different-strength from two sources keep the higher-ranked one.
