@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T14:29:01+00:00
+- Written: 2026-10-05T14:31:57+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 12.2 review found a real money bug and fixed it. The orchestrator retries a whole fetch, so a failure on the Nth id re-called the match for ids 1 to N-1 and spent their credits again. A per-run cache now pays for each id once. The reviewer also flagged a spec gap that needs your decision: Apollo only matches leads that already carry Apollo's own id. I'll collect those decisions for you at the end. Finishing the task.
+I committed and pushed the session-state files. Task 12.3's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
