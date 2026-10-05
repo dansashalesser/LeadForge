@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T17:10:55+00:00
+- Written: 2026-10-05T17:15:25+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 16.10's code stays uncommitted until its implementer reports and the self-review is done.
+The 16.10 review confirmed the vote is sound and display-only. It extracted the shared rank validation so there is no duplicate, and added nine tests that kill the surviving mutations. One data-model limit is recorded for you: a Signal with several sources and several domains credits every source to every domain, which is exact only while adapters emit one source per Signal. Finishing the task.
 
 ## In-flight todos
 _(none captured)_
