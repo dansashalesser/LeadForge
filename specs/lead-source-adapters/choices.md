@@ -1200,3 +1200,39 @@ Known gaps:
 - needs-follow-up: credits_in raises on a malformed batch rather than returning a count; a credit spent in a fetch that later fails normalization is not billed anywhere (no run-record channel).
 - needs-follow-up: person.email and email_status are contributed but not in answerable_surfaces, so no Negative Evidence can be recorded for them.
 - Suppressed-lead pruning for PAID sources is the orchestrator's generic tier logic (tested there with fake sources); not re-proven with Apollo itself.
+
+## Task 12.3 — Classify Apollo errors and record per-window allowances (2026-10-05)
+Evidence: wrote 21 new tests (31 cases) in tests/adapters/test_apollo_source.py first; ran them and saw 31 fail (old code raised bare SourceError "returned status N"); then implemented in adapters/apollo.py; final `uv run ruff format src`, `ruff check src`, `mypy`, `pytest -q` all clean (1543 passed, 1 skipped).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- `classify_error` lives on ApolloSource only, signature `(response, *, endpoint)`; design shows a base default `classify_error(response)` that does not exist in base_source.py. Rejected: inventing the base default (other providers' conventional mapping is outside 12.3) and keeping the design's endpoint-less signature (a scope-403 must name the endpoint).
+- 429 is rate-limited whether or not the code matches `USAGE.RATE_LIMIT.API_RATE_LIMIT_EXCEEDED`; the cause is the code, else "unrecognized_429". Rejected: a permanent error for an unknown 429 code (would never retry a real throttle).
+- Research documents no Apollo quota/credit-exhaustion signal distinct from 429, so no SourceQuotaExhausted is produced by Apollo (402 and other 4xx stay generic SourceError, one attempt).
+- Scope-403 code is undocumented: every 401/403 becomes SourceUnauthorized(endpoint=path, scope_cause=error_details.code, or "no_error_code"). Rejected: matching a guessed scope code. Codes are accepted only if `[A-Za-z0-9_.]{1,100}`; message text and body are never put in errors.
+- retry-after is read from the header only (positive finite seconds, else None); body `retry_after_seconds` ignored. Rejected: falling back to the body field or a default interval.
+- Allowances: `ApolloSource.allowances` property (minute/hour/day -> int) holding the LAST response's values (replaced each response, so stale values drop); non-negative ASCII digits only, absent/malformed means no key. Rejected: accumulating history, and zero-filling.
+- 5xx and 408 -> SourceTransient(status); other 4xx -> SourceError naming path, status, safe code.
+### Known gaps (needs-follow-up)
+- Allowances are not yet on a run record or fed to throttle.py: neither has a window-allowance channel; nothing reads `allowances` yet.
+- Base-class default `classify_error` and the orchestrator/retry wiring of the unauthorized status for non-Apollo providers are not done.
+- Apollo header names and the 403 scope code are unverified against live Apollo (research: headers undocumented); no live check.
+- A credit spent in a fetch that later fails normalization is still billed nowhere (12.2 gap unchanged); no-match shape still unverified.
+
+### Self-review findings
+
+Fixed (all test-first, seen red then green):
+- Base-class gap (design: "classify_error() hook on BaseLeadSource with a conventional default, overridden once"): added `BaseLeadSource.classify_error(response, *, endpoint)` with the conventional mapping (401/403 SourceUnauthorized naming the endpoint; 429 SourceRateLimited with safe Retry-After; 5xx/408 SourceTransient with status; any other non-2xx, including 1xx/3xx, a plain SourceError, which retry.py never retries: one attempt). `_send` now classifies and raises, so there is one call path; timeouts and connection errors stay the transport's SourceTimedOut / SourceTransient. Added optional `_note_response` hook (no-op) and public `retry_after_seconds()` in base_source.py. Signature deviates from the design's `classify_error(self, response)` by the keyword `endpoint`, needed to name the endpoint (12.6).
+- ApolloSource: removed `_call` wrapper, now overrides only `classify_error` (code-based rate limit, scope cause on 401/403, `code=` on permanent 4xx) and `_note_response` (allowances). Its private `_retry_after` moved to the base helper.
+- Crash: an allowance header of more than 4300 digits made `int()` raise ValueError (a hostile or garbled header crashed the call). Now length-bounded (15 digits), longer is dropped as unknown.
+- Retry-After: `float()` accepted underscores ("1_0" became 10.0); now ASCII delta-seconds only (digits with optional fraction); HTTP-date, negative, NaN, inf, overflow, non-ASCII digits are None.
+- Tests added: tests/test_base_classify_error.py (48 cases incl. override inversion, ledger/RetryPolicy end to end), Apollo end-to-end attempts/status table (401, 403 once; 422/404 once; 503 and 429 to the ceiling), more malformed allowance values.
+- Mutation-checked (13 mutations, all killed, files restored byte-identical): 403 or 401 mapped away, permanent mapped transient, scope cause dropped, endpoint blanked, body echoed (base and Apollo), huge header crash, Retry-After parse removed or ignored, allowances not recorded.
+
+Known gaps:
+- needs-follow-up: allowances are "last response only", so after a transport failure (timeout, connection error) the previous values stay; counts only fall within a window, so a stale value can overstate. Nothing reads `allowances` yet (no run-record channel), so no throttle is misled today.
+- needs-follow-up: under the bounded pool, concurrent calls on one instance race to be "last"; harmless on the single-threaded event loop (dict replaced atomically) but the value is any recent response, not the minimum. Task text says record on the run record: no such channel exists yet.
+- needs-follow-up: Retry-After as an HTTP-date is treated as absent (backoff used), not parsed.
+- needs-follow-up: SourceTimedOut text in transport.py includes `repr(exc)`; not reviewed for URL or secret content (outside this task).
+- Scratch dir `scratchpad/rev` could not be deleted (rm denied); it holds only helper scripts and .bak copies, none in the repo.
+
+- **Also fixed by the parent after review:** `transport.py` put `repr(exc)` in the `SourceTimedOut` text, which can carry a URL, query string or person data into `outcome.error` and the run record (Apollo match sends its parameters in the query string). It now names only the exception type (test added, red first).

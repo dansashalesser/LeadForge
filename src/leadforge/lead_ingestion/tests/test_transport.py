@@ -190,3 +190,21 @@ async def test_redirects_are_not_followed() -> None:
     await t.aclose()
     assert resp.status == 302
     assert not other.called
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#20.4
+@respx.mock
+async def test_timeout_text_names_the_endpoint_and_error_type_but_nothing_else() -> (
+    None
+):
+    # A library message may carry a URL, query string or person data: never persisted.
+    leak = "jane.doe@acme.com via https://x.test/v1/people/1?email=jane.doe@acme.com"
+    respx.get(f"{BASE}/v1/people/1").mock(side_effect=httpx.ReadTimeout(leak))
+    t = make()
+    with pytest.raises(SourceTimedOut) as exc:
+        await t.send(LOOKUP, params={"id": "1"}, json_body=None, headers={})
+    await t.aclose()
+    text = str(exc.value)
+    assert "jane.doe" not in text
+    assert "ReadTimeout" in text
+    assert "/v1/people/" in text

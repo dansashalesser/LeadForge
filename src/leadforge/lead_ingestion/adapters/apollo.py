@@ -52,6 +52,7 @@ Provisional decisions (see choices.md, task 12.1):
 """
 
 import csv
+import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -74,8 +75,14 @@ from leadforge.lead_ingestion.base_source import (
     RawBatch,
     SourceRequest,
     resolve_credentials,
+    retry_after_seconds,
 )
-from leadforge.lead_ingestion.errors import NormalizationError, SourceError
+from leadforge.lead_ingestion.errors import (
+    NormalizationError,
+    SourceError,
+    SourceRateLimited,
+    SourceUnauthorized,
+)
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.normalizer import (
     FieldRule,
@@ -83,7 +90,7 @@ from leadforge.lead_ingestion.normalizer import (
     Normalizer,
     validate_raw_payload,
 )
-from leadforge.lead_ingestion.transport import Transport
+from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 if TYPE_CHECKING:
     from leadforge.lead_ingestion.pacing import SourcePacing
@@ -112,6 +119,17 @@ _MATCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="default")
 
 _ID_PATH = "person.provider_id"
 _NO_MATCH = "none"
+
+# Apollo's documented stable code for throttling (12.11); read from error_details only.
+RATE_LIMIT_CODE = "USAGE.RATE_LIMIT.API_RATE_LIMIT_EXCEEDED"
+_CODE_SHAPE = re.compile(r"[A-Za-z0-9_.]{1,100}")
+_NO_CODE = "no_error_code"
+_MAX_ALLOWANCE_DIGITS = 15
+_ALLOWANCE_HEADERS = {
+    "x-minute-requests-left": "minute",
+    "x-hourly-requests-left": "hour",
+    "x-24-hour-requests-left": "day",
+}
 
 _log = structlog.get_logger()
 
@@ -242,6 +260,7 @@ class ApolloSource(BaseLeadSource):
         self._environ = environ
         # Answers already paid for this run: a retried fetch must not buy them again.
         self._matched: dict[str, Mapping[str, Any]] = {}
+        self._allowances: dict[str, int] = {}
         self._uids = _uids_of(
             self.target_vocabulary if vocabulary is None else vocabulary
         )
@@ -253,6 +272,50 @@ class ApolloSource(BaseLeadSource):
                     uid=uid,
                     snapshot_date=SUPPORTED_TECHNOLOGIES_SNAPSHOT_DATE,
                 )
+
+    @property
+    def allowances(self) -> Mapping[str, int]:
+        """Requests left per window (``minute``, ``hour``, ``day``), last response.
+
+        A window Apollo did not report, or reported unreadably, has no entry: absence
+        means unknown, never zero (12.5).
+        """
+        return dict(self._allowances)
+
+    def _note_response(self, response: TransportResponse) -> None:
+        self._allowances = _allowances_in(response.headers)
+
+    def classify_error(
+        self, response: TransportResponse, *, endpoint: Endpoint
+    ) -> SourceError | None:
+        """Apollo's reading of the conventional mapping (12.4-12.11).
+
+        Reads only ``error_details.code``, never a top-level error field or message
+        text. The documented rate-limit code, or a 429, is ``SourceRateLimited``; a
+        401 or 403 is ``SourceUnauthorized`` naming the endpoint and the scope cause.
+        Everything else is the base default. Error text names paths and codes, never
+        a body.
+        """
+        status = response.status
+        if 200 <= status < 300:
+            return None
+        code = _error_code(response.body)
+        if code == RATE_LIMIT_CODE or status == 429:
+            return SourceRateLimited(
+                self.name,
+                cause=code or "unrecognized_429",
+                retry_after_s=retry_after_seconds(response.headers),
+            )
+        if status in (401, 403):
+            return SourceUnauthorized(
+                self.name, endpoint=endpoint.path, scope_cause=code or _NO_CODE
+            )
+        error = super().classify_error(response, endpoint=endpoint)
+        if type(error) is SourceError and code:
+            return SourceError(
+                self.name, f"{endpoint.path} returned status {status} code={code}"
+            )
+        return error
 
     def _headers(self) -> Mapping[str, str]:
         if self.data_mode is DataMode.SYNTHETIC:
@@ -288,8 +351,6 @@ class ApolloSource(BaseLeadSource):
             json_body=None,
             headers=headers,
         )
-        if not 200 <= response.status < 300:
-            raise SourceError(self.name, f"search returned status {response.status}")
         body = response.body
         found = body.get("people") if isinstance(body, Mapping) else None
         if not isinstance(found, list) or not all(
@@ -318,8 +379,6 @@ class ApolloSource(BaseLeadSource):
         response = await self._send(
             _MATCH, params={"id": lookup}, json_body=None, headers=headers
         )
-        if not 200 <= response.status < 300:
-            raise SourceError(self.name, f"match returned status {response.status}")
         if not isinstance(response.body, Mapping):
             raise NormalizationError(
                 self.name, raw_field_path="person", canonical_path="<unmapped>"
@@ -370,6 +429,25 @@ class ApolloSource(BaseLeadSource):
                 )
             contributions.append(normalizer.apply(response, self.MATCH_RULES, context))
         return contributions
+
+
+def _error_code(body: object) -> str | None:
+    """``error_details.code`` when present and identifier-shaped, else ``None``."""
+    details = body.get("error_details") if isinstance(body, Mapping) else None
+    code = details.get("code") if isinstance(details, Mapping) else None
+    if isinstance(code, str) and _CODE_SHAPE.fullmatch(code):
+        return code
+    return None
+
+
+def _allowances_in(headers: Mapping[str, str]) -> dict[str, int]:
+    found: dict[str, int] = {}
+    for header, window in _ALLOWANCE_HEADERS.items():
+        raw = headers.get(header, "").strip()
+        # Bounded: int() refuses very long digit strings, and no real count needs them.
+        if raw.isascii() and raw.isdigit() and len(raw) <= _MAX_ALLOWANCE_DIGITS:
+            found[window] = int(raw)
+    return found
 
 
 def credits_in(batch: RawBatch) -> int:

@@ -109,7 +109,10 @@ class RestTransport:
                 timeout=self._timeout,
             )
         except httpx.TimeoutException as exc:
-            raise SourceTimedOut(self._provider, f"{endpoint.path}: {exc!r}") from exc
+            # Name the error type only: a library message may carry a URL or data.
+            raise SourceTimedOut(
+                self._provider, f"{endpoint.path}: {type(exc).__name__}"
+            ) from exc
         except httpx.TransportError as exc:
             raise SourceTransient(self._provider) from exc
         try:

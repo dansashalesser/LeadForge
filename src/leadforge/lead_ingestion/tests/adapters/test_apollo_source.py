@@ -1,9 +1,11 @@
 """Apollo Source adapter: credit-free Discovery with technographic targeting (12.1)."""
 
+import asyncio
 import json
 import socket
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -31,6 +33,9 @@ from leadforge.lead_ingestion.errors import (
     MissingCredentialError,
     NormalizationError,
     SourceError,
+    SourceRateLimited,
+    SourceTransient,
+    SourceUnauthorized,
     UndeclaredEndpointError,
 )
 from leadforge.lead_ingestion.models import (
@@ -40,6 +45,7 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
 )
 from leadforge.lead_ingestion.normalizer import unmapped_raw_paths
+from leadforge.lead_ingestion.orchestrator import SourceCallLedger, SourceStatus
 from leadforge.lead_ingestion.pacing import SourcePacing
 from leadforge.lead_ingestion.retry import RetryPolicy
 from leadforge.lead_ingestion.throttle import SourceThrottle
@@ -826,3 +832,293 @@ async def test_a_retried_enrichment_does_not_pay_again_for_an_id_already_matched
     batch = await source.fetch_raw(work)  # the orchestrator's retry of the fetch
     assert [c[1]["id"] for c in transport.calls] == ["p1", "p2", "p2"]
     assert [m["lookup"] for m in batch.payload["matches"]] == ["p1", "p2"]
+
+
+# --- error classification and per-window allowances (12.3) -------------------------
+
+RATE_CODE = "USAGE.RATE_LIMIT.API_RATE_LIMIT_EXCEEDED"
+
+
+def failure(
+    status: int,
+    *,
+    code: str | None = None,
+    headers: Mapping[str, str] | None = None,
+    body: object | None = None,
+) -> TransportResponse:
+    if body is None and code is not None:
+        body = {
+            "error_details": {"code": code, "message": "words that must not matter"}
+        }
+    return TransportResponse(status=status, headers=headers or {}, body=body)
+
+
+async def fail_with(response: TransportResponse) -> SourceError:
+    source = live(Scripted(lambda _: response), vocabulary=ONE_TERM)
+    with pytest.raises(SourceError) as caught:
+        await source.fetch_raw(REQUEST)
+    return caught.value
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.4
+# Verifies: specs/lead-source-adapters/requirements.md#12.11
+async def test_the_documented_rate_limit_code_is_rate_limited_with_retry_after() -> (
+    None
+):
+    err = await fail_with(failure(429, code=RATE_CODE, headers={"retry-after": "42"}))
+    assert isinstance(err, SourceRateLimited)
+    assert err.retry_after_s == 42.0
+    assert RATE_CODE in err.cause
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.4
+@pytest.mark.parametrize("value", ["", "soon", "-3", "0", "nan", "inf", "1e999"])
+async def test_a_bad_retry_after_header_is_ignored_never_invented(value: str) -> None:
+    err = await fail_with(failure(429, code=RATE_CODE, headers={"retry-after": value}))
+    assert isinstance(err, SourceRateLimited)
+    assert err.retry_after_s is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.4
+async def test_a_429_without_a_retry_after_header_has_no_interval() -> None:
+    err = await fail_with(failure(429, code=RATE_CODE))
+    assert isinstance(err, SourceRateLimited)
+    assert err.retry_after_s is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.4
+async def test_a_429_with_an_unrecognized_or_absent_code_is_still_rate_limited() -> (
+    None
+):
+    for response in (
+        failure(429, code="USAGE.SOMETHING.NEW", headers={"retry-after": "7"}),
+        failure(429, body=["not", "an", "object"]),
+        failure(429, body={"error": "top-level only", "error_details": "nope"}),
+    ):
+        err = await fail_with(response)
+        assert isinstance(err, SourceRateLimited)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.7
+# Verifies: specs/lead-source-adapters/requirements.md#12.11
+async def test_the_code_decides_not_the_message_text_or_a_top_level_field() -> None:
+    # Rate-limit words in the message and a top-level field, but a different code.
+    misleading = {
+        "error": "rate limit exceeded",
+        "message": "rate limit exceeded, too many requests",
+        "error_details": {"code": "INPUT.INVALID", "message": "rate limit exceeded"},
+    }
+    err = await fail_with(failure(422, body=misleading))
+    assert not isinstance(err, SourceRateLimited)
+    # The code alone decides, whatever the message says.
+    coded = {"error_details": {"code": RATE_CODE, "message": "everything is fine"}}
+    assert isinstance(await fail_with(failure(429, body=coded)), SourceRateLimited)
+    # A top-level code field is never read.
+    top = {"code": RATE_CODE, "error_code": RATE_CODE}
+    err = await fail_with(failure(422, body=top))
+    assert not isinstance(err, SourceRateLimited)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.6
+async def test_a_scope_403_is_unauthorized_naming_endpoint_and_scope_cause() -> None:
+    err = await fail_with(failure(403, code="AUTH.SCOPE.ENDPOINT_NOT_ALLOWED"))
+    assert isinstance(err, SourceUnauthorized)
+    assert err.endpoint == SEARCH_PATH
+    assert err.scope_cause == "AUTH.SCOPE.ENDPOINT_NOT_ALLOWED"
+    assert SEARCH_PATH in str(err)
+    assert "words that must not matter" not in str(err)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.6
+async def test_a_403_on_the_match_endpoint_names_the_match_path() -> None:
+    transport = Scripted(lambda _: failure(403, code="AUTH.SCOPE.X"))
+    with pytest.raises(SourceUnauthorized) as caught:
+        await enrichment_source(transport).fetch_raw(enrich(lead("p1")))
+    assert caught.value.endpoint == MATCH_PATH
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.6
+@pytest.mark.parametrize(
+    "body",
+    [None, ["x"], {"error_details": {}}, {"error_details": {"code": "has space!"}}],
+)
+async def test_a_403_without_a_usable_code_still_names_the_endpoint_and_a_cause(
+    body: object,
+) -> None:
+    err = await fail_with(failure(403, body=body))
+    assert isinstance(err, SourceUnauthorized)
+    assert err.endpoint == SEARCH_PATH
+    assert err.scope_cause == "no_error_code"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.6
+async def test_a_401_is_unauthorized_naming_the_endpoint() -> None:
+    err = await fail_with(failure(401))
+    assert isinstance(err, SourceUnauthorized)
+    assert err.endpoint == SEARCH_PATH
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.11
+async def test_other_failures_are_transient_or_permanent_by_type() -> None:
+    for status in (500, 503, 408):
+        err = await fail_with(failure(status))
+        assert isinstance(err, SourceTransient)
+        assert err.status == status
+    for status in (400, 402, 404, 422):
+        err = await fail_with(failure(status, code="INPUT.INVALID"))
+        assert type(err) is SourceError
+        assert str(status) in str(err)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.6
+async def test_error_text_carries_no_key_no_body_and_no_person_data() -> None:
+    body = {
+        "error_details": {"code": "AUTH.SCOPE.X", "message": "Jane Doe jane@x.test"},
+        "person": {"name": "Jane Doe", "email": "jane@x.test"},
+    }
+    for status in (401, 403, 429, 422, 503):
+        err = await fail_with(failure(status, body=body, headers={"x-api-key": KEY}))
+        text = str(err) + repr(err) + repr(err.args)
+        assert KEY not in text
+        assert "Jane" not in text
+        assert "jane@x.test" not in text
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.5
+async def test_the_per_window_allowances_are_recorded_from_the_headers() -> None:
+    headers = {
+        "x-minute-requests-left": "58",
+        "x-hourly-requests-left": "590",
+        "x-24-hour-requests-left": "9000",
+    }
+    transport = Scripted(
+        lambda _: TransportResponse(
+            status=200, headers=headers, body={"total_entries": 0, "people": []}
+        )
+    )
+    source = live(transport, vocabulary=ONE_TERM)
+    assert source.allowances == {}
+    await source.fetch_raw(REQUEST)
+    assert source.allowances == {"minute": 58, "hour": 590, "day": 9000}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.5
+async def test_absent_allowance_headers_leave_no_entry_and_do_not_crash() -> None:
+    source = live(Scripted(lambda _: page(0, 0)), vocabulary=ONE_TERM)
+    await source.fetch_raw(REQUEST)
+    assert source.allowances == {}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.5
+@pytest.mark.parametrize(
+    "value",
+    ["", "many", "-1", "1.5", "nan", "inf", " ", "9" * 5000, "5, 7", "\u0663", "1_0"],
+    ids=lambda value: value[:12] or "empty",
+)
+async def test_a_malformed_allowance_header_is_dropped_never_invented(
+    value: str,
+) -> None:
+    headers = {"x-minute-requests-left": value, "x-hourly-requests-left": "12"}
+    transport = Scripted(
+        lambda _: TransportResponse(
+            status=200, headers=headers, body={"total_entries": 0, "people": []}
+        )
+    )
+    source = live(transport, vocabulary=ONE_TERM)
+    await source.fetch_raw(REQUEST)
+    assert source.allowances == {"hour": 12}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.5
+async def test_allowances_are_recorded_from_an_error_response_too() -> None:
+    headers = {"x-minute-requests-left": "0", "retry-after": "5"}
+    source = live(
+        Scripted(lambda _: failure(429, code=RATE_CODE, headers=headers)),
+        vocabulary=ONE_TERM,
+    )
+    with pytest.raises(SourceRateLimited):
+        await source.fetch_raw(REQUEST)
+    assert source.allowances == {"minute": 0}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.5
+async def test_a_later_response_without_a_header_drops_the_stale_value() -> None:
+    answers = iter(
+        [
+            TransportResponse(
+                status=200,
+                headers={"x-minute-requests-left": "9"},
+                body={"total_entries": 0, "people": []},
+            ),
+            page(0, 0),
+        ]
+    )
+    transport = Scripted(lambda _: next(answers))
+    source = live(transport, vocabulary={"t": ["datastax", "couchbase"]})
+    await source.fetch_raw(REQUEST)
+    assert source.allowances == {}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.4
+async def test_the_retry_policy_backs_off_by_the_provider_interval() -> None:
+    answers = iter(
+        [failure(429, code=RATE_CODE, headers={"retry-after": "3"}), page(0, 0)]
+    )
+    source = live(Scripted(lambda _: next(answers)), vocabulary=ONE_TERM)
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+
+    batch = await RetryPolicy(max_attempts=2).run(
+        lambda: source.fetch_raw(REQUEST), sleep=sleep
+    )
+    assert batch.payload == {"people": []}
+    assert slept == [3.0]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.11
+# Verifies: specs/lead-source-adapters/requirements.md#6.2
+# Verifies: specs/lead-source-adapters/requirements.md#7.4
+@pytest.mark.parametrize(
+    ("response", "attempts", "status"),
+    [
+        (failure(401), 1, SourceStatus.UNAUTHORIZED),
+        (failure(403, code="AUTH.SCOPE.X"), 1, SourceStatus.UNAUTHORIZED),
+        (failure(422, code="INPUT.INVALID"), 1, SourceStatus.FAILED),
+        (failure(404), 1, SourceStatus.FAILED),
+        (failure(503), 3, SourceStatus.TRANSIENT),
+        (failure(429, code=RATE_CODE), 3, SourceStatus.RATE_LIMITED),
+    ],
+)
+async def test_the_error_type_alone_drives_attempts_and_the_run_status(
+    response: TransportResponse, attempts: int, status: SourceStatus
+) -> None:
+    transport = Scripted(lambda _: response)
+    source = live(transport, vocabulary=ONE_TERM)
+    policy = RetryPolicy(max_attempts=3, base_delay_s=0.001, max_delay_s=0.001)
+    ledger = SourceCallLedger("apollo", retry=policy)
+    attempt = await ledger.call(partial(source.fetch_raw, REQUEST))
+    assert not attempt.ok
+    assert len(transport.calls) == attempts
+    outcome = ledger.outcome()
+    assert outcome.status is status
+    assert outcome.attempted == attempts
+    for leaked in ("words that must not matter", KEY):
+        assert leaked not in (outcome.error or "")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.5
+async def test_allowances_survive_concurrent_calls_on_one_instance() -> None:
+    def respond(params: Mapping[str, object]) -> TransportResponse:
+        left = str(params["page"])
+        return TransportResponse(
+            status=200,
+            headers={"x-minute-requests-left": left},
+            body={"total_entries": 0, "people": []},
+        )
+
+    source = live(Scripted(respond), vocabulary=ONE_TERM)
+    await asyncio.gather(*(source.fetch_raw(REQUEST) for _ in range(5)))
+    assert set(source.allowances) <= {"minute"}
+    assert source.allowances.get("minute", 1) >= 0

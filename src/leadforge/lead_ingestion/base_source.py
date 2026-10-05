@@ -6,7 +6,9 @@ can answer for (``answerable_surfaces``), so "could answer" versus "never able t
 answer" is data, and every ``SourceAbsence`` is checked against it at the boundary.
 """
 
+import math
 import os
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
@@ -17,7 +19,14 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from pydantic import Field, model_validator
 
-from leadforge.lead_ingestion.errors import InvalidAbsenceError, MissingCredentialError
+from leadforge.lead_ingestion.errors import (
+    InvalidAbsenceError,
+    MissingCredentialError,
+    SourceError,
+    SourceRateLimited,
+    SourceTransient,
+    SourceUnauthorized,
+)
 from leadforge.lead_ingestion.models import (
     AbsenceKind,
     DataMode,
@@ -50,6 +59,7 @@ __all__ = [
     "enrichment_sort_key",
     "enrichment_tiers",
     "resolve_credentials",
+    "retry_after_seconds",
 ]
 
 
@@ -398,12 +408,52 @@ class BaseLeadSource(ABC):
         Every provider call goes through here, so each call, retries included, takes
         capacity from the bucket the endpoint declares (7.1). A source with no pacing
         (synthetic mode) awaits nothing. Retry stays with the caller's ``RetryPolicy``.
+
+        A non-2xx answer is classified by ``classify_error`` and raised as its
+        ``SourceError`` type, so the caller never sees an HTTP status. Timeouts and
+        connection errors are raised by the transport before any response exists.
         """
         if self._pacing is not None:
             await self._pacing.throttle.bucket(endpoint.bucket).acquire()
-        return await self.transport.send(
+        response = await self.transport.send(
             endpoint, params=params, json_body=json_body, headers=headers
         )
+        self._note_response(response)
+        error = self.classify_error(response, endpoint=endpoint)
+        if error is not None:
+            raise error
+        return response
+
+    def _note_response(  # noqa: B027 - optional hook, a no-op by default
+        self, response: "TransportResponse"
+    ) -> None:
+        """Hook to read a response of any status before it is classified."""
+
+    def classify_error(
+        self, response: "TransportResponse", *, endpoint: Endpoint
+    ) -> SourceError | None:
+        """The conventional status mapping; ``None`` for a 2xx. Overridden per provider.
+
+        401 and 403 are ``SourceUnauthorized`` naming the endpoint, 429 is
+        ``SourceRateLimited`` (with ``Retry-After`` when it is a usable number), 5xx
+        and 408 are ``SourceTransient``, and anything else is a plain ``SourceError``:
+        permanent, one attempt (7.4). Error text names the path and status, never a
+        body. A provider that inverts the convention (16.7) overrides this.
+        """
+        status = response.status
+        if 200 <= status < 300:
+            return None
+        if status in (401, 403):
+            return SourceUnauthorized(self.name, endpoint=endpoint.path)
+        if status == 429:
+            return SourceRateLimited(
+                self.name,
+                cause="http_429",
+                retry_after_s=retry_after_seconds(response.headers),
+            )
+        if status >= 500 or status == 408:
+            return SourceTransient(self.name, status=status)
+        return SourceError(self.name, f"{endpoint.path} returned status {status}")
 
     def _validate_endpoints(self, cls: str) -> None:
         if not isinstance(self.endpoints, Mapping):
@@ -557,3 +607,19 @@ def enrichment_tiers[S: BaseLeadSource](sources: Iterable[S]) -> list[list[S]]:
             last = tier_key
         tiers[-1].append(source)
     return tiers
+
+
+_DELTA_SECONDS = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+
+
+def retry_after_seconds(headers: Mapping[str, str]) -> float | None:
+    """Seconds from a ``retry-after`` header; ``None`` unless a positive finite number.
+
+    An HTTP-date, a negative, a non-number, or an overflow is ``None``: the caller then
+    falls back to its own backoff rather than inventing an interval.
+    """
+    raw = headers.get("retry-after", "").strip()
+    if not _DELTA_SECONDS.fullmatch(raw):
+        return None
+    seconds = float(raw)
+    return seconds if math.isfinite(seconds) and seconds > 0 else None

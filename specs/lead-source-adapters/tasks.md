@@ -364,7 +364,7 @@ task = one commit.
   - Blocked on 12.1; parallel with 13.x, 14.x, and 15.x
   - _Requirements: 12.3, 12.8, 12.9, 12.14_
 
-- [ ] 12.3 (P) Classify Apollo errors and record per-window allowances
+- [x] 12.3 (P) Classify Apollo errors and record per-window allowances
   - Branch error handling on Apollo's nested stable error code identifier, never on a top-level error field and never on human-readable message text
   - Match the documented rate-limit code and, on a throttling response, back off by at least the provider-supplied retry interval
   - Mark a scope-related forbidden response unauthorized with a message naming the endpoint and the scope cause
