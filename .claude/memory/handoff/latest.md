@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T16:22:56+00:00
+- Written: 2026-10-05T16:28:17+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 16.4 review found and fixed a real defect. A record marked superseded in an earlier run, fed back in as the winner, raised a `ValueError` and could have crashed a later projection. Superseded marks are derived, so the function now sets them from the current outcome. It also confirmed that the store already carries superseded marks by id, so no store work is needed. Finishing the task.
+I committed and pushed the session-state files. Task 16.5's code stays uncommitted until its implementer reports and the self-review is done.
 
 ## In-flight todos
 _(none captured)_
