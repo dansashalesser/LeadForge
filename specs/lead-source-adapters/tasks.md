@@ -444,7 +444,7 @@ task = one commit.
 ---
 
 - [ ] 16. Merge Engine
-- [ ] 16.1 (P) Extract Match Keys ordered by durability
+- [x] 16.1 (P) Extract Match Keys ordered by durability
   - Treat the normalized LinkedIn URL as the strongest Match Key — lowercased host and path, query string, fragment, and trailing slash stripped — because it survives a change of employer where a work address does not
   - Fall to an equal normalized Verified Email when a LinkedIn URL is absent on either side, lowercased and trimmed
   - Fall further to a normalized full name paired with any domain of any Employment, current or historical, requiring at least one corroborating attribute — shared title, shared employer, or overlapping Employment dates — and never matching on name alone

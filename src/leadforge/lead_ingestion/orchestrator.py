@@ -150,8 +150,9 @@ from leadforge.lead_ingestion.errors import (
     SourceTransient,
     SourceUnauthorized,
 )
+from leadforge.lead_ingestion.match_keys import normalize_email, normalize_linkedin_url
 from leadforge.lead_ingestion.mode_resolution import ModeResolution
-from leadforge.lead_ingestion.models import DataMode
+from leadforge.lead_ingestion.models import DataMode, UntrustedText
 from leadforge.lead_ingestion.pacing import SourcePacing, build_pacing
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.retry import RetryPolicy, RetryStats
@@ -375,7 +376,10 @@ def enrichment_work_list(
 # Compliance flags a contribution can carry, and the identity values a report names its
 # lead by (Requirement 6.10). Canonical-path names match ``CanonicalLead`` fields.
 _COMPLIANCE_FLAGS = ("suppressed", "opt_out")
-_IDENTITY_PATHS = ("email", "linkedin_url")
+# Adapters differ on the spelling: most write ``person.*``, one suppression report
+# writes the bare ``email``. Each spelling names the same identity.
+_EMAIL_PATHS = ("person.email", "email")
+_LINKEDIN_PATHS = ("person.linkedin_url", "linkedin_url")
 
 
 def _is_flagged(contribution: LeadContribution) -> bool:
@@ -383,13 +387,21 @@ def _is_flagged(contribution: LeadContribution) -> bool:
 
 
 def _identities(contribution: LeadContribution) -> frozenset[tuple[str, str]]:
-    """Normalised ``(path, value)`` pairs; a blank value names no lead."""
-    pairs = (
-        (path, str(contribution.values[path]).strip().casefold())
-        for path in _IDENTITY_PATHS
-        if contribution.values.get(path) is not None
-    )
-    return frozenset(pair for pair in pairs if pair[1])
+    """Normalised ``(kind, value)`` pairs; a blank value names no lead."""
+    pairs: set[tuple[str, str]] = set()
+    for kind, paths, normalise in (
+        ("email", _EMAIL_PATHS, normalize_email),
+        ("linkedin_url", _LINKEDIN_PATHS, normalize_linkedin_url),
+    ):
+        for path in paths:
+            value = contribution.values.get(path)
+            if value is None:
+                continue
+            text = value.value if isinstance(value, UntrustedText) else str(value)
+            key = normalise(text)
+            if key:
+                pairs.add((kind, key))
+    return frozenset(pairs)
 
 
 def prune_flagged(

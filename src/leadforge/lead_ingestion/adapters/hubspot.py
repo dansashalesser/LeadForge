@@ -457,7 +457,10 @@ def _emails_of(work_list: tuple[LeadContribution, ...]) -> list[str]:
     """Distinct work-list emails, trimmed and case-folded, in work-list order."""
     emails: dict[str, None] = {}
     for contribution in work_list:
-        value = contribution.values.get("email")
+        # Apollo and Hunter write ``person.email``; the bare ``email`` is HubSpot's own.
+        value = contribution.values.get(
+            "person.email", contribution.values.get("email")
+        )
         if isinstance(value, str) and value.strip():
             emails[value.strip().casefold()] = None
     return list(emails)

@@ -1510,3 +1510,47 @@ Known gaps:
 - needs-follow-up: a finder (name-only) restriction carries first_name/last_name/domain and no email or LinkedIn, so prune_flagged (11.6) cannot match it; it helps only if the Merge Engine (16.x) joins first+last into full_name and matches it. Hunter will be asked again in later runs.
 - needs-follow-up: `yields_suppression` stays False (Hunter is paid; the ordering rule is for free sources) though Hunter now emits suppressed flags.
 - needs-follow-up: a 451 for an address does not remove it from an answer given earlier by another source or tier; that rests on the merge's OR semantics.
+
+## Task 16.1 — Extract Match Keys ordered by durability (2026-10-05)
+Evidence: new tests/test_match_keys.py first run = collection ModuleNotFoundError (red), then 62 passed after match_keys.py; ruff format/check, mypy, full pytest green.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Result type `MatchKeys` (keys sorted by kind then value, plus corroborating_emails, titles, employers); rejected a bare list of keys, since 16.2 needs the 8.11 and 8.3 evidence too.
+- Key 3 is emitted as a candidate, one per registrable domain; `corroborates(a, b)` is the pairwise gate (shared title or employer); rejected folding the gate into the key value.
+- Role addresses are not recognised in 16.1 (design: no curated role-word list; 8.14 handled by 16.7 via distinct names); rejected a role-word blocklist.
+- LinkedIn key = `host/path` lowercased, scheme/query/fragment/trailing slash dropped; `www.` and locale variants not folded (under-merge preferred); host-only URL gives no key.
+- Plus-addresses kept as written; only EmailStatus.VERIFIED is a key; UNVERIFIED/ACCEPT_ALL are corroboration only; INVALID/UNKNOWN/missing status give nothing.
+- Name from person.full_name, else first+last (both required); paths are the adapters' `person.*`/`company.*`, not the orchestrator's bare `email`/`linkedin_url`.
+- Registrable domain via tldextract(suffix_list_urls=(), cache_dir=None): bundled PSL snapshot of the locked version; bare suffix/IP/localhost skipped.
+- Non-text values raise TypeError naming the path only (matches orchestrator `_company_key`); rejected silent skip.
+- MatchKey/MatchKeys repr withholds values (PII).
+### Known gaps (needs-follow-up)
+- Employment-date overlap corroboration not implemented: no canonical path for dates exists.
+- PSL "dated snapshot" is the tldextract version in uv.lock, not an explicit dated file; 16.9/8.16 should confirm.
+- orchestrator `_identities` (bare paths) not reused or unified; path-name mismatch with adapters remains.
+- Identity Exclusions (16.6) and cross-name disqualification (16.7) not built; keys are a plain frozen dataclass they can filter.
+
+### Self-review findings
+
+Fixed (each test-first; full suite 2031 passed, ruff and mypy clean):
+- match_keys.py: names were casefolded without Unicode normalisation, so composed and decomposed forms ("Jose" + combining acute vs "José") gave different keys (under-merge). `_fold` now applies NFKC before casefold; NBSP/tab/newline collapse is covered by a new test.
+- match_keys.py: email and LinkedIn keys used `casefold()`, but 8.1/8.2 say "lowercase". casefold folds "ß" to "ss", which would merge the distinct mailboxes straße@ and strasse@ (over-merge). Both now use `lower()`.
+- match_keys.py: the registrable domain used the PSL without private suffixes, so one.github.io and two.github.io were both "github.io" (over-merge risk on shared hosting). `include_psl_private_domains=True` now, still the bundled snapshot with `suffix_list_urls=()`; `github.io` alone gives no key.
+- match_keys.py: Unicode and punycode spellings of one domain (münchen.de / xn--mnchen-3ya.de) gave different keys; labels are now decoded to one form.
+- Tests added: no-socket test pinning `suffix_list_urls == ()`, and a sentinel PII test (TypeError names the path only, no key text in any repr of MatchKeys). The earlier PII test only looked for the digit 5 and was weak.
+- Mutation checks (all caught, files restored): order swapped, unverified email as key, key text in the TypeError, PSL fetch enabled, name key without domain, www folded.
+
+Pruning-path finding (CONFIRMED real bug in task 11.6 / 13.x, fixed):
+- orchestrator `_identities` matched on (path, value) with bare `email`/`linkedin_url`. Real Apollo and Hunter write `person.email`/`person.linkedin_url`; HubSpot writes the bare `email`. A HubSpot opt-out never matched an Apollo-shaped work-list entry, so the lead would still reach the paid tier (defeats 6.10/6.11 credit saving). The 11.6 and HubSpot tests passed only because their fake work lists also used the bare path.
+- Worse, HubSpot's `_emails_of` read only the bare `email` from the work list, so with real Apollo output HubSpot looked up NO emails at all.
+- Fix: `_identities` now reads both spellings and compares by (kind, normalised value) using the new public `match_keys.normalize_email` / `normalize_linkedin_url` (LinkedIn matching now also ignores scheme, query, slash, case); `_emails_of` reads `person.email` then `email`. Existing tests unchanged and passing.
+- New tests in tests/adapters/test_hubspot_suppression_paths.py, including an end-to-end run: Apollo-shaped discovery -> real HubSpotSource (scripted transport) -> real orchestrator -> paid tier receives only the non-opted-out lead. (Placed under adapters/ because the vendor-neutrality test forbids vendor names elsewhere.) Hunter already emits `person.email`, so its 451 suppression matched Apollo output before and after.
+- Residual: HubSpot still emits the non-canonical bare `email` path in its own contribution (hubspot.py RULES); the Merge Engine must treat it as `person.email` or HubSpot should migrate (needs-follow-up, 16.2/13.x). Hunter's 451 on a name+domain find carries no email, so pruning cannot match it (needs-follow-up; would need name+domain identity in pruning).
+
+Known gaps left:
+- needs-follow-up: LinkedIn key does not fold `www.`, locale subdomains (uk.linkedin.com), `/pub/` vs `/in/`, percent-encoding vs literal Unicode vanity names, or userinfo/port beyond what urlsplit drops. Requirement 8.1 names only host/path lowercasing and query/fragment/slash stripping, so these under-merge (the safe direction) but a real Apollo URL with and without `www.` will not merge on key 1.
+- needs-follow-up: no requirement or ADR sentence about webmail/generic domains (gmail.com), so `company.domain=gmail.com` still yields a name+domain candidate; only the corroboration gate stands in the way.
+- SPEC GAP: 8.3's "overlapping employment dates" corroboration is not implemented (no canonical path for dates). Only title and employer name corroborate. Also, employer-name agreement is near-vacuous when the domain already matches, so two different people with the same name, same company and no distinguishing attribute can be keyed together; that is what 8.3 literally permits, and Identity Exclusion (16.6) is the only repair.
+- `corroborates` is symmetric and order-independent (set intersection, empty sets never corroborate). It compares the contribution's single title/employer, not the specific employment that produced the shared domain.
+- Role-address disqualification is NOT part of 16.1: ADR-0003 and 8.14 define it as an address reported against two or more distinct person names, with no curated word list, so it belongs to 16.7 across contributions.
+- Email normalisation does not validate beyond "local@domain" (no check for a second "@" or inner whitespace); plus-addressing and dots are intentionally kept.
