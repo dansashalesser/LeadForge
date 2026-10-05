@@ -288,7 +288,7 @@ task = one commit.
   - Parallel with 10.2 — separate modules, no shared writes
   - _Requirements: 7.1, 7.2, 7.6_
 
-- [ ] 10.2 (P) Apply bounded jittered retry over the error taxonomy
+- [x] 10.2 (P) Apply bounded jittered retry over the error taxonomy
   - Retry on transient and rate-limited errors only, with exponential backoff and full jitter to a configured maximum attempt count
   - Dispatch retry decisions on the error type, never on an HTTP status code, so a provider with inverted status conventions needs no special case above its adapter
   - Make every other failure class exactly one attempt

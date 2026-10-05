@@ -26,3 +26,4 @@
 - 2026-10-05 [seed-target:dependency-management]: command failed (exit 1): python3 << 'PYEND' import json  ledger_file = ".claude/memor
 - 2026-10-05 [detector-down]: session signal detection did not run — `claude --print` timed out after 120s
 - 2026-10-05 [friction]: tool rejected (wrong_target) — "<agent-message from="aa2c6bfbd53de5dcf"> [Subagent hand-back] The text below is the final report of a subagent this sess"
+- 2026-10-05 [friction]: tool rejected (scope_drift) — "<agent-message from="abc1afc48de1aba5f"> [Subagent hand-back] The text below is the final report of a subagent this sess"

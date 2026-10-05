@@ -833,3 +833,19 @@ Least-confident first. Applies the user decision: the adapter `target_vocabulary
 
 Prior 9.1 needs-user entry 3 (weak cross-check; design call on adapter-declared versus configured terms) is RESOLVED by user decision (config overrides adapter default). The 3.3 audit entry 1 (coupling of `answerable_surfaces` to vocabulary) stays as recorded, now with the effective check above.
 Signals: red phase seen at assertion level (6 failures against a stub) before implementing. Blast radius by grep only; serena and GitNexus were not queried.
+
+## Task 10.2 — Bounded jittered retry over the error taxonomy (2026-10-05)
+
+Evidence: implementation written by a background agent that the container restart interrupted before review; the parent verified the files, then ran the independent `spec-refactor-agent`. Parent re-ran pytest (1260 passed, 1 skipped), ruff, mypy: clean. The reviewer's regression test was confirmed to fail against the old logic.
+
+### Provisional decisions (the task left these open; all listed in the `retry.py` docstring)
+- **Verdict:** needs-user
+- Defaults 4 attempts, 0.5 s base, 30 s cap; full jitter `uniform(0, min(cap, base * 2**n))`.
+- A provider-supplied `retry_after_s` replaces the computed backoff (jitter included), clamped to `max_retry_after_s`; unusable values fall back to the computed backoff.
+- `SourceTimedOut` is not retryable by default (the design retries only `SourceTransient` and `SourceRateLimited`); `retryable` matches by `isinstance`.
+- Every `SourceRateLimited` is reported to the throttle, including the last and one outside `retryable`; `record_retry` once per retry actually taken.
+- Cancellation and any `BaseException` propagate untouched, including during the backoff sleep; the last failure is re-raised as the original object.
+
+### Self-review findings
+- **Fixed:** the exhaustion check read the caller-supplied cumulative `stats.attempts`, so reusing one `RetryStats` across runs shortened the next run's attempt budget. `run` now counts its own attempts.
+- **Known gaps, not fixed (needs-user):** a caller-supplied `retryable` may include non-retryable-by-design types such as `SourceQuotaExhausted`, the same opt-in as widening to `SourceTimedOut`; `max_retry_after_s` accepts `inf`, matching `throttle.py`; the source-scan test bans any 3-digit number or the word "http" anywhere in `retry.py`, including comments, which is brittle (its AST half is sound); no property test, because `hypothesis` is not a dependency.
