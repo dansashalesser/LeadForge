@@ -139,7 +139,7 @@ task = one commit.
 ---
 
 - [ ] 5. Normalization and provenance emission
-- [ ] 5.1 Emit per-field provenance from declarative field rules
+- [x] 5.1 Emit per-field provenance from declarative field rules
   - Declare each provider's field mapping as data — canonical path, raw field path, untrusted marker, optional transform — and emit provenance mechanically from that declaration rather than from hand-written assignments
   - Emit exactly one provenance record for each rule whose raw path resolves to a value, and zero for each that resolves to nothing, leaving the canonical field empty
   - For each rule that resolves to nothing, also emit a `SourceAbsence` (task 2.4) from the same declaration: Negative Evidence when the adapter declares the canonical path answerable and the source was asked and returned no match, Not Applicable when the adapter declares no surface for it; emit neither when the source was never queried for that field. A `SourceAbsence` is never a provenance record, so the zero-provenance rule above still holds
