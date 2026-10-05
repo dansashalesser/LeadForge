@@ -7,7 +7,7 @@ answer" is data, and every ``SourceAbsence`` is checked against it at the bounda
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, ClassVar
@@ -24,17 +24,41 @@ from leadforge.lead_ingestion.models import (
 __all__ = [
     "BaseLeadSource",
     "Capability",
+    "ChargeUnit",
+    "CostClass",
     "LeadContribution",
     "RateBucket",
     "RateWindow",
     "RawBatch",
     "SourceRequest",
+    "enrichment_order",
+    "enrichment_sort_key",
 ]
 
 
 class Capability(StrEnum):
     SEARCH = "search"  # Discovery
     ENRICH = "enrich"  # Enrichment
+
+
+class CostClass(StrEnum):
+    FREE = "free"
+    PAID = "paid"  # Credit-bearing
+
+
+class ChargeUnit(StrEnum):
+    PER_LEAD = "per_lead"
+    PER_COMPANY = "per_company"
+    PER_CALL = "per_call"
+
+
+# Fewest billable events first: a per-company source is called once per company, a
+# per-call source once per request, a per-lead source once for every lead.
+_CHARGE_UNIT_RANK = {
+    ChargeUnit.PER_COMPANY: 0,
+    ChargeUnit.PER_CALL: 1,
+    ChargeUnit.PER_LEAD: 2,
+}
 
 
 @dataclass(frozen=True)
@@ -71,7 +95,15 @@ class LeadContribution(_Entity):
     absences: tuple[SourceAbsence, ...] = ()
 
 
-_DECLARATIONS = ("name", "capabilities", "rate_limit", "answerable_surfaces")
+_DECLARATIONS = (
+    "name",
+    "capabilities",
+    "rate_limit",
+    "answerable_surfaces",
+    "cost_class",
+    "charge_unit",
+    "yields_suppression",
+)
 
 
 class BaseLeadSource(ABC):
@@ -80,6 +112,10 @@ class BaseLeadSource(ABC):
     rate_limit: ClassVar[Mapping[str, RateBucket]]
     # Canonical path the API can answer for -> raw field paths it can be asked on.
     answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]]
+    # Enrichment ordering is derived from these, never hand-listed (2.7).
+    cost_class: ClassVar[CostClass]
+    charge_unit: ClassVar[ChargeUnit]
+    yields_suppression: ClassVar[bool]
 
     def __init__(self, mode: DataMode) -> None:
         cls = type(self).__name__
@@ -96,6 +132,12 @@ class BaseLeadSource(ABC):
             raise TypeError(f"{cls}.rate_limit must be a Mapping")
         if not isinstance(self.answerable_surfaces, Mapping):
             raise TypeError(f"{cls}.answerable_surfaces must be a Mapping")
+        if not isinstance(self.cost_class, CostClass):
+            raise TypeError(f"{cls}.cost_class must be a CostClass")
+        if not isinstance(self.charge_unit, ChargeUnit):
+            raise TypeError(f"{cls}.charge_unit must be a ChargeUnit")
+        if not isinstance(self.yields_suppression, bool):
+            raise TypeError(f"{cls}.yields_suppression must be a bool")
         for path, surfaces in self.answerable_surfaces.items():
             # A bare str would make `in` a substring test, so demand a real set.
             if not isinstance(surfaces, frozenset) or not all(
@@ -154,3 +196,25 @@ class BaseLeadSource(ABC):
             for absence in contribution.absences:
                 self.validate_absence(absence)
         return contributions
+
+
+def enrichment_sort_key(
+    source: "BaseLeadSource | type[BaseLeadSource]",
+) -> tuple[bool, bool, int, str]:
+    """Pure ordering key over a source's declarations; smaller runs earlier.
+
+    Free before Credit-bearing, so Suppression and dedupe cost nothing; within a tier,
+    Suppression-bearing first so suppressed leads leave the work list before later
+    sources are called; then fewest billable events; name breaks ties deterministically.
+    """
+    return (
+        source.cost_class is CostClass.PAID,
+        not source.yields_suppression,
+        _CHARGE_UNIT_RANK[source.charge_unit],
+        source.name,
+    )
+
+
+def enrichment_order[S: BaseLeadSource](sources: Iterable[S]) -> list[S]:
+    """Sources in Enrichment order, derived from declarations alone (2.7)."""
+    return sorted(sources, key=enrichment_sort_key)

@@ -90,7 +90,7 @@ task = one commit.
   - Prove by test that an adapter with no surface for a canonical path cannot emit Negative Evidence for it, and that the model-level check in 2.4 (which cannot see the source's API) is backed by this one
   - _Requirements: 1.9, 2.1, 2.2, 2.3_
 
-- [ ] 3.2 Declare cost class, charge unit, and Suppression yield
+- [x] 3.2 Declare cost class, charge unit, and Suppression yield
   - Declare whether a source is free or Credit-bearing, whether it charges per Lead, per company, or per call, and whether it yields Suppression
   - Make Enrichment order derivable from these declarations so adding a source places it in the correct tier with no edit outside its own module
   - _Requirements: 2.7_

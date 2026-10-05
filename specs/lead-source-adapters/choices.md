@@ -281,3 +281,18 @@ Evidence: TDD agent report; `spec-refactor-agent` run (one hole fixed); `validat
 - `normalize_checked` checks a contribution's absences but not that the contribution's own `source_name` equals the adapter's `name`.
 - A subclass can override `normalize_checked` and skip validation; Python has no final methods. The registry or contract suite (3.x) should assert the override is absent.
 - The declaration mappings are plain dicts checked at construction only and are shared across subclasses; they can be mutated afterwards.
+
+## Task 3.2 — Cost class, charge unit, Suppression yield (2026-10-05)
+
+Evidence: TDD agent report; parent re-ran pytest, ruff, mypy.
+
+### Where the task left freedoms open — provisional and reversible
+- **Verdict:** needs-user (the task did not name these as delegated)
+- **Chose, in `base_source.py`:**
+  1. Sort key `(is_paid, not yields_suppression, charge_unit_rank, name)`: free+suppression, free, paid+suppression, paid.
+  2. Free non-suppression sources run before paid suppression-bearing ones; the spec only requires free suppression-bearing first.
+  3. Charge-unit rank `per_company` < `per_call` < `per_lead` (fewest billable events first), a heuristic.
+  4. `name` breaks ties for determinism.
+  5. `enrichment_order` is a free function over declarations and does not filter by capability; 11.6 does that.
+- **Alternatives:** method on the class; ranking paid-suppression ahead of free non-suppression.
+- **Known gap:** ordering tests are example-based only, no property test.

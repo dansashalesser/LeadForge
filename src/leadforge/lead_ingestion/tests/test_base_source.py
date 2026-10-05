@@ -9,11 +9,15 @@ from pydantic import ValidationError
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
     Capability,
+    ChargeUnit,
+    CostClass,
     LeadContribution,
     RateBucket,
     RateWindow,
     RawBatch,
     SourceRequest,
+    enrichment_order,
+    enrichment_sort_key,
 )
 from leadforge.lead_ingestion.errors import InvalidAbsenceError, SourceError
 from leadforge.lead_ingestion.models import AbsenceKind, DataMode, SourceAbsence
@@ -35,6 +39,9 @@ class _Stub(BaseLeadSource):
     answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {
         "email": frozenset({"person.email"})
     }
+    cost_class: ClassVar[CostClass] = CostClass.FREE
+    charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_CALL
+    yields_suppression: ClassVar[bool] = False
 
     async def fetch_raw(self, request: SourceRequest) -> RawBatch:
         return RawBatch(source_name=self.name, payload={"kind": request.kind})
@@ -139,6 +146,9 @@ def test_incomplete_subclass_fails_at_construction(missing: str) -> None:
         "capabilities": frozenset[Capability](),
         "rate_limit": {"default": BUCKET},
         "answerable_surfaces": {"email": frozenset({"person.email"})},
+        "cost_class": CostClass.FREE,
+        "charge_unit": ChargeUnit.PER_CALL,
+        "yields_suppression": False,
     }
     del attrs[missing]
     incomplete = type("Incomplete", (BaseLeadSource,), attrs)
@@ -148,7 +158,16 @@ def test_incomplete_subclass_fails_at_construction(missing: str) -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#2.1
 @pytest.mark.parametrize(
-    "missing", ["name", "capabilities", "rate_limit", "answerable_surfaces"]
+    "missing",
+    [
+        "name",
+        "capabilities",
+        "rate_limit",
+        "answerable_surfaces",
+        "cost_class",
+        "charge_unit",
+        "yields_suppression",
+    ],
 )
 def test_subclass_without_a_declaration_fails_at_construction(missing: str) -> None:
     attrs: dict[str, Any] = {
@@ -158,6 +177,9 @@ def test_subclass_without_a_declaration_fails_at_construction(missing: str) -> N
         "capabilities": frozenset[Capability](),
         "rate_limit": {"default": BUCKET},
         "answerable_surfaces": {"email": frozenset({"person.email"})},
+        "cost_class": CostClass.FREE,
+        "charge_unit": ChargeUnit.PER_CALL,
+        "yields_suppression": False,
     }
     del attrs[missing]
     cls = type("Undeclared", (BaseLeadSource,), attrs)
@@ -340,3 +362,92 @@ def test_normalize_checked_validates_every_absence_of_every_contribution() -> No
     ]
     with pytest.raises(InvalidAbsenceError, match="full_name"):
         src.normalize_checked(raw)
+
+
+# --- cost declarations and derived enrichment order (task 3.2) ---------------
+
+
+def _src(
+    name: str, cost: CostClass, unit: ChargeUnit, suppress: bool
+) -> BaseLeadSource:
+    cls: type[BaseLeadSource] = type(
+        name,
+        (_Stub,),
+        {
+            "name": name,
+            "cost_class": cost,
+            "charge_unit": unit,
+            "yields_suppression": suppress,
+        },
+    )
+    return cls(DataMode.SYNTHETIC)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_cost_enums_have_the_spec_values() -> None:
+    assert {c.value for c in CostClass} == {"free", "paid"}
+    assert {u.value for u in ChargeUnit} == {"per_lead", "per_company", "per_call"}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_cost_declarations_are_exposed() -> None:
+    src = _src("x", CostClass.PAID, ChargeUnit.PER_LEAD, True)
+    assert src.cost_class is CostClass.PAID
+    assert src.charge_unit is ChargeUnit.PER_LEAD
+    assert src.yields_suppression is True
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_malformed_cost_declarations_are_rejected_at_construction() -> None:
+    class BadCost(_Stub):
+        cost_class: ClassVar[CostClass] = "free"  # type: ignore[assignment]
+
+    class BadUnit(_Stub):
+        charge_unit: ClassVar[ChargeUnit] = "per_call"  # type: ignore[assignment]
+
+    class BadSuppress(_Stub):
+        yields_suppression: ClassVar[bool] = "yes"  # type: ignore[assignment]
+
+    for cls in (BadCost, BadUnit, BadSuppress):
+        with pytest.raises(TypeError, match=cls.__name__):
+            cls(DataMode.SYNTHETIC)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_free_suppression_sources_precede_every_credit_bearing_source() -> None:
+    paid_supp = _src("paid_supp", CostClass.PAID, ChargeUnit.PER_COMPANY, True)
+    paid = _src("paid", CostClass.PAID, ChargeUnit.PER_CALL, False)
+    free_plain = _src("free_plain", CostClass.FREE, ChargeUnit.PER_CALL, False)
+    free_supp = _src("free_supp", CostClass.FREE, ChargeUnit.PER_CALL, True)
+    ordered = enrichment_order([paid, paid_supp, free_plain, free_supp])
+    assert ordered[0] is free_supp
+    assert [s.name for s in ordered[:2]] == ["free_supp", "free_plain"]
+    assert {s.name for s in ordered[2:]} == {"paid_supp", "paid"}
+    assert ordered[2] is paid_supp  # suppression first within the credit tier
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_order_is_independent_of_input_order_and_deterministic() -> None:
+    srcs = [
+        _src("a", CostClass.PAID, ChargeUnit.PER_LEAD, False),
+        _src("b", CostClass.PAID, ChargeUnit.PER_COMPANY, False),
+        _src("c", CostClass.PAID, ChargeUnit.PER_CALL, False),
+        _src("d", CostClass.PAID, ChargeUnit.PER_CALL, False),
+        _src("e", CostClass.FREE, ChargeUnit.PER_LEAD, True),
+    ]
+    expected = [s.name for s in enrichment_order(srcs)]
+    assert expected == ["e", "b", "c", "d", "a"]
+    assert [s.name for s in enrichment_order(reversed(srcs))] == expected
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_sort_key_is_a_pure_function_of_declarations_on_class_or_instance() -> None:
+    src = _src("k", CostClass.FREE, ChargeUnit.PER_CALL, True)
+    assert enrichment_sort_key(src) == enrichment_sort_key(type(src))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#2.7
+def test_a_new_source_is_placed_without_editing_the_ordering_code() -> None:
+    new = _src("brand_new", CostClass.FREE, ChargeUnit.PER_LEAD, True)
+    old = [_src("old", CostClass.PAID, ChargeUnit.PER_CALL, True)]
+    assert enrichment_order([*old, new])[0] is new
