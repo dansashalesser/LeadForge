@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T13:33:43+00:00
+- Written: 2026-10-05T13:35:32+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-11.2 is committed and pushed. Next is 11.3, which maps the run outcome to a process exit code.
+The 11.3 review fixed two defects: control characters in source names could forge summary lines, and an "ok" source with no successful call was labelled with failure class "ok". Finishing the task.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/ledger-10.2.md
 - $ cat /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/ledger-10.2.md >> specs/lead-so
 - $ git add src specs .claude/memory && git commit -q -m "feat(lead_ingestion): apply bounded jittered retry over the erro
 - $ git fetch -q; git status -sb | head -2; git status --short | grep -v "\.claude/memory"; git log --oneline | head -3; g
@@ -55,3 +54,4 @@ p="src/leadforge/lead_ingestion/orchestrator.py"
 s=open(p).read()
 old="            self._error = str(
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.2 "feat(lea
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.3 "feat(lea
