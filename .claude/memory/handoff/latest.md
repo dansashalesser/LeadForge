@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T16:04:21+00:00
+- Written: 2026-10-05T16:09:00+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 16.2's code stays uncommitted until its implementer reports and the self-review is done.
+The 16.2 review fixed three defects: an unstable cluster id (a later contribution that sorted lower changed it, so it now derives from the earliest-fetched member), a crash on plain date values, and a surviving error-leak mutation. It also raised a genuine risk for you to decide. Two records with different LinkedIn URLs and the same verified email don't merge directly, but a third record with no LinkedIn can bridge them, which is a possible over-merge path. Finishing the task.
 
 ## In-flight todos
 _(none captured)_
