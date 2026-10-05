@@ -18,6 +18,7 @@ from pydantic import (
     EmailStr,
     Field,
     HttpUrl,
+    StrictStr,
     field_validator,
     model_validator,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "ProviderCompanyId",
     "Signal",
     "TechSignal",
+    "UntrustedText",
     "share_company_signals",
 ]
 
@@ -78,6 +80,39 @@ class ConfidenceOrigin(StrEnum):
     NONE = "none"
 
 
+class UntrustedText(_Entity):
+    """Provider free text (snippets, bios, descriptions), kept apart from ``str``.
+
+    The wrapper is the guardrail: it is not a ``str``, ``str()`` and f-string
+    formatting raise ``TypeError``, and ``repr`` hides the payload, so the text cannot
+    be interpolated into an instruction by accident. Read it only through ``.value``.
+    ``truncated`` and ``original_length`` record any cut made to the configured
+    maximum length; the cutting itself belongs to the normalizer.
+    """
+
+    value: StrictStr
+    truncated: bool
+    original_length: Annotated[int, Field(ge=0)]
+
+    @model_validator(mode="after")
+    def _length_matches_truncation(self) -> Self:
+        kept = len(self.value)
+        if self.truncated and self.original_length <= kept:
+            raise ValueError("truncated text must have been longer than what is kept")
+        if not self.truncated and self.original_length != kept:
+            raise ValueError("untruncated text must record its own length")
+        return self
+
+    def __str__(self) -> str:
+        raise TypeError("UntrustedText has no implicit str conversion; use .value")
+
+    def __repr__(self) -> str:
+        return (
+            f"UntrustedText(<{len(self.value)} chars withheld>, "
+            f"truncated={self.truncated}, original_length={self.original_length})"
+        )
+
+
 class FieldProvenance(_Entity):
     """Where one populated canonical field came from, and how sure the source was.
 
@@ -86,6 +121,7 @@ class FieldProvenance(_Entity):
     name of the scale it was expressed on. When ``confidence_origin`` is ``NONE`` the
     provider stated no certainty and all three are ``None`` - never a default number.
     ``superseded`` marks a losing contribution retained rather than dropped.
+    ``untrusted`` marks the field as untrusted external provider text.
     """
 
     canonical_path: NonBlank
@@ -98,6 +134,7 @@ class FieldProvenance(_Entity):
     confidence_raw: NonBlank | None = None
     confidence_scale: NonBlank | None = None
     superseded: bool = False
+    untrusted: bool = False
 
     @model_validator(mode="after")
     def _confidence_matches_origin(self) -> Self:
