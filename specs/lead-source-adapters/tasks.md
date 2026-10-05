@@ -345,7 +345,7 @@ task = one commit.
 
 ---
 
-- [ ] 12. Apollo Source adapter
+- [x] 12. Apollo Source adapter
 - [x] 12.1 (P) Implement Apollo Discovery search with technographic targeting
   - Authenticate by custom key header only; never send the key as a bearer token
   - Call the credit-free mixed-people search endpoint, which returns no email or phone attributes and obfuscated last names, and contribute person identity, organization firmographics, and technology-stack evidence
@@ -374,7 +374,7 @@ task = one commit.
 
 ---
 
-- [ ] 13. HubSpot Source adapter
+- [x] 13. HubSpot Source adapter
 - [x] 13.1 (P) Implement the HubSpot CRM-state lookup on the date-versioned path
   - Authenticate with a private app access token as a bearer token; never use the retired key scheme
   - Target the date-based API version path with the version string held in configuration rather than as a code literal, and never the legacy versioned path
@@ -417,7 +417,7 @@ task = one commit.
 
 ---
 
-- [ ] 15. Hunter Source adapter
+- [x] 15. Hunter Source adapter
 - [x] 15.1 (P) Implement Hunter email discovery batched by domain
   - Authenticate against the v2 base URL with the custom key header
   - Contribute discovered addresses, a deliverability verdict, a Field Confidence, and the supporting sources behind each address
