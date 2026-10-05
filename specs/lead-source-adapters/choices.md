@@ -1303,3 +1303,42 @@ Known gaps:
 - needs-follow-up: a failure mid-fetch (e.g. DAILY on the 2nd email) discards the whole batch, including opt-out contacts already found; prune_flagged then cannot exclude them. Spec silent; partial-result design is outside 13.2.
 - needs-follow-up: `bucket.documented=True` for 5/s is from requirement 13.4 text, not a verified HubSpot doc page.
 - Skipped: str.upper() Unicode folding (e.g. dotless i) can match "DAILY"; harmless.
+
+## Task 14.1 — Implement the pluggable search backend (2026-10-05)
+Evidence: wrote adapters/test_google_search_backend.py first and ran it (collection ImportError, modules absent: red), then implemented; 26 new tests green. Final: `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 1694 passed, 1 skipped. `.env.example` regenerated via `uv run python -m leadforge.lead_ingestion.env_example` (+SERPAPI_API_KEY).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Port is a request-builder, not a sender: `SearchBackend` (ABC) gives endpoint, bucket, required_env, base_url, page_size, `build_call(query, page, credentials)`, `has_next_page(body)`. Dispatch, pacing, classification and caching stay in the adapter `_send`; rejected a backend that sends through the transport itself (would bypass pacing and classify_error).
+- Backend selected by `DEFAULT_BACKEND_NAME = "serpapi"` plus `select_backend(name)` scanning the `search_backends` package (new backend = one new module); rejected an edited name->class dict and a `GOOGLE_SEARCH_BACKEND` env var (would need to be in required_env and be mandatory, contradicting "SerpApi default").
+- Adapter class vars (endpoints, required_env, base_url, rate_limit) are read from the default backend at import, since build_transport and .env.example run without an instance; a backend instance with different endpoint or env names is refused with ConfigurationError. Rejected per-instance declarations.
+- `GoogleSearchSource` (name `google_search`) shell created now so the port has a delegate; `normalize` returns [] for an empty batch and raises SourceError for any search results (14.2 builds it); rejected returning [] always (silent drop).
+- Queries are a ctor argument (default none, no call); `results_per_query` default 10, paged by ceil(n/10), stops when no next page; no cap on it; `num` never sent. Rejected deriving queries from the Target Profile (14.2 territory).
+- Cost PAID/PER_CALL (balance-bearing), capability SEARCH, no answerable surfaces or vocabulary yet; bucket "default" 1 req/s, documented=False (self-imposed, SerpApi hourly limit is plan-dependent); rejected an hourly figure as invented.
+- Pages cached by (query, page) per adapter instance so a retried fetch repeats no balance-bearing call.
+- Edited existing test `test_columns_of_unregistered_sources_are_warnings_not_errors`: it assumed google_search stayed unregistered; it now renames that column in a tmp copy of the shipped profile.
+- Hand-made stand-in fixture `fixtures/google_search/search.json` (not captured).
+### Known gaps (needs-follow-up)
+- A backend with a different host/endpoint/credential cannot be used until adapter class declarations can vary (build_transport is a classmethod); only the default is selectable.
+- No config-file wiring for the backend name or queries (no sources.yaml keys added).
+- SerpApi request params (`engine`, `q`, `start`, `api_key`) and `serpapi_pagination.next` taken from research.md, not checked against live SerpApi.
+- `config/target_profile.yaml` header comment ("No adapter is registered yet") is stale; its google_search columns are not yet used as queries or vocabulary (14.2).
+- 14.2 and 14.3 not built; 429 uses the base default (cause http_429).
+
+### Self-review findings
+Fixed (test-first, each seen failing before the fix):
+- `search_backends.select_backend` silently overwrote two backends sharing a name; it now raises DuplicateSourceNameError.
+- A backend with another `base_url` was accepted, so its key could be sent to serpapi.com; the adapter now refuses a backend whose host differs (ConfigurationError).
+- `queries="abc"` iterated into three paid searches; a bare string is now a TypeError.
+- No spend bound: added MAX_QUERIES=100 and MAX_RESULTS_PER_QUERY=100 (ValueError), so a hostile "next" chain cannot page unboundedly.
+- Added tests: drop-in backend module selectable by name, key absent from every exception/__cause__/traceback for ConnectError, ReadTimeout and a 500 over the real RestTransport, hostile query cannot change host/scheme/path.
+Verified, no change needed: page cache by (query, page) already stops re-spend on retry; no bare except; synthetic builds no socket; mutations (URL echoed in error, silent fallback, cache removed, normalize accepting results) each fail a test.
+
+Known gaps (needs-follow-up):
+- needs-follow-up: backend is chosen by DEFAULT_BACKEND_NAME or constructor argument; research.md names a GOOGLE_SEARCH_BACKEND setting that nothing reads. A backend in a test module is passed in, not found by name (the scan covers only the package).
+- needs-follow-up: queries have no run-time source (orchestrator passes none, so a registered run makes no call); when 14.2 adds one, a paid search followed by normalize raising discards the spend.
+- needs-follow-up: live mode demands SERPAPI_API_KEY even with no queries.
+- needs-follow-up: SerpApi response bodies are kept verbatim in RawBatch; if a response ever echoed api_key it would be stored (none in fixture, unverified live).
+- needs-follow-up: no google_search-level test that redirects are off (flipping follow_redirects did not fail any test); query length is unbounded.
+- needs-follow-up: a backend class lacking `name` makes select_backend raise AttributeError.
+
+- **Correction by the parent:** the reviewer reported that flipping `follow_redirects` to true failed no test. It does: `test_redirects_are_not_followed` in `test_transport.py` fails under that mutation (verified, file restored). Redirects are pinned at the transport level, which is the only place the client is built.

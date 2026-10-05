@@ -115,17 +115,26 @@ def test_keywords_render_deterministically_for_every_term() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.5
-def test_columns_of_unregistered_sources_are_warnings_not_errors() -> None:
-    # Tasks 12-15 register the providers; each warning then becomes a real check
-    # against that source's declared surfaces (config overrides adapter defaults).
-    profile = load_target_profile(SHIPPED)
+def test_columns_of_unregistered_sources_are_warnings_not_errors(
+    tmp_path: Path,
+) -> None:
+    # Tasks 12-15 register the shipped providers one by one, so this copies the file
+    # with one column renamed to a source no adapter registers.
+    renamed = tmp_path / "target_profile.yaml"
+    renamed.write_text(
+        SHIPPED.read_text(encoding="utf-8").replace(
+            "google_search:", "unregistered_example:"
+        ),
+        encoding="utf-8",
+    )
+    profile = load_target_profile(renamed)
     registry = SourceRegistry.discover(adapters)
 
-    unregistered = check_against_registry(profile, registry, path=SHIPPED)
+    unregistered = check_against_registry(profile, registry, path=renamed)
 
     registered = set(registry.names())
     assert unregistered == tuple(p for p in profile.providers() if p not in registered)
-    assert len(unregistered) >= 1
+    assert "unregistered_example" in unregistered
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.5

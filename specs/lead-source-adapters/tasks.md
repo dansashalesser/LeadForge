@@ -394,7 +394,7 @@ task = one commit.
 ---
 
 - [ ] 14. Google Search Source adapter
-- [ ] 14.1 (P) Implement the pluggable search backend
+- [x] 14.1 (P) Implement the pluggable search backend
   - Obtain results through a pluggable search backend interface with SerpApi as the default and only in-scope implementation, so swapping backends needs no change to adapter logic
   - Implement no path to the deprecated Custom Search JSON API, which is closed to new customers and shuts down on 2027-01-01
   - Send the SerpApi key as a request parameter kept server-side
