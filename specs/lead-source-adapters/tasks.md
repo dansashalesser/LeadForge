@@ -204,7 +204,7 @@ task = one commit.
 ---
 
 - [ ] 7. Source Registry and plug-and-play discovery
-- [ ] 7.1 Discover adapters by package scan with duplicate-name rejection
+- [x] 7.1 Discover adapters by package scan with duplicate-name rejection
   - Discover every adapter subclass placed in the slice's adapter package without any edit to the registry, the orchestration layer, the canonical model, or the database layer
   - Raise a named duplicate-source error at startup when two sources declare the same name
   - Default a source absent from configuration to enabled at lowest Source Trust Rank, so adding a source stays one module rather than a module plus a mandatory configuration entry
