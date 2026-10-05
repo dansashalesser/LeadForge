@@ -163,3 +163,19 @@ class SourceDiscoveryError(_Picklable):
         self.module = module
         self.detail = detail
         super().__init__(f"[{module}] SourceDiscoveryError: {detail}")
+
+
+class ConfigurationError(_Picklable):
+    """A configuration file under ``config/`` cannot be turned into settings.
+
+    Names the file and the offending key path (``technologies.some_term``), and
+    never the offending value: a mistyped line may hold a secret.
+    """
+
+    def __init__(self, path: str, *, key_path: str, detail: str) -> None:
+        self.path = path
+        self.key_path = key_path
+        self.detail = detail
+        super().__init__(
+            f"[{path}] ConfigurationError: key={key_path or '<document>'}: {detail}"
+        )
