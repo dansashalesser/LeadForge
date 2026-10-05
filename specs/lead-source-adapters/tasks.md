@@ -69,6 +69,7 @@ task = one commit.
   - Record Not Applicable when a source's API carries no such field, so it was never able to answer
   - Keep both distinguishable downstream and both distinct from the plain absence of a value
   - Confirm a source with no surface for a question never contributes Negative Evidence for it
+  - Done as `SourceAbsence` with `AbsenceKind` in `models.py` (choices.md, 2.4). The model enforces only the shape (Negative Evidence names a raw field path, Not Applicable has none); checking against the adapter's declared surface is task 3.1, emitting it is 3.3 and 5.1, and consuming it is 16.3
   - _Requirements: 1.9_
 
 - [ ] 2.5 Carry Signals with Signal Strength on both entities
@@ -84,7 +85,10 @@ task = one commit.
   - Declare name, capabilities, rate limit, data mode, raw fetch, and normalization as the complete adapter surface, with normalization returning contributions rather than a canonical Lead
   - Make the fetch and normalize members abstract so an incomplete subclass fails at construction, before any network call is possible
   - Declare Discovery and Enrichment capability flags independently so a provider may support either, both, or neither
-  - _Requirements: 2.1, 2.2, 2.3_
+  - Declare on each adapter the set of canonical paths its API can answer for, so "could answer" versus "never able to answer" is data on the adapter and not an inference
+  - Validate every `SourceAbsence` (task 2.4) against that declaration at the adapter boundary: Negative Evidence is accepted only for a canonical path the source declares answerable and only when its `raw_field_path` is a surface the source declares; Not Applicable only for a path it does not declare. Reject any other combination with a named error
+  - Prove by test that an adapter with no surface for a canonical path cannot emit Negative Evidence for it, and that the model-level check in 2.4 (which cannot see the source's API) is backed by this one
+  - _Requirements: 1.9, 2.1, 2.2, 2.3_
 
 - [ ] 3.2 Declare cost class, charge unit, and Suppression yield
   - Declare whether a source is free or Credit-bearing, whether it charges per Lead, per company, or per call, and whether it yields Suppression
@@ -93,8 +97,8 @@ task = one commit.
 
 - [ ] 3.3 Declare the per-source Target Profile vocabulary
   - Declare, for each Target Profile term a source can express, the provider vocabulary that expresses it
-  - Treat an empty declaration as Not Applicable for that term rather than as a report of no match
-  - _Requirements: 2.8, 23.2_
+  - Treat an empty declaration as Not Applicable for that term rather than as a report of no match, represented as a `SourceAbsence` of kind Not Applicable (task 2.4) so a source with no targeting surface never produces Negative Evidence for a Target Profile term
+  - _Requirements: 1.9, 2.8, 23.2_
 
 - [ ] 3.4 Declare read-only endpoints and environment-only credentials
   - Declare every provider path an adapter may reach, with read-only expressed in the type system so a write endpoint cannot be constructed
@@ -138,9 +142,11 @@ task = one commit.
 - [ ] 5.1 Emit per-field provenance from declarative field rules
   - Declare each provider's field mapping as data — canonical path, raw field path, untrusted marker, optional transform — and emit provenance mechanically from that declaration rather than from hand-written assignments
   - Emit exactly one provenance record for each rule whose raw path resolves to a value, and zero for each that resolves to nothing, leaving the canonical field empty
+  - For each rule that resolves to nothing, also emit a `SourceAbsence` (task 2.4) from the same declaration: Negative Evidence when the adapter declares the canonical path answerable and the source was asked and returned no match, Not Applicable when the adapter declares no surface for it; emit neither when the source was never queried for that field. A `SourceAbsence` is never a provenance record, so the zero-provenance rule above still holds
+  - Cross-check that every `UntrustedText` value is paired with provenance marked untrusted (follow-up from the 2.3 ledger entry)
   - Carry the resolved data mode onto every provenance record so synthetic-sourced fields are distinguishable from live-sourced ones
   - Fail the suite when a field present in a fixture is neither mapped nor explicitly listed as intentionally ignored
-  - _Requirements: 1.2, 1.3, 4.6_
+  - _Requirements: 1.2, 1.3, 1.9, 4.6_
 
 - [ ] 5.2 Store untrusted provider text verbatim under a length bound
   - Store untrusted text exactly as supplied, with no interpolation, interpretation, or execution of instruction-like content inside it
@@ -457,8 +463,9 @@ task = one commit.
   - Extend that partial order into a total one with deterministic final tiebreaks, since equal ranks, equal confidences, and identical fixture timestamps are ordinary in synthetic mode and byte-identical output is required regardless
   - Never let a heuristic Field Confidence outrank a provider-stated one, and keep any heuristic a pure function of the contribution
   - Read Source Trust Rank from configuration, never from a Python literal, so changing a rank alters conflict outcomes with no code edit
+  - Keep `SourceAbsence` records (task 2.4) out of conflict resolution: neither Negative Evidence nor Not Applicable is a competing value, and Not Applicable never lowers a Lead's standing because of its provider's gaps; expose both kinds on the merged Lead so downstream stages can tell them apart and tell them from plain absence
   - Parallel with 16.1; blocked only on 2.2 for the provenance shape
-  - _Requirements: 8.4, 8.10_
+  - _Requirements: 1.9, 8.4, 8.10_
 
 - [ ] 16.4 Retain losing values as superseded provenance
   - Persist every losing value with its own provenance record marked superseded rather than dropping it
