@@ -214,7 +214,7 @@ task = one commit.
   - Omit a source disabled in configuration from the active source list and never construct its adapter object, so no provider call is reachable for it
   - _Requirements: 3.4_
 
-- [ ] 7.3 Publish source descriptors including live-access classification
+- [x] 7.3 Publish source descriptors including live-access classification
   - Report for each registered source its name, capability flags, resolved data mode, whether credentials were found, which declared variables are missing, and whether its declared rate limit is published by the provider or self-imposed
   - Classify each source's live access as available, gated, or unavailable, declared on the adapter with an optional configuration override
   - _Requirements: 3.5, 3.6_
