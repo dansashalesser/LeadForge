@@ -1,50 +1,59 @@
 # Session Handoff
 
-- Written: 2026-10-05T07:45:08+00:00
+- Written: 2026-10-05T07:57:38+00:00
 - Trigger: agent-spawn
-- Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
+- Source transcript: /root/.claude/projects/-home-user-LeadForge/5b55361c-ec38-4600-b679-6c3cafbbd36a.jsonl
 - cwd: /home/user/LeadForge
 - git branch: claude/happy-sagan-2yrkn0
 
 ## Last user message
-_(none captured)_
+# Implementation Task Executor
+
+## Parse Arguments
+- Feature name: `1.3`
+- Task numbers: `$2` (optional)
+  - Format: "1.1" (single task) or "1,2,3" (multiple tasks)
+  - If not provided: Execute all pending tasks
+
+## Validate
+Check that tasks have been generated:
+- Verify `specs/1.3/` exists
+- Verify `specs/1.3/tasks.md` exists
+
+If validation fails, inform user to complete tasks generation first.
+
+## Task Selection Logic
+
+**Parse task numbers from `$2`** (perform this in Slash Command before invoking Subagent):
+- If `$2` provided: Parse task numbers (e.g., "1.1", "1,2,3")
+- Otherwise: Read `specs/1.3/tasks.md` and find all unchecked tasks (`- [ ]`)
+
+## Phase -1: Pre-Implementation Gates
+
+Before delegating to the TDD agent, run this checklist against `specs/1.3/tasks.md` and `specs/1.3/design.md`. Surface any failure to the user and wait for confirmation before proceeding.
+
+**Simplicity Gate**
+- [ ] Implementation has ≤3 main components for this feature?
+- [ ] No tasks contain "future-proof", "extensible", "generic", or "might need" language?
+
+**Anti-Abstraction Gate**
+- [ ] Tasks use framework features directly — no wrapper layers proposed without explicit rationale?
+- [ ] Single da
 
 ## Last assistant text
-You're right. The spec-impl agent's step 5 says to spawn `spec-refactor-agent` after every task, and I skipped it. I said in my summary that the command wasn't available, but that only covered the slash command. I could still have read `.claude/agents/kiro/spec-refactor.md` and run its review through a general-purpose agent, and I didn't. I'll run it now.
+I committed and pushed the memory-state changes to `claude/happy-sagan-2yrkn0`. The working tree is clean.
+
+Task 2.1 hasn't run yet. It's waiting on your answer to the question above: proceed as written, or have me add "implementer's choice" lines to `tasks.md` first.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git status --short | head && ls
-- $ cat README.md; git log --oneline | head; git branch -a; find / -path /proc -prune -o -type d -name specs -print 2>/dev
-- $ git fetch origin 2>&1 | tail -3; git branch -a; git log --oneline --all | head
-- $ git branch -a --contains fc483eb; git branch -a --contains 9a49619; git log --graph --oneline --all | head; git show -
-- $ git merge --ff-only origin/lead-source-adapters/1.1-scaffold 2>&1 | tail -2; ls .claude .claude/commands/kiro 2>/dev/n
-- $ find . -path ./.git -prune -o -path ./.claude -prune -o -type f -print | grep -v uv.lock | head -60; ls specs 2>/dev/n
-- $ cat specs/lead-source-adapters/spec.json specs/lead-source-adapters/tasks.md; cat .claude/commands/kiro/spec-impl.md; 
-- $ grep -n "^- \[.\] 1\.\|^- \[ \] 1\." specs/lead-source-adapters/tasks.md | head; awk '/^- \[ \] 1\.2/{f=1} f{print} /^
-- $ sed -n 28,36p specs/lead-source-adapters/tasks.md; grep -n -i "error\|exception" specs/lead-source-adapters/design.md 
-- $ grep -n "SourceError\|Unauthorized\|RateLimited\|QuotaExhausted\|CreditExhausted\|Transient\|TimedOut\|Compliance\|Nor
-- $ sed -n 915,950p specs/lead-source-adapters/design.md; grep -n "^### Requirement 6" -A14 specs/lead-source-adapters/req
-- $ cat > src/leadforge/lead_ingestion/tests/test_errors.py <<'EOF'
-"""Named error taxonomy for every failure class in the
-- $ cat > src/leadforge/lead_ingestion/errors.py <<'EOF'
-"""Named error taxonomy for every failure class in the ingestion 
-- $ uv run ruff check src --output-format concise 2>&1 | head -12; git stash -q; uv run ruff check src 2>&1 | tail -2; git
-- $ python3 - <<'EOF'
-import re
-p='pyproject.toml'; s=open(p).read()
-s=s.replace('[tool.mypy]','[tool.ruff.lint.per-file-i
-- $ uv run ruff check src --output-format concise | head -3
-- $ sed -n 122,129p src/leadforge/lead_ingestion/tests/test_errors.py
-- $ sed -i '126s/.*/    assert flags["SourceTransient"]\n    assert flags["SourceRateLimited"]/' src/leadforge/lead_ingest
-- $ sed -n 120,135p src/leadforge/lead_ingestion/tests/test_errors.py
-- $ python3 - <<'EOF'
-p='src/leadforge/lead_ingestion/tests/test_errors.py'
-L=open(p).read().split('\n')
-i=next(n for n,l 
-- $ git add -A && git commit -q -m "fix(lead_ingestion): repair retry-dispatch test and lint in error taxonomy tests
+- $ cat .claude/memory/handoff/latest.md 2>&1 | head -60; echo ---; ls -la specs/ specs/1.3 specs/lead-source-adapters 2>&
+- $ cat specs/lead-source-adapters/spec.json; echo ---; grep -n "^- \[.\] 1\.\|^  - \[.\] 1\." specs/lead-source-adapters/
+- $ sed -n 20,60p specs/lead-source-adapters/tasks.md | cut -c1-400; grep -n "1\.3" specs/lead-source-adapters/tasks.md | 
+- $ grep -n -i "future-proof\|extensible\|might need\|generic" specs/lead-source-adapters/tasks.md | head; echo ---; grep 
+- $ git status --short && git branch --show-current && git log origin/claude/happy-sagan-2yrkn0..HEAD --oneline 2>&1 | hea
+- $ git add -A .claude/memory && git commit -q -m "chore: update session memory state
 
-Co-A
-- $ cat .claude/agents/kiro/spec-refactor.md
+Co-Authored-By: Claude Sonnet 5.5 <
