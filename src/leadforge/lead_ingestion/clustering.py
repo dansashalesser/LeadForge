@@ -43,6 +43,8 @@ from enum import Enum
 from hashlib import sha256
 from typing import Any
 
+from pydantic import BaseModel
+
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.match_keys import (
     MatchKeyKind,
@@ -50,7 +52,12 @@ from leadforge.lead_ingestion.match_keys import (
     extract_match_keys,
 )
 
-__all__ = ["IdentityCluster", "canonical_json", "cluster_contributions"]
+__all__ = [
+    "IdentityCluster",
+    "canonical_json",
+    "canonical_value_json",
+    "cluster_contributions",
+]
 
 
 @dataclass(frozen=True)
@@ -94,6 +101,19 @@ def canonical_json(contribution: LeadContribution) -> str:
     )
     return json.dumps(
         _canonical(dumped),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=True,
+    )
+
+
+def canonical_value_json(value: Any) -> str:
+    """The canonical serialisation of one contribution value (same rules as above)."""
+    if isinstance(value, BaseModel):
+        value = value.model_dump(mode="python")
+    return json.dumps(
+        _canonical(value),
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,

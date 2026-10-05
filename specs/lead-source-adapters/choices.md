@@ -1585,3 +1585,33 @@ Known gaps:
 - cluster_id is an unsalted hash of personal data (dictionary-testable): treat as personal data, never log. needs-follow-up for the store (use its UUID).
 - SPEC GAP: 8.3 employment-date overlap corroboration absent; no webmail-domain guard for name+domain (design silent). needs-follow-up.
 - canonical_json still raises TypeError on exotic types (Decimal, UUID, bytes); loud, type-only message.
+
+## Task 16.3 — Resolve field conflicts under a total order (2026-10-05)
+Evidence: wrote tests/test_conflicts.py first; first run = collection ModuleNotFoundError (conflicts missing), red seen. After conflicts.py: 2 test-side faults fixed (UntrustedText ctor; signal test wrongly compared agreement split, which is value equality), then 25 tests pass; ruff format/check, mypy, full pytest (2112 passed, 1 skipped) clean. All 6 permutations-style tests: every permutation of 5 candidates, 60 seeded shuffles of 40.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Order key: -rank, origin tier (provider_stated > heuristic > none), -confidence, newest fetched_at (exact microseconds), source_name, sha256(canonical value), raw_field_path, canonical provenance JSON. The last two are my additions so equal keys mean byte-identical (design stops at sha256); rejected stopping at sha256 (same-source same-value duplicates would depend on arrival order).
+- Origin NONE ranks below heuristic and its confidence is never read; rejected treating NONE as 0.0 confidence within a shared tier.
+- Trust ranks: Mapping[str,int] passed in, caller builds it from loaded settings (8.10); undeclared source = LOWEST_TRUST_RANK, as registry does; invalid rank raises TypeError/ValueError naming the source only. Rejected reading config/registry inside the function (I/O).
+- Result splits losers into `agreeing` (same canonical value as winner) and `superseded` (different value), each in total order, provenance passed unmarked. Rejected a flat loser list (16.4 needs agreement counts) and setting superseded=True (that is 16.4).
+- Absences returned apart by kind (negative_evidence, not_applicable) on ClusterResolution, sorted; there is no merged Lead yet, so this is the exposure point.
+- Added public clustering.canonical_value_json (one value serialisation shared with canonical_json); rejected importing the private _canonical.
+- Signal Strength proof: a signal value on a conflicting path; strengths varied over 27 combos; winners and other paths unchanged. A strength inside a value is part of the value, so agreement on that path is value equality.
+### Known gaps (needs-follow-up)
+- No mutation run.
+- Values compared by canonical JSON: 1 and 1.0, or differently ordered lists, count as different values; no per-path normalisation.
+- HubSpot's bare `email` path is a distinct path here (not merged with person.email) - carried from 16.2.
+- Rank mapping construction from SourceSettings/registry is not wired; no caller exists yet (16.5).
+- Same-source duplicate candidates for a path are allowed, not flagged.
+
+### Self-review findings
+- Precedence verified against 8.4 and task 16.3: Source Trust Rank, then origin, then confidence, then recency. Code matches. Origin outranks confidence only, not rank. Recency is in the requirement, and fetched_at is stored, so 8.8 holds. No defect.
+- Mutation-checked: rank ignored, origin ignored, heuristic above stated, confidence ignored, recency removed, arrival-order tie-break. Each fails a test. Files restored byte-identical.
+- Added tests only (no source changes): 3000-candidate cluster (one serialisation per value, shuffle-stable), 2 MB UntrustedText, same source contributing twice (recency decides).
+- needs-follow-up: strength mutation is unreachable through the key. A signal's strength sits inside its value, so it affects value equality (agreeing vs superseded) and the sha256 tie-break for same-source duplicates. The 24.4 test deliberately skips agreeing/superseded for signals.intent. Decide in 16.4 or a signals task whether signal values are a conflict field at all.
+- SPEC GAP: multi-valued fields (signals, employments, domains) are compared whole by canonical JSON, not unioned. 8.4 and 16.3 do not define set merge.
+- needs-follow-up: values compare by exact canonical JSON ('  Jane@Acme.com ' differs from 'jane@acme.com'), so agreeing counts (8.7) under-count. 8.4 says nothing about normalised comparison.
+- needs-follow-up: PROVIDER_STATED with confidence=None is permitted by the model and sorts as 0.0 within its tier. Deterministic, but the model could forbid it.
+- Confidence is the model's already-normalised 0-1 Strength (validated finite). confidence_raw is never touched. No cross-scale normalisation is done here.
+
+- **Fixed by the parent after review (24.4):** the reviewer left as a follow-up that Signal Strength sat inside signal values and so affected value equality and the sha256 tie-break; the 24.4 test hid this by skipping the agreeing/superseded lists for signals. The test now compares winner, agreeing and superseded for every path (seen failing), and `_without_strength` removes the strength from the compared value (a Signal is compared by type and its other fields; the winning candidate keeps its original value). **SPEC GAP stays open:** multi-valued fields (signals, employments, domains) are still compared whole rather than unioned.

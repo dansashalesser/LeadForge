@@ -459,7 +459,7 @@ task = one commit.
   - Blocked on 16.1 for key extraction
   - _Requirements: 8.8, 8.9_
 
-- [ ] 16.3 (P) Resolve field conflicts under a total order
+- [x] 16.3 (P) Resolve field conflicts under a total order
   - Select the winning value by Source Trust Rank first, then provider-stated Confidence Origin ahead of heuristic, then higher Field Confidence, then more recent fetch timestamp
   - Extend that partial order into a total one with deterministic final tiebreaks, since equal ranks, equal confidences, and identical fixture timestamps are ordinary in synthetic mode and byte-identical output is required regardless
   - Never let a heuristic Field Confidence outrank a provider-stated one, and keep any heuristic a pure function of the contribution
