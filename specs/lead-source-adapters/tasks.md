@@ -316,7 +316,7 @@ task = one commit.
   - Mark a throttled source rate-limited and apply the backoff policy before any further call to it
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 11.3 Map the run outcome to a process exit code
+- [x] 11.3 Map the run outcome to a process exit code
   - Exit non-zero with a summary naming each source and its failure class when every enabled source failed
   - Exit zero when at least one source succeeded, reporting per-source counts of attempted, succeeded, and failed
   - _Requirements: 6.4, 6.5_

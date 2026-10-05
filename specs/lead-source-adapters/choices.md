@@ -981,3 +981,32 @@ Gaps left:
 - needs-follow-up: retry feedback to the throttle is not wired (feedback=None), so 429s do not tighten buckets.
 
 - **Also fixed by the parent after review:** `outcome.error` was `str(error)`, so a compliance restriction copied its `subject` (a person's address) into the run outcome and later the run record. A new `_outcome_message` omits it (test added, red first). Other classes name only providers and paths.
+
+## Task 11.3 — Map the run outcome to a process exit code (2026-10-05)
+Evidence: wrote tests/test_run_exit.py first; ran it and saw collection fail with ModuleNotFoundError (no run_exit module) before any implementation; then fixed one summary-format wording in my own test/impl, 7 passed. ruff format/check, mypy clean, pytest 1352 passed, 1 skipped. No serena/GitNexus query (new module, no existing symbol edited).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Delivered only the pure `map_run_exit(results) -> RunExit(exit_code, summary)` in new `run_exit.py`; the CLI `ingest` stub is not wired (no config/registry/transport bootstrap exists to run it, and test_cli pins the placeholder). Rejected wiring the CLI now.
+- A source "succeeded" iff at least one of its calls succeeded; otherwise failed (halted sources included). Rejected judging by final `status` (a success followed by a failure would be miscounted).
+- Exit 0 iff at least one source succeeded; exit 1 otherwise (all failed, or none enabled). Rejected exit 0 for "none enabled" (6.5 requires a success). Single non-zero code 1; rejected per-class codes.
+- Disabled sources are absent from results so the mapping needs no registry; "none enabled" is the empty result tuple. Rejected passing the registry in.
+- Summary: one line per source, `name: attempted=A succeeded=S failed=F`; failed sources `name: <status> attempted=...`; all-failed adds header `all enabled sources failed`; empty is `no enabled sources; nothing succeeded`. Names, classes and counts only; `outcome.error` never copied. Skipped count not shown (6.5 asks attempted/succeeded/failed).
+### Known gaps (needs-follow-up)
+- CLI `ingest` still a placeholder; exit code not reachable from the command line.
+- A non-SourceError/CancelledError still escapes `run()` as ExceptionGroup/CancelledError before any mapping; exit handling for that is unaddressed (11.4 area).
+- Timed-out handling (11.4) and phase results (11.5-11.7: multiple calls per source) are not built; the mapping is per-source over aggregated counts so it should still apply.
+- No persistence of exit_code in ingestion_run.
+- No self-review run; no property test.
+
+### Self-review findings
+Fixed (run_exit.py, tests/test_run_exit.py):
+- Source names are now control-character-escaped in the summary (newline/ESC could forge lines).
+- A source with status OK but no successful call was labelled "ok" as a failure class; now "no_successful_calls".
+- Added tests: every SourceStatus has a recorded decision (9 pinned), OK-without-success label, int exit code + frozen RunExit, input-order/one-line-per-source, control-char injection.
+- Mutation checks (flip success rule, drop class, append outcome.error, drop escaping, drop empty guard) all fail tests; files restored. pytest, ruff, mypy green.
+Reviewed: rule "exit 0 iff >=1 source had a successful call" matches 6.4/6.5; the requirement does not make partial failure non-zero.
+Known gaps:
+- needs-follow-up: 6.4/6.5 are silent on zero enabled sources; exit 1 is a provisional decision to confirm.
+- needs-follow-up: summary order is input order; deterministic only if the orchestrator orders results (11.5-11.7).
+- needs-follow-up: a source with succeeded calls but zero contributions counts as succeeded (call-based); confirm intended.
+- needs-follow-up: map_run_exit not wired into cli.py (deliberate).
