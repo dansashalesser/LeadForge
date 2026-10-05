@@ -11,6 +11,7 @@ from leadforge.lead_ingestion import conflicts
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster, canonical_value_json
 from leadforge.lead_ingestion.conflicts import (
+    ConflictRule,
     FieldResolution,
     resolve_conflicts,
 )
@@ -406,3 +407,80 @@ def test_same_source_twice_resolves_by_recency_regardless_of_order() -> None:
     assert winner_source([old, new]) == winner_source([new, old]) == "a"
     assert order_of([old, new]) == order_of([new, old])
     assert order_of([old, new])[0] == ("a", "NEW")
+
+
+# Task 16.12: the rule that decided a conflict, as data beside the winner.
+def _decided(*members: LeadContribution, ranks: dict[str, int]) -> Any:
+    return resolve_conflicts(cluster(*members), ranks).field(PATH).decided_by
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_deciding_rule_is_trust_rank() -> None:
+    got = _decided(claim("a", "x"), claim("b", "y"), ranks={"a": 5, "b": 3})
+    assert got is ConflictRule.TRUST_RANK
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_deciding_rule_is_confidence_origin() -> None:
+    got = _decided(
+        claim("a", "x", origin=PS, confidence=0.1),
+        claim("b", "y", origin=HE, confidence=0.9),
+        ranks={"a": 5, "b": 5},
+    )
+    assert got is ConflictRule.CONFIDENCE_ORIGIN
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_deciding_rule_is_confidence() -> None:
+    got = _decided(
+        claim("a", "x", origin=HE, confidence=0.9),
+        claim("b", "y", origin=HE, confidence=0.1),
+        ranks={"a": 5, "b": 5},
+    )
+    assert got is ConflictRule.CONFIDENCE
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_deciding_rule_is_recency() -> None:
+    got = _decided(
+        claim("a", "x", at=NOW),
+        claim("b", "y", at=NOW - timedelta(days=1)),
+        ranks={"a": 5, "b": 5},
+    )
+    assert got is ConflictRule.RECENCY
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_deciding_rule_is_the_tie_break_when_every_rule_ties() -> None:
+    got = _decided(claim("a", "x"), claim("b", "y"), ranks={"a": 5, "b": 5})
+    assert got is ConflictRule.TIE_BREAK
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_rule_is_measured_against_the_closest_loser() -> None:
+    # c loses on trust rank, b ties with the winner down to recency: b is the closest.
+    got = _decided(
+        claim("a", "x", at=NOW),
+        claim("b", "y", at=NOW - timedelta(days=1)),
+        claim("c", "z"),
+        ranks={"a": 5, "b": 5, "c": 1},
+    )
+    assert got is ConflictRule.RECENCY
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_no_rule_is_named_without_a_conflict() -> None:
+    assert _decided(claim("a", "x"), ranks={"a": 5}) is None
+    assert _decided(claim("a", "x"), claim("b", "x"), ranks={"a": 5, "b": 3}) is None
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.8
+def test_the_deciding_rule_ignores_arrival_order() -> None:
+    members = [
+        claim("a", "x", at=NOW),
+        claim("b", "y", at=NOW - timedelta(days=1)),
+        claim("c", "z"),
+    ]
+    ranks = {"a": 5, "b": 5, "c": 1}
+    seen = {_decided(*perm, ranks=ranks) for perm in itertools.permutations(members)}
+    assert seen == {ConflictRule.RECENCY}

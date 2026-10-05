@@ -310,9 +310,9 @@ def test_large_input_stays_near_linear(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = {"union": 0, "find": 0}
     real_union, real_find = clustering._UnionFind.union, clustering._UnionFind.find
 
-    def counting_union(self: Any, a: int, b: int) -> None:
+    def counting_union(self: Any, a: int, b: int, kind: Any = None) -> None:
         calls["union"] += 1
-        real_union(self, a, b)
+        real_union(self, a, b, kind)
 
     def counting_find(self: Any, a: int) -> int:
         calls["find"] += 1

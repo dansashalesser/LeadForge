@@ -22,12 +22,18 @@ mutated. Provisional decisions (choices.md, 16.3):
 * ``SourceAbsence`` records never compete: they are returned apart, by kind, so
   Negative Evidence and Not Applicable stay distinguishable from each other and from
   a plain absence (a path with no value and no absence).
+* ``FieldResolution.decided_by`` names the rule that separated the winner from the
+  closest losing value (the first losing candidate in the total order): the first
+  component of the order on which the two differ (task 16.12, Requirement 21.4). It is
+  derived from the same order key, so it cannot disagree with the winner; ``None`` when
+  nobody lost. Names a rule, never a value.
 * Values and sources are personal data: errors name types and source names only.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from hashlib import sha256
 from typing import Any
 
@@ -46,6 +52,7 @@ from leadforge.lead_ingestion.registry import LOWEST_TRUST_RANK
 
 __all__ = [
     "ClusterResolution",
+    "ConflictRule",
     "FieldCandidate",
     "FieldResolution",
     "resolve_conflicts",
@@ -58,6 +65,25 @@ _ORIGIN_TIER = {
     ConfidenceOrigin.HEURISTIC: 1,
     ConfidenceOrigin.NONE: 0,
 }
+
+
+class ConflictRule(Enum):
+    """The rule of 8.4 that decided a conflict; ``TIE_BREAK`` is the design extras."""
+
+    TRUST_RANK = "trust_rank"
+    CONFIDENCE_ORIGIN = "confidence_origin"
+    CONFIDENCE = "confidence"
+    RECENCY = "recency"
+    TIE_BREAK = "tie_break"
+
+
+# Positions of the order key (see ``_order_key``) that name a rule of 8.4.
+_RULES = (
+    ConflictRule.TRUST_RANK,
+    ConflictRule.CONFIDENCE_ORIGIN,
+    ConflictRule.CONFIDENCE,
+    ConflictRule.RECENCY,
+)
 
 
 @dataclass(frozen=True)
@@ -77,6 +103,7 @@ class FieldResolution:
     winner: FieldCandidate
     agreeing: tuple[FieldCandidate, ...] = ()
     superseded: tuple[FieldCandidate, ...] = ()
+    decided_by: ConflictRule | None = None
 
 
 @dataclass(frozen=True)
@@ -178,11 +205,20 @@ def _order_key(record: FieldProvenance, rank: int, value_json: str) -> tuple[Any
 def _resolve_path(
     path: str, entries: list[tuple[tuple[Any, ...], str, FieldCandidate]]
 ) -> FieldResolution:
-    _, winning_json, winner = entries[0]
+    winning_key, winning_json, winner = entries[0]
     rest = entries[1:]
+    losers = [(k, c) for k, v, c in rest if v != winning_json]
     return FieldResolution(
         path,
         winner,
         tuple(c for _, v, c in rest if v == winning_json),
-        tuple(c for _, v, c in rest if v != winning_json),
+        tuple(c for _, c in losers),
+        _deciding_rule(winning_key, losers[0][0]) if losers else None,
     )
+
+
+def _deciding_rule(winning: tuple[Any, ...], closest: tuple[Any, ...]) -> ConflictRule:
+    for rule, won, lost in zip(_RULES, winning, closest, strict=False):
+        if won != lost:
+            return rule
+    return ConflictRule.TIE_BREAK

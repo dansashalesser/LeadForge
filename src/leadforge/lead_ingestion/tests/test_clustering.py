@@ -14,6 +14,7 @@ from leadforge.lead_ingestion.clustering import (
     canonical_json,
     cluster_contributions,
 )
+from leadforge.lead_ingestion.match_keys import MatchKeyKind
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
     DataMode,
@@ -458,9 +459,9 @@ def test_large_input_uses_near_linear_union_operations(
     calls = {"union": 0, "find": 0}
     real_union, real_find = clustering._UnionFind.union, clustering._UnionFind.find
 
-    def counting_union(self: Any, a: int, b: int) -> None:
+    def counting_union(self: Any, a: int, b: int, kind: MatchKeyKind) -> None:
         calls["union"] += 1
-        real_union(self, a, b)
+        real_union(self, a, b, kind)
 
     def counting_find(self: Any, a: int) -> int:
         calls["find"] += 1
@@ -489,3 +490,60 @@ def test_large_input_uses_near_linear_union_operations(
     assert sum(len(cl.contributions) for cl in result) == n
     assert calls["union"] <= 3 * n
     assert calls["find"] <= 12 * n
+
+
+# Task 16.12: the cluster records which Match Key kinds linked it (kinds, never values).
+def _kinds(*members: LeadContribution) -> tuple[Any, ...]:
+    clusters = cluster_contributions(members)
+    assert len(clusters) == 1
+    return clusters[0].merged_by
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_a_linkedin_merge_records_the_linkedin_kind() -> None:
+    kinds = _kinds(li("a", "linkedin.com/in/x"), li("b", "LinkedIn.com/in/x/"))
+    assert kinds == (MatchKeyKind.LINKEDIN_URL,)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_an_email_merge_records_the_verified_email_kind() -> None:
+    kinds = _kinds(em("a", "ann@x.com"), em("b", "ANN@x.com"))
+    assert kinds == (MatchKeyKind.VERIFIED_EMAIL,)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_a_name_domain_merge_records_the_name_domain_kind() -> None:
+    kinds = _kinds(
+        nd("a", "Ann Lee", "x.com", person__title="CTO"),
+        nd("b", "Ann Lee", "x.com", person__title="CTO"),
+    )
+    assert kinds == (MatchKeyKind.NAME_DOMAIN,)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_a_cluster_linked_by_two_kinds_lists_both_strongest_first() -> None:
+    kinds = _kinds(
+        li("a", "linkedin.com/in/x"),
+        li("b", "linkedin.com/in/x", person__email="ann@x.com", person__email_status=V),
+        em("c", "ann@x.com"),
+    )
+    assert kinds == (MatchKeyKind.LINKEDIN_URL, MatchKeyKind.VERIFIED_EMAIL)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_a_singleton_cluster_records_no_kind() -> None:
+    assert _kinds(li("a", "linkedin.com/in/x")) == ()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_merged_by_ignores_arrival_order() -> None:
+    members = [
+        li("a", "linkedin.com/in/x"),
+        li("b", "linkedin.com/in/x", person__email="ann@x.com", person__email_status=V),
+        em("c", "ann@x.com"),
+    ]
+    seen = {
+        tuple(c.merged_by for c in cluster_contributions(perm))
+        for perm in itertools.permutations(members)
+    }
+    assert len(seen) == 1

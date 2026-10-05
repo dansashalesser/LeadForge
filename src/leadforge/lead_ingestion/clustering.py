@@ -79,6 +79,9 @@ class IdentityCluster:
 
     cluster_id: str
     contributions: tuple[LeadContribution, ...] = field(repr=False)
+    # The Match Key kinds that linked members (task 16.12), strongest first; kinds,
+    # never values. Empty for a singleton and for a hand-built cluster.
+    merged_by: tuple[MatchKeyKind, ...] = ()
 
 
 class _UnionFind:
@@ -87,6 +90,10 @@ class _UnionFind:
     def __init__(self, size: int) -> None:
         self._parent = list(range(size))
         self._size = [1] * size
+        self._kinds: list[set[MatchKeyKind]] = [set() for _ in range(size)]
+
+    def kinds(self, item: int) -> set[MatchKeyKind]:
+        return self._kinds[self.find(item)]
 
     def find(self, item: int) -> int:
         parent = self._parent
@@ -95,7 +102,7 @@ class _UnionFind:
             item = parent[item]
         return item
 
-    def union(self, a: int, b: int) -> None:
+    def union(self, a: int, b: int, kind: MatchKeyKind | None = None) -> None:
         root_a, root_b = self.find(a), self.find(b)
         if root_a == root_b:
             return
@@ -103,6 +110,9 @@ class _UnionFind:
             root_a, root_b = root_b, root_a
         self._parent[root_b] = root_a
         self._size[root_a] += self._size[root_b]
+        self._kinds[root_a] |= self._kinds[root_b]
+        if kind is not None:
+            self._kinds[root_a].add(kind)
 
 
 def canonical_json(contribution: LeadContribution) -> str:
@@ -200,7 +210,13 @@ def cluster_contributions(
         base = sha256(items[anchor][0].encode("utf-8")).hexdigest()
         seen[base] = seen.get(base, 0) + 1
         cluster_id = base if seen[base] == 1 else f"{base}-{seen[base]}"
-        clusters.append(IdentityCluster(cluster_id, tuple(items[i][1] for i in group)))
+        clusters.append(
+            IdentityCluster(
+                cluster_id,
+                tuple(items[i][1] for i in group),
+                tuple(sorted(forest.kinds(group[0]))),
+            )
+        )
     return tuple(sorted(clusters, key=lambda c: c.cluster_id))
 
 
@@ -222,9 +238,9 @@ def _has(keys: MatchKeys, kind: MatchKeyKind) -> bool:
     return kind in keys.barred_kinds or any(k.kind is kind for k in keys.keys)
 
 
-def _link_all(forest: _UnionFind, group: list[int]) -> None:
+def _link_all(forest: _UnionFind, group: list[int], kind: MatchKeyKind) -> None:
     for other in group[1:]:
-        forest.union(group[0], other)
+        forest.union(group[0], other, kind)
 
 
 def _link_linkedin(keys: list[MatchKeys], forest: _UnionFind) -> None:
@@ -232,7 +248,7 @@ def _link_linkedin(keys: list[MatchKeys], forest: _UnionFind) -> None:
     for index, value in _values(keys, MatchKeyKind.LINKEDIN_URL):
         by_value[value].append(index)
     for group in by_value.values():
-        _link_all(forest, group)
+        _link_all(forest, group, MatchKeyKind.LINKEDIN_URL)
 
 
 def _link_email(keys: list[MatchKeys], forest: _UnionFind) -> None:
@@ -245,7 +261,7 @@ def _link_email(keys: list[MatchKeys], forest: _UnionFind) -> None:
         bare = [i for i in group if not _has(keys[i], MatchKeyKind.LINKEDIN_URL)]
         if bare:
             for index in group:
-                forest.union(bare[0], index)
+                forest.union(bare[0], index, MatchKeyKind.VERIFIED_EMAIL)
 
 
 def _link_name_domain(keys: list[MatchKeys], forest: _UnionFind) -> None:
@@ -266,4 +282,4 @@ def _link_name_domain(keys: list[MatchKeys], forest: _UnionFind) -> None:
             for employer in keys[index].employers:
                 buckets["employer", employer].append(index)
         for bucket in buckets.values():
-            _link_all(forest, bucket)
+            _link_all(forest, bucket, MatchKeyKind.NAME_DOMAIN)

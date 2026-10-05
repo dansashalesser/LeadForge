@@ -1832,3 +1832,18 @@ Evidence: ran each new test file before its code (test_tie_resolution.py: Import
 - A rejected/failed answer is not persisted, so a later escalation call asks again (bounded per call, not per run).
 
 - **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** the port, the validation, the append-only persistence (migration 0004, both engines) and the synthetic-mode bypass are delivered and reviewed. The projection reading the stored answer and the run-report counter are only seams (`read_stored_primary_domain`, `TieOutcome.flagged`) until the projection/orchestrator wiring (and task 18) exists. Also open: the resolver port is synchronous with no asyncio timeout/cancellation story (a hung resolver would hang a live run), and a blank or over-long model label raises after the paid call.
+
+### Self-review findings
+Fixed:
+- log_merges built the line (event.log_fields()) inside the try, so a builder bug was swallowed and counted as a logger failure. Moved outside the try; test-first.
+- Added tests: KeyboardInterrupt/SystemExit/CancelledError propagate; ConsoleRenderer canary over lines, merged_by, ResolvedConflict and decided_by reprs; cap order-independence on shuffled hand-built conflicts (mutation "cap sorted by something else" survived before).
+- Docstring states one line per merge, no per-run cap, by design.
+Verified unchanged: except Exception has a justified noqa BLE001 (same pattern as log_redaction.py); a narrower catch is not realistic (processor chains can raise anything); the union-wrapper edits in test_identity_exclusions/test_role_addresses only pass the new kind argument through, counts intact; decided_by survives retain_superseded (dataclasses.replace), idempotence holds; merged_by and events identical across 300 random permutations.
+Bullets: 16.12 bullet 1 (carry Match Key and resolved conflicts on the projection result, derive the line) delivered. Run-report persistence (18.x) deferred.
+Known gaps:
+- SPEC GAP (21.4): match key logged as KIND only. log_redaction.py redacts credentials only and has no mask/hash helper; no requirement or ADR approves a form. User must decide: kind-only, a keyed HMAC prefix (secret from env), or a masked form.
+- needs-follow-up: MergeLogOutcome.failed is not surfaced anywhere yet (18.x).
+- needs-follow-up: sorted() on merged_by in clustering.py is not guarded by a test (small IntEnum sets iterate sorted anyway).
+- needs-follow-up: 100k merges log 100k lines (no per-run cap).
+
+- **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** the merge log, its volume cap, the failure handling and the PII canary are delivered and reviewed, but requirement 21.4 asks for the Match Key used and the log carries only its KIND, because `log_redaction.py` redacts credentials only and no requirement or ADR approves a masked or hashed form of an email or LinkedIn URL. Decide one of: kind-only (current), a keyed HMAC prefix with the secret from the environment, or a masked form. Also open: `MergeLogOutcome.failed` is not surfaced until task 18, there is no per-run cap on merge lines, and the projection took about 40 s for a 1000-candidate by 1000-path cluster (worth a performance look).

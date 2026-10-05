@@ -8,6 +8,8 @@ from typing import Any
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster, canonical_json
 from leadforge.lead_ingestion.companies import company_id_for
+from leadforge.lead_ingestion.conflicts import ConflictRule
+from leadforge.lead_ingestion.match_keys import MatchKeyKind
 from leadforge.lead_ingestion.models import (
     AbsenceKind,
     ConfidenceOrigin,
@@ -19,7 +21,11 @@ from leadforge.lead_ingestion.models import (
     TechSignal,
     UntrustedText,
 )
-from leadforge.lead_ingestion.projection import ProjectionResult, project_lead
+from leadforge.lead_ingestion.projection import (
+    ProjectionResult,
+    ResolvedConflict,
+    project_lead,
+)
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
 RANKS = {"a": 5, "b": 3, "c": 1}
@@ -523,3 +529,72 @@ def test_re_keying_the_bare_email_leaves_the_stored_contribution_untouched() -> 
     assert "person.email" not in crm.values
     assert crm.provenance[0].canonical_path == "email"
     assert crm.absences[0].canonical_path == "email"
+
+
+# Task 16.12: the projection result carries the Match Key kinds and the resolved
+# conflicts, so the log line is derived rather than hand-assembled.
+def _two_source_cluster(merged_by: tuple[MatchKeyKind, ...]) -> IdentityCluster:
+    return IdentityCluster(
+        "cluster",
+        (
+            contrib("a", {"person.title": "CTO", "person.full_name": "Ann Lee"}),
+            contrib("b", {"person.title": "CEO", "person.full_name": "Ann Lee"}),
+            contrib("c", {"person.title": "CFO"}),
+        ),
+        merged_by,
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_result_carries_the_match_key_kinds_of_the_cluster() -> None:
+    both = (MatchKeyKind.LINKEDIN_URL, MatchKeyKind.VERIFIED_EMAIL)
+    result = project_lead(_two_source_cluster(both), RANKS)
+    assert result.match_keys == both
+    assert result.contribution_count == 3
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_result_carries_only_the_paths_whose_conflict_was_resolved() -> None:
+    result = project_lead(_two_source_cluster(()), RANKS)
+    assert result.conflicts == (
+        ResolvedConflict(
+            canonical_path="person.title",
+            winning_source="a",
+            superseded_count=2,
+            decided_by=ConflictRule.TRUST_RANK,
+        ),
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_a_projection_without_conflicts_carries_none() -> None:
+    result = project(contrib("a", {"person.title": "CTO"}))
+    assert result.conflicts == ()
+    assert result.match_keys == ()
+    assert result.contribution_count == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_no_personal_value_in_the_repr_of_the_conflicts() -> None:
+    result = project_lead(
+        IdentityCluster(
+            "cluster",
+            (
+                contrib("a", {"person.title": "Zebulon-Title-A"}),
+                contrib("b", {"person.title": "Hortensia-Title-B"}),
+            ),
+        ),
+        RANKS,
+    )
+    assert "Zebulon" not in repr(result)
+    assert "Hortensia" not in repr(result)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.8
+def test_conflicts_ignore_contribution_order() -> None:
+    members = list(_two_source_cluster(()).contributions)
+    seen = {
+        project_lead(IdentityCluster("cluster", tuple(p)), RANKS).conflicts
+        for p in itertools.permutations(members)
+    }
+    assert len(seen) == 1

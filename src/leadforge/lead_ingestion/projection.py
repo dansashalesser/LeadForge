@@ -48,6 +48,11 @@ Provisional decisions (choices.md, 16.5):
   its strength, so Signal Strength never decides anything (24.4). Flat adapter values
   that are not ``Signal`` objects (the flat ``company.technologies`` list) are not
   turned into Signals here.
+* The log line of 21.4 is derived from the result (task 16.12, ``merge_log``):
+  ``match_keys`` is the cluster's ``merged_by`` (kinds that linked it, strongest first)
+  and ``conflicts`` lists, per path with a losing value, the winning source, the number
+  of superseded candidates and the rule that decided (``ConflictRule``). Kinds, source
+  names, paths and counts only; ``contribution_count`` says whether it was a merge.
 * Personal data stays out of ``repr`` and no error text is built from it.
 """
 
@@ -63,9 +68,11 @@ from leadforge.lead_ingestion.clustering import IdentityCluster
 from leadforge.lead_ingestion.companies import company_domains, company_id_for
 from leadforge.lead_ingestion.conflicts import (
     ClusterResolution,
+    ConflictRule,
     FieldCandidate,
     resolve_conflicts,
 )
+from leadforge.lead_ingestion.match_keys import MatchKeyKind
 from leadforge.lead_ingestion.models import (
     CanonicalLead,
     CompanySignal,
@@ -84,7 +91,7 @@ from leadforge.lead_ingestion.superseded import (
     provenance_records,
 )
 
-__all__ = ["ProjectionResult", "project_lead"]
+__all__ = ["ProjectionResult", "ResolvedConflict", "project_lead"]
 
 _BARE_EMAIL = "email"
 _EMAIL = "person.email"
@@ -104,6 +111,16 @@ _URL_ADAPTER: TypeAdapter[HttpUrl] = TypeAdapter(HttpUrl)
 
 
 @dataclass(frozen=True)
+class ResolvedConflict:
+    """One path whose competing values were resolved; no value, only who and why."""
+
+    canonical_path: str
+    winning_source: str
+    superseded_count: int
+    decided_by: ConflictRule
+
+
+@dataclass(frozen=True)
 class ProjectionResult:
     """One cluster's projection; ``lead`` is ``None`` when it names no person."""
 
@@ -116,6 +133,11 @@ class ProjectionResult:
     not_applicable: tuple[SourceAbsence, ...] = field(repr=False)
     opt_out: bool
     suppressed: bool
+    # Task 16.12 (21.4): Match Key kinds that linked the cluster, strongest first.
+    match_keys: tuple[MatchKeyKind, ...] = ()
+    # Paths with a losing value, sorted by path.
+    conflicts: tuple[ResolvedConflict, ...] = ()
+    contribution_count: int = 0
 
 
 def project_lead(
@@ -142,6 +164,15 @@ def project_lead(
         not_applicable=resolution.not_applicable,
         opt_out=opt_out,
         suppressed=suppressed,
+        match_keys=cluster.merged_by,
+        conflicts=tuple(
+            ResolvedConflict(
+                f.canonical_path, f.winner.source_name, len(f.superseded), f.decided_by
+            )
+            for f in resolution.fields
+            if f.decided_by is not None
+        ),
+        contribution_count=len(members),
     )
 
 
