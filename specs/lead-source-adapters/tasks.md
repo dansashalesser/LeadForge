@@ -160,7 +160,7 @@ task = one commit.
 
 ---
 
-- [ ] 6. Lead Store persistence
+- [x] 6. Lead Store persistence
 - [x] 6.1 Define the append-only contribution log and projection schema
   - Typed ORM models for ingestion runs, per-source runs, raw responses, source contributions, contribution fields, Lead identities, Match Keys, the canonical Lead projection, and canonical field provenance
   - Make the Match Key table uniquely constrained on key type and value, so identity resolution is enforced by the database rather than by application logic
@@ -196,7 +196,7 @@ task = one commit.
   - Blocked on 6.1 and 6.3; parallel with 6.5
   - _Requirements: 22.3_
 
-- [ ] 6.7 Exercise the ingestion-to-persistence path on both engines
+- [x] 6.7 Exercise the ingestion-to-persistence path on both engines
   - One parameterized test covering the same path against SQLite and against Postgres
   - Make the Postgres leg a required gate rather than a silent skip, so the criterion is actually met rather than half-proved
   - _Requirements: 9.5_
