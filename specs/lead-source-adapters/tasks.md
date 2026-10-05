@@ -33,7 +33,7 @@ task = one commit.
   - Add the static guard that no module outside this slice may import a provider raw schema
   - _Requirements: 1.1_
 
-- [ ] 1.2 Define the named error taxonomy for every failure class
+- [x] 1.2 Define the named error taxonomy for every failure class
   - One exception hierarchy rooted at a source error carrying the source name, with named subclasses for unauthorized, rate-limited, Credit-exhausted, transient, timed-out, compliance-restricted, and normalization failures
   - Separate named errors for fixture schema failure, duplicate source name, undeclared endpoint, and no accessible provider account
   - Every error names the provider and, where applicable, the offending raw field path and canonical path
