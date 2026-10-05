@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T13:47:49+00:00
+- Written: 2026-10-05T13:51:36+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 11.5's code stays uncommitted until its implementer reports and the self-review is done.
+The 11.5 review fixed three defects test-first. A dual-capability source was listed twice, an empty run was labelled wrongly, and a deadline during Enrichment overwrote a source already halted in Discovery. Finishing the task.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git add src specs .claude/memory && git commit -q -m "feat(lead_ingestion): apply bounded jittered retry over the erro
 - $ git fetch -q; git status -sb | head -2; git status --short | grep -v "\.claude/memory"; git log --oneline | head -3; g
 - $ awk '/^- \[ \] 10\.3/{f=1} f{print} /^- \[.\] 11\.1/{exit}' specs/lead-source-adapters/tasks.md | cut -c1-700; ls src/
 - /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/finish.sh
@@ -55,3 +54,4 @@ old="            self._error = str(
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.2 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.3 "feat(lea
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.4 "feat(lea
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.5 "feat(lea
