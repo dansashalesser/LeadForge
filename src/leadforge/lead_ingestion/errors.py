@@ -110,6 +110,18 @@ class UndeclaredEndpointError(_Picklable):
         super().__init__(f"[{provider}] UndeclaredEndpointError: path={path}")
 
 
+class SendCapableEndpointError(_Picklable):
+    """An endpoint that could send or write was declared or handed over (11.1)."""
+
+    def __init__(self, provider: str, *, path: str, reason: str) -> None:
+        self.provider = provider
+        self.path = path
+        self.reason = reason
+        super().__init__(
+            f"[{provider}] SendCapableEndpointError: path={path} reason={reason}"
+        )
+
+
 class ConflictingCompanySignalError(_Picklable):
     """Two Company Signals share one ``company_id`` but disagree on content."""
 

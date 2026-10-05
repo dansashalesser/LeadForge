@@ -20,7 +20,7 @@ from leadforge.lead_ingestion.mcp_transport import (
 )
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
-SEARCH = Endpoint(method="POST", path="/v1/people/search", bucket="default")
+SEARCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="default")
 LOOKUP = Endpoint(method="GET", path="/v1/people/{id}", bucket="default")
 ENDPOINTS: Mapping[str, Endpoint] = {"search": SEARCH, "lookup": LOOKUP}
 PAYLOAD = {"people": [{"id": "p1"}]}

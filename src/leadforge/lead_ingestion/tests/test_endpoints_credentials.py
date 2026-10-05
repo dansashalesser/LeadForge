@@ -30,7 +30,7 @@ BUCKET = RateBucket(
     documented=True,
     doc_url="https://example.com/rate-limits",
 )
-SEARCH = Endpoint(method="POST", path="/v1/people/search", bucket="default")
+SEARCH = Endpoint(method="GET", path="/v1/people/search", bucket="default")
 LOOKUP = Endpoint(method="GET", path="/v1/people/{id}", bucket="default")
 
 

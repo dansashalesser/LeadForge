@@ -19,10 +19,12 @@ import httpx
 from leadforge.lead_ingestion.base_source import Endpoint
 from leadforge.lead_ingestion.errors import (
     FixtureSchemaError,
+    SendCapableEndpointError,
     SourceTimedOut,
     SourceTransient,
     UndeclaredEndpointError,
 )
+from leadforge.lead_ingestion.send_prohibition import assert_no_send_capable_endpoints
 
 __all__ = [
     "DEFAULT_CONNECT_TIMEOUT_S",
@@ -36,6 +38,9 @@ __all__ = [
 DEFAULT_CONNECT_TIMEOUT_S = 5.0
 DEFAULT_READ_TIMEOUT_S = 30.0
 
+_METHOD_OVERRIDE_HEADERS = frozenset(
+    {"x-http-method-override", "x-http-method", "x-method-override"}
+)
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 _FILE_STEM = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
 _DEFAULT_FIXTURES_ROOT = Path(__file__).parent / "fixtures"
@@ -75,6 +80,7 @@ class RestTransport:
     ) -> None:
         if connect_timeout_s <= 0 or read_timeout_s <= 0:
             raise ValueError("connect and read timeout must be positive seconds")
+        assert_no_send_capable_endpoints(provider, endpoints)
         self._provider = provider
         self._declared = frozenset(endpoints.values())
         self._timeout = httpx.Timeout(
@@ -88,6 +94,23 @@ class RestTransport:
     async def aclose(self) -> None:
         await self._client.aclose()
 
+    def _refuse_write_shapes(
+        self,
+        endpoint: Endpoint,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str],
+    ) -> None:
+        """Refuse a GET body or a method-override header: each could make a write."""
+        if endpoint.method == "GET" and json_body is not None:
+            reason = "a GET carries no body"
+        elif any(h.lower() in _METHOD_OVERRIDE_HEADERS for h in headers):
+            reason = "a method override header can turn a read into a write"
+        else:
+            return
+        raise SendCapableEndpointError(
+            self._provider, path=endpoint.path, reason=reason
+        )
+
     async def send(
         self,
         endpoint: Endpoint,
@@ -98,6 +121,7 @@ class RestTransport:
     ) -> TransportResponse:
         if endpoint not in self._declared:
             raise UndeclaredEndpointError(self._provider, path=endpoint.path)
+        self._refuse_write_shapes(endpoint, json_body, headers)
         path, query = _fill_path(endpoint.path, params or {})
         try:
             response = await self._client.request(
@@ -144,6 +168,7 @@ class FixtureTransport:
     ) -> None:
         if not _FILE_STEM.fullmatch(provider):
             raise ValueError(f"invalid provider name for fixtures: {provider!r}")
+        assert_no_send_capable_endpoints(provider, endpoints)
         names: dict[Endpoint, str] = {}
         for name, endpoint in endpoints.items():
             if not _FILE_STEM.fullmatch(name):

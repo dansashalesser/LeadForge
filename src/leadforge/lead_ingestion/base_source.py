@@ -37,6 +37,7 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
     _Entity,
 )
+from leadforge.lead_ingestion.send_prohibition import assert_no_send_capable_endpoints
 
 if TYPE_CHECKING:
     from leadforge.lead_ingestion.pacing import SourcePacing
@@ -296,6 +297,12 @@ class BaseLeadSource(ABC):
                 # Always copy, so neither the author's dict nor a proxy over one
                 # can be used to mutate the declaration.
                 setattr(cls, declaration, MappingProxyType(dict(declared)))
+        declared_endpoints = getattr(cls, "endpoints", None)
+        if isinstance(declared_endpoints, Mapping):  # an abstract mixin declares none
+            # At definition, so a send-capable adapter cannot even be imported (11.1).
+            assert_no_send_capable_endpoints(
+                str(getattr(cls, "name", cls.__name__)), declared_endpoints
+            )
 
     def __init__(
         self,
@@ -472,6 +479,7 @@ class BaseLeadSource(ABC):
                     f"{cls}.endpoints[{label!r}] uses undeclared rate bucket "
                     f"{endpoint.bucket!r}"
                 )
+        assert_no_send_capable_endpoints(self.name, self.endpoints)  # 11.1
 
     def _validate_required_env(self, cls: str) -> None:
         names = self.required_env

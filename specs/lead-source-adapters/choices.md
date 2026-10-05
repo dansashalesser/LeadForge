@@ -2036,3 +2036,41 @@ Known gaps:
 - needs-follow-up: run_report imports run_record (RunStatus, RunRecordError), which transitively imports orchestrator/registry. The report function takes and uses none, but a strict module graph free of orchestrator needs those moved to a leaf module.
 - needs-follow-up: `_printable` is duplicated (run_exit, run_report); extract at a third call site.
 - `leads_normalized` is labelled as contributions across phases, not distinct leads.
+
+## Task 19.1 — Assert no adapter reaches a send-capable endpoint (2026-10-05)
+Evidence: new tests/test_no_send_endpoints.py first run RED (collection ImportError: SendCapableEndpointError missing), then GREEN after send_prohibition.py, errors.py, base_source/transport wiring and structure_guard scans. Mutation checks run and restored: hunter endpoint renamed to /v2/campaigns/send (52 tests failed), literal /api/v1/emailer_campaigns appended (scan failed), "DELETE" literal appended (scan failed), a GET changed to POST (allowlist test failed). Final: ruff format/check clean, mypy clean, pytest 3043 passed 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Denylist is whole-word tokens (split on / _ - camelCase, {placeholders} dropped) in new send_prohibition.py, not regex substrings; rejected substrings because email-finder / email-verifier / bulk_match would false-positive. "emails" (plural collection) is denied, "email" alone is not; "bulk" alone is not denied (bulk_create is caught by create).
+- Runtime (BaseLeadSource._validate_endpoints, RestTransport and FixtureTransport constructors) enforces the denylist only, raising new SendCapableEndpointError; the closed POST allowlist (READ_ONLY_POST_ALLOWLIST, path -> reason) is enforced only by the guard test on the real registry, because many existing tests declare throwaway POST paths. Rejected: runtime POST allowlist.
+- Endpoint.__post_init__ is not changed (rejected: it would make a denylisted Endpoint unconstructible, so the transport refusal could not be tested).
+- Direct-send scan flags any x.send(..., json_body=...) outside base_source/transport/mcp_transport/auth in the slice (adapters included); auth.py and mcp_transport.py are sanctioned (OAuth token fetch, MCP fallback delegate). Rejected: matching on receiver name.
+- Static path scan treats a string literal starting with "/" and without whitespace as a path; f-string pieces are checked individually (so a bare "/enroll" piece is flagged). Test files are skipped (tests dir).
+- Write-verb scan flags .put/.patch/.delete calls on any receiver and any "PUT"/"PATCH"/"DELETE" literal.
+### Known gaps (needs-follow-up)
+- 19.1 bullet 1 (read-only operations only): delivered via runtime guard + enumeration test. Bullet 2 (static test asserting no send/sequence/messaging path in adapters): delivered. Bullet 3 (parallel note): n/a.
+- research.md has no per-provider send endpoint list; the denylist and SEND_PATHS examples come from public API knowledge, not verified against provider docs this run.
+- Denylist is best-effort on path words; a send endpoint with an innocuous path would pass the denylist (POST is still held by the allowlist in the test).
+- Mock HTTP check patches httpx.AsyncClient.request/send; it does not assert zero sockets (that is 19.2).
+- 19.2, 19.3, 19.4 not touched; tasks.md/choices.md not edited.
+
+### Self-review findings
+Fixed (each test-first, seen RED then GREEN; full suite 3124 passed, 1 skipped; ruff and mypy clean):
+- SPEC GAP closed: the POST allowlist was test-only, so a `POST /contacts`-style create (no verb word) passed at runtime. Now default deny in `assert_no_send_capable_endpoints`, run at class definition (`__init_subclass__`) and again by RestTransport, FixtureTransport and McpTransport. To add a legitimate read-only POST: add one (exact path, reason) entry to `READ_ONLY_POST_ALLOWLIST`; the guard test fails on a stale entry. Throwaway test adapters and transports that declared POSTs now use GET or the allowlisted `/api/v1/people/match` (6 test files).
+- Percent-encoding bypass (`/se%6Ed`, `%2565`): path decoded to a fixed point before tokenising.
+- Joined words (`sendemail`, `singlesend`, `mailer`): long stems also matched inside a word (`SEND_PATH_STEMS`); `sequence` deliberately not a stem (`consequence`).
+- Placeholders: `{action}`, `{op}`, `{send}` and similar are refused (selector names and send words); other placeholders are read as identifiers. Values cannot add a segment (slashes encoded; `.`, `..`, empty refused); confirmed by tests.
+- Missing tokens added: submit, archive, restore, communications, meetings, conversations, mail(er), inmail, recipients, drip, reply, forward, broadcast, notifications, trigger, schedule, launch, dispatch, publish, insert, write, put, patch.
+- RestTransport refuses a GET with a body and any method-override header (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`).
+- McpTransport (a third transport, missed) now runs the check, and the tool name (the map key) is checked like a path.
+- Static scan: folds `"/v1/" + "send"` and f-strings; flags `from lib import delete as x`; new `find_network_client_imports` (httpx, requests, aiohttp, socket, smtplib, http.client, urllib.request, literal `__import__`/`import_module`) over the whole slice except transport.py, tests/ and fixtures/. `_parsed` now skips fixtures/ as well as tests/.
+- Mutation-checked (15 mutants, all files restored byte-identical): 14 killed; the survivor is the instance-time `_validate_endpoints` call, an equivalent mutant now that class definition checks first (kept as defence in depth). Scan mutated on a copy of an adapter: requests.put, httpx.delete, client.patch, method="DELETE", .request("PUT"), aliased import, getattr, "/" + "send", f-string and httpx import all flagged.
+
+Task bullets: bullet 1 (read-only operations only) delivered; bullet 2 (static test, no send/sequence/messaging path) delivered; bullet 3 is a parallelism note, n/a. 19.2, 19.3, 19.4 untouched.
+
+Known gaps:
+- needs-follow-up: denylist words come from public API knowledge, not provider docs (research.md has no send list); verify against each provider OpenAPI spec as adapters are added. A send verb with no listed word on a GET is not caught; POST is default deny.
+- needs-follow-up: write-verb and path-literal scans cover adapters/ only; a new non-adapter slice module is covered for client imports and `.send(json_body=)` but not write-verb text (store and tie_resolution legitimately use `.delete` and `.put`).
+- needs-follow-up (accepted residual, not catchable by AST): paths built with `join`, `%`, `.format` of non-literals, variables or data; a client reached through a third-party wrapper; raw `asyncio` connections. The runtime check and the declared-endpoint transport are the backstop.
+- The allowlist is keyed by path alone, not provider; a path allowed for one provider is allowed for all. Tighten if provider paths collide.
+- `sent` is not a listed word (a field name, not an endpoint word); `sender` and `emails` are.

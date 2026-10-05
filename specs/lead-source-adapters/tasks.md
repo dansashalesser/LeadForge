@@ -569,7 +569,7 @@ task = one commit.
 ---
 
 - [ ] 19. Structural guardrails
-- [ ] 19.1 (P) Assert no adapter reaches a send-capable endpoint
+- [x] 19.1 (P) Assert no adapter reaches a send-capable endpoint
   - Issue only read-oriented provider operations, never one that sends an email, message, connection request, or sequence enrollment, and never one that creates, updates, or deletes a record in a provider's system of record
   - Add a static test asserting no adapter references a send, sequence, or messaging endpoint path
   - Parallel with 19.2 and 19.4 — separate static test modules

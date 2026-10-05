@@ -21,7 +21,7 @@ from leadforge.lead_ingestion.transport import (
 )
 
 BASE = "https://api.example.com"
-SEARCH = Endpoint(method="POST", path="/v1/people/search", bucket="default")
+SEARCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="default")
 LOOKUP = Endpoint(method="GET", path="/v1/people/{id}", bucket="default")
 ENDPOINTS: Mapping[str, Endpoint] = {"search": SEARCH, "lookup": LOOKUP}
 
@@ -40,7 +40,7 @@ async def test_rest_transport_satisfies_the_port() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#20.1
 @respx.mock
 async def test_send_carries_request_parts_and_returns_neutral_response() -> None:
-    route = respx.post(f"{BASE}/v1/people/search").mock(
+    route = respx.post(f"{BASE}/api/v1/people/match").mock(
         return_value=httpx.Response(200, json={"people": []}, headers={"X-A": "b"})
     )
     t = make()

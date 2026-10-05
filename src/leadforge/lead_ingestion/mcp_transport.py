@@ -16,9 +16,14 @@ import structlog
 
 from leadforge.lead_ingestion.base_source import Endpoint
 from leadforge.lead_ingestion.errors import (
+    SendCapableEndpointError,
     SourceTimedOut,
     SourceTransient,
     UndeclaredEndpointError,
+)
+from leadforge.lead_ingestion.send_prohibition import (
+    assert_no_send_capable_endpoints,
+    send_capable_reason,
 )
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
@@ -55,6 +60,14 @@ class McpTransport:
     ) -> None:
         if fallback_kind not in ("rest", "synthetic"):
             raise ValueError("fallback_kind must be 'rest' or 'synthetic'")
+        assert_no_send_capable_endpoints(provider, endpoints)
+        for name, endpoint in endpoints.items():
+            # The tool called is the map key, so the key is checked like a path (11.1).
+            reason = send_capable_reason(f"/{name}")
+            if reason is not None:
+                raise SendCapableEndpointError(
+                    provider, path=endpoint.path, reason=f"tool {reason}"
+                )
         self._provider = provider
         self._names = {endpoint: name for name, endpoint in endpoints.items()}
         self._session = session

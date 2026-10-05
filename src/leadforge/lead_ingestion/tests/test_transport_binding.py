@@ -32,7 +32,7 @@ BUCKET = RateBucket(
     documented=True,
     doc_url="https://example.com/rate-limits",
 )
-SEARCH = Endpoint(method="POST", path="/v1/search", bucket="default")
+SEARCH = Endpoint(method="GET", path="/v1/search", bucket="default")
 OTHER = Endpoint(method="GET", path="/v1/other", bucket="default")
 
 

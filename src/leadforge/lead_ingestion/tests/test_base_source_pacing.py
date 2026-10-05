@@ -29,7 +29,7 @@ from leadforge.lead_ingestion.transport import TransportResponse
 DOC = "https://example.com/limits"
 SLOW = RateBucket("slow", (RateWindow(1, 100.0),), documented=True, doc_url=DOC)
 FAST = RateBucket("fast", (RateWindow(1000, 100.0),), documented=True, doc_url=DOC)
-FIRST = Endpoint(method="POST", path="/v1/first", bucket="slow")
+FIRST = Endpoint(method="GET", path="/v1/first", bucket="slow")
 SECOND = Endpoint(method="GET", path="/v1/second", bucket="fast")
 
 

@@ -17,7 +17,7 @@ from leadforge.lead_ingestion.transport import (
     TransportResponse,
 )
 
-SEARCH = Endpoint(method="POST", path="/v1/people/search", bucket="default")
+SEARCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="default")
 LOOKUP = Endpoint(method="GET", path="/v1/people/{id}", bucket="default")
 ENDPOINTS: Mapping[str, Endpoint] = {"search": SEARCH, "lookup": LOOKUP}
 PAYLOAD = {"people": [{"id": "p1"}]}
@@ -65,7 +65,7 @@ async def test_undeclared_endpoint_is_rejected_like_rest(root: Path) -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#5.1
 async def test_declared_path_with_other_method_is_rejected(root: Path) -> None:
-    wrong = Endpoint(method="GET", path="/v1/people/search", bucket="default")
+    wrong = Endpoint(method="GET", path="/api/v1/people/match", bucket="default")
     with pytest.raises(UndeclaredEndpointError):
         await send(make(root), wrong)
 
