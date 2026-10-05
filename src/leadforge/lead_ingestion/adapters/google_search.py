@@ -17,16 +17,33 @@ Provisional decisions (see choices.md, task 14.1):
 * Every call spends search balance, so a page already fetched this run is kept by
   ``(query, page)`` and a retried fetch repeats no call, resuming after the last
   page that was paid for.
-* ``normalize`` is task 14.2: an empty batch yields nothing and a batch holding results
-  raises, so no result is silently dropped.
+* ``normalize`` reads results as Company Signal contributions (task 14.2, below).
 * Cost is PAID and PER_CALL (a search spends balance); no vocabulary or answerable
   surface is declared until 14.2 defines what the adapter contributes.
 * ``fixtures/google_search/search.json`` is a hand-made STAND-IN, not captured.
+
+Provisional decisions (see choices.md, task 14.2):
+
+* One ``LeadContribution`` per organic result, answer box and knowledge graph, carrying
+  only ``company.web_evidence.*`` paths: ``query``, ``block``, ``url``, ``title``,
+  ``snippet`` and ``retrieved_on``. No ``person.*`` path is ever filled, so web evidence
+  cannot become a Lead (ADR-0001). Title and snippet are ``UntrustedText`` (14.6); the
+  URL, our own query and the date are plain text.
+* Raw paths are relative to a wrapper ``{query, block, retrieved_on, result}`` built
+  per result, so the matched query and retrieval date get provenance like any field.
+* No Signal Strength, ``company.name`` or ``company.domain`` is contributed: strength
+  and the tech-versus-intent kind are not in a search result, and a result's host is
+  not necessarily the company's. No answerable surface is declared, so no Negative
+  Evidence is ever emitted.
+* An absent or null block is no evidence; one of the wrong shape raises.
 """
 
 import math
 from collections.abc import Mapping, Sequence
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from pydantic import BaseModel, StrictStr
 
 from leadforge.lead_ingestion.adapters.search_backends import (
     DEFAULT_BACKEND_NAME,
@@ -52,6 +69,12 @@ from leadforge.lead_ingestion.errors import (
     SourceError,
 )
 from leadforge.lead_ingestion.models import DataMode
+from leadforge.lead_ingestion.normalizer import (
+    FieldRule,
+    NormalizationContext,
+    Normalizer,
+    validate_raw_payload,
+)
 from leadforge.lead_ingestion.transport import Transport
 
 if TYPE_CHECKING:
@@ -64,6 +87,52 @@ DEFAULT_RESULTS_PER_QUERY = 10
 # Every request spends search balance, so one run's spend is bounded up front.
 MAX_RESULTS_PER_QUERY = 100
 MAX_QUERIES = 100
+
+_EVIDENCE = "company.web_evidence."
+# A record is evidence only if the provider supplied at least one of these.
+_EVIDENCE_PATHS = (_EVIDENCE + "url", _EVIDENCE + "title", _EVIDENCE + "snippet")
+
+
+class _Organic(BaseModel):
+    link: StrictStr
+    title: StrictStr | None = None
+    snippet: StrictStr | None = None
+
+
+class _AnswerBox(BaseModel):
+    link: StrictStr | None = None
+    title: StrictStr | None = None
+    snippet: StrictStr | None = None
+
+
+class _KnowledgeGraph(BaseModel):
+    website: StrictStr | None = None
+    title: StrictStr | None = None
+    description: StrictStr | None = None
+
+
+class _Record(BaseModel):
+    query: StrictStr
+    block: StrictStr
+    retrieved_on: StrictStr
+
+
+class _OrganicRecord(_Record):
+    result: _Organic
+
+
+class _AnswerBoxRecord(_Record):
+    result: _AnswerBox
+
+
+class _KnowledgeGraphRecord(_Record):
+    result: _KnowledgeGraph
+
+
+def _unmapped(source: str, raw_field_path: str) -> NormalizationError:
+    return NormalizationError(
+        source, raw_field_path=raw_field_path, canonical_path="<unmapped>"
+    )
 
 
 class GoogleSearchSource(BaseLeadSource):
@@ -81,6 +150,30 @@ class GoogleSearchSource(BaseLeadSource):
     required_env: ClassVar[tuple[str, ...]] = _DEFAULT_BACKEND.required_env
     docs_url: ClassVar[str] = _DEFAULT_BACKEND.docs_url
     base_url: ClassVar[str] = _DEFAULT_BACKEND.base_url
+
+    _CONTEXT_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        FieldRule(_EVIDENCE + "query", "query"),
+        FieldRule(_EVIDENCE + "block", "block"),
+        FieldRule(_EVIDENCE + "retrieved_on", "retrieved_on"),
+    )
+    ORGANIC_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        *_CONTEXT_RULES,
+        FieldRule(_EVIDENCE + "url", "result.link"),
+        FieldRule(_EVIDENCE + "title", "result.title", untrusted=True),
+        FieldRule(_EVIDENCE + "snippet", "result.snippet", untrusted=True),
+    )
+    ANSWER_BOX_RULES: ClassVar[tuple[FieldRule, ...]] = ORGANIC_RULES
+    KNOWLEDGE_GRAPH_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        *_CONTEXT_RULES,
+        FieldRule(_EVIDENCE + "url", "result.website"),
+        FieldRule(_EVIDENCE + "title", "result.title", untrusted=True),
+        FieldRule(_EVIDENCE + "snippet", "result.description", untrusted=True),
+    )
+    # Fields of a result that are neither contributed nor needed (rank and display only;
+    # a result's own publication date is not the retrieval date).
+    IGNORED: ClassVar[frozenset[str]] = frozenset(
+        {"result.position", "result.displayed_link", "result.source", "result.date"}
+    )
 
     def __init__(
         self,
@@ -175,11 +268,69 @@ class GoogleSearchSource(BaseLeadSource):
         payload = raw.payload
         searches = payload.get("searches") if isinstance(payload, Mapping) else None
         if not isinstance(searches, list):
-            raise NormalizationError(
-                self.name, raw_field_path="searches", canonical_path="<unmapped>"
+            raise _unmapped(self.name, "searches")
+        retrieved = datetime.now(UTC)
+        context = NormalizationContext(
+            source_name=self.name,
+            data_mode=self.data_mode,
+            fetched_at=retrieved,
+            answerable_surfaces=self.answerable_surfaces,
+        )
+        contributions: list[LeadContribution] = []
+        for search in searches:
+            query = search.get("query") if isinstance(search, Mapping) else None
+            pages = search.get("pages") if isinstance(search, Mapping) else None
+            if not isinstance(query, str) or not isinstance(pages, list):
+                raise _unmapped(self.name, "searches")
+            for page in pages:
+                if not isinstance(page, Mapping):
+                    raise _unmapped(self.name, "searches")
+                contributions.extend(
+                    self._page_evidence(page, query, retrieved.date(), context)
+                )
+        return contributions
+
+    def _page_evidence(
+        self,
+        page: Mapping[str, Any],
+        query: str,
+        retrieved_on: date,
+        context: NormalizationContext,
+    ) -> list[LeadContribution]:
+        """Evidence records of one result page: organic results, then optional blocks.
+
+        An absent or null block is no evidence; a block of the wrong shape raises.
+        """
+        organic = page.get("organic_results")
+        if organic is not None and not isinstance(organic, list):
+            raise _unmapped(self.name, "organic_results")
+        blocks: list[tuple[str, Any, type[BaseModel], tuple[FieldRule, ...]]] = [
+            ("organic_results", item, _OrganicRecord, self.ORGANIC_RULES)
+            for item in organic or []
+        ]
+        optional: tuple[tuple[str, type[BaseModel], tuple[FieldRule, ...]], ...] = (
+            ("answer_box", _AnswerBoxRecord, self.ANSWER_BOX_RULES),
+            ("knowledge_graph", _KnowledgeGraphRecord, self.KNOWLEDGE_GRAPH_RULES),
+        )
+        for block, model, rules in optional:
+            if page.get(block) is not None:
+                blocks.append((block, page[block], model, rules))
+        normalizer = Normalizer()
+        found: list[LeadContribution] = []
+        for block, result, model, rules in blocks:
+            if not isinstance(result, Mapping):
+                raise _unmapped(self.name, block)
+            wrapped = {
+                "query": query,
+                "block": block,
+                "retrieved_on": retrieved_on.isoformat(),
+                "result": result,
+            }
+            contribution = normalizer.apply(
+                validate_raw_payload(self.name, model, wrapped, rules),
+                rules,
+                context,
             )
-        if searches:
-            raise SourceError(
-                self.name, "reading search results is not built yet (task 14.2)"
-            )
-        return []
+            if any(path in contribution.values for path in _EVIDENCE_PATHS):
+                found.append(contribution)
+        return found

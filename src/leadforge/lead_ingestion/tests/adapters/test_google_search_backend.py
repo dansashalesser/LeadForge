@@ -1,7 +1,8 @@
 """Google Search adapter: the pluggable search backend (14.1, 14.2, 14.3, 14.7).
 
 ``fixtures/google_search/search.json`` is a hand-made STAND-IN, not a captured
-response. Result normalization is task 14.2 and exhaustion handling is task 14.3.
+response. Result normalization is in test_google_search_normalize.py (14.2);
+exhaustion handling is task 14.3.
 """
 
 import socket
@@ -406,23 +407,11 @@ def test_blank_queries_and_a_non_positive_result_count_are_refused() -> None:
         live(Scripted(lambda _: ok()), results_per_query=0)
 
 
-# Verifies: specs/lead-source-adapters/requirements.md#14.1
-def test_normalization_is_not_built_yet_and_says_so_rather_than_dropping_results() -> (
-    None
-):
+# Verifies: specs/lead-source-adapters/requirements.md#14.4
+def test_an_empty_batch_normalizes_to_nothing() -> None:
     source = live(Scripted(lambda _: ok()))
-    assert (
-        source.normalize(
-            RawBatch(source_name="google_search", payload={"searches": []})
-        )
-        == []
-    )
-    batch = RawBatch(
-        source_name="google_search",
-        payload={"searches": [{"query": QUERY, "pages": [{}]}]},
-    )
-    with pytest.raises(SourceError):
-        source.normalize(batch)
+    batch = RawBatch(source_name="google_search", payload={"searches": []})
+    assert source.normalize(batch) == []
 
 
 def _backend_module(name: str, backend_name: str) -> str:

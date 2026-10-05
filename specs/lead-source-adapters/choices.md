@@ -1342,3 +1342,37 @@ Known gaps (needs-follow-up):
 - needs-follow-up: a backend class lacking `name` makes select_backend raise AttributeError.
 
 - **Correction by the parent:** the reviewer reported that flipping `follow_redirects` to true failed no test. It does: `test_redirects_are_not_followed` in `test_transport.py` fails under that mutation (verified, file restored). Redirects are pinned at the transport level, which is the only place the client is built.
+
+## Task 14.2 — Contribute untrusted web evidence as Company Signals (2026-10-05)
+Evidence: wrote tests/adapters/test_google_search_normalize.py first and ran it; the first test failed (normalize raised SourceError "not built yet"), then implemented; 37 new tests green. Replaced the 14.1 test asserting normalize raises with an empty-batch test. Final: `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 1740 passed, 1 skipped.
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- One LeadContribution per organic result, answer box and knowledge graph (not one per search or page), with only `company.web_evidence.{query,block,url,title,snippet,retrieved_on}` paths; rejected `company.name`/`company.domain` (a result host such as a job board is not the company's domain) and rejected any `person.*` path (ADR-0001: web evidence never creates a Lead).
+- No Signal Strength and no tech-vs-intent kind is contributed: a search result states neither, a number would be invented, and the spec gives no ingestion-time value; rejected a constant default strength and keyword classification of snippet text (would read strength/kind from the text).
+- Title and snippet are UntrustedText; URL, our own query, block label and date stay plain str (14.6 names only snippet and title; Apollo keeps URLs plain); rejected wrapping the URL.
+- Retrieval date = UTC date of the normalize call (ISO string value) with `fetched_at` in provenance; rejected a date taken from the result's own `date` field (publication date, listed in IGNORED).
+- Raw paths in provenance are relative to a per-result wrapper `{query, block, retrieved_on, result}` (`result.link`, ...) so query/date get mechanical provenance; rejected hand-adding them outside the Normalizer.
+- Absent or null `organic_results`/answer box/knowledge graph = no evidence, no raise; a present block of wrong type or shape raises NormalizationError (no silent fallback). A block mapping none of url/title/snippet contributes nothing.
+- No answerable surface declared, so no Negative Evidence (a zero-result query records nothing); rejected declaring `organic_results` as an answerable surface.
+- Replaced (not kept) the 14.1 test that required normalize to raise on results.
+### Known gaps (needs-follow-up)
+- Evidence is not attributed to any company: no name or domain is contributed, so nothing downstream can turn these records into a CompanySignal until queries are tied to a company (queries still have no run-time source; 14.1's gap stands).
+- Contributions are flat `company.web_evidence.*` values, not TechSignal/IntentSignal objects; no merge/assembly step exists to build them, and strength is never set.
+- A paid search followed by normalize raising still discards the spend (raw pages are not persisted before normalize here).
+- Answer box / knowledge graph field names (`link`, `title`, `snippet`, `website`, `description`) are from memory of SerpApi, not verified; the blocks in tests are inline stand-ins; the fixture is a hand-made stand-in.
+- The result URL is plain str and may embed provider-chosen text.
+- No property test; self-review not run (no Agent tool).
+
+### Self-review findings
+Independent review. No code changes made; the implementation held up. Verified: ruff, mypy clean; pytest 1740 passed, 1 skipped; repo root clean.
+- Mutation checks (files restored byte-identical, verified with cmp): snippet as plain str (killed), person.* rule added (killed), payload text in a NormalizationError (killed), wrong-shaped organic_results accepted (killed). Confidence is never fabricated: it comes only from the Normalizer (origin NONE) and rank (`position`) is in IGNORED.
+- No bare except, no CancelledError handling in the touched code, no network in tests (Scripted transport).
+- Requirement 14.5 says "evidence records" and does NOT demand Signal Strength; task 14.2 text says "as Signals" / "Company Signals".
+- SPEC GAP: task 14.2 asks for Signals (strength recorded at ingestion, 24.4) and Company Signals; the adapter contributes flat `company.web_evidence.*` values with no strength, no tech/intent kind, no company name or domain. CompanySignal requires a name or a domain (models.py), and the orchestrator keys a company only on `company.domain`; no merge engine exists yet (16.9/16.10), so these contributions cannot be attached to a company and would be orphaned. needs-follow-up (needs-user).
+- needs-follow-up: no cap on results per page; a hostile page with 10k results is normalized in full (silent drop vs raise-on-excess is a design decision, not made here).
+- needs-follow-up: result URL is plain str with no length bound (22.4 bounds only untrusted free text; a URL is not on 22.1's list but can hold provider-chosen text). The query is operator-supplied, not provider text.
+- needs-follow-up: provenance raw paths are wrapper-relative (`result.link`), identical for organic and answer box, not the provider's literal path (`organic_results[].link`). The block label is stored as a value to disambiguate.
+- needs-follow-up: duplicate results across pages or queries are emitted twice; `retrieved_on`/`fetched_at` come from the normalize call, so re-normalizing one batch differs in timestamps only (values and order are stable).
+- Zero-result search: no Negative Evidence (no answerable surface declared); consistent with 1.9 only if web search is not an answerable source, unconfirmed.
+
+- **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** the code is committed and safe (prompt-injection handling verified by mutation), but the task text says "as Signals / Company Signals" with Signal Strength recorded at ingestion (24.4). The adapter emits flat `company.web_evidence.*` values with no strength, no tech-vs-intent kind and no company name or domain, so no Company Signal can be built from them and nothing can attach them to a company. Completing it needs two decisions: how a query maps to a company (identity), and what Signal Strength an organic result gets when the provider states none.
