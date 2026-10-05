@@ -148,7 +148,7 @@ task = one commit.
   - Fail the suite when a field present in a fixture is neither mapped nor explicitly listed as intentionally ignored
   - _Requirements: 1.2, 1.3, 1.9, 4.6_
 
-- [ ] 5.2 Store untrusted provider text verbatim under a length bound
+- [x] 5.2 Store untrusted provider text verbatim under a length bound
   - Store untrusted text exactly as supplied, with no interpolation, interpretation, or execution of instruction-like content inside it
   - Hold each untrusted field to a configured maximum length, truncating and flagging with the original length preserved rather than storing unbounded provider text
   - _Requirements: 22.2, 22.4_
