@@ -142,3 +142,22 @@ ill-typed input, compliance flags defaulting to `False` (OR-merge belongs to the
 Evidence: partial — `spec-refactor-agent` and `validate-production-agent` were not run by the
 subagent (no Agent tool). Parent re-ran pytest: 196 passed. Commit 74a1532 is local and unpushed;
 `tasks.md` shows 2.1 `[x]` but is uncommitted (specs/ is not committed by harness rule).
+
+## Task 2.1 — user decisions on the three `needs-user` choices
+
+### Several current Employments are allowed and flagged
+- **Decision (user):** a Lead may hold several current Employments; extras are flagged and weighed when judging lead quality, not rejected.
+- **Done:** the "at most one current" validator is removed. `CanonicalLead.current_employments` and `has_multiple_current_employments` are derived properties (not serialized fields). The scoring task consumes the flag.
+
+### `company_id` is one canonical id assigned by this layer
+- **Decision (user):** one company id unified across all providers; a provider's own id is normalized onto it.
+- **Done:** `company_id` stays the Company Signal identity; `CompanySignal.provider_ids` (tuple of `ProviderCompanyId(source, id)`, one per source) records each provider's native id. Providers never supply `company_id`.
+- **Open for the merge task:** the rule that assigns `company_id`. Design D7 makes company identity a domain set under the pinned PSL, so the merge task should derive `company_id` deterministically from that domain set, and match on registrable domain, never on `company_id` alone.
+
+### Email uses `EmailStr`
+- **Decision (user):** add `email-validator` and follow the design.
+- **Done:** `email-validator>=2.3.0` added; the hand-written check is removed. `EmailStr` lowercases the domain and keeps the local part, so the earlier "stored verbatim" behavior changed. Surrounding whitespace is rejected, not stripped, to keep the no-silent-coercion rule.
+
+### Notes for the merge task (from the 2.1 follow-up self-review)
+- `provider_ids` and `domains` compare by tuple order, so one company with the same ids in a different order reads as a conflict. The merge task should canonicalise the order (for example, sort) before comparing.
+- `share_company_signals` raises when two signals share a `company_id` but carry different `provider_ids`; it does not union them. The merge task must unify Company Signals across providers before calling it.

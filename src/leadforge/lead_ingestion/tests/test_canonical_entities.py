@@ -16,6 +16,7 @@ from leadforge.lead_ingestion.models import (
     EmailStatus,
     Employment,
     IntentSignal,
+    ProviderCompanyId,
     TechSignal,
     share_company_signals,
 )
@@ -261,8 +262,15 @@ def test_malformed_email_is_rejected_not_coerced(bad: str) -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.5
-def test_email_is_stored_verbatim() -> None:
-    assert lead(email="Jane.Doe+x@Acme.COM").email == "Jane.Doe+x@Acme.COM"
+def test_email_local_part_is_preserved_and_domain_is_case_folded() -> None:
+    # EmailStr (design, CanonicalLead) keeps the local part and lowercases the domain.
+    assert lead(email="Jane.Doe+x@Acme.COM").email == "Jane.Doe+x@acme.com"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#1.5
+def test_email_is_validated_by_email_validator_via_emailstr() -> None:
+    field = CanonicalLead.model_fields["email"]
+    assert "EmailStr" in repr(field.annotation)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.5
@@ -339,18 +347,20 @@ def test_only_historical_employments_is_valid() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#24.2
-def test_two_current_employments_are_rejected() -> None:
-    with pytest.raises(ValidationError, match="current"):
-        lead(
-            employments=(
-                Employment(company=company("a"), is_current=True),
-                Employment(company=company("b"), is_current=True),
-            )
+def test_two_current_employments_are_kept_and_flagged_not_rejected() -> None:
+    ld = lead(
+        employments=(
+            Employment(company=company("a"), is_current=True),
+            Employment(company=company("b"), is_current=True),
         )
+    )
+    assert len(ld.employments) == 2
+    assert ld.has_multiple_current_employments is True
+    assert [e.company.company_id for e in ld.current_employments] == ["a", "b"]
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#24.2
-def test_unknown_currency_never_counts_toward_the_one_current_limit() -> None:
+def test_unknown_currency_never_counts_as_current() -> None:
     ld = lead(
         employments=(
             Employment(company=company("a"), is_current=True),
@@ -359,6 +369,8 @@ def test_unknown_currency_never_counts_toward_the_one_current_limit() -> None:
         )
     )
     assert len(ld.employments) == 3
+    assert ld.has_multiple_current_employments is False
+    assert len(ld.current_employments) == 1
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#24.2
@@ -665,3 +677,48 @@ def test_property_dump_validate_roundtrip_is_identity(seed: int) -> None:
     )
     assert CanonicalLead.model_validate(ld.model_dump()) == ld
     assert CanonicalLead.model_validate_json(ld.model_dump_json()) == ld
+
+
+# ------------------------------------------------ unified company id across providers
+
+
+def test_company_signal_records_provider_native_ids_beside_the_unified_id() -> None:
+    cs = company(
+        "acme",
+        provider_ids=(
+            ProviderCompanyId(source="apollo", id="5f1"),
+            ProviderCompanyId(source="hubspot", id="991"),
+        ),
+    )
+    assert cs.company_id == "acme"
+    assert {(p.source, p.id) for p in cs.provider_ids} == {
+        ("apollo", "5f1"),
+        ("hubspot", "991"),
+    }
+
+
+def test_provider_ids_default_to_empty() -> None:
+    assert company().provider_ids == ()
+
+
+def test_one_source_cannot_claim_two_native_ids_for_one_company() -> None:
+    with pytest.raises(ValidationError, match="provider_ids"):
+        company(
+            provider_ids=(
+                ProviderCompanyId(source="apollo", id="1"),
+                ProviderCompanyId(source="apollo", id="2"),
+            )
+        )
+
+
+@pytest.mark.parametrize("field", ["source", "id"])
+def test_provider_company_id_rejects_blank_parts(field: str) -> None:
+    kw = {"source": "apollo", "id": "1", field: "  "}
+    with pytest.raises(ValidationError):
+        ProviderCompanyId(**kw)
+
+
+def test_employments_with_provider_ids_stay_hashable_for_duplicate_detection() -> None:
+    cs = company(provider_ids=(ProviderCompanyId(source="apollo", id="1"),))
+    with pytest.raises(ValidationError, match="duplicate Employment"):
+        lead(employments=(Employment(company=cs), Employment(company=cs)))

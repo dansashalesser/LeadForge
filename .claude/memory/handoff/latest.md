@@ -1,59 +1,99 @@
 # Session Handoff
 
-- Written: 2026-10-05T07:57:38+00:00
+- Written: 2026-10-05T08:15:05+00:00
 - Trigger: agent-spawn
-- Source transcript: /root/.claude/projects/-home-user-LeadForge/5b55361c-ec38-4600-b679-6c3cafbbd36a.jsonl
+- Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
 - git branch: claude/happy-sagan-2yrkn0
 
 ## Last user message
-# Implementation Task Executor
+# Choices Ledger Audit
+
+Reconstructs the decisions this implementation made where the spec said nothing,
+verdicts each one, and appends them to the feature's choices ledger.
+
+Runs automatically as the last step of `/kiro:spec-impl`. Invoke it directly to
+re-audit a pass, to audit work done outside the spec pipeline, or to consolidate
+the ledger at spec close.
 
 ## Parse Arguments
-- Feature name: `1.3`
-- Task numbers: `$2` (optional)
-  - Format: "1.1" (single task) or "1,2,3" (multiple tasks)
-  - If not provided: Execute all pending tasks
+
+- Feature name: `$1` (required)
+- `--close` in `$2`: run Phase 7 consolidation instead of a normal pass audit
 
 ## Validate
-Check that tasks have been generated:
-- Verify `specs/1.3/` exists
-- Verify `specs/1.3/tasks.md` exists
 
-If validation fails, inform user to complete tasks generation first.
+1. `specs/$1/` exists. If not: list available features under `specs/` and stop.
+2. `specs/$1/requirements.md` or `specs/$1/design.md` exists — without a spec
+   there is no silence to audit against. If neither: say so and stop.
+3. If `specs/$1/choices.md` does not exist, create it with the header:
+   ```markdown
+   # Choices Ledger — $1
 
-## Task Selection Logic
+   Decisions made where the spec was silent. Appended per implementation pass.
+   Verdicts: `sound` (any reasonable implementer would agree) / `unsound` (needs
+   rework) / `needs-user` (a preference the agent does not own).
+   ```
 
-**Parse task numbers from `$2`** (perform this in Slash Command before invoking Subagent):
-- If `$2` provided: Parse task numbers (e.g., "1.1", "1,2,3")
-- Otherwise: Read `specs/1.3/tasks.md` and find all unchecked tasks (`- [ ]`)
+## Execute
 
-## Phase -1: Pre-Implementation Gates
+Invoke `Skill("auditing-spec-choices")` and follow its workflow.
 
-Before delegating to the TDD agent, run this checklist against `specs/1.3/tasks.md` and `specs/1.3/design.md`. Surface any failure to the user and wait for confirmation before proceeding.
-
-**Simplicity Gate**
-- [ ] Implementation has ≤3 main components for this feature?
-- [ ] No tasks contain "future-proof", "extensible", "generic", or "might need" language?
-
-**Anti-Abstraction Gate**
-- [ ] Tasks use framework features directly — no wrapper layers proposed without explicit rationale?
-- [ ] Single da
+- Normal run → Phases 1–6.
+- `--close` → P
 
 ## Last assistant text
-I committed and pushed the memory-state changes to `claude/happy-sagan-2yrkn0`. The working tree is clean.
-
-Task 2.1 hasn't run yet. It's waiting on your answer to the question above: proceed as written, or have me add "implementer's choice" lines to `tasks.md` first.
+Now the three decisions go into the choices ledger, then the self-review.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ cat .claude/memory/handoff/latest.md 2>&1 | head -60; echo ---; ls -la specs/ specs/1.3 specs/lead-source-adapters 2>&
-- $ cat specs/lead-source-adapters/spec.json; echo ---; grep -n "^- \[.\] 1\.\|^  - \[.\] 1\." specs/lead-source-adapters/
-- $ sed -n 20,60p specs/lead-source-adapters/tasks.md | cut -c1-400; grep -n "1\.3" specs/lead-source-adapters/tasks.md | 
 - $ grep -n -i "future-proof\|extensible\|might need\|generic" specs/lead-source-adapters/tasks.md | head; echo ---; grep 
 - $ git status --short && git branch --show-current && git log origin/claude/happy-sagan-2yrkn0..HEAD --oneline 2>&1 | hea
 - $ git add -A .claude/memory && git commit -q -m "chore: update session memory state
 
 Co-Authored-By: Claude Sonnet 5.5 <
+- $ git status --short
+- $ cat specs/lead-source-adapters/choices.md; git log --oneline | head -3; git status --short
+- $ wc -l src/leadforge/lead_ingestion/models.py src/leadforge/lead_ingestion/tests/test_canonical_entities.py && grep -n 
+- $ cat >> specs/lead-source-adapters/choices.md <<'EOF'
+
+## Pass 2 — 2026-10-05 (task 2.1)
+
+Gates overridden by the user 
+- /tmp/claude-0/-home-user-LeadForge/5b55361c-ec38-4600-b679-6c3cafbbd36a/scratchpad/pass2.md
+- $ cat /tmp/claude-0/-home-user-LeadForge/5b55361c-ec38-4600-b679-6c3cafbbd36a/scratchpad/pass2.md >> specs/lead-source-a
+- $ git status --short; git check-ignore -v specs/lead-source-adapters/tasks.md; git ls-files specs | head
+- $ git add -A && git commit -q -m "docs(specs): mark task 2.1 done and record pass 2 choices ledger
+
+Co-Authored-By: Clau
+- $ sed -n 1,30p .claude/memory/handoff/latest.md | cut -c1-300; git log --oneline | head -5; git status --short
+- $ git fetch -q origin claude/happy-sagan-2yrkn0; git status -sb | head -2; git show --stat HEAD | head -15; tail -40 spe
+- $ git status --short && git add .claude/memory && git commit -q -m "chore: update session memory state
+
+Co-Authored-By: 
+- $ cat src/leadforge/lead_ingestion/models.py; ls src/leadforge/lead_ingestion src/leadforge/lead_ingestion/tests; grep -
+- $ sed -n 1025,1040p specs/lead-source-adapters/design.md | cut -c1-700; grep -n "8\.16\|8\.17\|8\.18" -A3 specs/lead-sou
+- $ grep -n "current" -B3 -A12 src/leadforge/lead_ingestion/tests/test_canonical_entities.py | sed -n 1,200p | grep -n "at
+- $ sed -n 340,364p src/leadforge/lead_ingestion/tests/test_canonical_entities.py; sed -n 1,24p src/leadforge/lead_ingesti
+- $ python3 - <<'EOF'
+p='src/leadforge/lead_ingestion/tests/test_canonical_entities.py'
+s=open(p).read()
+old_start=s.index
+- $ python3 - <<'EOF'
+p='src/leadforge/lead_ingestion/models.py'
+s=open(p).read()
+s=s.replace("    ConfigDict,\n    Field,
+- /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/edit_models.py
+- $ python3 /tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/edit_models.py && uv run ru
+- $ grep -n "email-validator\|pydantic" pyproject.toml
+- $ python3 - <<'PY'
+p="src/leadforge/lead_ingestion/models.py"
+s=open(p).read()
+s=s.replace("    AfterValidator,\n    Bas
+- $ cat >> specs/lead-source-adapters/choices.md <<'EOF'
+
+## Task 2.1 — user decisions on the three `needs-user` choices
+
+

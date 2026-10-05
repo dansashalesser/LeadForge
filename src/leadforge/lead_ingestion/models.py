@@ -12,7 +12,9 @@ from typing import Annotated, Self
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
+    EmailStr,
     Field,
     HttpUrl,
     field_validator,
@@ -28,6 +30,7 @@ __all__ = [
     "EmailStatus",
     "Employment",
     "IntentSignal",
+    "ProviderCompanyId",
     "Signal",
     "TechSignal",
     "share_company_signals",
@@ -73,19 +76,14 @@ class IntentSignal(Signal):
     """Intent evidence."""
 
 
-def _check_email(value: str) -> str:
-    local, sep, domain = value.partition("@")
-    labels = domain.split(".")
-    if (
-        not sep
-        or not local
-        or "@" in domain
-        or any(ch.isspace() for ch in value)
-        or len(labels) < 2
-        or not all(labels)
-    ):
-        raise ValueError("not a well-formed email address")
+def _reject_padded_email(value: object) -> object:
+    # EmailStr strips surrounding whitespace; the design forbids silent coercion.
+    if isinstance(value, str) and value != value.strip():
+        raise ValueError("email must not have surrounding whitespace")
     return value
+
+
+StrictEmail = Annotated[EmailStr, BeforeValidator(_reject_padded_email)]
 
 
 def _check_domain(value: str) -> str:
@@ -94,10 +92,23 @@ def _check_domain(value: str) -> str:
     return value
 
 
+class ProviderCompanyId(_Entity):
+    """One provider's own identifier for a company, kept for traceability only."""
+
+    source: NonBlank
+    id: NonBlank
+
+
 class CompanySignal(_Entity):
-    """Organization-level information; carries no person identity."""
+    """Organization-level information; carries no person identity.
+
+    ``company_id`` is the one canonical identifier, assigned by this layer and never
+    taken from a provider. Each provider's native id is normalized onto it and kept
+    in ``provider_ids``, so every provider's view of one company shares one id.
+    """
 
     company_id: NonBlank
+    provider_ids: tuple[ProviderCompanyId, ...] = ()
     name: NonBlank | None = None
     domains: tuple[Annotated[str, AfterValidator(_check_domain)], ...] = ()
     tech_signals: tuple[TechSignal, ...] = ()
@@ -108,6 +119,15 @@ class CompanySignal(_Entity):
     def _domains_unique(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         if len(set(value)) != len(value):
             raise ValueError("domain listed twice")
+        return value
+
+    @field_validator("provider_ids")
+    @classmethod
+    def _one_native_id_per_source(
+        cls, value: tuple[ProviderCompanyId, ...]
+    ) -> tuple[ProviderCompanyId, ...]:
+        if len({p.source for p in value}) != len(value):
+            raise ValueError("provider_ids lists one source twice")
         return value
 
     @model_validator(mode="after")
@@ -131,7 +151,7 @@ class Employment(_Entity):
 class CanonicalLead(_Entity):
     """The only lead type a downstream stage may consume: one identifiable human."""
 
-    email: Annotated[str, AfterValidator(_check_email)] | None = None
+    email: StrictEmail | None = None
     email_status: EmailStatus = EmailStatus.UNKNOWN
     linkedin_url: HttpUrl | None = None
     full_name: NonBlank | None = None
@@ -140,6 +160,16 @@ class CanonicalLead(_Entity):
     intent_signals: tuple[IntentSignal, ...] = ()
     opt_out: bool = False
     suppressed: bool = False
+
+    @property
+    def current_employments(self) -> tuple[Employment, ...]:
+        """Employments a provider reported as current; unknown is not current."""
+        return tuple(e for e in self.employments if e.is_current is True)
+
+    @property
+    def has_multiple_current_employments(self) -> bool:
+        """Flag for lead scoring: providers disagree or the person holds two jobs."""
+        return len(self.current_employments) > 1
 
     @model_validator(mode="after")
     def _has_person_identity(self) -> Self:
@@ -161,8 +191,6 @@ class CanonicalLead(_Entity):
     def _employments_are_consistent(self) -> Self:
         if len(set(self.employments)) != len(self.employments):
             raise ValueError("duplicate Employment")
-        if sum(1 for e in self.employments if e.is_current is True) > 1:
-            raise ValueError("at most one Employment may be current")
         seen: dict[str, CompanySignal] = {}
         for e in self.employments:
             known = seen.setdefault(e.company.company_id, e.company)

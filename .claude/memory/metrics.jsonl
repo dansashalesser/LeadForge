@@ -3,4 +3,4 @@
 {"date": "2026-10-04", "idle": false, "meta": {"erosion": 1.0, "file": "/tmp/lf-proof-stop.sh", "verdict": "high-slop"}, "metric": "sloppiness", "value": 0.0}
 {"date": "2026-10-05", "idle": false, "meta": {"topics": []}, "metric": "memory-gap", "value": 0.0}
 {"date": "2026-10-05", "idle": false, "meta": {"forward_commits": 1, "note": "real work window, not idle; spec reached grill-approved but gitignored; heavy harness gate friction", "reverts": 0, "rework_files": 0}, "metric": "session-quality", "value": 3.0}
-{"date": "2026-10-05", "idle": false, "meta": {"erosion": 0.0, "file": "/home/user/LeadForge/src/leadforge/lead_ingestion/tests/test_canonical_entities.py", "verdict": "elevated"}, "metric": "sloppiness", "value": 0.234}
+{"date": "2026-10-05", "idle": false, "meta": {"erosion": 0.0, "file": "/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad/edit_models.py", "verdict": "high-slop"}, "metric": "sloppiness", "value": 0.333}
