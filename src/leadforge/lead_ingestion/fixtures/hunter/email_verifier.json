@@ -1,0 +1,8 @@
+{
+  "data": {
+    "status": "valid",
+    "score": 91,
+    "email": "ada.lovelace@example.com"
+  },
+  "meta": {"params": {"email": "ada.lovelace@example.com"}}
+}

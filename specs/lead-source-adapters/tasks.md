@@ -418,7 +418,7 @@ task = one commit.
 ---
 
 - [ ] 15. Hunter Source adapter
-- [ ] 15.1 (P) Implement Hunter email discovery batched by domain
+- [x] 15.1 (P) Implement Hunter email discovery batched by domain
   - Authenticate against the v2 base URL with the custom key header
   - Contribute discovered addresses, a deliverability verdict, a Field Confidence, and the supporting sources behind each address
   - Route a known address to the verifier and an unknown name-plus-domain pair to the finder

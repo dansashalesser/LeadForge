@@ -1,0 +1,51 @@
+{
+  "data": {
+    "domain": "example.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Example Data Corp",
+    "emails": [
+      {
+        "value": "ada.lovelace@example.com",
+        "type": "personal",
+        "confidence": 94,
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "position": "VP Engineering",
+        "seniority": "executive",
+        "department": "it",
+        "linkedin": "https://www.linkedin.com/in/ada-lovelace",
+        "twitter": null,
+        "phone_number": null,
+        "sources": [
+          {
+            "domain": "example.com",
+            "uri": "https://example.com/team",
+            "extracted_on": "2026-01-10",
+            "last_seen_on": "2026-09-01",
+            "still_on_page": true
+          }
+        ],
+        "verification": {"date": "2026-09-02", "status": "valid"}
+      },
+      {
+        "value": "grace.hopper@example.com",
+        "type": "personal",
+        "confidence": 61,
+        "first_name": "Grace",
+        "last_name": "Hopper",
+        "position": null,
+        "seniority": null,
+        "department": null,
+        "linkedin": null,
+        "twitter": null,
+        "phone_number": null,
+        "sources": [],
+        "verification": {"date": null, "status": null}
+      }
+    ]
+  },
+  "meta": {"results": 2, "limit": 100, "offset": 0, "params": {"domain": "example.com"}}
+}

@@ -1402,3 +1402,48 @@ Known gaps:
 - needs-follow-up: throughput marker "throughput" is unverified wording; if the real text differs, throughput 429s fall to UNRECOGNIZED, still SourceRateLimited (safe outcome, less precise cause label).
 - Substring match: text naming both markers resolves to balance (halt). Provider-origin text only; accepted. Unknown/absent -> RateLimited matches 13.2.
 - needs-follow-up: 402 and other SerpApi exhaustion statuses are undocumented in research.md; they take the base default (402 -> plain SourceError, one attempt).
+
+## Task 15.1 — Implement Hunter email discovery batched by domain (2026-10-05)
+Evidence: wrote fixtures/hunter/domain_search.json and tests/adapters/test_hunter_source.py (56 tests) first; ran it and saw collection fail with ModuleNotFoundError (adapters.hunter missing) before any implementation; after implementing all passed (no per-test red beyond the collection failure). `uv run ruff format src`, `ruff check src`, `mypy` clean; `uv run pytest -q` 1822 passed, 1 skipped. `.env.example` regenerated with `uv run python -m leadforge.lead_ingestion.env_example` (adds HUNTER_API_KEY). No mutation run; no GitNexus/serena query (additive new module).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Scope: only `GET /v2/domain-search`, one per distinct company domain from the work list's `company.domain` (casefolded, stripped, str or collection); the task's finder/verifier routing bullet (16.3) is NOT built (finder is per-person so conflicts with per_company dedupe; verifier is 15.2). Rejected: declaring unused finder/verifier endpoints.
+- One page of at most 100 addresses per domain, no paging, warning `hunter_domain_search_truncated` (counts only) when meta.results is larger. Rejected: paging (each page costs Credits) and silent truncation.
+- Confidence: per-address integer 0-100 recorded as provider-stated on `person.email` only (value n/100, raw verbatim string, scale `hunter_confidence_0_100`), by replacing that provenance record in the adapter because the Normalizer only emits origin none. Rejected: extending FieldRule/Normalizer (shared, one call site), and attaching it to every field.
+- Status map: valid->verified, accept_all->accept_all, invalid->invalid, unknown/webmail/disposable->unknown; missing verification/status contributes no `person.email_status`; other values raise NormalizationError. Rejected: marking unverified guesses `unverified` (asserts an attempt Hunter did not state), disposable->invalid (not stated by Hunter).
+- Sandbox: live mode whose resolved key equals `test-api-key`; batch carries `credits_billable`; `credits_in` is 0 for sandbox/synthetic, else one per search. The one-credit-per-search figure is an assumption (Hunter's real billing not verified). Rejected: a third DataMode.
+- Raw batch `{"searches": [{"domain","response"}], "credits_billable"}`; per-domain cache so a retried fetch buys nothing twice. Provenance raw paths are wrapper-relative (`email.value`, `domain`).
+- Contributed paths invented (spec names none): `person.email`, `person.email_status`, `person.email_sources` (tuple of URIs), `person.first_name/last_name/title` (UntrustedText), `company.domain`, `company.name` (UntrustedText). Other fields (type, seniority, department, linkedin, twitter, phone) ignored explicitly.
+- Non-hostname-shaped domain skipped with a value-free warning; non-text company.domain raises. Discovery request raises SourceError (as HubSpot).
+- Key sent in `X-API-KEY` header (16.1 names it); `verifier` bucket declared (10/s AND 300/min) though no endpoint uses it yet; both buckets `documented=True`.
+- No Negative Evidence: surfaces declared, but no queried_paths, so zero-email domains and null fields record nothing.
+### Known gaps (needs-follow-up)
+- Default classify_error applies: Hunter 403 is still SourceUnauthorized and 429 SourceRateLimited until 15.3; 451 untreated.
+- Finder (name+domain) and verifier routes, 202 polling not built (15.2); the 15.1 task text lists the routing, needs a parent decision whether it belongs to 15.2.
+- Fixture is a hand-made stand-in; Hunter field names (sources[].uri, verification.status null cases, confidence range) from research.md, not live-verified; `webmail`/`disposable` as verification statuses in domain-search unverified.
+- Credit cost per domain-search unverified; sandbox behaviour not exercised live.
+- Orchestrator integration through a real run (per_company_work_list + registry) only unit-tested via per_company_work_list.
+- No property test; no mutation checks; self-review not run (no Agent tool).
+
+### Self-review findings
+Fixed (the red phase was observed through mutation checks afterwards, not as a separate pre-implementation run; the new tests were written before the routing code but first run after it):
+- SCOPE (supersedes the "routing not built" decision and gap above): task 15.1's routing bullet and requirement 16.3 belong to 15.1 (15.2 owns only 16.4 polling). Built: `GET /v2/email-verifier` (bucket `verifier`) for a Lead with a usable `person.email`; `GET /v2/email-finder` (bucket `finder`) for a usable first and last name plus domain and no address; domain search otherwise. The previously declared-but-unused `verifier` bucket is now used, and the module docstring no longer says routing is not built.
+- A verifier HTTP 202 is recorded as no verdict (nothing contributed, no error, counts-only log); polling stays 15.2.
+- Finder and verifier answers map through their own rule sets (raw paths `email`, `status`, `score`, relative to `data`); `score` is a provider-stated confidence on `person.email` only, verbatim with the `hunter_confidence_0_100` scale. A finder that finds nothing contributes nothing and no absence. The raw batch gains `finds` and `verifications`; `credits_in` counts every live call.
+- Per-run caches for finder pairs and verified addresses (a retried fetch does not pay again), next to the existing domain cache. Addresses are stripped and casefolded for dedupe and sending; names are deduped casefolded but sent as given.
+- Input hygiene: malformed addresses are skipped (value never logged); names that are blank, over 100 characters, non-printable or masked with `*` (Apollo obfuscates last names) are never sent to the finder; a non-text `person.email` is a NormalizationError.
+- Tests added (117 in the file now): key header-only on all three routes; no key, address, domain or name in errors or logs for malformed answers and error statuses on all three routes; hostile domains (`evil.com/../x`, `a.com?x=1`, ...); 16 finder calls and 11 verifier calls in one instant are spread by a fake clock and charge both windows; verifier verdict vocabulary; score range (NaN, bool, str, out of range) for finder and verifier; synthetic fixtures `email_finder.json` and `email_verifier.json` (hand-made stand-ins).
+- Mutation checks run, each caught by a test: unknown and webmail mapped to verified, fabricated confidence, key logged, key in the verifier and finder query, body echoed into an error, undeclared verifier endpoint, domain, finder and verifier asked twice, hostile-domain pattern loosened, Negative Evidence on queried paths, routing disabled, 202 handling removed, verifier bucket swapped to finder, masked-name guard removed, minute window removed, sandbox billed. Two initial mutations were no-ops and were redone as real ones.
+- Verified, not changed: the sandbox key `test-api-key` is documented in research.md and mandated by 16.8 and the task text; only the batch's billable flag is derived from the key value, the data mode is not.
+- Whole suite 1883 passed, 1 skipped; ruff and mypy clean; no stray files in the repo root.
+
+Known gaps left:
+- SPEC GAP: finder and verifier are per-person calls but 15.1 declares `per_company`, so the orchestrator's `per_company_work_list` hands Hunter one Lead per company; other people at that company are never verified or found. Needs a design decision (per-call charge unit or a per-lead pass). needs-follow-up.
+- needs-follow-up: Hunter `type: generic` (role addresses such as info@) is ignored, so a role address is passed through as `person.email` with no flag. The merge-side role-address rule (8.x) does not exist yet.
+- needs-follow-up: credits are an assumption of one per live call (Hunter bills domain search by results and verification at its own rate); `credits_in` may misreport spend.
+- needs-follow-up: no per-run cap on distinct domains, finder or verifier calls (Apollo and Google Search cap pages and queries); the Credit budget belongs to a later orchestrator task.
+- needs-follow-up: the shared token bucket permits up to about twice a window's capacity in a sliding window (burst plus refill); this is the 10.1 throttle design, not Hunter's, but "15/s" is not a strict sliding bound. Tests assert spreading and that both windows are charged.
+- needs-follow-up: the verifier `data` shape and the finder not-found behavior are unverified (stand-in fixtures). A finder 404 for "not found", if Hunter returns one, would be classified by the base class as a permanent SourceError aborting the whole fetch; classification is 15.3.
+- needs-follow-up: IDN domains, domains with a URL scheme and trailing-dot domains are skipped (logged without the value), not converted.
+- An unrecognised verdict raises NormalizationError for the whole batch rather than mapping to unknown: it never overclaims, but a new Hunter verdict would abort a paid batch.
+- `HunterSource` is not registered or wired into a factory (no other adapter is outside tests either).
