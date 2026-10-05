@@ -109,7 +109,12 @@ class SourceRun(Base):
 
 
 class RawResponse(Base):
-    """Raw provider payloads live only here (9.8); retention is task 6.5."""
+    """Raw provider payloads live only here (9.8).
+
+    ``payload`` is deferred, so even a direct ``select(RawResponse)`` does not load it;
+    the only intended access is ``store.raw_responses.RawResponseRepository``, which
+    also owns retention and purge. Nothing else may name this model.
+    """
 
     __tablename__ = "raw_response"
     __table_args__ = (Index("ix_raw_response_retention_until", "retention_until"),)
@@ -118,7 +123,7 @@ class RawResponse(Base):
     source_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_run.id"))
     endpoint_key: Mapped[str] = mapped_column(String(128))
     request_fingerprint: Mapped[str] = mapped_column(String(128))
-    payload: Mapped[Any] = mapped_column(JSON)
+    payload: Mapped[Any] = mapped_column(JSON, deferred=True)
     fetched_at: Mapped[datetime] = _utc()
     retention_until: Mapped[datetime | None] = _utc(nullable=True)
 
