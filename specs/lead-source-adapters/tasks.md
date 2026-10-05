@@ -178,7 +178,7 @@ task = one commit.
   - Operate against Postgres when the database URL names one, with no change to adapter, orchestration, or merge code
   - _Requirements: 9.2, 9.3_
 
-- [ ] 6.4 Scope write transactions to the per-source contribution batch
+- [x] 6.4 Scope write transactions to the per-source contribution batch
   - Commit the run record at run start so it survives any source failure
   - Wrap each source's contribution batch in one transaction that rolls back entirely on failure, leaving the run to continue with the remaining sources
   - Shield the transaction scope from run-timeout cancellation so a cancelled source is either fully written or fully rolled back, never torn
