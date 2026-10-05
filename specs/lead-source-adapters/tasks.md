@@ -310,7 +310,7 @@ task = one commit.
   - Resolve each source's data mode before any pool slot is acquired, so a synthetic source never reserves throttle capacity
   - _Requirements: 6.7, 6.8_
 
-- [ ] 11.2 Isolate per-source failures by failure class
+- [x] 11.2 Isolate per-source failures by failure class
   - Record any fetch or normalization error against its own source and continue with the remaining enabled sources
   - Mark an unauthorized source, skip its remaining calls for the run, and never retry it
   - Mark a throttled source rate-limited and apply the backoff policy before any further call to it

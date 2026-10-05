@@ -237,7 +237,11 @@ async def test_results_follow_the_active_order_and_carry_mode_and_reason() -> No
     assert {(r.resolved_mode, r.mode_reason) for r in results} == {
         (DataMode.LIVE, "test: live")
     }
-    assert [r.batch.source_name for r in results] == ["slow-2", "slow-0", "slow-1"]
+    assert [r.batch.source_name for r in results if r.batch] == [
+        "slow-2",
+        "slow-0",
+        "slow-1",
+    ]
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#6.7

@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T13:21:17+00:00
+- Written: 2026-10-05T13:28:44+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The 11.1 implementer is running in the background. I'll wait for its report before starting the self-review.
+The 11.2 implementer is running in the background. I'll wait for its report before starting the self-review.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ sed -n '/^- \[ \] 10\. Rate limiting/,/^- \[ \] 11\./p' specs/lead-source-adapters/tasks.md
 - $ (which docker podman pg_ctl postgres initdb psql 2>&1; ls /usr/lib/postgresql 2>&1 | head -3; docker ps 2>&1 | head -2
 - $ sed -i 's#No module outside `sources/` imports#No module outside `adapters/` imports#; s#`src/leadforge/sources/`#`src
 - $ printf 'docs(steering): point structure.md at lead_ingestion/adapters\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@an
@@ -49,3 +48,4 @@ p="src/leadforge/lead_ingestion/identifier_validation.py"
 s=open(p).read()
 old="        recognised = 
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 9.3 "feat(lead
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 11.1 "feat(lea

@@ -950,3 +950,34 @@ Known gaps:
 - needs-follow-up: adapters are all constructed before any slot is taken (registry.active is eager), so a construction error aborts the run before any fetch.
 - needs-follow-up: the structure guard is static AST and does not catch getattr or string-built adapter lookups; not hardened here.
 - Duplicate source names are rejected by the registry, not the orchestrator; not re-tested here.
+
+## Task 11.2 — Isolate per-source failures by failure class (2026-10-05)
+Evidence: wrote tests/test_orchestrator_isolation.py first; ran it and saw collection fail with ImportError (no SourceCallLedger/SourceStatus) before any implementation; then 18 passed. Mutation: disabling the halt check (`if False`) failed the two skip tests (restored). ruff format/check, mypy clean, pytest 1339 passed, 1 skipped. No serena/GitNexus query (additive change; only SourceResult consumers are orchestrator and test_orchestrator_pool).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Only the SourceError taxonomy is isolated; a non-SourceError Exception (programming error) still cancels siblings via TaskGroup and surfaces as ExceptionGroup, and BaseException/CancelledError propagate. Rejected catching `Exception` (6.1 says "any error") because it would record bugs as provider failures. The 11.1 test asserting ExceptionGroup uses RuntimeError, so it stayed valid unchanged.
+- `SourceStatus` enum (ok, unauthorized, rate_limited, quota_exhausted, transient, timed_out, compliance_restricted, normalization_failed, failed) chosen by exception type; any other SourceError maps to `failed`. Rejected one status per exception class.
+- Per-source record is `SourceOutcome(source_name, status, attempted, succeeded, failed, skipped, retries, error)`; `attempted` counts provider attempts incl. retries, succeeded/failed count calls. Carried on `SourceResult.outcome`; `SourceResult.batch` is now `RawBatch | None` and a `contributions` field was added (run now calls `normalize_checked`, needed for the "normalization error" half of 6.1). Rejected a separate RunReport return type (would rewrite every 11.1 test). One 11.1 test line was adjusted for the optional batch.
+- Unauthorized and QuotaExhausted halt the source (later calls skipped, counted); RateLimited does not halt. Rejected halting on rate_limited and rejected a pre-call wait on a previously rate-limited source: "backoff before any further call" is implemented as RetryPolicy backing off before each retry.
+- Retry wraps fetch plus normalize as one operation, through `pacing.retry`; synthetic (no pacing) gets one attempt. Backoff sleeps while holding the pool slot. Rejected releasing the slot during backoff (would need a second acquire).
+- Added optional `retry_policy` to `IngestionOrchestrator` and `build_pacing` so tests (and later config) can supply a policy; default unchanged. Rejected sleep injection.
+- No throttle feedback is passed to RetryPolicy (orchestrator cannot know the bucket).
+### Known gaps (needs-follow-up)
+- The retry policy is still the RetryPolicy() default unless a caller passes one; no configuration exists (10.3 gap stands).
+- Backoff timing is tested with a real 50 ms retry_after, not an injected clock.
+- No adapter consumes pacing, so an adapter that retries internally would double-retry; not resolved.
+- Per-call skip is only exercised through SourceCallLedger directly; run() makes one call per source until phases (11.5-11.7) exist.
+- Exit code (11.3), wall-clock timeout (11.4), phases/ordering (11.5-11.7), persistence of outcomes not built. No self-review run; no property test.
+
+### Self-review findings
+Fixed (tests only; orchestrator.py, pacing.py unchanged; mutation-checked, files restored byte-identical):
+- tests/test_orchestrator_isolation.py: failure-class test now covers NoAccessibleAccountError and InvalidAbsenceError (FAILED), asserts exact attempt count per class (by type: transient and rate-limited 3, all others 1), contributions is None for the failed source, healthy siblings called once.
+- Added: max_attempts=1 never retries a throttled source; InvalidAbsenceError from normalize_checked is recorded; multi-call ledger test pinning "status = most recent failure, later success keeps it" (this mutation survived before).
+- Mutations confirmed caught: no-halt (unauthorized, quota), halt rate-limited, swallow RuntimeError, swallow CancelledError, mislabel class, drop attempts count. Full suite 1344 passed, ruff and mypy clean, structure guard passes.
+Gaps left:
+- needs-follow-up: outcome text is str(error); SourceComplianceRestricted carries subject=..., which may be a contact identifier (PII) in the run summary. Decide for 11.3 whether to redact.
+- needs-follow-up: results hold only enabled/active sources; disabled sources are absent from the outcome map, so 11.3 must derive them from the registry.
+- needs-follow-up: a non-SourceError or CancelledError in one source cancels siblings and discards their results (ExceptionGroup/CancelledError), by design but 11.3/11.4 must decide exit handling.
+- needs-follow-up: retry feedback to the throttle is not wired (feedback=None), so 429s do not tighten buckets.
+
+- **Also fixed by the parent after review:** `outcome.error` was `str(error)`, so a compliance restriction copied its `subject` (a person's address) into the run outcome and later the run record. A new `_outcome_message` omits it (test added, red first). Other classes name only providers and paths.

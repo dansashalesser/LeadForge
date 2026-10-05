@@ -40,13 +40,17 @@ def build_pacing(
     source_name: str,
     rate_limit: Mapping[str, RateBucket],
     mode: DataMode,
+    retry: RetryPolicy | None = None,
 ) -> SourcePacing | None:
-    """Pacing for a live source; ``None`` (nothing constructed) for synthetic."""
+    """Pacing for a live source; ``None`` (nothing constructed) for synthetic.
+
+    ``retry`` replaces the default policy when the caller holds a configured one.
+    """
     if mode is DataMode.SYNTHETIC:
         return None
     if mode is not DataMode.LIVE:
         raise ValueError(f"unknown data mode {mode!r}")
     return SourcePacing(
         throttle=SourceThrottle(source_name, rate_limit),
-        retry=RetryPolicy(),
+        retry=retry if retry is not None else RetryPolicy(),
     )
