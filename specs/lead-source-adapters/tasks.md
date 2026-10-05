@@ -264,7 +264,7 @@ task = one commit.
   - Keep adding a term to one configuration file, and adding a source to one module plus that source's column in the same file
   - _Requirements: 23.1, 23.2, 23.3_
 
-- [ ] 9.2 (P) Ship one worked example Target Profile
+- [x] 9.2 (P) Ship one worked example Target Profile
   - Ship a complete example profile so a clean clone runs the demo with no edits
   - Keep every vendor name confined to configuration and example fixtures
   - Blocked on 9.1 for the profile schema; parallel with 9.3
