@@ -173,7 +173,7 @@ task = one commit.
   - Perform no implicit schema creation on application startup
   - _Requirements: 9.7_
 
-- [ ] 6.3 Resolve the database engine from configuration with a local default
+- [x] 6.3 Resolve the database engine from configuration with a local default
   - Default to a local zero-setup SQLite file when the database URL is unset
   - Operate against Postgres when the database URL names one, with no change to adapter, orchestration, or merge code
   - _Requirements: 9.2, 9.3_
