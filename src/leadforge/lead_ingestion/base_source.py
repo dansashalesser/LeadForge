@@ -397,6 +397,24 @@ class BaseLeadSource(ABC):
             raise ValueError(f"{cls.name} base_url must be https")
         return RestTransport(cls.name, cls.base_url, cls.endpoints)
 
+    @classmethod
+    def from_run(
+        cls,
+        mode: DataMode,
+        *,
+        transport: "Transport",
+        pacing: "SourcePacing | None",
+        vocabulary: Mapping[str, object] | None,
+    ) -> Self:
+        """Build the source for a run: the one construction a composition root uses.
+
+        ``vocabulary`` is the Target Profile's effective vocabulary for this source
+        (``effective_vocabulary``), or ``None`` when no profile was read. A source with
+        no use for it ignores it, as this default does; one that reads it overrides
+        this, so the root never names a concrete adapter or its constructor.
+        """
+        return cls(mode, transport=transport, pacing=pacing)
+
     @property
     def transport(self) -> "Transport":
         if self._transport is None:

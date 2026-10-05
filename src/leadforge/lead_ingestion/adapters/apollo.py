@@ -57,7 +57,7 @@ import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 import structlog
 from pydantic import BaseModel, StrictStr
@@ -277,6 +277,18 @@ class ApolloSource(BaseLeadSource):
                     uid=uid,
                     snapshot_date=SUPPORTED_TECHNOLOGIES_SNAPSHOT_DATE,
                 )
+
+    @classmethod
+    def from_run(
+        cls,
+        mode: DataMode,
+        *,
+        transport: Transport,
+        pacing: "SourcePacing | None",
+        vocabulary: Mapping[str, object] | None,
+    ) -> Self:
+        """Technology UIDs come from the Target Profile when one was read (12.1)."""
+        return cls(mode, transport=transport, pacing=pacing, vocabulary=vocabulary)
 
     @property
     def allowances(self) -> Mapping[str, int]:

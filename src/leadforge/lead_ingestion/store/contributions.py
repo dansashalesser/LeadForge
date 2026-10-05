@@ -8,10 +8,12 @@ marker) can make a trusted value read back as classified, and an untrusted one c
 read back as trusted unless its row was altered out of band, which the append-only
 guard (8.12) forbids at the ORM level.
 
-JSON cannot round-trip a tuple (it returns a list), a datetime, a set, bytes, a
-non-finite float or a non-string key. Rather than change a value silently, the write
-path refuses them with `ContributionValueError`, which names the canonical path and
-the offending type but never the value.
+Two adapter values are not JSON: an aware datetime and a tuple of URIs.
+They are stored as an ISO-8601 UTC string and a JSON array (an offset is normalised
+to UTC; a naive datetime is refused), so they read back as that string and list, not as
+the original type. A set, bytes, a date, a non-finite float, a non-string key or any
+other type is refused with `ContributionValueError`, which names the canonical path
+and the offending type but never the value.
 
 Time: instants are normalised to aware UTC before binding and re-tagged UTC on read,
 with no backend branch (the same approach as ``raw_responses``).
@@ -69,28 +71,33 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-def _check_json_faithful(value: object, path: str, depth: int = 0) -> None:
+def _encode(value: object, path: str, depth: int = 0) -> Any:
+    """The JSON form of a trusted value; anything JSON cannot hold is refused."""
+
     def refuse(why: str) -> ContributionValueError:
         return ContributionValueError(f"value of {path!r} {why}")
 
     if depth > _MAX_DEPTH:
         raise refuse("is nested too deeply")
     if isinstance(value, str | bool | int):
-        return
+        return value
     if isinstance(value, float):
         if value != value or value in (float("inf"), float("-inf")):
             raise refuse("is a non-finite float")
-        return
-    if isinstance(value, list):
-        for item in value:
-            _check_json_faithful(item, path, depth + 1)
-        return
+        return value
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise refuse("is a naive datetime")
+        return value.astimezone(UTC).isoformat()
+    if isinstance(value, list | tuple):
+        return [_encode(item, path, depth + 1) for item in value]
     if isinstance(value, dict):
+        encoded: dict[str, Any] = {}
         for key, item in value.items():
             if not isinstance(key, str):
                 raise refuse("has a non-string mapping key")
-            _check_json_faithful(item, path, depth + 1)
-        return
+            encoded[key] = _encode(item, path, depth + 1)
+        return encoded
     # None is refused too: the normalizer records an absence, never a null value.
     raise refuse(f"has type {type(value).__name__}, which JSON cannot round-trip")
 
@@ -122,6 +129,7 @@ def write_contribution(
                 f"provenance of {record.canonical_path!r} disagrees with the "
                 "contribution's data mode or fetch time"
             )
+    encoded: dict[str, Any] = {}
     for path, value in values.items():
         wrapped = isinstance(value, UntrustedText)
         if wrapped != provenance[path].untrusted:
@@ -130,7 +138,7 @@ def write_contribution(
                 "UntrustedText"
             )
         if not wrapped:
-            _check_json_faithful(value, path)
+            encoded[path] = _encode(value, path)
 
     row = SourceContribution(
         source_run_id=source_run_id,
@@ -150,7 +158,7 @@ def write_contribution(
             stored = value.value
             classification = (True, value.truncated, value.original_length)
         else:
-            stored = value
+            stored = encoded[path]
             classification = (False, False, None)
         session.add(
             ContributionField(

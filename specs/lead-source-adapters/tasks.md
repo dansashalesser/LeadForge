@@ -596,7 +596,7 @@ task = one commit.
 
 ---
 
-- [ ] 20. Run the zero-credential ingestion end to end
+- [x] 20. Run the zero-credential ingestion end to end
   - With an empty environment, complete a full run that exercises every registered adapter across Discovery and Enrichment and persists at least one canonical Lead
   - Confirm the run exits zero and reports per-source attempt, success, and failure counts
   - Confirm a single failing source still yields results from every other source, and that all sources failing exits non-zero naming each failure class

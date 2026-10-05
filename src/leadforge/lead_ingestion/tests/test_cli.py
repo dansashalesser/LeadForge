@@ -1,18 +1,15 @@
-"""CLI entrypoint stub for `leadforge ingest` (task 1.1)."""
+"""CLI entrypoint of `leadforge` (task 1.1).
+
+The stub's placeholder-outcome test was removed in task 20, when `ingest` started
+running the real ingestion: its behaviour is pinned in
+test_end_to_end_zero_credential.py.
+"""
 
 from importlib.metadata import entry_points
 
 from typer.testing import CliRunner
 
-from leadforge.lead_ingestion.cli import PLACEHOLDER_MESSAGE, app
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#1.1
-def test_ingest_command_exits_zero_with_placeholder() -> None:
-    result = CliRunner().invoke(app, ["ingest"])
-
-    assert result.exit_code == 0, result.output
-    assert PLACEHOLDER_MESSAGE in result.output
+from leadforge.lead_ingestion.cli import app
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.1

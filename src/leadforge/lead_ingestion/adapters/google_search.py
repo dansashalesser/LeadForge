@@ -49,7 +49,7 @@ Provisional decisions (see choices.md, task 14.2):
 import math
 from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from pydantic import BaseModel, StrictStr
 
@@ -262,6 +262,39 @@ class GoogleSearchSource(BaseLeadSource):
                 else "unrecognized_throttle"
             ),
             retry_after_s=retry_after_seconds(response.headers),
+        )
+
+    @classmethod
+    def from_run(
+        cls,
+        mode: DataMode,
+        *,
+        transport: Transport,
+        pacing: "SourcePacing | None",
+        vocabulary: Mapping[str, object] | None,
+    ) -> Self:
+        """Queries are the Target Profile's phrases for this source (task 20).
+
+        Phrases (a text, or a list of texts, per term) are asked in profile order, each
+        once, up to ``MAX_QUERIES``. With no profile there are none, and a fetch makes
+        no call (14.1). ``keyword_templates`` are not expanded here.
+        """
+        phrases: dict[str, None] = {}
+        for term, value in (vocabulary or {}).items():
+            items = [value] if isinstance(value, str) else value
+            if not isinstance(items, list | tuple) or not all(
+                isinstance(i, str) and i.strip() for i in items
+            ):
+                raise ValueError(
+                    f"google_search vocabulary for term {term!r} must be a phrase "
+                    "or a list of phrases"
+                )
+            phrases.update(dict.fromkeys(items))
+        return cls(
+            mode,
+            transport=transport,
+            pacing=pacing,
+            queries=tuple(phrases)[:MAX_QUERIES],
         )
 
     @property

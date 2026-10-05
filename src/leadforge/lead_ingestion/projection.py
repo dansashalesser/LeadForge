@@ -33,7 +33,8 @@ Provisional decisions (choices.md, 16.5):
 * A cluster with no email, LinkedIn URL or name forms no Lead: ``lead`` is ``None``
   and everything else is still returned. Not an error.
 * ``full_name`` is ``person.full_name``, else ``person.first_name`` and
-  ``person.last_name`` joined by a space (both required), as ``match_keys`` does.
+  ``person.last_name`` joined by a space (both required), as ``match_keys`` does; a
+  masked name (any ``*``, how a provider obfuscates last names) is no name.
 * One ``Employment`` at most, from the winning ``company.name`` / ``company.domain``
   and ``person.title``. ``company_id`` is derived from the registrable-domain set
   (task 16.9, ``companies``), and ``domains`` is that set, so ``www.x.com`` and
@@ -338,14 +339,15 @@ def _valid_url(text: str | None) -> HttpUrl | None:
 
 
 def _full_name(resolution: ClusterResolution) -> str | None:
+    """The winning name; a masked one (any ``*``) is no name, as in ``match_keys``."""
     name = _text(_winner_value(resolution, _FULL_NAME))
-    if name is not None:
-        return name
-    first = _text(_winner_value(resolution, _FIRST_NAME))
-    last = _text(_winner_value(resolution, _LAST_NAME))
-    if first is None or last is None:
-        return None
-    return f"{first} {last}"
+    if name is None:
+        first = _text(_winner_value(resolution, _FIRST_NAME))
+        last = _text(_winner_value(resolution, _LAST_NAME))
+        if first is None or last is None:
+            return None
+        name = f"{first} {last}"
+    return None if "*" in name else name
 
 
 def _email_status(resolution: ClusterResolution, email: str | None) -> EmailStatus:

@@ -135,6 +135,24 @@ def test_full_name_is_composed_from_first_and_last_when_absent() -> None:
     assert out.lead.full_name == "Ann Lee"
 
 
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_a_masked_name_is_not_a_full_name() -> None:
+    """a provider obfuscates last names ('Lee' as 'L**'); the match rule already says a
+    masked name is not a name, so the Lead must not carry it as full_name either."""
+    composed = project(
+        contrib(
+            "a",
+            {
+                "person.first_name": untrusted("Ann"),
+                "person.last_name": untrusted("L**"),
+            },
+        )
+    )
+    stated = project(contrib("a", {"person.full_name": "Ann L**"}))
+    assert composed.lead is None
+    assert stated.lead is None
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#8.8
 def test_every_permutation_gives_identical_result() -> None:
     members = sample()

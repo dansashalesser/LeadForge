@@ -4,7 +4,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,7 @@ from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
     DataMode,
+    EmailStatus,
     FieldProvenance,
     UntrustedText,
 )
@@ -236,13 +237,13 @@ def test_the_normalizer_output_round_trips_including_truncation(
 @pytest.mark.parametrize(
     "bad",
     [
-        ("a", "b"),
-        datetime(2026, 1, 1, tzinfo=UTC),
+        datetime(2026, 1, 1),  # naive: no instant to store
+        date(2026, 1, 1),
         float("nan"),
         float("inf"),
         {1: "x"},
         ["ok", UntrustedText(value="x", truncated=False, original_length=1)],
-        {"k": ("t",)},
+        {"k": {"t"}},
         b"bytes",
         {"a"},
     ],
@@ -272,6 +273,31 @@ def test_values_json_cannot_hold_faithfully_are_refused_not_altered(
     assert session.scalar(sa.select(sa.func.count(m.SourceContribution.id))) == 0
 
 
+# Verifies: specs/lead-source-adapters/requirements.md#6.1
+def test_instants_and_tuples_the_adapters_emit_are_stored_as_json(
+    session: Session, ids: tuple[uuid.UUID, uuid.UUID]
+) -> None:
+    """Adapters emit an aware datetime and a tuple of URIs (task 20 gap)."""
+    plus_two = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone(timedelta(hours=2)))
+    contribution = _contribution(
+        {
+            "crm.last_activity": plus_two,
+            "person.email_sources": ("https://a.example/x", "https://b.example/y"),
+            "nested": {"k": ("t", datetime(2026, 1, 1, tzinfo=UTC))},
+            "person.email_status": EmailStatus.VERIFIED,
+            "bio": UntrustedText(value="abc", truncated=True, original_length=9),
+        }
+    )
+
+    got = _round_trip(session, ids, contribution).values
+
+    assert got["crm.last_activity"] == "2026-01-02T01:04:05+00:00"
+    assert got["person.email_sources"] == ["https://a.example/x", "https://b.example/y"]
+    assert got["nested"] == {"k": ["t", "2026-01-01T00:00:00+00:00"]}
+    assert got["person.email_status"] == "verified"
+    assert got["bio"] == UntrustedText(value="abc", truncated=True, original_length=9)
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#22.3
 def test_refusal_does_not_echo_the_value(
     session: Session, ids: tuple[uuid.UUID, uuid.UUID]
@@ -279,7 +305,7 @@ def test_refusal_does_not_echo_the_value(
     contribution = LeadContribution.model_construct(
         source_name="acme",
         absences=(),
-        values={"bad": ("SECRET-PAYLOAD",)},
+        values={"bad": {"SECRET-PAYLOAD"}},
         provenance=_contribution({"bad": "x"}).provenance,
     )
     with pytest.raises(ContributionValueError) as err:
