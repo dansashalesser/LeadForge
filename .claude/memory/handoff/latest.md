@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-05T17:33:04+00:00
+- Written: 2026-10-05T17:38:40+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the session-state files. Task 16.12's code stays uncommitted until its implementer reports and the self-review is done.
+The 16.12 review found one real defect and fixed it. A bug in building the log line was swallowed inside the emitter's failure handler and miscounted as a logger failure, so builder errors would have been hidden. It confirmed that `log_redaction.py` offers no masking or hashing helper, so the requirement's "log the key used" can't be met without a scheme you approve. I'll commit the work and leave 16.12 unchecked, with the open choice recorded.
 
 ## In-flight todos
 _(none captured)_
