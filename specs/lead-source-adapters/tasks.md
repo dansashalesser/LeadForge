@@ -203,7 +203,7 @@ task = one commit.
 
 ---
 
-- [ ] 7. Source Registry and plug-and-play discovery
+- [x] 7. Source Registry and plug-and-play discovery
 - [x] 7.1 Discover adapters by package scan with duplicate-name rejection
   - Discover every adapter subclass placed in the slice's adapter package without any edit to the registry, the orchestration layer, the canonical model, or the database layer
   - Raise a named duplicate-source error at startup when two sources declare the same name
@@ -257,7 +257,7 @@ task = one commit.
 
 ---
 
-- [ ] 9. Target Profile configuration
+- [x] 9. Target Profile configuration
 - [x] 9.1 Read targeting terms and provider vocabularies from configuration
   - Read the targeting definition — technologies, competitors, and keyword templates — from a Target Profile in configuration, with no module, test, or requirement naming a specific vendor as a built-in assumption
   - Store for each canonical term the per-provider vocabulary that expresses it, since providers use mutually incompatible identifiers for the same technology
@@ -278,7 +278,7 @@ task = one commit.
 
 ---
 
-- [ ] 10. Rate limiting, retry, and backoff
+- [x] 10. Rate limiting, retry, and backoff
 - [x] 10.1 (P) Build the composite multi-window token bucket
   - One named bucket per source and endpoint class, since several providers throttle per endpoint class rather than per account
   - AND every window of a multi-window bucket, so both a per-second and a per-minute limit must permit before dispatch
@@ -302,7 +302,7 @@ task = one commit.
 
 ---
 
-- [ ] 11. Ingestion Orchestrator
+- [x] 11. Ingestion Orchestrator
 - [x] 11.1 Run enabled sources through a bounded worker pool
   - Execute registered sources concurrently behind a cross-source bound read from configuration and defaulting to four
   - Keep the cross-source bound and each adapter's own pacing as separate mechanisms, so neither can relax the other and cross-source parallelism never lifts a provider's declared throttle
