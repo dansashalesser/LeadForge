@@ -279,7 +279,7 @@ task = one commit.
 ---
 
 - [ ] 10. Rate limiting, retry, and backoff
-- [ ] 10.1 (P) Build the composite multi-window token bucket
+- [x] 10.1 (P) Build the composite multi-window token bucket
   - One named bucket per source and endpoint class, since several providers throttle per endpoint class rather than per account
   - AND every window of a multi-window bucket, so both a per-second and a per-minute limit must permit before dispatch
   - Take each declared limit from the provider's published documentation where one exists, and mark a self-imposed default as undocumented so the registry listing can surface the distinction
