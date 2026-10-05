@@ -125,6 +125,7 @@ def orchestrator(
         resolve_mode=resolve,
         build_source=build,
         max_concurrent_sources=4,
+        run_timeout_s=30,
         retry_policy=policy,
     )
 

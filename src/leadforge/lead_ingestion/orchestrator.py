@@ -22,7 +22,7 @@ Provisional decisions (see choices.md, task 11.1):
   four lives in ``source_settings`` next to the key it belongs to.
 * Mode resolution and adapter construction are injected (``resolve_mode``,
   ``build_source``); this module does not read the environment or build transports.
-* Phases, run timeout and the exit code are later tasks (11.3 to 11.7).
+* Phases are a later task (11.5 to 11.7).
 
 Failure isolation (task 11.2, Requirements 6.1 to 6.3). Each source has a
 ``SourceCallLedger`` for the run. A ``SourceError`` raised by fetch or normalization is
@@ -42,11 +42,26 @@ wire status) and the other sources carry on. Provisional decisions (choices.md, 
   never exceeded by a backing-off source.
 * No throttle feedback is passed to the policy: the orchestrator cannot know which
   bucket a response belongs to (the adapter does).
+
+Run timeout (task 11.4, Requirement 6.6). ``run`` is held to ``run_timeout_s`` of wall
+clock with ``asyncio.timeout``. Provisional decisions (choices.md, 11.4):
+
+* The timeout is a required constructor argument, like the pool bound; its default and
+  config key (``run_timeout_s``) live in ``source_settings``.
+* Every source is accounted for. A source that finished keeps its result untouched;
+  one in flight is cancelled and recorded ``TIMED_OUT`` (its cancelled call counts as
+  one failed call); one still waiting for a pool slot is never called and is recorded
+  ``TIMED_OUT`` with zero attempts. No new status: ``TIMED_OUT`` is the one class.
+* Only the orchestrator's own deadline becomes a record. The caller's cancellation,
+  and any other exception, still propagate (``asyncio.timeout`` turns only its own
+  expiry into ``TimeoutError``, which is checked with ``expired()``).
+* Results still follow the registry's active order.
 """
 
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -180,6 +195,7 @@ class SourceCallLedger:
         self._failed = 0
         self._skipped = 0
         self._retries = 0
+        self._in_flight: RetryStats | None = None
 
     async def call[T](self, operation: Callable[[], Awaitable[T]]) -> Attempt[T]:
         """Run ``operation`` through the retry policy unless the source is halted.
@@ -191,6 +207,7 @@ class SourceCallLedger:
             self._skipped += 1
             return Attempt(ok=False)
         stats = RetryStats()
+        self._in_flight = stats
         try:
             if self._retry is None:
                 stats.attempts = 1
@@ -198,16 +215,35 @@ class SourceCallLedger:
             else:
                 value = await self._retry.run(operation, stats=stats)
         except SourceError as error:
+            self._in_flight = None
             self._attempted += stats.attempts
             self._retries += stats.retries
             self._failed += 1
             self._status = _status_of(error)
             self._error = _outcome_message(error)
             return Attempt(ok=False)
+        self._in_flight = None
         self._attempted += stats.attempts
         self._retries += stats.retries
         self._succeeded += 1
         return Attempt(ok=True, value=value)
+
+    def time_out(self, run_timeout_s: float) -> None:
+        """Record that the run's wall clock ran out on this source (6.6).
+
+        A call in flight was cancelled: it counts as one failed call with the attempts
+        made so far. Otherwise the source was never reached and nothing is counted.
+        """
+        self._status = SourceStatus.TIMED_OUT
+        limit = f"run timeout of {run_timeout_s:g}s exceeded"
+        if self._in_flight is None:
+            self._error = f"[{self._source_name}] {limit}; not started"
+            return
+        self._attempted += self._in_flight.attempts
+        self._retries += self._in_flight.retries
+        self._failed += 1
+        self._in_flight = None
+        self._error = f"[{self._source_name}] {limit}; cancelled in flight"
 
     def outcome(self) -> SourceOutcome:
         return SourceOutcome(
@@ -246,6 +282,7 @@ class IngestionOrchestrator:
         resolve_mode: ModeResolverWithReason,
         build_source: AdapterFactory,
         max_concurrent_sources: int,
+        run_timeout_s: float,
         retry_policy: RetryPolicy | None = None,
     ) -> None:
         if (
@@ -254,16 +291,28 @@ class IngestionOrchestrator:
             or max_concurrent_sources < 1
         ):
             raise ValueError("max_concurrent_sources must be an integer >= 1")
+        try:
+            valid = (
+                isinstance(run_timeout_s, int | float)
+                and not isinstance(run_timeout_s, bool)
+                and 0 < float(run_timeout_s) < math.inf  # False for NaN
+            )
+        except OverflowError:  # an int too large for a float
+            valid = False
+        if not valid:
+            raise ValueError("run_timeout_s must be a positive finite number")
         self._registry = registry
         self._resolve_mode = resolve_mode
         self._build_source = build_source
         self._max_concurrent_sources = max_concurrent_sources
+        self._run_timeout_s = run_timeout_s
         self._retry_policy = retry_policy
 
     async def run(self, request: SourceRequest) -> tuple[SourceResult, ...]:
         """Fetch from every enabled source, at most the bound in flight at once.
 
-        Results follow the registry's active order, not completion order.
+        Results follow the registry's active order, not completion order. When the
+        run timeout expires, unfinished sources are recorded ``TIMED_OUT``.
         """
         resolutions = {
             name: self._resolve_mode(
@@ -288,12 +337,31 @@ class IngestionOrchestrator:
         sources = self._registry.active(build)
         slots = asyncio.Semaphore(self._max_concurrent_sources)
 
-        async def run_one(source: BaseLeadSource) -> SourceResult:
-            resolution = resolutions[source.name]
+        ledgers = {}
+        for source in sources:
             pacing = pacings[source.name]
-            ledger = SourceCallLedger(
+            ledgers[source.name] = SourceCallLedger(
                 source.name, retry=None if pacing is None else pacing.retry
             )
+        finished: dict[str, SourceResult] = {}
+
+        def result_of(
+            source: BaseLeadSource,
+            batch: RawBatch | None,
+            contributions: tuple[LeadContribution, ...] | None,
+        ) -> SourceResult:
+            resolution = resolutions[source.name]
+            return SourceResult(
+                source.name,
+                resolution.mode,
+                resolution.reason,
+                batch,
+                contributions,
+                ledgers[source.name].outcome(),
+            )
+
+        async def run_one(source: BaseLeadSource) -> None:
+            ledger = ledgers[source.name]
 
             async def fetch_and_normalize() -> tuple[
                 RawBatch, tuple[LeadContribution, ...]
@@ -304,15 +372,27 @@ class IngestionOrchestrator:
             async with slots:
                 attempt = await ledger.call(fetch_and_normalize)
             fetched = attempt.value
-            return SourceResult(
-                source.name,
-                resolution.mode,
-                resolution.reason,
+            finished[source.name] = result_of(
+                source,
                 None if fetched is None else fetched[0],
                 None if fetched is None else fetched[1],
-                ledger.outcome(),
             )
 
-        async with asyncio.TaskGroup() as group:
-            tasks = [group.create_task(run_one(source)) for source in sources]
-        return tuple(task.result() for task in tasks)
+        try:
+            async with asyncio.timeout(self._run_timeout_s) as deadline:
+                async with asyncio.TaskGroup() as group:
+                    tasks = [group.create_task(run_one(source)) for source in sources]
+            for task in tasks:
+                task.result()  # a source's own CancelledError still propagates
+        except TimeoutError:
+            # Only the deadline's own expiry is a record; any other TimeoutError
+            # (there is no such path today) must not be mistaken for it.
+            if not deadline.expired():
+                raise
+        results = []
+        for source in sources:
+            if source.name not in finished:
+                ledgers[source.name].time_out(self._run_timeout_s)
+                finished[source.name] = result_of(source, None, None)
+            results.append(finished[source.name])
+        return tuple(results)

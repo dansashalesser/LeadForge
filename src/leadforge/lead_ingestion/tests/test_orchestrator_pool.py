@@ -136,6 +136,7 @@ def orchestrator(
         resolve_mode=resolve,
         build_source=build,
         max_concurrent_sources=bound,
+        run_timeout_s=30,
     )
 
 
@@ -198,6 +199,7 @@ def test_a_non_positive_or_non_integer_bound_is_rejected(bad: object) -> None:
             resolve_mode=live,
             build_source=lambda c, m, p: Slow(m, Tracker()),
             max_concurrent_sources=bad,  # type: ignore[arg-type]
+            run_timeout_s=30,
         )
 
 
@@ -305,6 +307,7 @@ async def test_a_synthetic_source_gets_no_pacing_and_a_live_one_its_own() -> Non
         resolve_mode=resolve,
         build_source=build,
         max_concurrent_sources=2,
+        run_timeout_s=30,
     )
     results = await orch.run(REQUEST)
 

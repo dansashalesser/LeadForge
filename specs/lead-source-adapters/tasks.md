@@ -321,7 +321,7 @@ task = one commit.
   - Exit zero when at least one source succeeded, reporting per-source counts of attempted, succeeded, and failed
   - _Requirements: 6.4, 6.5_
 
-- [ ] 11.4 Hold the run to a wall-clock timeout
+- [x] 11.4 Hold the run to a wall-clock timeout
   - Wrap the whole run in a configured wall-clock bound, cancelling in-flight sources on expiry and recording them as timed out
   - _Requirements: 6.6_
 

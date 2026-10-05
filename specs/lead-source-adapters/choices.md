@@ -1010,3 +1010,28 @@ Known gaps:
 - needs-follow-up: summary order is input order; deterministic only if the orchestrator orders results (11.5-11.7).
 - needs-follow-up: a source with succeeded calls but zero contributions counts as succeeded (call-based); confirm intended.
 - needs-follow-up: map_run_exit not wired into cli.py (deliberate).
+
+## Task 11.4 — Hold the run to a wall-clock timeout (2026-10-05)
+Evidence: wrote tests/test_orchestrator_timeout.py (9 cases) and tests/test_run_timeout_setting.py first; ran them and saw collection ImportError (DEFAULT_RUN_TIMEOUT_S) and 16 failures (unexpected run_timeout_s kwarg) before any implementation. After: ruff format/check clean, mypy clean, pytest 1385 passed, 1 skipped; timeout file run 3x, stable. A mid-way failure (a source raising CancelledError itself was being recorded timed_out) was caught by the existing 11.2 test and fixed. No serena/GitNexus query run (edited orchestrator internals; only in-slice tests call it).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- Config key `run_timeout_s` (top-level in sources.yaml, beside max_concurrent_sources), seconds, positive finite int/float, default 600 (`DEFAULT_RUN_TIMEOUT_S`, `load_run_timeout_s`). Rejected: no default/disabled timeout; a CLI flag; per-source timeouts.
+- Orchestrator takes `run_timeout_s` as a required constructor arg with no default (house style of the pool bound); existing test call sites were updated to pass 30. Rejected: optional with None meaning unbounded (silent fallback).
+- Finished sources keep results untouched; in-flight sources are cancelled and recorded TIMED_OUT, counted as one failed call with attempts made so far; not-yet-started sources are never called and recorded TIMED_OUT with 0 attempts (error text says "not started"). Rejected: a new NOT_STARTED status (would widen 11.3's pinned status set) and omitting unstarted sources.
+- Only the deadline's own expiry (asyncio.timeout, checked via expired()) becomes records; external cancel, non-SourceError exceptions and a source's own CancelledError still propagate as in 11.2. Rejected: returning partial results on a programming error.
+- Exit mapping unchanged: call-based, so a timed-out source counts as failed (summary "timed_out"); exit 0 if any other source succeeded, 1 if none did. Rejected: a distinct exit code for timeout.
+### Known gaps (needs-follow-up)
+- Timeout is real wall clock (short real timeouts, event-gated hangs); no fake clock.
+- Cancelled in-flight call's retry feedback/backoff stats are only attempts/retries seen so far.
+- Design's shield around contribution persistence (torn writes) is not built; persistence does not exist in the orchestrator yet.
+- Under 11.5-11.7 (multiple calls per source) time_out overwrites a prior failure status with TIMED_OUT; revisit.
+- run_timeout_s not wired to the CLI/bootstrap (no wiring exists); no self-review run.
+
+### Self-review findings
+Fixed:
+- A YAML/ctor `run_timeout_s` integer too large for a float (e.g. 10**400) made `math.isfinite` raise a bare OverflowError (not ConfigurationError/ValueError); a naive `0 < v < inf` would have accepted it and then overflowed inside `asyncio.timeout`. Both validators (orchestrator.py ctor, source_settings.load_run_timeout_s) now convert with `float()`, reject on OverflowError. `load_run_timeout_s` now returns the validated float. Tests added in both timeout test files.
+Verified: ruff, mypy, full suite (1387 passed). Mutations caught: no timeout (hangs), finished results discarded, not-started sources called, started sources missing from map, in-flight not counted failed. Run timing is deterministic (finishing sources never suspend, so they complete before the 50ms timer can fire).
+Known gaps:
+- needs-follow-up: a source that swallows CancelledError or blocks in a non-cancellable section stalls TaskGroup exit, so the timeout is not a hard bound; no test.
+- needs-follow-up: the `if not deadline.expired(): raise` branch is unreachable today and no test kills its mutation (documented defensive code).
+- needs-follow-up: default 600s is a guess; no choices/design row beyond design.md:596; no example config file exists to document it.

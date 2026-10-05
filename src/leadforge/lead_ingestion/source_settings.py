@@ -3,6 +3,7 @@
 Builds the ``Mapping[str, SourceSettings]`` the registry takes (7.1)::
 
     max_concurrent_sources: 4   # cross-source worker pool bound (6.7); default 4
+    run_timeout_s: 600          # per-run wall-clock bound, seconds (6.6); default 600
     sources:
       <exact source name>:
         enabled: true        # default true
@@ -19,12 +20,17 @@ Provisional decisions (see choices.md, task 9.1):
 * The cross-source concurrency bound (task 11.1, 6.7) is a top-level key beside
   ``sources``, read by ``load_max_concurrent_sources``; it must be a positive integer
   and defaults to ``DEFAULT_MAX_CONCURRENT_SOURCES`` when the file or key is absent.
+* The per-run wall-clock timeout (task 11.4, 6.6) is a top-level key beside them, read
+  by ``load_run_timeout_s``; it must be a positive finite number of seconds and
+  defaults to ``DEFAULT_RUN_TIMEOUT_S`` when the file or key is absent.
 * Values are validated here, with the key path, rather than by ``SourceSettings``,
   whose own messages echo the offending value.
 """
 
 from __future__ import annotations
 
+import contextlib
+import math
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from types import MappingProxyType
@@ -41,8 +47,10 @@ from leadforge.lead_ingestion.registry import LOWEST_TRUST_RANK, SourceSettings
 
 __all__ = [
     "DEFAULT_MAX_CONCURRENT_SOURCES",
+    "DEFAULT_RUN_TIMEOUT_S",
     "DEFAULT_SOURCES_PATH",
     "load_max_concurrent_sources",
+    "load_run_timeout_s",
     "load_source_settings",
 ]
 
@@ -50,7 +58,9 @@ DEFAULT_SOURCES_PATH = Path("config/sources.yaml")
 
 DEFAULT_MAX_CONCURRENT_SOURCES = 4
 
-_TOP = ("sources", "max_concurrent_sources")
+DEFAULT_RUN_TIMEOUT_S = 600
+
+_TOP = ("sources", "max_concurrent_sources", "run_timeout_s")
 _FIELDS = ("enabled", "trust_rank", "mode", "live_access")
 
 
@@ -89,6 +99,25 @@ def load_max_concurrent_sources(path: str | Path | None = None) -> int:
             detail="must be an integer >= 1",
         )
     return value
+
+
+def load_run_timeout_s(path: str | Path | None = None) -> float:
+    """The per-run wall-clock timeout in seconds (6.6); 600 if file or key is absent."""
+    file, document = _read_top(path)
+    if document is None or "run_timeout_s" not in document:
+        return DEFAULT_RUN_TIMEOUT_S
+    value = document["run_timeout_s"]
+    seconds = 0.0
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        with contextlib.suppress(OverflowError):  # too large for a float: stays 0.0
+            seconds = float(value)
+    if not 0 < seconds < math.inf:  # also rejects NaN
+        raise ConfigurationError(
+            str(file),
+            key_path="run_timeout_s",
+            detail="must be a positive finite number of seconds",
+        )
+    return seconds
 
 
 def _read_top(path: str | Path | None) -> tuple[Path, Mapping[object, object] | None]:
