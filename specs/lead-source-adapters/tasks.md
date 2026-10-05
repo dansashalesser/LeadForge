@@ -332,7 +332,7 @@ task = one commit.
   - Confirm a zero-credential run exercises every registered adapter, including Enrichment-only ones
   - _Requirements: 6.9_
 
-- [ ] 11.6 Derive the Enrichment order from declared cost attributes
+- [x] 11.6 Derive the Enrichment order from declared cost attributes
   - Order Enrichment sources by declared cost class, charge unit, and Suppression yield, running free Suppression-bearing sources before any Credit-bearing source
   - Remove from the remaining work list any Lead a source has reported as suppressed, so a suppressed Lead reaches no Credit-bearing source
   - Do any reordering by changing declared attributes, never by editing a maintained list

@@ -21,6 +21,7 @@ from leadforge.lead_ingestion.base_source import (
     SourceRequest,
     enrichment_order,
     enrichment_sort_key,
+    enrichment_tiers,
 )
 from leadforge.lead_ingestion.errors import InvalidAbsenceError, SourceError
 from leadforge.lead_ingestion.models import AbsenceKind, DataMode, SourceAbsence
@@ -729,3 +730,16 @@ def test_a_proxy_over_a_mutable_dict_and_an_inherited_mixin_dict_are_frozen() ->
     assert set(Viaproxy.answerable_surfaces) == {"email"}
     with pytest.raises(TypeError):
         Viaproxy.rate_limit["x"] = object()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#6.10
+def test_enrichment_tiers_group_equal_declarations_in_derived_order() -> None:
+    srcs = [
+        _src("a", CostClass.PAID, ChargeUnit.PER_LEAD, False),
+        _src("b", CostClass.PAID, ChargeUnit.PER_LEAD, False),
+        _src("c", CostClass.FREE, ChargeUnit.PER_CALL, True),
+        _src("d", CostClass.PAID, ChargeUnit.PER_COMPANY, True),
+    ]
+    tiers = [[s.name for s in tier] for tier in enrichment_tiers(srcs)]
+    assert tiers == [["c"], ["d"], ["a", "b"]]
+    assert enrichment_tiers([]) == []

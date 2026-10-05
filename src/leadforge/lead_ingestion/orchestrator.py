@@ -80,6 +80,26 @@ Two-phase run (task 11.5, Requirement 6.9; ADR-0002). Provisional decisions
   11.6 is the list of Enrichment sources in ``run``: it derives the order and the
   suppression-driven pruning of the work list. Task 11.7 (per-company calls) acts on
   the same work list.
+
+Enrichment order (task 11.6, Requirement 6.10; ADR-0002). Provisional decisions
+(choices.md, 11.6):
+
+* Order comes only from the declared ``cost_class``, ``charge_unit`` and
+  ``yields_suppression`` (``enrichment_tiers``); nothing here lists a source. Sources
+  with equal declarations form a tier. Tiers run one after another, so a free
+  Suppression-bearing source has finished before any Credit-bearing source starts;
+  inside a tier the sources still run concurrently under the pool bound. This
+  supersedes the 11.5 "concurrently in registry order" Enrichment behaviour.
+* After each tier, a lead a source reported as ``suppressed`` or ``opt_out`` leaves the
+  work list before the next tier is called. A report is a contribution whose values
+  carry that flag as ``True``; it names the lead by the ``email`` or ``linkedin_url``
+  it shares with a work-list contribution (no merge stage exists to give a lead a
+  stronger identity). A contribution already carrying a flag when Discovery produced
+  it is removed too, before the first tier. ``enrichment_work_list`` itself stays
+  unfiltered.
+* When pruning empties the work list, the remaining tiers are not called and record no
+  result, exactly like an empty work list from Discovery (11.5).
+* Results still follow registry order within each phase.
 """
 
 from __future__ import annotations
@@ -97,6 +117,7 @@ from leadforge.lead_ingestion.base_source import (
     LeadContribution,
     RawBatch,
     SourceRequest,
+    enrichment_tiers,
 )
 from leadforge.lead_ingestion.errors import (
     NormalizationError,
@@ -125,6 +146,7 @@ __all__ = [
     "SourceResult",
     "SourceStatus",
     "enrichment_work_list",
+    "prune_flagged",
 ]
 
 ModeResolverWithReason = Callable[
@@ -328,6 +350,46 @@ def enrichment_work_list(
     )
 
 
+# Compliance flags a contribution can carry, and the identity values a report names its
+# lead by (Requirement 6.10). Canonical-path names match ``CanonicalLead`` fields.
+_COMPLIANCE_FLAGS = ("suppressed", "opt_out")
+_IDENTITY_PATHS = ("email", "linkedin_url")
+
+
+def _is_flagged(contribution: LeadContribution) -> bool:
+    return any(contribution.values.get(flag) is True for flag in _COMPLIANCE_FLAGS)
+
+
+def _identities(contribution: LeadContribution) -> frozenset[tuple[str, str]]:
+    """Normalised ``(path, value)`` pairs; a blank value names no lead."""
+    pairs = (
+        (path, str(contribution.values[path]).strip().casefold())
+        for path in _IDENTITY_PATHS
+        if contribution.values.get(path) is not None
+    )
+    return frozenset(pair for pair in pairs if pair[1])
+
+
+def prune_flagged(
+    work_list: tuple[LeadContribution, ...],
+    reports: tuple[LeadContribution, ...] = (),
+) -> tuple[LeadContribution, ...]:
+    """The work list without any lead marked suppressed or opted out (6.10).
+
+    A work-list contribution is dropped when it carries a flag itself, or shares an
+    ``email`` or ``linkedin_url`` with a flagged contribution in ``reports`` or in the
+    list. Order is kept; a report naming no known lead removes nothing.
+    """
+    blocked: set[tuple[str, str]] = set()
+    for flagged in (c for c in (*work_list, *reports) if _is_flagged(c)):
+        blocked |= _identities(flagged)
+    return tuple(
+        c
+        for c in work_list
+        if not _is_flagged(c) and blocked.isdisjoint(_identities(c))
+    )
+
+
 class IngestionOrchestrator:
     def __init__(
         self,
@@ -454,18 +516,32 @@ class IngestionOrchestrator:
         try:
             async with asyncio.timeout(self._run_timeout_s) as deadline:
                 await run_phase(discovery, Phase.DISCOVERY, request)
-                work_list = enrichment_work_list(
-                    tuple(
-                        finished[(s.name, Phase.DISCOVERY)]
-                        for s in discovery
-                        if (s.name, Phase.DISCOVERY) in finished
+                work_list = prune_flagged(
+                    enrichment_work_list(
+                        tuple(
+                            finished[(s.name, Phase.DISCOVERY)]
+                            for s in discovery
+                            if (s.name, Phase.DISCOVERY) in finished
+                        )
                     )
                 )
-                if work_list:
+                for tier in enrichment_tiers(enrichment):
+                    if not work_list:
+                        break
                     await run_phase(
-                        enrichment,
+                        tier,
                         Phase.ENRICHMENT,
                         EnrichmentRequest(kind="enrich", work_list=work_list),
+                    )
+                    work_list = prune_flagged(
+                        work_list,
+                        tuple(
+                            contribution
+                            for s in tier
+                            for contribution in (
+                                finished[(s.name, Phase.ENRICHMENT)].contributions or ()
+                            )
+                        ),
                     )
         except TimeoutError:
             # Only the deadline's own expiry is a record; any other TimeoutError

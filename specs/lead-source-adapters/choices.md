@@ -1066,3 +1066,33 @@ Gaps left:
 - needs-follow-up: an Enrichment-only run with an empty work list exits 1 and records no result per enabled Enrichment source; spec says no-op is not an error, so a distinct "nothing to enrich" exit/record may be wanted (design decision).
 - needs-follow-up: a source timed out in both phases keeps only the later "not started" error text (outcome counts stay correct).
 - needs-follow-up: Discovery contributions are not deduplicated across sources by design; 11.7 must handle per-company de-dup.
+
+## Task 11.6 — Derive the Enrichment order from declared cost attributes (2026-10-05)
+Evidence: wrote tests/test_orchestrator_enrichment_order.py (11 tests) and one in test_base_source.py first; saw test_base_source fail at collection (ImportError enrichment_tiers) and 7 of 11 new orchestrator tests fail (the other 4 are guards that held before and after). Then implemented; ruff format/check clean, mypy clean, pytest 1416 passed, 1 skipped. No existing test needed changing: none pinned 11.5's Enrichment start order (the 11.5 doc line "concurrently in registry order" was updated in the orchestrator docstring). No mutation run; no serena/GitNexus query (additive; run() Enrichment block only).
+### Provisional decisions (spec silent)
+- **Verdict:** needs-user
+- "Order" = tiers of equal (cost_class, charge_unit, yields_suppression) run sequentially, sources inside a tier concurrently under the pool bound (new base_source.enrichment_tiers over 3.2's key). Rejected: fully sequential per source (drops 11.1 concurrency for no spec reason); start-order-only inside the concurrent pool (cannot prune before paid sources run).
+- A suppression report is a contribution whose values carry `suppressed` or `opt_out` = True (6.10 names both). Rejected: new field on SourceResult/Request, or suppressed-only (task text).
+- A report names its lead by shared `email` or `linkedin_url` (casefolded) with a work-list contribution; no lead identity or merge stage exists yet. Rejected: positional/object identity (contributions carry no back-reference to the input), full dedupe key logic (later merge task).
+- A work-list contribution already flagged by Discovery is also removed before the first tier; enrichment_work_list left unfiltered (11.5 contract).
+- Any source's flagged contribution is honored, not only yields_suppression=True ones; the attribute drives order only.
+- Pruning to an empty list stops later tiers: not called, no result recorded (same as 11.5 empty list).
+- Result order stays registry order per phase; no early stop beyond pruning.
+### Known gaps (needs-follow-up)
+- Identity paths ("email", "linkedin_url") and flag paths are string conventions in orchestrator.py; no adapter yet emits them, to be confirmed with 12.x-14.x/merge design (compliance flags OR-merge, design 11.4).
+- Suppression of a lead known only by name or company is not matched.
+- Prune uses only the immediately preceding tier's reports plus flags already in the list (cumulative via the list); a suppression reported by a source in the same tier as a paid source cannot prune that tier.
+- 11.7 per-company dedupe not built; no mutation checks run.
+
+### Self-review findings
+Mutation checks run (18): hand-maintained order, reversed tiers, ignore yields_suppression, concurrent tiers, no pruning (after tier / after Discovery), wrong identity key, call tiers after empty list, insertion-order dependence, paid first, reversed charge rank, tiers split by name, opt_out/suppressed ignored: all killed. Survivors found: email-only identity, no casefold, no strip (untested); now killed by new tests. Files restored byte-for-byte after each mutation.
+
+Fixed:
+- orchestrator.py `_identities`: a blank/whitespace email or linkedin_url made all blank-identity leads match each other, so one blank-keyed suppression report removed every lead lacking an email. Blank values now name no lead (test written first, seen failing 1 vs 3).
+- tests: added linkedin_url-only match, case/whitespace match, blank identity, prune_flagged input-not-mutated, and a hung free tier hitting the deadline (every Enrichment source recorded timed_out).
+
+Gaps (needs-follow-up):
+- needs-follow-up: linkedin_url is matched by casefold/strip only; no URL normalisation (trailing slash, scheme, www).
+- needs-follow-up: tiers skipped because pruning emptied the work list record no result (consistent with 11.5 empty-list rule); 11.3 exit mapping not re-verified against that.
+- needs-follow-up: a flag value that is truthy but not literally True (e.g. "true") is ignored.
+- needs-follow-up: a source in a tier that fails (non-halting) is not tested for later-tier call counts beyond the unauthorized case.

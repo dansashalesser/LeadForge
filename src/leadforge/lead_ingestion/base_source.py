@@ -43,6 +43,7 @@ __all__ = [
     "SourceRequest",
     "enrichment_order",
     "enrichment_sort_key",
+    "enrichment_tiers",
     "resolve_credentials",
 ]
 
@@ -474,3 +475,20 @@ def resolve_credentials(
     if missing:
         raise MissingCredentialError(source.name, missing=tuple(missing))
     return MappingProxyType(resolved)
+
+
+def enrichment_tiers[S: BaseLeadSource](sources: Iterable[S]) -> list[list[S]]:
+    """``enrichment_order`` split into tiers of equal declarations (Requirement 6.10).
+
+    Sources sharing ``cost_class``, ``charge_unit`` and ``yields_suppression`` form one
+    tier (the name only breaks ties inside it); tiers come out in run order.
+    """
+    tiers: list[list[S]] = []
+    last: tuple[bool, bool, int] | None = None
+    for source in enrichment_order(sources):
+        tier_key = enrichment_sort_key(source)[:3]
+        if tier_key != last:
+            tiers.append([])
+            last = tier_key
+        tiers[-1].append(source)
+    return tiers
