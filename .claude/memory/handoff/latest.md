@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T09:53:27+00:00
+- Written: 2026-10-06T10:07:14+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,18 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-Probe files are in the scratchpad (outside the repo), so they're harmless. Committing:
+I committed and pushed the harness memory file. One file is still uncommitted on purpose: `tests/adapters/test_hunter_source.py`. That's the Hunter fix in progress, now including Hunter running before Apollo, and I'll commit it once its self-review passes.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ grep -n "^from\|^import\|    Signal\|IntentSignal" src/leadforge/lead_ingestion/conflicts.py | head -20
-- $ sed -n 36,46p src/leadforge/lead_ingestion/conflicts.py
-- $ python3 - <<'PY'
-p="src/leadforge/lead_ingestion/conflicts.py"
-s=open(p).read()
-s=s.replace("    FieldProvenance,\n   
 - $ git status --short | grep -v "\.claude/memory" | head -20; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb
 - $ git status --short | grep -v "\.claude/memory" | head; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f
 - $ sed -n 595,680p specs/lead-source-adapters/tasks.md | cut -c1-600
@@ -54,3 +48,8 @@ old='''
 - $ cd /home/user/LeadForge && sed -i '71s/.*/from urllib.parse import unquote, urlsplit/' src/leadforge/lead_ingestion/ma
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Fixed after review
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; NOTICK=1 bash $S/finish.sh fu "f
+- $ git status --short | head
+- $ git add .claude/memory && git commit -q -m "chore: sync harness memory
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthr
+- $ git status --short | head -20
