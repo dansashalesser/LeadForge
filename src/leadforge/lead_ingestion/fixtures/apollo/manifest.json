@@ -26,7 +26,7 @@
       "note": "Hand-made stand-in; not a capture. Every field matched the OpenAPI 200 response at https://docs.apollo.io/reference/people-enrichment, read in full on 2026-10-06: person.match_confidence (enum high/medium/low/none, on person, not the envelope), person id, names, title, linkedin_url, email, email_status, organization name, primary_domain and current_technologies[uid,name,category], and request_id."
     },
     {
-      "file": "supported_technologies.csv",
+      "file": "supported_technologies_excerpt.csv",
       "endpoint": null,
       "origin": "doc_example",
       "recorded_on": "2026-10-06",
@@ -35,7 +35,7 @@
       "schema_verified_on": "2026-10-06",
       "api_version": null,
       "redaction": null,
-      "note": "Apollo's published list, downloaded verbatim on 2026-10-06 from https://api.apollo.io/v1/auth/supported_technologies_csv (linked from the people search docs; no key), 13,113 rows. Columns Category,Technology; UIDs are derived by the documented rule (spaces and periods to underscores)."
+      "note": "Excerpt of Apollo's published list: the header and only the rows for technologies configured in config/target_profile.yaml, copied verbatim from https://api.apollo.io/v1/auth/supported_technologies_csv (linked from the people search docs), downloaded 2026-10-06. The full list is Apollo's data and is not vendored; refresh with scripts/check_apollo_technologies.py --rows."
     },
     {
       "file": "no_match/search.json",

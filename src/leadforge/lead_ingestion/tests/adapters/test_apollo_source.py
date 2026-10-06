@@ -202,21 +202,39 @@ def test_a_vocabulary_value_that_is_not_a_uid_or_list_of_uids_is_refused() -> No
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.13
-def test_startup_warns_naming_a_uid_missing_from_the_supported_snapshot() -> None:
+@pytest.mark.parametrize(
+    "uid", ["MongoDB", "Apache Cassandra", "mongodb.atlas", " datastax"]
+)
+def test_a_name_in_place_of_a_uid_is_refused_at_startup(uid: str) -> None:
+    """Format only (Apollo's documented rule), no list: a name is not a UID."""
     transport = Scripted(lambda _: page(0, 0))
-    with capture_logs() as logs:
-        live(transport, vocabulary={"t": ["datastax", "datastaxx"]})
-    unknown = [e for e in logs if e["event"] == "apollo_unknown_technology_uid"]
-    assert [e["uid"] for e in unknown] == ["datastaxx"]
-    assert unknown[0]["log_level"] == "warning"
+    with pytest.raises(ValueError, match="bad_term"):
+        live(transport, vocabulary={"bad_term": ["datastax", uid]})
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.13
-def test_startup_is_silent_when_every_uid_is_supported() -> None:
+def test_a_uid_in_apollos_form_with_symbols_is_accepted() -> None:
+    transport = Scripted(lambda _: page(0, 0))
+    source = live(transport, vocabulary={"t": ["c++", "microsoft__net_core"]})
+    assert source._uids == ("c++", "microsoft__net_core")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.13
+def test_a_configured_uid_is_sent_as_given_with_no_file_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Apollo's list is checked by a test and a dev script, never at run time."""
+
+    def refuse(*_: object, **__: object) -> None:
+        raise AssertionError("the adapter read a file")
+
+    monkeypatch.setattr(Path, "open", refuse)
+    monkeypatch.setattr("builtins.open", refuse)
     transport = Scripted(lambda _: page(0, 0))
     with capture_logs() as logs:
-        live(transport, vocabulary={"t": ["datastax", "cassandra"]})
+        source = live(transport, vocabulary={"t": ["datastax", "datastaxx"]})
     assert logs == []
+    assert source._uids == ("datastax", "datastaxx")
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.13
@@ -405,16 +423,6 @@ def test_fixture_last_names_are_masked_in_apollos_documented_form() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.12
-def test_snapshot_is_apollos_published_csv() -> None:
-    # The file behind https://api.apollo.io/v1/auth/supported_technologies_csv, linked
-    # from the people search docs, has these two columns and no uid column.
-    lines = (FIXTURE_DIR / "supported_technologies.csv").read_text().splitlines()
-    assert lines[0] == "Category,Technology"
-    assert len(lines) > 1000  # Apollo documents "1,500+ technologies"
-    assert json.loads((FIXTURE_DIR / "search.json").read_text())["people"]
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#12.12
 @pytest.mark.parametrize(
     ("name", "uid"),
     # The documented rule and its own examples: "Use underscores (_) to replace
@@ -429,23 +437,6 @@ def test_a_technology_uid_follows_apollos_documented_rule(name: str, uid: str) -
     from leadforge.lead_ingestion.adapters import apollo
 
     assert apollo.technology_uid(name) == uid
-    assert uid in apollo._supported_technologies()
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#12.13
-def test_every_shipped_apollo_uid_is_in_apollos_list() -> None:
-    from leadforge.lead_ingestion.adapters import apollo
-    from leadforge.lead_ingestion.target_profile import load_target_profile
-
-    shipped = load_target_profile(
-        Path(__file__).parents[5] / "config/target_profile.yaml"
-    )
-    supported = apollo._supported_technologies()
-    for vocabulary in (
-        ApolloSource.target_vocabulary,
-        shipped.vocabulary_for("apollo"),
-    ):
-        assert set(apollo._uids_of(vocabulary)) <= supported
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.1

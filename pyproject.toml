@@ -63,7 +63,7 @@ select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "BLE", "PT", "N", "ASYNC"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src"]
+files = ["src", "scripts"]
 mypy_path = "src"
 explicit_package_bases = true
 warn_unreachable = true

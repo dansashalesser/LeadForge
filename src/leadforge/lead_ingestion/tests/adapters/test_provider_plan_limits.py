@@ -255,7 +255,7 @@ def test_hubspot_deal_fixtures_flag_hs_is_closed_and_secondly_as_unverified(
 VERIFIED = {
     ("apollo", "search.json"),
     ("apollo", "match.json"),
-    ("apollo", "supported_technologies.csv"),
+    ("apollo", "supported_technologies_excerpt.csv"),
     ("apollo", "no_match/search.json"),
     ("google_search", "search.json"),
     ("google_search", "no_results/search.json"),

@@ -3265,3 +3265,39 @@ Independent review, 2026-10-06. Pages re-fetched to scratchpad/live2/rv6/ (curl,
 - Also: hunter.py MAX_EMAILS_PER_DOMAIN collapsed to one line (formatting artefact).
 - Verification: pytest 4378 passed, 1 skipped; ruff clean; mypy clean (218 files); no untracked files in repo.
 - Open: stored synthetic batches from older runs with top-level match_confidence will fail re-normalization (no live batch could exist: the old model rejected Apollo's real shape).
+
+## Follow-up review — Apollo technology list no longer vendored (2026-10-06)
+
+- Supersedes the vendored `fixtures/apollo/supported_technologies.csv` and the startup `apollo_unknown_technology_uid` warning (entries above and design.md line 881). User decision: Apollo's full list is not vendored and not read at run time.
+- Kept instead: `fixtures/apollo/supported_technologies_excerpt.csv` (header plus the configured rows, verbatim, checked against the earlier commit), a test holding its UIDs equal to the effective configured UIDs, and the dev script `scripts/check_apollo_technologies.py` (run with `APOLLO_API_KEY=... uv run python scripts/check_apollo_technologies.py [--rows]`) as the pre-flight against the live list.
+- Startup check is format only: each configured UID must already be in Apollo's UID form (`technology_uid(uid) == uid`), so a product name such as `MongoDB` fails before any search. Membership in the list is not checked at run time; a valid-looking but unlisted UID still surfaces only through the zero-match warning (12.13).
+- `mongodb` competitor maps to both `mongodb_atlas` and `mongodb_realm` (user decision).
+- Script: list held in memory only; key sent only to `api.apollo.io` (stripped on a redirect elsewhere); failures report HTTP status or exception type, never the key or body.
+
+## Follow-up — Apollo technology list not vendored; both MongoDB terms (user decisions 2026-10-06)
+
+Decisions:
+- config/target_profile.yaml: competitor mongodb -> apollo [mongodb_atlas, mongodb_realm]. Both uids (technology_uid of the two MongoDB rows, category Database) were in Apollo's list downloaded 2026-10-06. The header comment now points to the dev script.
+- Full CSV fixtures/apollo/supported_technologies.csv deleted from the working tree (deletion left unstaged). Replaced by fixtures/apollo/supported_technologies_excerpt.csv: header plus 5 verbatim rows (Cassandra, Couchbase, DataStax, the two MongoDB rows), sorted by uid. Manifest record: origin doc_example, schema_status verified 2026-10-06 (as before); the note carries the source URL and download date.
+- apollo.py: no run-time read of the list. Removed SUPPORTED_TECHNOLOGIES_SNAPSHOT(_DATE), _supported_technologies, the startup apollo_unknown_technology_uid warning and the pathlib import. Added pure technology_rows(text) (uid -> (Category, Technology); strict, NormalizationError on a missing column, no rows or a blank name). It is used by the fixture guard (validate_reference_file, keyed by TECHNOLOGY_EXCERPT), the excerpt test and the script. _uids_of renamed to public uids_of (the script uses it). Module doc updated. A wrong uid now shows up at run time only through the existing zero-match warning (12.13).
+- Validation is a test (tests/adapters/test_apollo_technologies.py): excerpt uids == effective configured uids (profile over adapter defaults); the script reproduces the excerpt byte for byte; mongodb maps to both uids.
+- scripts/check_apollo_technologies.py (new top-level scripts/ dir; pyproject only has [project.scripts] for the CLI). It needs APOLLO_API_KEY (exit 2 without one), fetches into memory with httpx, prints missing uids (exit 1), and --rows prints the excerpt. It never writes a file or prints the key; on an HTTP error it prints the exception type only. Tests inject fetch, so no network. pyproject mypy files are now ["src", "scripts"].
+- test_fixture_metadata: the product-list secret-scan exemption and its pin test were removed; every fixture gets the full _SECRET scan.
+- Removed tests: snapshot-is-full-csv, uid-in-supported-list, startup-warns and startup-silent (replaced by "sent as given, no file read, no log"), lenient production loader.
+- RED recorded: the new test module failed to collect (AttributeError, no TECHNOLOGY_EXCERPT), plus 8 failures in the edited modules. GREEN: ruff src scripts clean, mypy clean (220 files), pytest 4383 passed, 1 skipped.
+
+Gaps:
+- The full CSV is still in git history (commits b95030c, 1d38d8a, already on origin). Removing it from history needs a history rewrite, which is the user's call.
+- The script was never run against the live endpoint here (no key). The old manifest said the URL needed no key; the user says it does, so the script requires one.
+- specs/lead-source-adapters/{research.md,choices.md,design.md} still describe the vendored snapshot and the startup warning (historical; not edited).
+- .env.example is generated and the README never mentioned the CSV, so neither needed a change.
+
+### Self-review findings
+- (a) No run-time list I/O: grep of src/scripts/config for SUPPORTED_TECHNOLOGIES*, _supported_technologies, supported_technologies.csv, _check_technology_snapshot, apollo_unknown_technology_uid finds only stale .pyc. apollo.py's csv use is the pure technology_rows(text).
+- (b) All 5 excerpt rows match `git show HEAD:...supported_technologies.csv` exactly (grep -cxF = 1 each, LF, same header). technology_uid gives mongodb_atlas / mongodb_realm. The byte-for-byte test only round-trips the excerpt through the script writer; it cannot prove fidelity to Apollo (no key here).
+- FIX (e): uids_of now refuses a UID not already in Apollo's form (technology_uid(uid) != uid), at startup, format only, no list. Test-first: 4 RED (MongoDB, "Apache Cassandra", mongodb.atlas, " datastax"), plus an accept test (c++, microsoft__net_core).
+- FIX (d) script: x-api-key was sent via httpx.get with follow_redirects=True, so a redirect to another host would carry the key. Now an httpx.Client request hook sets the key for api.apollo.io only and strips it elsewhere; timeout 30 s named. A non-list 200 (NormalizationError) was an uncaught traceback; it now exits 2 with a fixed message. HTTP errors print the status or exception type only. --profile got help text. Tests added (MockTransport, no sockets): redirect strips key; http-error / transport-error / not-the-list exit 2 with neither key nor body PII in output; --help exits 0. Sentinel run of the real script with an unreachable proxy: exit 2, "download failed: ConnectError", sentinel absent.
+- (f) The secret-scan exemption and its pin test are gone; _SECRET applies to every fixture.
+- (g) research.md (lines 194, 254) and design.md (881, 1063) got a "Superseded 2026-10-06" note appended; choices.md got an appended follow-up section.
+- (h) Mutations: 8 run, 8 killed: extra excerpt row, dropped Realm row, config UID missing from the excerpt, mongodb Atlas only, format check removed, key sent to every host, exception text echoed (survived at first; killed after adding the transport-error case), body echoed. Every file was restored and its sha256 verified.
+- Verify: pytest 4393 passed, 1 skipped; ruff src scripts clean; mypy clean (220 files).

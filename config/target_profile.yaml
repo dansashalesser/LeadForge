@@ -4,7 +4,9 @@
 # EVERY IDENTIFIER BELOW IS AN EXAMPLE VALUE. The Apollo technology identifiers are
 # checked against Apollo's published supported-technologies list (downloaded
 # 2026-10-06; a UID is the listed name lowercased with spaces and periods as "_").
-# Apollo lists "Cassandra" and "MongoDB Atlas", not "Apache Cassandra" or "MongoDB".
+# Apollo lists "Cassandra", not "Apache Cassandra", and two MongoDB products (the
+# two uids under mongodb below), not a plain "MongoDB". After changing an Apollo
+# identifier, run scripts/check_apollo_technologies.py and refresh the test excerpt.
 # Search phrases are plain text. Nothing here is a credential.
 #
 # Layout: technologies / competitors -> <term> -> <source name> -> vocabulary.
@@ -33,7 +35,7 @@ technologies:
 
 competitors:
   mongodb:
-    apollo: [mongodb_atlas]
+    apollo: [mongodb_atlas, mongodb_realm]
     google_search:
       - "MongoDB"
       - "MongoDB Atlas"

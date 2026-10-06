@@ -194,20 +194,20 @@ def test_the_reference_csv_is_checked_by_the_adapters_own_loader(
     tmp_path: Path,
 ) -> None:
     root = _copy(tmp_path)
-    csv_file = root / "apollo" / "supported_technologies.csv"
+    csv_file = root / "apollo" / "supported_technologies_excerpt.csv"
     csv_file.write_text("uid,name\ndatastax,DataStax\n", encoding="utf-8")
-    error = _fails(root, "apollo", "supported_technologies.csv")
-    assert error.field == "supported_technologies.csv:Technology"
+    error = _fails(root, "apollo", "supported_technologies_excerpt.csv")
+    assert error.field == "supported_technologies_excerpt.csv:Technology"
     csv_file.write_text("Category,Technology\n", encoding="utf-8")
-    assert _fails(root, "apollo", "supported_technologies.csv").field == (
-        "supported_technologies.csv:Technology"
+    assert _fails(root, "apollo", "supported_technologies_excerpt.csv").field == (
+        "supported_technologies_excerpt.csv:Technology"
     )
     csv_file.write_text(f"Category,Technology\n{CANARY},\n", encoding="utf-8")
-    error = _fails(root, "apollo", "supported_technologies.csv")
+    error = _fails(root, "apollo", "supported_technologies_excerpt.csv")
     assert CANARY not in f"{error} {error.field}"
     csv_file.write_bytes(b"\xff\xfe\x00")
-    assert _fails(root, "apollo", "supported_technologies.csv").field == (
-        "supported_technologies.csv"
+    assert _fails(root, "apollo", "supported_technologies_excerpt.csv").field == (
+        "supported_technologies_excerpt.csv"
     )
 
 
@@ -225,23 +225,8 @@ def test_a_hostile_reference_csv_fails_by_a_named_error(
     tmp_path: Path, content: bytes
 ) -> None:
     root = _copy(tmp_path)
-    (root / "apollo" / "supported_technologies.csv").write_bytes(content)
-    error = _fails(root, "apollo", "supported_technologies.csv")
-    assert error.field.startswith("supported_technologies.csv")
+    (root / "apollo" / "supported_technologies_excerpt.csv").write_bytes(content)
+    error = _fails(root, "apollo", "supported_technologies_excerpt.csv")
+    assert error.field.startswith("supported_technologies_excerpt.csv")
     assert error.__cause__ is None
     assert error.__context__ is None
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#5.4
-def test_the_production_snapshot_loader_stays_lenient(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Strictness belongs to the fixture guard: a live run must still start."""
-    from leadforge.lead_ingestion.adapters import apollo
-
-    snapshot = tmp_path / "supported_technologies.csv"
-    snapshot.write_text("Category,Technology\nblank,\n", encoding="utf-8")
-    monkeypatch.setattr(apollo, "SUPPORTED_TECHNOLOGIES_SNAPSHOT", snapshot)
-    assert apollo._supported_technologies() == {""}
-    snapshot.write_text("Category,Technology\n", encoding="utf-8")
-    assert apollo._supported_technologies() == frozenset()

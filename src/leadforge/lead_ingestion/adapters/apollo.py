@@ -50,17 +50,21 @@ Provisional decisions (see choices.md, task 12.1):
 * A page shorter than the page size ends paging for that UID; page 500 is the hard end.
 * Synthetic mode needs no key and sends no credential header; live mode resolves
   ``APOLLO_API_KEY`` from the environment when a fetch starts.
-* The supported-technology snapshot is read at construction (startup); an unknown UID
-  warns, it does not fail, since the snapshot can be older than Apollo's list.
+* Configured UIDs are sent as given: the adapter holds and reads no copy of Apollo's
+  supported-technologies list (user decision 2026-10-06, the list is Apollo's data and
+  is not vendored). A test checks the configured UIDs against a committed excerpt, and
+  ``scripts/check_apollo_technologies.py`` against the live list; a wrong UID at run
+  time surfaces as the zero-match warning (12.13).
 * The raw models tolerate unknown fields (Apollo adds some without notice); a field the
   models and ``RULES``/``IGNORED`` do not name is caught by the fixture test, not at
   run time. Types of the named fields are strict, so a wrong shape raises.
 * Provider free text (names, title, company name) is ``UntrustedText``; identifiers and
   the technology list are not.
-* ``fixtures/apollo/supported_technologies.csv`` is Apollo's published list, downloaded
-  on 2026-10-06 from https://api.apollo.io/v1/auth/supported_technologies_csv (the
-  link in the people search docs; no key). Its columns are ``Category,Technology``;
-  a UID is the name with spaces and periods as underscores, lowercased
+* Apollo publishes the list at https://api.apollo.io/v1/auth/supported_technologies_csv
+  (the link in the people search docs). ``fixtures/apollo/`` keeps only an excerpt
+  (``TECHNOLOGY_EXCERPT``): the header and the rows for configured terms, downloaded
+  2026-10-06. Its columns are ``Category,Technology`` (``technology_rows``); a UID
+  is the name with spaces and periods as underscores, lowercased
   (``technology_uid``), per the docs: "Use underscores (``_``) to replace spaces and
   periods ... Examples: ``salesforce``; ``google_analytics``; ``wordpress_org``".
 * Warnings go to the structured log; there is no run-record warning channel yet.
@@ -138,7 +142,6 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 import structlog
@@ -210,17 +213,17 @@ __all__ = [
     "ApolloSource",
     "credits_in",
     "plan_rate_limit",
+    "technology_rows",
     "technology_uid",
+    "uids_of",
 ]
 
 MAX_PER_PAGE = 100
 MAX_PAGE = 500  # Apollo's documented display ceiling: 100 x 500 = 50,000 records
 
-SUPPORTED_TECHNOLOGIES_SNAPSHOT = (
-    Path(__file__).parent.parent / "fixtures" / "apollo" / "supported_technologies.csv"
-)
-# Date Apollo's published CSV was downloaded (see module doc).
-SUPPORTED_TECHNOLOGIES_SNAPSHOT_DATE = "2026-10-06"
+# The fixture excerpt of Apollo's supported-technologies list (see module doc).
+TECHNOLOGY_EXCERPT = "supported_technologies_excerpt.csv"
+_CATEGORY_COLUMN = "Category"
 _TECHNOLOGY_COLUMN = "Technology"
 
 _UID_PARAM = "currently_using_any_of_technology_uids[]"
@@ -490,17 +493,9 @@ class ApolloSource(BaseLeadSource):
         # LinkedIn identities (None: none) that asked each lookup, across fetches.
         self._asked_for: dict[str, set[str | None]] = {}
         self._allowances: dict[str, int] = {}
-        self._uids = _uids_of(
+        self._uids = uids_of(
             self.target_vocabulary if vocabulary is None else vocabulary
         )
-        supported = _supported_technologies()
-        for uid in self._uids:
-            if uid not in supported:
-                _log.warning(
-                    "apollo_unknown_technology_uid",
-                    uid=uid,
-                    snapshot_date=SUPPORTED_TECHNOLOGIES_SNAPSHOT_DATE,
-                )
 
     @classmethod
     def from_run(
@@ -759,10 +754,10 @@ class ApolloSource(BaseLeadSource):
 
     @classmethod
     def validate_reference_file(cls, file: str, text: str) -> None:
-        if file != SUPPORTED_TECHNOLOGIES_SNAPSHOT.name:
+        if file != TECHNOLOGY_EXCERPT:
             super().validate_reference_file(file, text)
             return
-        _check_technology_snapshot(cls.name, text)
+        technology_rows(text)
 
     def _normalize_matches(self, raw: RawBatch) -> list[LeadContribution]:
         context = NormalizationContext(
@@ -1304,16 +1299,22 @@ def _domains_of(provider: str, contribution: LeadContribution) -> list[str]:
         ) from None
 
 
-def _uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
-    """Every technology UID in the vocabulary, first appearance order, no repeats."""
+def uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
+    """Every technology UID in the vocabulary, first appearance order, no repeats.
+
+    Format only, no list: each must already be in Apollo's UID form
+    (``technology_uid`` leaves it unchanged), so a name such as ``MongoDB`` fails at
+    startup instead of spending a search that can match nothing.
+    """
     uids: dict[str, None] = {}
     for term, value in vocabulary.items():
         items = [value] if isinstance(value, str) else value
         if not isinstance(items, list | tuple) or not all(
-            isinstance(i, str) and i.strip() for i in items
+            isinstance(i, str) and i.strip() and technology_uid(i) == i for i in items
         ):
             raise ValueError(
                 f"apollo vocabulary for term {term!r} must be a UID or a list of UIDs"
+                " (lowercase, spaces and periods as underscores)"
             )
         uids.update(dict.fromkeys(items))
     return tuple(uids)
@@ -1326,34 +1327,34 @@ def technology_uid(name: str) -> str:
     return name.strip().casefold().replace(" ", "_").replace(".", "_")
 
 
-def _supported_technologies() -> frozenset[str]:
-    with SUPPORTED_TECHNOLOGIES_SNAPSHOT.open(encoding="utf-8", newline="") as handle:
-        return frozenset(
-            technology_uid(row.get(_TECHNOLOGY_COLUMN) or "")
-            for row in csv.DictReader(handle)
-        )
+def technology_rows(text: str) -> dict[str, tuple[str, str]]:
+    """UID -> ``(Category, Technology)`` for each row of Apollo's list, given as text.
 
-
-def _check_technology_snapshot(provider: str, text: str) -> None:
-    """Fixture-guard check of the snapshot: a ``Technology`` column, rows, no blank.
-
-    Stricter than the loader a run uses (a blank name there is merely a uid that
-    matches nothing), so a damaged snapshot fails the suite without stopping a live
-    run. The error is raised outside the ``except`` so no csv text rides along in its
-    context.
+    Pure: the fixture guard, the excerpt test and the dev script pass it text; nothing
+    at run time reads the list. A missing ``Technology`` column, no rows or a blank
+    name raises ``NormalizationError``, outside the ``except`` so no csv text rides
+    along in its context.
     """
-    names: list[str | None] = []
+    rows: dict[str, tuple[str, str]] = {}
     readable = True
     try:
         reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
-        names = [row.get(_TECHNOLOGY_COLUMN) for row in reader]
-        readable = _TECHNOLOGY_COLUMN in (reader.fieldnames or ())
+        for row in reader:
+            name = (row.get(_TECHNOLOGY_COLUMN) or "").strip()
+            if not name:
+                readable = False
+                break
+            rows[technology_uid(name)] = (row.get(_CATEGORY_COLUMN) or "", name)
+        readable = readable and _TECHNOLOGY_COLUMN in (reader.fieldnames or ())
     except csv.Error:
         readable = False
-    if not readable or not names or not all(n and n.strip() for n in names):
+    if not readable or not rows:
         raise NormalizationError(
-            provider, raw_field_path=_TECHNOLOGY_COLUMN, canonical_path="<unmapped>"
+            ApolloSource.name,
+            raw_field_path=_TECHNOLOGY_COLUMN,
+            canonical_path="<unmapped>",
         )
+    return rows
 
 
 def _require(value: object) -> Mapping[str, object]:
