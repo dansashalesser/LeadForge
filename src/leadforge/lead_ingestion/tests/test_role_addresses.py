@@ -175,11 +175,12 @@ def test_a_disqualified_address_is_skipped_but_its_kind_stays_present() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.14
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
-def test_a_disqualified_address_still_counts_as_stated_for_name_domain() -> None:
+def test_a_disqualified_address_is_not_personal_identity_for_name_domain() -> None:
     # 8.3 follow-up (user decision 2026-10-06): a record with an email joins an
     # email-less one on name+domain+title, so x and y join with or without 8.14; the
-    # role address only stops x and z sharing a cluster. It still counts as x's
-    # stated address, so a y stating another address stays apart from x.
+    # role address only stops x and z sharing a cluster. User-directed fix
+    # (2026-10-06): a shared address is not x's own, so a y stating its own address
+    # (verified or not) joins x too; the role address still links nobody.
     pool = [
         named(
             "x",
@@ -206,11 +207,21 @@ def test_a_disqualified_address_still_counts_as_stated_for_name_domain() -> None
         company__domain="acme.com",
         person__title="CTO",
     )
-    assert partition([pool[0], other, pool[2]]) == {
-        frozenset("x"),
-        frozenset("y"),
+    assert partition([pool[0], other, pool[2]]) == {frozenset("xy"), frozenset("z")}
+    verified = named(
+        "y",
+        "jane@acme.com",
+        "Jane Doe",
+        company__domain="acme.com",
+        person__title="CTO",
+    )
+    assert partition([pool[0], verified, pool[2]]) == {
+        frozenset("xy"),
         frozenset("z"),
     }
+    # Without z nothing shows the address is shared: it stays x's own verified
+    # address, and two different verified addresses still keep x and y apart.
+    assert partition([pool[0], verified]) == {frozenset("x"), frozenset("y")}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.14

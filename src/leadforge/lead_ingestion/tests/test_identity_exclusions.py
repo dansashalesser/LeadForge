@@ -254,7 +254,6 @@ def test_every_permutation_of_the_exclusion_input_gives_the_same_set_and_cluster
         for u_perm in itertools.permutations(urls):
             got = IdentityExclusions.from_values(emails=e_perm, linkedin_urls=u_perm)
             assert got == reference
-            assert got.version_token == reference.version_token
             assert serialise(pool, got) == expected
 
 
@@ -301,22 +300,12 @@ def test_an_exclusion_never_merges_anything_it_only_refines() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13
-def test_the_version_token_changes_exactly_when_the_set_changes() -> None:
-    a = IdentityExclusions.from_values(emails=["a@x.com"])
-    same = IdentityExclusions.from_values(emails=["A@x.com"])
-    more = IdentityExclusions.from_values(emails=["a@x.com", "b@x.com"])
-    as_url = IdentityExclusions.from_values(linkedin_urls=["x.com/in/a"])
-    assert a.version_token == same.version_token
-    assert (
-        len(
-            {
-                a.version_token,
-                more.version_token,
-                as_url.version_token,
-                NONE.version_token,
-            }
-        )
-        == 4
+def test_the_set_offers_no_plain_hash_of_its_values() -> None:
+    # A plain sha256 over low-entropy addresses is reversible by dictionary attack;
+    # the change token is the keyed one (projection's ProjectionBasis, HMAC via
+    # match_key_digest), so the set itself exposes no digest of its values.
+    assert not hasattr(
+        IdentityExclusions.from_values(emails=["a@x.com"]), "version_token"
     )
 
 

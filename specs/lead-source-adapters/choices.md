@@ -2923,3 +2923,42 @@ Independent review (spec-refactor), 2026-10-06. Baseline 4021 passed, 1 skipped;
 
 - **Ticked (parent):** 16.6 and 16.11. 16.11 note: no model tie-resolver exists yet, so a live tie with no stored answer stays on the flagged lowest-sorted fallback, never silently final.
 - **Known gaps (needs-follow-up):** an aborted concurrent run loses its raw payloads, contributions and spend counts; concurrent runs can briefly leave duplicate active leads until the next run; each run re-logs every merged lead (PII-free) and re-projects the whole stored log; a keyless record whose re-fetch differs gets a second lead.
+
+
+## Follow-up — role addresses and unverified guesses no longer split one person (2026-10-06)
+
+**User-directed fix (2026-10-06)**, amending the 8.3 one-sided follow-up above and the 16.7 note "a disqualified role address still counts as a stated, DIFFERENT address" (both known gaps, now closed). Requirement 8.3 carries a second amendment note pointing here.
+
+- **Personal email evidence.** `match_keys.personal_email` is the stated address (`stated_email`: `person.email`, else the bare CRM `email`) as identity evidence, `None` when it is in `DisqualifiedAddresses.addresses` (8.14 role address, or seen with two LinkedIn URLs: the existing structural detection, no role-word list). `match_keys.emails_conflict` is the one rule both the candidate pass (`DisqualifiedAddresses.name_domains`) and the per-component pass in `clustering` apply.
+- **Role addresses** neither block a one-sided name+domain join nor make a name+domain ambiguous. They still never act as an email Match Key (the 16.7 bar is unchanged; kind stays PRESENT).
+- **Verified vs guess.** Only `person.email_status == VERIFIED` makes an address known (read for the stated address, bare CRM path included, as projection reads it). Any other status, or none, is a guess. Conflict = two distinct verified addresses, or no verified address and two distinct guesses. A guess beside one verified address is not a conflict. Decision on two different unverified addresses: **block** (neither is known to be the person's), as recommended.
+- **Guards kept:** LinkedIn holders never take part and the cannot-link still wins; no transitive bridge (a component holding two verified addresses links nobody, whatever sits between them: a bare record, a guess or a role address); order independence (exhaustive permutation tests over 40 seeded pools of 3-5 with role addresses and guesses); linear (one extra pass over the candidates, the role set read from the first pass).
+- **`IdentityExclusions.version_token` deleted**: a plain sha256 over PII with no production caller (only tests and a docstring); the stored change token is projection's keyed `ProjectionBasis` (`match_key_digest` HMAC).
+- **Known gaps (needs-follow-up):** projection picks `person.email` by Source Trust Rank first (8.4), not by verification or role, so when the guess (or the role address) comes from a higher-ranked source it becomes the lead's email. Pinned by two `xfail(strict=True)` tests in test_one_sided_email_name_domain.py; fix belongs in projection. A role address seen with only one name is not detectable as shared and still counts as that person's address.
+
+## Follow-up — role addresses and unverified guesses no longer split one person (2026-10-06)
+- Red: test_one_sided_email_name_domain.py + test_role_addresses.py: 7 failed / 66 passed (scratchpad/fu2/red.txt); version_token removal: 1 failed (fu2/red-token.txt); bare-CRM status: 1 failed (fu2/red-crm.txt). Green focused set: 316 passed, 2 xfailed.
+- Final: ruff check on my 7 files clean; mypy errors only in other agents' new tests (test_incremental_reprojection, test_keyless_provider_identity, test_run_lock_both_engines). pytest (minus 2 uncollectable new files of others): 4048 passed, 17 failed, all others' (store migrations/persistence: new 0007 migration; keyless_provider_identity: fails identically with my files reverted; one transient hunter test). Earlier transient apollo/hubspot/suppression failures passed on rerun and in a reverted copy.
+### Decisions
+- match_keys.personal_email(values, disqualified) = stated_email unless in DisqualifiedAddresses.addresses (existing 8.14/two-LinkedIn detection reused), plus verified flag (person.email_status == VERIFIED, applied to the bare CRM path too, as projection does).
+- match_keys.emails_conflict: conflict iff 2+ distinct verified, or 0 verified and 2+ distinct guesses (two unverified different = block, as recommended). One rule for candidate pass (name_domains) and per-component pass (clustering).
+- Role addresses still never an email Match Key (16.7 bar unchanged).
+- IdentityExclusions.version_token deleted (no src caller; plain sha256 over PII); tests replaced by a "no plain hash" test; one assertion removed from test_projection_version.py; exclusion_settings docstring points to keyed ProjectionBasis.
+- Tests changed on purpose: any-status block -> unverified-only block; disqualification test uses two verified; CRM bare test uses two guesses; random-pool invariants use personal-email oracle; 16.7 role test now expects x+y joined.
+- Mutation (scratch copy): 7 mutants, 6 killed initially; survivor (bare-path status guard) resolved by a new test and dropping the guard.
+- Spec: requirements.md 8.3 second amendment blockquote; choices.md follow-up entry appended.
+### Gaps
+- Projection resolves person.email by trust rank, NOT verified status: a higher-ranked guess or role address becomes the lead email. The caller's premise "projection already prefers verified" is false. Pinned by 2 xfail(strict) tests; fix belongs in projection.py.
+- A role address seen with only one name is undetectable as shared and still counts as that person's own.
+- spec-refactor / validate-production sub-agents not spawned (no Agent tool).
+
+### Self-review findings
+- Independent review (spec-refactor), clean worktree at HEAD + only this change: 4034 passed, 1 skipped, 2 xfailed. Reviewer changed no code. Worktree removed.
+- (b) Bridge probe: all 3-record pools (zed + 24 options of verified/guess/role email x no/L1/L2 LinkedIn) in every permutation, plus 3000 random 4-5 pools x 7 orders: deterministic; no cluster with 2 LinkedIns; no LinkedIn-less cluster with 2 distinct verified personal addresses. Reason: in a non-conflicting component the only external forest link is via its single verified address.
+- (a) Over-merge: same normalized name + same registrable domain + shared title OR employer name, both LinkedIn-less, one verified and the other any non-verified status: merged. A different phone does not separate them. A different title separates them only if the employer names differ too. A LinkedIn on either record separates them (holders never join on name+domain). INVALID status counts as a guess (verified+invalid merge; two invalid block). With 1 verified address, 2 different guesses all merge, though alone they would block. Both are documented design choices; needs-user.
+- (c) Role detection reuses DisqualifiedAddresses.addresses; verified read identical to extract_match_keys. Exclusions are deliberately not filtered (filtering them would let an exclusion MERGE, against 8.13).
+- (d) xfails strict, fail for the right reason (info@ / guess chosen). Target (verified beats rank) contradicts 8.4 as written: an 8.4 amendment is needed before projection is fixed. needs-user.
+- (e) version_token: only historical choices.md entries + the hasattr test remain. 8.13 change coverage kept in test_projection_version.
+- (g) 9 mutants, 9 killed (baseline green), restored sha256-exact.
+- Nit (skipped): test oracle uses `is V` rather than `==`.
+- Housekeeping: reviewer probe files were written into the shared scratchpad/probe/ (probe.py, overmerge.py, mut.sh, orig) and then deleted; if earlier files had those names, they were overwritten.

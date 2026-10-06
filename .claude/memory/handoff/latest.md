@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T13:14:45+00:00
+- Written: 2026-10-06T13:45:59+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,21 +10,17 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The review found no defects in `orchestrator.py`. Opt-out pruning reuses the merge's own grouping and ambiguous-email rules, so a shared mailbox never links two people. It added a test that runs all 720 orderings of a six-record set. The lead-store work is still mid-flight in the tree, so I'm committing only this change's files. The reviewer already validated them, in a clean worktree, on the last commit plus this change:
+Only four harness memory files are uncommitted; no code has changed yet. The safety check blocked a commit of just these files earlier, so I'm not retrying it. They'll go in with the first follow-up commit.
+
+The three follow-up agents are still running:
+- saving runs and concurrency;
+- merge rules;
+- adapters.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && python3 - <<'EOF'
-p='adapters/search_backends/serpapi.py'
-s=op
-- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "no_open_deals\|VERIFIED_ON_2026\|verified" tests/adap
-- $ sed -n 248,282p tests/adapters/test_provider_plan_limits.py
-- $ python3 - <<'EOF'
-p='tests/adapters/test_provider_plan_limits.py'
-s=open(p).read()
-s=s.replace('''        ("hubspot", 
 - $ uv run pytest -q 2>&1 | grep -i "error" | head -10
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "note" models.py fixture*.py 2>/dev/null | grep -i "ma
 - $ uv run pytest -q 2>&1 | grep -E "^FAILED|^E " | head -8
@@ -48,3 +44,7 @@ Co-Authored-By: Cla
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **16.6/16.11 left un
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad && T=src/leadforge/lead_ingestion
 - $ git diff --cached --name-only && git commit -q -m "feat: opt-outs follow strong identity links; second free HubSpot pa
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad && grep -n "^- \[ \] 16.11 \|^- \
+- $ grep -n "^- \[.\] 16.11 " specs/lead-source-adapters/tasks.md | cut -c1-60; git status --short | head -5; grep -c "^- 
+- $ grep -n "^  *- \[ \]" specs/lead-source-adapters/tasks.md | head -3; sed -i 's/^- \[ \] 14\. Google Search Source adap
+- $ git status --short | grep -v '^.. \.claude' | head -5; git status --short | grep -c '^.. \.claude'

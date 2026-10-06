@@ -6,12 +6,20 @@ emails still block the join. Every earlier guard stays: LinkedIn holders never t
 part, two distinct LinkedIns never share a cluster, a name+domain value seen with
 two or more distinct LinkedIns or (now) two or more distinct emails is disqualified,
 and a bare record can never bridge two different addresses, in any input order.
+
+User-directed fix (2026-10-06): a role address (one the 8.14 pass finds shared, such
+as ``info@``) is not personal identity, and an unverified address (a guess, such as a
+provider pattern guess) is not evidence against a verified one. Neither blocks a
+join nor makes a name+domain ambiguous; two VERIFIED different addresses still
+block, and so do two different unverified ones when no verified address is known.
 """
 
 import itertools
 import random
 from datetime import UTC, datetime
 from typing import Any
+
+import pytest
 
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import (
@@ -36,8 +44,11 @@ from leadforge.lead_ingestion.projection import project_lead
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
 V = EmailStatus.VERIFIED
 U = EmailStatus.UNVERIFIED
+A = EmailStatus.ACCEPT_ALL
 E1 = "jane@acme.com"
 E2 = "j.doe@acme.com"
+E3 = "doe.jane@acme.com"
+ROLE = "info@acme.com"
 RANKS = {s: i for i, s in enumerate("abcdefgh", start=1)}
 
 
@@ -110,6 +121,34 @@ def leads(pool: list[LeadContribution]) -> list[Any]:
     return [lead for lead in projected if lead is not None]
 
 
+def zed(source: str = "h") -> LeadContribution:
+    """Another person reported with ``ROLE``, which makes it a shared address (8.14)."""
+    return contribution(
+        source,
+        person__full_name="Zed Moss",
+        person__email=ROLE,
+        person__email_status=V,
+        company__domain="acme.com",
+        person__title="CEO",
+    )
+
+
+def assert_one_personal_email(
+    members: tuple[LeadContribution, ...], pool: list[LeadContribution]
+) -> None:
+    """At most one verified address, or one guess when none is verified; roles aside."""
+    role = DisqualifiedAddresses.from_contributions(pool).addresses
+    verified: set[str] = set()
+    guessed: set[str] = set()
+    for member in members:
+        address = stated_email(member.values)
+        if address is not None and address not in role:
+            is_verified = member.values.get("person.email_status") is V
+            (verified if is_verified else guessed).add(address)
+    assert len(verified) <= 1
+    assert verified or len(guessed) <= 1
+
+
 # --- the one-sided join ---------------------------------------------------------
 
 
@@ -164,8 +203,9 @@ def test_two_different_verified_emails_stay_two_leads_end_to_end() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
-def test_two_different_emails_of_any_status_block_the_join() -> None:
-    for first, second in [(V, U), (U, U), (U, V)]:
+def test_two_different_unverified_emails_block_the_join() -> None:
+    # Neither address is known to be the person's, so two guesses stay two leads.
+    for first, second in [(U, U), (U, A), (A, A)]:
         pool = [jane("a", E1, first), jane("b", E2, second)]
         assert_same_in_every_order(pool, {frozenset("a"), frozenset("b")})
 
@@ -232,7 +272,7 @@ def test_an_unambiguous_component_on_two_domains_still_joins() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
 def test_a_name_domain_seen_with_two_distinct_emails_is_disqualified() -> None:
-    pool = [jane("a", E1), jane("b", E2, U), jane("c")]
+    pool = [jane("a", E1), jane("b", E2), jane("c")]
     found = DisqualifiedAddresses.from_contributions(pool)
     assert len(found.name_domains) == 1
     assert found == DisqualifiedAddresses.from_contributions(reversed(pool))
@@ -334,9 +374,27 @@ def test_a_crm_bare_email_path_counts_as_an_email_for_the_block() -> None:
         person__title="CTO",
     )
     assert "person.email" not in crm.values
-    pool = [jane("a", E1), crm]
+    # Both unverified (a bare CRM address has no status): two guesses still block.
+    pool = [jane("a", E1, U), crm]
     assert stated_email(crm.values) == E2
     assert_same_in_every_order(pool, {frozenset("a"), frozenset("b")})
+    # With no status it is a guess, so it joins a verified address of the person.
+    assert_same_in_every_order([jane("a", E1), crm], {frozenset("ab")})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+def test_a_status_stated_with_a_bare_crm_address_applies_to_it() -> None:
+    # Projection re-keys the bare address as person.email and reads the status for
+    # it, so clustering does too: a VERIFIED bare address is a known address.
+    crm = contribution(
+        "b",
+        email=E2,
+        person__email_status=V,
+        person__full_name="Jane Doe",
+        company__domain="acme.com",
+        person__title="CTO",
+    )
+    assert_same_in_every_order([jane("a", E1), crm], {frozenset("a"), frozenset("b")})
 
 
 # --- order independence over random pools ---------------------------------------
@@ -374,8 +432,7 @@ def test_random_linkedin_less_pools_never_mix_two_emails_and_ignore_order() -> N
             rng.shuffle(pool)
             assert serialise(cluster_contributions(pool)) == reference
         for cluster in cluster_contributions(pool):
-            found = {stated_email(m.values) for m in cluster.contributions} - {None}
-            assert len(found) <= 1
+            assert_one_personal_email(cluster.contributions, pool)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
@@ -415,5 +472,138 @@ def test_every_permutation_of_small_mixed_pools_gives_one_result() -> None:
             urls_in = {m.values.get("person.linkedin_url") for m in members} - {None}
             assert len(urls_in) <= 1
             if not urls_in:
-                found = {stated_email(m.values) for m in members} - {None}
-                assert len(found) <= 1
+                assert_one_personal_email(members, pool)
+
+
+# --- role addresses and guesses are not identity (user-directed fix 2026-10-06) --
+
+# Projection resolves person.email by Source Trust Rank first (8.4), not by
+# verification or role, so a higher-ranked source wins the field. Projection is
+# outside this change; strict, so these fail loudly once projection is fixed.
+PROJECTION_RANKS_BEFORE_VERIFICATION = pytest.mark.xfail(
+    strict=True,
+    reason="projection picks person.email by trust rank, not verified status",
+)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_a_role_address_does_not_block_a_namesakes_own_address_end_to_end() -> None:
+    pool = [jane("a", ROLE), jane("b", E1), zed()]
+    assert_same_in_every_order(pool, {frozenset("ab"), frozenset("h")})
+    assert DisqualifiedAddresses.from_contributions(pool).name_domains == frozenset()
+    projected = leads(pool)
+    assert len(projected) == 2
+    (own,) = [lead for lead in projected if lead.full_name == "Jane Doe"]
+    assert str(own.email) == E1
+    assert own.email_status is V
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_a_role_address_does_not_block_an_unverified_own_address() -> None:
+    pool = [jane("a", ROLE), jane("b", E1, U), zed()]
+    assert_same_in_every_order(pool, {frozenset("ab"), frozenset("h")})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+@PROJECTION_RANKS_BEFORE_VERIFICATION
+def test_a_role_address_never_becomes_the_email_from_a_higher_ranked_source() -> None:
+    pool = [jane("g", ROLE), jane("b", E1), zed()]
+    (own,) = [lead for lead in leads(pool) if lead.full_name == "Jane Doe"]
+    assert str(own.email) == E1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_a_role_address_still_never_links_two_people_as_an_email_key() -> None:
+    # Same title and domain, different names: only the shared address could link
+    # them, and a shared address is never a Match Key.
+    pool = [jane("a", ROLE), zed("h"), zed("g")]
+    clusters = cluster_contributions(pool)
+    assert partition(pool) == {frozenset("a"), frozenset("gh")}
+    for cluster in clusters:
+        assert MatchKeyKind.VERIFIED_EMAIL not in cluster.merged_by
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+def test_a_verified_address_and_a_different_guess_are_one_lead_end_to_end() -> None:
+    for status in (U, A):
+        pool = [jane("b", E1), jane("a", E2, status)]
+        assert_same_in_every_order(pool, {frozenset("ab")})
+        assert DisqualifiedAddresses.from_contributions(pool).name_domains == (
+            frozenset()
+        )
+        (lead,) = leads(pool)
+        assert str(lead.email) == E1
+        assert lead.email_status is V
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+@PROJECTION_RANKS_BEFORE_VERIFICATION
+def test_the_guess_never_becomes_the_email_even_from_a_higher_ranked_source() -> None:
+    pool = [jane("a", E1), jane("g", E2, U)]
+    (lead,) = leads(pool)
+    assert str(lead.email) == E1
+    assert lead.email_status is V
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+def test_guesses_are_ignored_beside_one_verified_address() -> None:
+    pool = [jane("a", E1), jane("b", E2, U), jane("c", E3, A), jane("d")]
+    assert_same_in_every_order(pool, {frozenset("abcd")})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+# Verifies: specs/lead-source-adapters/requirements.md#8.8
+def test_no_guess_or_role_address_bridges_two_verified_addresses() -> None:
+    for middle in (jane("c", E3, U), jane("c", ROLE), jane("c", E1, U)):
+        pool = [jane("a", E1), middle, jane("b", E2), zed()]
+        assert_same_in_every_order(
+            pool, {frozenset("a"), frozenset("b"), frozenset("c"), frozenset("h")}
+        )
+        projected = leads(pool)
+        assert len(projected) == 4
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+# Verifies: specs/lead-source-adapters/requirements.md#8.8
+def test_a_guess_cannot_bridge_two_verified_addresses_across_domains() -> None:
+    pool = [
+        jane("a", E1, domain="acme.com"),
+        jane("c", E3, U, domain=["acme.com", "acme.io"]),
+        jane("b", E2, domain="acme.io"),
+    ]
+    assert DisqualifiedAddresses.from_contributions(pool).name_domains == frozenset()
+    assert_same_in_every_order(pool, {frozenset("a"), frozenset("b"), frozenset("c")})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+# Verifies: specs/lead-source-adapters/requirements.md#8.8
+def test_every_permutation_of_small_pools_with_roles_and_guesses_agrees() -> None:
+    # Property-style: 3-5 Jane records drawing verified, guessed and role addresses
+    # over two domains, plus the Zed record that makes ROLE shared.
+    emails: list[tuple[str | None, EmailStatus]] = [
+        (None, V),
+        (E1, V),
+        (E2, V),
+        (E2, U),
+        (E3, A),
+        (ROLE, V),
+        (ROLE, U),
+    ]
+    domains: list[str | list[str]] = ["acme.com", "acme.io", ["acme.com", "acme.io"]]
+    for seed in range(40):
+        rng = random.Random(seed)
+        pool = [zed()]
+        for source in "abcd"[: rng.randint(2, 4)]:
+            email, status = rng.choice(emails)
+            pool.append(jane(source, email, status, rng.choice(domains)))
+        reference = serialise(cluster_contributions(pool))
+        disqualified = DisqualifiedAddresses.from_contributions(pool)
+        for perm in itertools.permutations(pool):
+            order = list(perm)
+            assert serialise(cluster_contributions(order)) == reference
+            assert DisqualifiedAddresses.from_contributions(order) == disqualified
+        for cluster in cluster_contributions(pool):
+            assert_one_personal_email(cluster.contributions, pool)

@@ -23,7 +23,11 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
   name+domain graph, a component stating two or more distinct addresses linking
   nobody. Rejected: a pairwise email cannot-link in the union-find, which is greedy
   (the bare record joins whichever side sorts first) and refuses legitimate unions of
-  sets that already hold a second address through a LinkedIn merge.
+  sets that already hold a second address through a LinkedIn merge. User-directed fix
+  (2026-10-06): the addresses compared are ``personal_email`` evidence and the test is
+  ``emails_conflict``: a shared (role) address is not the person's own and counts for
+  nothing, and a guess (any status but verified) beside one verified address is no
+  conflict; two verified addresses, or two guesses with none verified, still are.
 * Linear time. Corroboration is evaluated per shared title / employer bucket inside a
   key group, never over pairs; every bucket costs one union per member.
 * Contribution identity is its canonical JSON (sorted keys, sorted sets), the one
@@ -72,9 +76,11 @@ from leadforge.lead_ingestion.match_keys import (
     MatchKey,
     MatchKeyKind,
     MatchKeys,
+    PersonalEmail,
+    emails_conflict,
     extract_match_keys,
     linkedin_identity,
-    stated_email,
+    personal_email,
 )
 
 __all__ = [
@@ -236,7 +242,8 @@ def cluster_contributions(
     forest = _UnionFind(len(items), [linkedin_identity(c.values) for _, c in items])
     _link_linkedin(keys, forest)
     _link_email(keys, forest)
-    _link_name_domain(keys, [stated_email(c.values) for _, c in items], forest)
+    personal = [personal_email(c.values, shared) for _, c in items]
+    _link_name_domain(keys, personal, forest)
 
     members: dict[int, list[int]] = defaultdict(list)
     for index in range(len(items)):
@@ -312,13 +319,13 @@ def _link_email(keys: list[MatchKeys], forest: _UnionFind) -> None:
 
 
 def _link_name_domain(
-    keys: list[MatchKeys], emails: Sequence[str | None], forest: _UnionFind
+    keys: list[MatchKeys], emails: Sequence[PersonalEmail | None], forest: _UnionFind
 ) -> None:
     """8.3 with the one-sided follow-up: a stated email no longer excludes a record.
 
     Edges are collected first and applied per component of the name+domain graph: a
-    component whose members state two or more distinct addresses is ambiguous and
-    links nobody, so a bare record never bridges two addresses, whatever the order.
+    component whose personal addresses conflict (``emails_conflict``) is ambiguous
+    and links nobody, so a bare record never bridges two addresses, whatever the order.
     """
     by_value: dict[str, list[int]] = defaultdict(list)
     for index, value in _values(keys, MatchKeyKind.NAME_DOMAIN):
@@ -339,10 +346,10 @@ def _link_name_domain(
     components = _UnionFind(len(keys))
     for a, b, _ in edges:
         components.union(a, b)
-    stated: dict[int, set[str]] = defaultdict(set)
+    stated: dict[int, set[PersonalEmail]] = defaultdict(set)
     for index, email in enumerate(emails):
         if email is not None:
             stated[components.find(index)].add(email)
     for a, b, value in edges:
-        if len(stated[components.find(a)]) <= 1:
+        if not emails_conflict(stated[components.find(a)]):
             forest.union(a, b, MatchKeyKind.NAME_DOMAIN, value)

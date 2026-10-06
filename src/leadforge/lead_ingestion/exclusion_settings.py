@@ -15,7 +15,7 @@ Provisional decisions (choices.md, 16.6):
 * The set is personal data: an error names the file and the key path (``emails[2]``)
   and never the value, nor the text of an unknown top-level key.
 * Storing the ``projection_version`` bump when the set changes needs the Lead Store
-  recompute wiring (a later task); ``IdentityExclusions.version_token`` is the seam.
+  recompute wiring (a later task); projection's keyed ``ProjectionBasis`` is the seam.
 """
 
 from collections.abc import Mapping

@@ -34,9 +34,9 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   for 8.2 and 8.3, else barring a key would make its holder look key-less and could
   MERGE people (an exclusion only ever refines the partition). Name+domain values are
   not excludable (no requirement text names a case; add when one does). The set is
-  personal data: hidden from ``repr``, errors name no value. ``version_token`` is a
-  digest of the set, so a change is observable (8.13's ``projection_version`` bump);
-  storing that bump is the store's job and not built here.
+  personal data: hidden from ``repr``, errors name no value. The set offers no digest
+  of its own (a plain hash of addresses is reversible by dictionary attack); a change
+  is observed through projection's keyed ``ProjectionBasis`` (``match_key_digest``).
 * Role addresses (task 16.7, 8.14) are disqualified structurally: an address reported
   against two or more DISTINCT names anywhere in the contribution set being clustered.
   ``DisqualifiedAddresses.from_contributions`` is that first pass (a pure function of
@@ -66,6 +66,15 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   LinkedIn-less records with two or more distinct addresses is disqualified (added to
   ``name_domains``), so a bare record cannot bridge them. Addresses of LinkedIn
   holders do not count, since those never join by name+domain.
+* Personal email evidence (user-directed fix 2026-10-06). ``personal_email`` is the
+  stated address as identity evidence, and ``emails_conflict`` the one rule both
+  passes apply. A shared address (``DisqualifiedAddresses.addresses``: the 8.14 role
+  address such as ``info@``, or one seen with two LinkedIn URLs) is not the person's
+  own, so it is no evidence at all. Only ``email_status == VERIFIED`` makes an address
+  known; any other status (unverified, accept-all, unknown, or none, as on a bare CRM
+  address) is a guess. Different addresses conflict when two are verified, or when none
+  is verified and two guesses differ (neither is known); a guess beside one verified
+  address is no conflict. A shared address still never acts as a Match Key.
 * Values are read at the paths the adapters write (``person.*``, ``company.*``).
 """
 
@@ -73,7 +82,6 @@ from collections.abc import Collection, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import IntEnum
-from hashlib import sha256
 from unicodedata import normalize
 from urllib.parse import unquote, urlsplit
 
@@ -88,12 +96,15 @@ __all__ = [
     "MatchKey",
     "MatchKeyKind",
     "MatchKeys",
+    "PersonalEmail",
     "corroborates",
+    "emails_conflict",
     "extract_match_keys",
     "linkedin_identity",
     "normalize_email",
     "normalize_linkedin_url",
     "normalized_person_name",
+    "personal_email",
     "registrable_domains",
     "stated_email",
 ]
@@ -177,15 +188,6 @@ class IdentityExclusions:
             return key.value in self.emails
         return False
 
-    @property
-    def version_token(self) -> str:
-        """Digest of the set: equal sets agree, any change differs (8.13)."""
-        entries = sorted(
-            [f"{MatchKeyKind.LINKEDIN_URL.value}\x1f{u}" for u in self.linkedin_urls]
-            + [f"{MatchKeyKind.VERIFIED_EMAIL.value}\x1f{e}" for e in self.emails]
-        )
-        return sha256("\x1e".join(entries).encode("utf-8")).hexdigest()
-
 
 @dataclass(frozen=True)
 class DisqualifiedAddresses:
@@ -194,7 +196,7 @@ class DisqualifiedAddresses:
     ``addresses``: reported against two or more distinct names (8.14) or together with
     two or more distinct normalised LinkedIn URLs. ``name_domains``: name+domain
     candidate values reported together with two or more distinct LinkedIn URLs, or by
-    LinkedIn-less records stating two or more distinct addresses (8.3 follow-up).
+    LinkedIn-less records whose personal addresses conflict (``emails_conflict``).
     """
 
     addresses: frozenset[str] = field(default=frozenset(), repr=False)
@@ -208,7 +210,7 @@ class DisqualifiedAddresses:
         names: dict[str, set[str]] = {}
         address_urls: dict[str, set[str]] = {}
         candidate_urls: dict[str, set[str]] = {}
-        candidate_emails: dict[str, set[str]] = {}
+        candidate_emails: dict[str, set[PersonalEmail]] = {}
         for contribution in contributions:
             values = contribution.values
             address = normalize_email(_text(values, _EMAIL))
@@ -221,15 +223,20 @@ class DisqualifiedAddresses:
                     address_urls.setdefault(address, set()).add(url)
                 for candidate in _name_domain_values(values):
                     candidate_urls.setdefault(candidate, set()).add(url)
-            elif stated := stated_email(values):
+            elif stated := personal_email(values):
                 # 8.3 follow-up: only LinkedIn-less records join by name+domain, so
                 # only their addresses can make a candidate ambiguous.
                 for candidate in _name_domain_values(values):
                     candidate_emails.setdefault(candidate, set()).add(stated)
-        return cls(
-            _shared(names) | _shared(address_urls),
-            _shared(candidate_urls) | _shared(candidate_emails),
+        # Shared addresses are known only once the whole set is read, so the
+        # candidate test runs second and skips them.
+        addresses = _shared(names) | _shared(address_urls)
+        ambiguous = frozenset(
+            candidate
+            for candidate, stated in candidate_emails.items()
+            if emails_conflict(s for s in stated if s.address not in addresses)
         )
+        return cls(addresses, _shared(candidate_urls) | ambiguous)
 
 
 def _shared(found: Mapping[str, set[str]]) -> frozenset[str]:
@@ -346,6 +353,39 @@ def normalize_linkedin_url(url: str | None) -> str | None:
 def linkedin_identity(values: Mapping[str, object]) -> str | None:
     """The normalised LinkedIn URL a contribution names, barred or not."""
     return normalize_linkedin_url(_text(values, _LINKEDIN))
+
+
+@dataclass(frozen=True)
+class PersonalEmail:
+    """A stated address as identity evidence for 8.3; personal data."""
+
+    address: str = field(repr=False)
+    verified: bool
+
+
+def personal_email(
+    values: Mapping[str, object], disqualified: DisqualifiedAddresses | None = None
+) -> PersonalEmail | None:
+    """The stated address unless it is shared (``disqualified.addresses``), with
+    whether it is verified (``person.email_status``, read for the stated address
+    as projection reads it, the bare CRM path included)."""
+    address = stated_email(values)
+    if address is None or (
+        disqualified is not None and address in disqualified.addresses
+    ):
+        return None
+    verified = values.get(_EMAIL_STATUS) == EmailStatus.VERIFIED
+    return PersonalEmail(address, verified)
+
+
+def emails_conflict(emails: Iterable[PersonalEmail]) -> bool:
+    """Whether ``emails`` name two people: two verified addresses, or two guesses
+    with no verified address. A guess beside a verified address is no conflict."""
+    verified: set[str] = set()
+    guessed: set[str] = set()
+    for email in emails:
+        (verified if email.verified else guessed).add(email.address)
+    return len(verified) > 1 or (not verified and len(guessed) > 1)
 
 
 def stated_email(values: Mapping[str, object]) -> str | None:

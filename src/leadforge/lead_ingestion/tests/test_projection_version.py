@@ -184,7 +184,6 @@ def test_the_exclusion_part_is_keyed_never_a_plain_hash_of_the_values() -> None:
     exclusions = IdentityExclusions.from_values(emails=["info@x.com"])
     keyed = ProjectionBasis.of(exclusions, RANKS, digester=KEY)
     other = MatchKeyDigester(b"q" * 32, comparable_across_runs=True)
-    assert keyed.exclusions_token != exclusions.version_token
     assert keyed.fingerprint != ProjectionBasis.of(NONE, RANKS).fingerprint
     assert (
         keyed.fingerprint
