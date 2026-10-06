@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T10:47:32+00:00
+- Written: 2026-10-06T10:49:28+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,9 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I've committed and pushed the harness memory files, and no source changes are uncommitted right now. Two items are still being built in the background, and each gets a self-review before I commit it:
-- Apollo enriching people that other sources found.
-- Keyed HMAC for match-key logging.
-
-Two decisions are still waiting on you:
-1. **Merging records when only one has an email.** Should two records that share a name and company domain join when only one of them has an email? Two different emails would still keep them apart.
-2. **Web evidence, task 14.2.** Should I go with option C: attach evidence to a company only when the search query and the result's domain agree, with signal strength set by how many sources agree?
+I committed and pushed the harness memory files. Two code changes stay uncommitted until each passes its self-review:
+- **Keyed HMAC for match keys (16.12):** the self-review is running.
+- **Apollo enriching people found by other sources:** still being built.
 
 ## In-flight todos
 _(none captured)_
