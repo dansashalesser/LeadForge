@@ -14,7 +14,7 @@ from leadforge.lead_ingestion.clustering import (
     canonical_json,
     cluster_contributions,
 )
-from leadforge.lead_ingestion.match_keys import MatchKeyKind
+from leadforge.lead_ingestion.match_keys import MatchKeyKind, extract_match_keys
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
     DataMode,
@@ -462,9 +462,11 @@ def test_large_input_uses_near_linear_union_operations(
     calls = {"union": 0, "find": 0}
     real_union, real_find = clustering._UnionFind.union, clustering._UnionFind.find
 
-    def counting_union(self: Any, a: int, b: int, kind: MatchKeyKind) -> None:
+    def counting_union(
+        self: Any, a: int, b: int, kind: MatchKeyKind, value: str | None = None
+    ) -> None:
         calls["union"] += 1
-        real_union(self, a, b, kind)
+        real_union(self, a, b, kind, value)
 
     def counting_find(self: Any, a: int) -> int:
         calls["find"] += 1
@@ -521,6 +523,18 @@ def test_a_name_domain_merge_records_the_name_domain_kind() -> None:
         nd("b", "Ann Lee", "x.com", person__title="CTO"),
     )
     assert kinds == (MatchKeyKind.NAME_DOMAIN,)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_a_name_domain_merge_records_the_name_domain_key_that_linked_it() -> None:
+    a = nd("a", "Ann Lee", "x.com", person__title="CTO")
+    (cluster,) = cluster_contributions(
+        [a, nd("b", "Ann Lee", "x.com", person__title="CTO")]
+    )
+    (key,) = (
+        k for k in extract_match_keys(a).keys if k.kind is MatchKeyKind.NAME_DOMAIN
+    )
+    assert cluster.linked_by == (key,)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#21.4

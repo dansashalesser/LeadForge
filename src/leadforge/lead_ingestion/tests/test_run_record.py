@@ -413,3 +413,19 @@ def test_a_naive_finish_time_is_refused(session: Session) -> None:
     stored = repo.get(run_id)
     assert stored is not None
     assert stored.status == RunStatus.RUNNING
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+@pytest.mark.parametrize(
+    ("comparable", "stated"), [(True, "keyed"), (False, "per_run")]
+)
+def test_the_snapshot_states_whether_match_key_digests_compare_across_runs(
+    comparable: bool, stated: str
+) -> None:
+    snapshot = build(match_key_digests_comparable=comparable).config_snapshot
+    assert snapshot["match_key_digests"] == stated
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_snapshot_omits_the_digest_mode_when_the_caller_does_not_state_it() -> None:
+    assert "match_key_digests" not in build().config_snapshot

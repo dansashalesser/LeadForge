@@ -11,6 +11,7 @@ seam is the registry the root is given.
 """
 
 import asyncio
+import json
 import re
 import uuid
 from collections.abc import Callable, Iterator, Mapping
@@ -19,6 +20,7 @@ from typing import ClassVar
 
 import pytest
 import sqlalchemy as sa
+import structlog
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from typer.testing import CliRunner
@@ -37,6 +39,7 @@ from leadforge.lead_ingestion.base_source import (
 )
 from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.errors import (
+    ConfigurationError,
     NormalizationError,
     SourceComplianceRestricted,
     SourceError,
@@ -47,6 +50,7 @@ from leadforge.lead_ingestion.errors import (
     SourceUnauthorized,
 )
 from leadforge.lead_ingestion.ingest_runner import IngestionOutcome, run_ingestion
+from leadforge.lead_ingestion.match_key_digest import MATCH_KEY_SECRET_ENV
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import SourceStatus
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
@@ -65,7 +69,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     for name in DISCOVERED.names():
         for variable in DISCOVERED.source_class(name).required_env:
             monkeypatch.delenv(variable, raising=False)
-    for variable in ("LEADFORGE_MODE", "LEADFORGE_ENV_FILE"):
+    for variable in ("LEADFORGE_MODE", "LEADFORGE_ENV_FILE", MATCH_KEY_SECRET_ENV):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.chdir(tmp_path)  # a directory with no .env, no config/
     database = tmp_path / "store.db"
@@ -535,3 +539,74 @@ def test_the_ingest_command_names_a_configuration_error_and_exits_two(
 
     assert result.exit_code == 2
     assert "sources.yaml" in result.output
+
+
+def runs_recorded(database: Path) -> int:
+    """Ingestion runs in the store; 0 when the run never created the store."""
+    if not database.exists():
+        return 0
+    engine = store(database)
+    try:
+        with Session(engine) as session:
+            if not sa.inspect(engine).has_table(m.IngestionRun.__tablename__):
+                return 0
+            return session.scalar(sa.select(sa.func.count(m.IngestionRun.id))) or 0
+    finally:
+        engine.dispose()
+
+
+MATCH_SENTINEL = "e2e-match-key-sentinel-" + "w" * 32
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+async def test_without_a_secret_the_run_warns_once_and_reports_per_run_digests(
+    clean_environment: Path, guard: SocketGuard
+) -> None:
+    with structlog.testing.capture_logs() as logs:
+        outcome = await run_ingestion(target_profile_path=PROFILE)
+    absent = [e for e in logs if e["event"] == "match_key_secret_absent"]
+    assert len(absent) == 1
+    assert absent[0]["log_level"] == "warning"
+    assert (
+        "match-key digests: per-run random key, not comparable across runs "
+        "(set LEADFORGE_MATCH_KEY_SECRET)"
+    ) in outcome.report_text.splitlines()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.3
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+async def test_a_keyed_run_logs_digests_per_merge_and_never_the_secret(
+    clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(MATCH_KEY_SECRET_ENV, MATCH_SENTINEL)
+    with structlog.testing.capture_logs() as logs:
+        outcome = await run_ingestion(target_profile_path=PROFILE)
+    assert not [e for e in logs if e["event"] == "match_key_secret_absent"]
+    assert (
+        "match-key digests: keyed, comparable across runs with the same secret"
+    ) in outcome.report_text.splitlines()
+    merges = [e for e in logs if e["event"] == "lead_merge"]
+    assert merges, "the synthetic run is expected to merge at least one lead"
+    for line in merges:
+        assert line["match_key_digests"]
+        for entry in line["match_key_digests"]:
+            assert len(entry["digest"]) == 16
+    blob = json.dumps(logs, default=repr) + outcome.report_text
+    assert MATCH_SENTINEL not in blob
+    assert MATCH_SENTINEL.encode().hex() not in blob
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.3
+async def test_a_too_short_secret_fails_the_run_before_it_starts(
+    clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    short = "e2e-short-Qz9"
+    monkeypatch.setenv(MATCH_KEY_SECRET_ENV, short)
+    with (
+        structlog.testing.capture_logs() as logs,
+        pytest.raises(ConfigurationError) as caught,
+    ):
+        await run_ingestion(target_profile_path=PROFILE)
+    assert MATCH_KEY_SECRET_ENV in str(caught.value)
+    assert short not in repr(caught.value) + json.dumps(logs, default=repr)
+    assert runs_recorded(clean_environment) == 0

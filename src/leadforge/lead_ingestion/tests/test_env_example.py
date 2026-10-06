@@ -23,6 +23,7 @@ from leadforge.lead_ingestion.base_source import (
     RateWindow,
 )
 from leadforge.lead_ingestion.env_example import (
+    BUILTIN_SETTINGS,
     ManifestError,
     main,
     render_env_example,
@@ -149,7 +150,22 @@ def _block(text: str, variable: str) -> list[str]:
 # Verifies: specs/lead-source-adapters/requirements.md#10.1
 def test_empty_registry_lists_database_and_llm_settings_only() -> None:
     text = render_env_example(SourceRegistry())
-    assert list(_entries(text)) == ["DATABASE_URL", "LLM_PROVIDER", "LLM_MODEL"]
+    assert list(_entries(text)) == [
+        "DATABASE_URL",
+        "LLM_PROVIDER",
+        "LLM_MODEL",
+        "LEADFORGE_MATCH_KEY_SECRET",
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+def test_the_match_key_secret_is_documented_with_its_minimum_and_fallback() -> None:
+    text = COMMITTED.read_text()
+    assert _entries(text)["LEADFORGE_MATCH_KEY_SECRET"] == ""
+    block = " ".join(_block(text, "LEADFORGE_MATCH_KEY_SECRET"))
+    assert "HMAC-SHA256" in block
+    assert "32 bytes" in block
+    assert "per-run" in block
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#10.2
@@ -180,6 +196,7 @@ def test_union_of_adapter_variables_is_listed_sorted_after_builtins() -> None:
         "DATABASE_URL",
         "LLM_PROVIDER",
         "LLM_MODEL",
+        "LEADFORGE_MATCH_KEY_SECRET",
         "ALPHA_API_KEY",
         "ZETA_API_KEY",
     ]
@@ -254,6 +271,7 @@ def test_keyless_adapter_needs_no_documentation_url_and_adds_no_entry() -> None:
         "DATABASE_URL",
         "LLM_PROVIDER",
         "LLM_MODEL",
+        "LEADFORGE_MATCH_KEY_SECRET",
     ]
 
 
@@ -382,7 +400,7 @@ def test_discovered_package_adapters_are_included(make_package: MakePackage) -> 
         }
     )
     text = render_env_example(SourceRegistry.discover(pkg))
-    assert list(_entries(text))[3:] == [
+    assert list(_entries(text))[len(BUILTIN_SETTINGS) :] == [
         "ONE_CLIENT_ID",
         "ONE_CLIENT_SECRET",
         "TWO_API_KEY",

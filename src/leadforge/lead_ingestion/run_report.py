@@ -47,6 +47,15 @@ __all__ = [
 
 NOT_RECORDED = "not recorded"
 _LIVE_ACCESS = ("available", "gated", "unavailable")
+# Stated in the run record by the composition root (task 16.12 completion); any other
+# stored value is shown as not recorded, never echoed.
+_MATCH_KEY_DIGEST_LINES = {
+    "keyed": "keyed, comparable across runs with the same secret",
+    "per_run": (
+        "per-run random key, not comparable across runs (set "
+        "LEADFORGE_MATCH_KEY_SECRET)"
+    ),
+}
 MAX_WARNING_CHARS = 200
 
 
@@ -80,6 +89,8 @@ class RunReport:
     exit_code: int | None
     pool_size: int | None
     sources: tuple[SourceReport, ...]
+    # Task 16.12 completion: "keyed" / "per_run" from the snapshot; None: not recorded.
+    match_key_digests: str | None = None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -94,6 +105,13 @@ def _live_access(row: SourceRun, snapshot: Mapping[str, Any] | None) -> str | No
         return str(stated)
     # Only "unavailable" is certain from the boolean: true is available or gated.
     return "unavailable" if row.live_access is False else None
+
+
+def _match_key_digests(snapshot: Mapping[str, Any] | None) -> str | None:
+    stated = (
+        snapshot.get("match_key_digests") if isinstance(snapshot, Mapping) else None
+    )
+    return stated if stated in _MATCH_KEY_DIGEST_LINES else None
 
 
 def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunReport:
@@ -124,6 +142,7 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
         finished_at=None if run.finished_at is None else _as_utc(run.finished_at),
         exit_code=run.exit_code,
         pool_size=run.pool_size,
+        match_key_digests=_match_key_digests(run.config_snapshot),
         sources=tuple(
             SourceReport(
                 source_name=r.source_name,
@@ -223,6 +242,10 @@ def render_run_report(report: RunReport) -> str:
     # Nothing persists these yet (8.15, 8.18): say so rather than imply none occurred.
     lines.append("over-merge suspects: not recorded")
     lines.append("primary-domain tie fallbacks: not recorded")
+    lines.append(
+        "match-key digests: "
+        + _MATCH_KEY_DIGEST_LINES.get(report.match_key_digests or "", NOT_RECORDED)
+    )
     lines.append(f"sources: {len(report.sources)}")
     for s in report.sources:
         name = _printable(s.source_name)

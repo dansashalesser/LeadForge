@@ -186,8 +186,15 @@ def build_run_record(
     run_timeout_s: float,
     global_mode: DataMode | None,
     live_access: Mapping[str, LiveAccess] | None = None,
+    match_key_digests_comparable: bool | None = None,
 ) -> RunRecord:
-    """Assemble the start-of-run record. Pure: no I/O, no environment read."""
+    """Assemble the start-of-run record. Pure: no I/O, no environment read.
+
+    ``match_key_digests_comparable`` (task 16.12 completion) is recorded as
+    ``config_snapshot["match_key_digests"]``: ``keyed`` (a configured secret) or
+    ``per_run`` (a random per-run key: this run's merge-log digests match no other
+    run's). ``None`` records nothing.
+    """
     if started_at.tzinfo is None:
         raise ValueError("started_at must carry a timezone")
     missing = [name for name in resolutions if name not in settings]
@@ -211,15 +218,20 @@ def build_run_record(
         # tell a gated source from an available one.
         if live_access is not None and name in live_access:
             sources[name]["live_access"] = live_access[name].value
+    snapshot: dict[str, Any] = {
+        "max_concurrent_sources": max_concurrent_sources,
+        "run_timeout_s": run_timeout_s,
+        "global_mode": None if global_mode is None else global_mode.value,
+        "sources": sources,
+    }
+    if match_key_digests_comparable is not None:
+        snapshot["match_key_digests"] = (
+            "keyed" if match_key_digests_comparable else "per_run"
+        )
     return RunRecord(
         started_at=started_at,
         pool_size=max_concurrent_sources,
-        config_snapshot={
-            "max_concurrent_sources": max_concurrent_sources,
-            "run_timeout_s": run_timeout_s,
-            "global_mode": None if global_mode is None else global_mode.value,
-            "sources": sources,
-        },
+        config_snapshot=snapshot,
         sources=tuple(
             SourceMode(
                 name,

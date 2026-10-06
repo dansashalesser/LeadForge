@@ -10,7 +10,10 @@ reading an undocumented variable fails the suite; regenerate with
 
 Provisional decisions (see choices.md, task 8.3):
 
-* Only the three settings requirement 10.1 names are built in. ``RAW_RETENTION_DAYS``,
+* The three settings requirement 10.1 names are built in, plus
+  ``LEADFORGE_MATCH_KEY_SECRET`` (task 16.12 completion: the HMAC-SHA256 key for Match
+  Key digests in the merge log), so it is documented and, being a built-in setting,
+  redacted by ``log_redaction`` like any credential. ``RAW_RETENTION_DAYS``,
   ``LEADFORGE_MODE`` and ``LEADFORGE_ENV_FILE`` are tuning knobs with defaults, not
   credentials, and are left out; add them to ``BUILTIN_SETTINGS`` to document them.
 * The documentation URL is the adapter's ``docs_url``, else its first rate bucket's
@@ -28,6 +31,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from leadforge.lead_ingestion.database import DATABASE_URL_ENV
+from leadforge.lead_ingestion.match_key_digest import (
+    MATCH_KEY_SECRET_ENV,
+    MIN_SECRET_BYTES,
+)
 from leadforge.lead_ingestion.registry import SourceRegistry
 
 __all__ = [
@@ -66,6 +73,15 @@ BUILTIN_SETTINGS: tuple[tuple[str, str, str, str], ...] = (
         "llm",
         "https://python.langchain.com/docs/how_to/chat_models_universal_init/",
         "chat model name passed to LangChain init_chat_model",
+    ),
+    (
+        MATCH_KEY_SECRET_ENV,
+        "merge log",
+        "https://docs.python.org/3/library/hmac.html",
+        "secret key for the HMAC-SHA256 Match Key digests in merge logs; at least "
+        f"{MIN_SECRET_BYTES} bytes of UTF-8 text (e.g. the output of "
+        "openssl rand -hex 32); keep it stable to compare digests across runs; "
+        "unset means a random per-run key and digests that match no other run",
     ),
 )
 

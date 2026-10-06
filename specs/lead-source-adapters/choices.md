@@ -2458,3 +2458,115 @@ Gates: pytest 3683 passed and 1 skipped; ruff check src is clean; mypy is clean.
 
 - **Fixed after review (parent, test-first, red seen):** a SerpApi 200 shaped as a fully empty page whose `error` says the account ran out of searches now raises balance exhaustion, never reads as an empty page (an exhausted account must not record "no web presence"). `no_open_deals/deal_search.json` is back to unverified: its envelope matched, but its outcome is produced by the UNVERIFIED `hs_is_closed` filter, and a fixture is verified only when everything it stands for was confirmed.
 - **Known gap (needs-follow-up, open item 8):** `orchestrator.py` now reads the plan/limit env vars itself, against its docstring; a bad value aborts after the run record has started. Validate config before the run starts, together with marking a run failed when a step fails after start.
+
+### Self-review findings
+Fixed:
+- log_merges built the line (event.log_fields()) inside the try, so a builder bug was swallowed and counted as a logger failure. Moved outside the try; test-first.
+- Added tests: KeyboardInterrupt/SystemExit/CancelledError propagate; ConsoleRenderer canary over lines, merged_by, ResolvedConflict and decided_by reprs; cap order-independence on shuffled hand-built conflicts (mutation "cap sorted by something else" survived before).
+- Docstring states one line per merge, no per-run cap, by design.
+Verified unchanged: except Exception has a justified noqa BLE001 (same pattern as log_redaction.py); a narrower catch is not realistic (processor chains can raise anything); the union-wrapper edits in test_identity_exclusions/test_role_addresses only pass the new kind argument through, counts intact; decided_by survives retain_superseded (dataclasses.replace), idempotence holds; merged_by and events identical across 300 random permutations.
+Bullets: 16.12 bullet 1 (carry Match Key and resolved conflicts on the projection result, derive the line) delivered. Run-report persistence (18.x) deferred.
+Known gaps:
+- SPEC GAP (21.4): match key logged as KIND only. log_redaction.py redacts credentials only and has no mask/hash helper; no requirement or ADR approves a form. User must decide: kind-only, a keyed HMAC prefix (secret from env), or a masked form.
+- needs-follow-up: MergeLogOutcome.failed is not surfaced anywhere yet (18.x).
+- needs-follow-up: sorted() on merged_by in clustering.py is not guarded by a test (small IntEnum sets iterate sorted anyway).
+- needs-follow-up: 100k merges log 100k lines (no per-run cap).
+
+- **LEFT UNCHECKED IN tasks.md by the parent (SPEC GAP, needs-user):** the merge log, its volume cap, the failure handling and the PII canary are delivered and reviewed, but requirement 21.4 asks for the Match Key used and the log carries only its KIND, because `log_redaction.py` redacts credentials only and no requirement or ADR approves a masked or hashed form of an email or LinkedIn URL. Decide one of: kind-only (current), a keyed HMAC prefix with the secret from the environment, or a masked form. Also open: `MergeLogOutcome.failed` is not surfaced until task 18, there is no per-run cap on merge lines, and the projection took about 40 s for a 1000-candidate by 1000-path cluster (worth a performance look).
+
+## Task 16.12 (completion) — keyed HMAC Match Key digests (2026-10-06)
+
+User decision applied: Match Keys reaching logs are HMAC-SHA256 keyed digests, never values, never plain hashes.
+
+Delivered:
+- New `match_key_digest.py`: `MatchKeyDigester` (key in a slot, repr shows only `comparable_across_runs`, refuses pickle/copy/deepcopy), `match_key_digester_from_environ`. Digest = `hmac.new(secret, f"{kind_name}\x1f{normalised value}".encode(), sha256).hexdigest()[:16]`.
+- Clustering records the keys whose unions actually joined members (`IdentityCluster.linked_by`, repr=False); `ProjectionResult.linking_keys` carries them; `merge_log` logs `match_key_digests` [{kind, digest}] (cap `MAX_LOGGED_MATCH_KEYS`=20 + `match_key_digests_omitted`). `digester` is a required keyword on `merge_log_events`/`log_merges` (no unkeyed path).
+- `ingest_runner.run_ingestion` now builds the digester after config load (fails closed before any record/engine), logs one `lead_merge` line per merge after the merge persists, and records `config_snapshot["match_key_digests"]` = keyed|per_run via `StoreRunRecorder` -> `build_run_record`. Run report prints `match-key digests: keyed, comparable across runs with the same secret` / `per-run random key, not comparable across runs (set LEADFORGE_MATCH_KEY_SECRET)` / `not recorded` (unknown stored values never echoed).
+- `LEADFORGE_MATCH_KEY_SECRET` added to `env_example.BUILTIN_SETTINGS` (so `.env.example` regenerated with a comment, drift test covers it, and `log_redaction` scrubs the value as a credential).
+
+Provisional decisions:
+- Decoding: raw UTF-8 of the stripped value; >= 32 bytes (counted in UTF-8 bytes). Rejected hex/base64 (one more misconfiguration path; `openssl rand -hex 32` text = 64 bytes anyway).
+- Truncation 16 hex chars (64 bits), matching the project's only existing truncated digest (projection company id `co-` + 16). No prior match-key digest length existed.
+- Kind name bound into the HMAC input (domain separation).
+- Absent/blank secret: `secrets.token_bytes(32)` per run + ONE warning `match_key_secret_absent` (fields: variable, min_secret_bytes, comparable_across_runs=False; no key material, no PII).
+- Too short: `ConfigurationError("environment", key_path=LEADFORGE_MATCH_KEY_SECRET, detail="must be at least 32 bytes of UTF-8 text")`; never the value or its length; no chained exception.
+- "Key used" = keys whose union succeeded; a key shared by members a stronger key already joined is not listed (consistent with existing `merged_by` kinds semantics).
+- Persistence: no migration. No column stores match-key digests; `lead_identity.primary_key_type` stores the KIND only. The comparability flag lives in the existing JSON `config_snapshot` column (no schema change).
+- Merge log emitted after the merge write succeeds (a failed write logs no merges).
+
+Tests (RED recorded first: ModuleNotFoundError match_key_digest; ImportError MAX_LOGGED_MATCH_KEYS; 12 wiring tests failing): test_match_key_digest.py (new), test_merge_log.py, test_run_record.py, test_run_report.py, test_env_example.py, test_log_redaction.py, test_end_to_end_zero_credential.py; union wrappers updated in test_clustering/test_identity_exclusions/test_linkedin_cannot_link/test_role_addresses. Sentinel-secret scans over captured logs, rendered JSON lines, reprs, errors and report text.
+
+Verification: ruff format/check and mypy clean on my files; remaining ruff/mypy errors and 20 test failures are all in adapters/apollo.py and its tests (concurrent agent, untouched by me). `pytest -q` excluding the two apollo test files: 3619 passed, 1 skipped.
+
+Known gaps:
+- `cluster_id` (clustering) is a PLAIN sha256 of a contribution's canonical JSON (contains PII) and is persisted/used as lead id; it is not logged (over_merge docstring: store, never log). Not a Match Key, left as is; dictionary-testable if ever exposed. needs-user if it should become keyed (would change identity ids: migration + recompute).
+- `IdentityExclusions.version_token` is a plain sha256 of the barred emails/URLs; currently an unused seam (not logged/persisted). Should become keyed when wired.
+- `conflicts.py` stores sha256 of canonical values (design-mandated value hash, persisted); not a Match Key, untouched.
+- `MergeLogOutcome.failed` still not surfaced on the run report (18.x).
+- Secret rotation makes old digests incomparable; not recorded per run beyond keyed|per_run (no key id/fingerprint, deliberately: a fingerprint is key-derived material).
+- Note for parent: `ruff format src` in the verify command also reformats the concurrent agent's apollo files.
+
+### Self-review findings
+- (a) No plain value or unkeyed hash of a Match Key reaches logs, errors, reprs, the report, or the persisted config_snapshot. Checked with a grep for sha256/hashlib/blake across the slice. Also checked with a probe on a real keyed ingest run: a spy on digest() captured every linking key, then the captured structlog output, the report text and the IngestionRun.config_snapshot were scanned for each value, for sha256(value) and sha256(kind\x1fvalue) (full and 16-hex), and for the secret. Result: clean. The probe lived in the scratchpad and was not committed.
+- (b) The secret is in no repr, pickle, copy, error or report. The length check counts UTF-8 BYTES. An empty or blank value is treated as absent: random key plus a warning, never an empty key. A too-short value raises ConfigurationError (no cause or context, value and length not echoed) before the engine or run record exists.
+- (c) The fallback key is built per call: secrets.token_bytes runs inside match_key_digester_from_environ, which run_ingestion calls once per run. per_run reaches config_snapshot and the rendered report. Both are covered by tests.
+- (d) A 16-hex digest is 64 bits. That is enough for log correlation (collision ~2^-32 at 2^16 keys per run); recorded, no change.
+- (e) cluster_id is a sha256 of the whole canonical JSON of the anchor contribution (source, fetched_at, all fields), not of a Match Key alone. It is not logged, printed or persisted in its own column. It is held in OverMergeReport (repr=False, never persisted) and feeds projection._lead_company_id = "co-" + sha256("no-domain\x1f" + cluster_id)[:16], which is persisted in CanonicalLeadRow.employments for domainless leads. That is a brute-force-hard pseudonym rather than a dictionary hash, and it falls outside 16.12 (match-key exposure). Recorded, not fixed. IdentityExclusions.version_token (plain sha256 over "kind\x1fvalue" entries; dictionary-attackable for a 1-entry set) has NO production caller (only a docstring mention in exclusion_settings). Not exposed. Key it or keep it unexposed when 8.13 wires it.
+- (f) The warning match_key_secret_absent carries only variable, min_secret_bytes and comparable_across_runs (tested by exact key set). No key material, no personal data.
+- (g) Mutation check (files restored, sha256-verified): plain sha256, char-count length, module-global key, always "keyed", no cap, sort order, no strip, and dropping the LinkedIn or email value were all killed. One SURVIVOR: passing None for the NAME_DOMAIN value in clustering._link_name_domain (name-domain merges would log no digest). Fixed by adding test_clustering::test_a_name_domain_merge_records_the_name_domain_key_that_linked_it, which kills it.
+- Skipped / recorded: log_redaction.configure_logging has no production caller, so the claim in the docstring that log_redaction also scrubs the variable holds only once logging is wired (pre-existing, not 16.12). MergeLogOutcome.failed is not surfaced (already noted, 18.x).
+- Verification: pytest (apollo files ignored) 3620 passed / 1 skipped; apollo files run separately 126 passed; ruff check and format clean on touched files; mypy clean (170 files).
+
+- **Known gaps (needs-follow-up):** `configure_logging` is never called by the CLI, so the structlog redaction processor is not wired in production (fix next). `cluster_id` hashes a whole contribution with plain sha256 and is persisted indirectly as a domainless `company_id`; never logged or printed; out of 16.12 scope, recorded for follow-up. `IdentityExclusions.version_token` has no production caller.
+
+## Follow-up — Apollo enriches persons from other sources (2026-10-06)
+
+User decision (verbatim): "can't we use either source to enhance information from other sources? linkedin and apollo are the most relevant but can't we use other search methods/terms if an apollo id isn't found to find the company/person?"
+
+Files: src/leadforge/lead_ingestion/adapters/apollo.py (ladder, cache, attach, confidence; module doc "Lookup ladder"), tests/adapters/test_apollo_enrich_other_sources.py (new, 20 tests incl. 5 end-to-end through IngestionOrchestrator + cluster_contributions + project_lead), tests/adapters/test_apollo_source.py (fixture provenance now heuristic 0.9, was origin none).
+
+TDD evidence: RED 1 = ImportError RUNG_CONFIDENCE (scratchpad/apollo-red.txt); RED 2 = 19 failed / 1 passed (apollo-red2.txt); fixture test red after its assertion change. GREEN: 20 passed; full suite 3744 passed, 1 skipped; ruff format, ruff check, mypy clean.
+
+Provisional decisions:
+- Ladder per person, stop at first hit (climb only on match_confidence none): id (own, or the id an Apollo record with the same LinkedIn identity carries) -> linkedin_url -> email -> first_name+last_name+domain (registrable) else organization_name. Endpoint unchanged: POST /api/v1/people/match, already allowlisted read-only; no new endpoint, denylist untouched.
+- Params relied on: id, linkedin_url, email, first_name, last_name, domain, organization_name (findings A9: Apollo CLI + enrichment docs). UNVERIFIED: sending them as query params of the POST (same open question as A5); linkedin_url is grade [A] (CLI) only.
+- Cache key = normalised lookup (id; LinkedIn identity; lowercased address; casefolded name|domain or name|org). `matches` lists each lookup once, so credits_in = real billed calls.
+- Anchor/echo (asked.*): LinkedIn URL; else verified address + email_status verified; else name+domain only if the requester has a title or employer; else not asked (apollo_enrich_unattachable, count), except Apollo's own id records (unchanged behaviour, no echo).
+- Field Confidence mapping (origin heuristic, ours): id 0.9, linkedin_url 0.9, email 0.9, name_domain 0.6, name_organization 0.5. Echo fields stay origin none. Supersedes "match fields carry origin none".
+- Weak hit (name rung or name anchor) contributes no linkedin_url / email / email_status (Match Keys would split it from the bare requester or bridge two people).
+- Discard (no attach): answer LinkedIn differs from the requester LinkedIn (linkedin_mismatch); name-anchor answer sharing no title/employer (uncorroborated). A discard ends the ladder (the credit was spent and is counted).
+- Ambiguous: a lookup asked for 2+ distinguishable people (distinct LinkedIn identities, none counts as one) is not asked (apollo_match_ambiguous, count). people/match returns one person, so candidate multiplicity is only visible this way.
+- Logs: rung + reason only; a lookup value is logged only for Apollo ids.
+
+Known gaps:
+- The orchestrator hands Apollo only the (pruned) Discovery work list. HubSpot and Hunter are enrich-only and GoogleSearch emits no person.* paths, so in a real run no HubSpot/Hunter/Google person reaches Apollo yet. The tests use stand-in Discovery sources ("crm"). Feeding earlier tiers' persons forward is an orchestrator / ADR-0002 change, not made here.
+- Email anchor needs the requester's address verified (8.11); otherwise the person falls to the name anchor or is unattachable.
+- The name+company-name rung can only attach through a LinkedIn or verified-email anchor (no domain, no name key).
+- Confidence numbers are an ordering, not calibrated.
+- spec-refactor-agent and validate-production-agent not spawned (no Agent tool available to this subagent).
+- `ruff format src` ran while another agent had uncommitted edits (merge_log, match-key digest); it passed, but any reformat it made to their files was not reviewed by me.
+
+### Self-review findings
+
+Independent spec-refactor review, 2026-10-06. Evidence from this run: full suite 3746 passed, 1 skipped (no failures, HMAC files included); `ruff check src` clean; mypy clean (170 files).
+
+- (a) Confirmed. `orchestrator.run` builds `work_list` with `enrichment_work_list(...)`, which reads only `Phase.DISCOVERY` results. After each tier it only *prunes* the list with that tier's contributions and never adds them. SEARCH-capable sources: Apollo and GoogleSearch. GoogleSearch RULES map only evidence paths, never `person.*`. HubSpot and Hunter are ENRICH-only. So in a real run every person Apollo sees is Apollo's own. Minimal change (not made here): in the tier loop, before pruning, extend the list with the finished tier's person-bearing contributions, for example `work_list = prune_flagged((*work_list, *tier_people), reports)`. This is an ADR-0002 / 6.9 "work list is Discovery-only" change and needs a recorded decision.
+- (b) Probes:
+  - Two LinkedIn spellings give one call and one credit, and the answer reaches both records.
+  - A mixed-case or padded email gives one call.
+  - A retry re-calls only the failed lookup.
+  - `credits_in` equals the number of billed calls.
+  - GAP (confirmed): one person whose records carry disjoint keys (LinkedIn only and email only) is billed twice. Apollo's first answer carries the second key, but it is not used to answer the second lookup from the cache. Optimisation and design call; not fixed.
+- (c) What counts as ambiguous: the set of LinkedIn identities asking one lookup, with "no LinkedIn" counting as one member. Consequence (confirmed): a record with only a verified email plus a LinkedIn record sharing the same verified email make that email lookup ambiguous. Both lose the email rung, even though 8.2 treats them as one person. Over-conservative; design call; flagged.
+  - A LinkedIn conflict on any rung is discarded.
+  - An EMAIL conflict on a name hit is NOT discarded. Apollo's differing verified address is dropped, but its title, name and company attach to the requester. The spec has no email cannot-link (8.11 only restricts unverified addresses), so this needs a decision; not fixed.
+- (d) OK. The endpoint is unchanged, `apollo:/api/v1/people/match` is already on the read-only allowlists in the tests (those files are unmodified), and the POST query-param encoding is marked UNVERIFIED in the module doc.
+- (e) OK. Logs carry counts, rungs and reasons; a lookup value is logged only for an Apollo id. `_Lookup`/`_Asker` reprs hold PII but are never logged. Lookup and echo values are persisted in the raw batch (`matches[].lookup`, `attach[].asked`). That is requester PII, the same class as the response emails already persisted.
+- (f) The confidence numbers sit in one table, `RUNG_CONFIDENCE`. There is no existing heuristic scale in the repo to reuse, so the numbers are ours and uncalibrated. Origin `heuristic` is permitted by D5 / 1.8 (labelled, outranked by provider_stated).
+  - The id-hit move none -> 0.9 is needed for coherence: otherwise an id hit (origin none) would rank below a name hit (heuristic 0.6) in `conflicts.py` order.
+  - It contradicts the recorded 12.2 decision (choices.md "Field Confidence stays origin none for every field"). Mark that entry superseded when this ledger merges into choices.md.
+  - That decision's objection (per-record certainty applied per field) applies equally to the rung number.
+- (g) Mutation check, 17 mutants against the source. 16 were killed. 1 survived: the LinkedIn cache key using the raw URL instead of the identity. Added `test_two_spellings_of_one_linkedin_profile_are_asked_once`, which kills it. apollo.py restored byte-identical (sha256 OK).
+
+- **Supersedes (user-visible decision record):** the earlier choice that Apollo own-id hits carry confidence origin `none` is superseded: id hits now carry 0.9 so they never rank below name+domain hits (0.6).
+- **Known gaps (needs-follow-up):** in a real run only Apollo-discovered persons reach Apollo: the work list is built from Discovery output and later tiers only prune it (ADR-0002); the fix is the bounded second enrichment pass (open item 6). One person seen as a LinkedIn-only record and an email-only record is looked up twice (two credits).

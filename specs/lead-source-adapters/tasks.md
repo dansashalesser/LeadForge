@@ -522,7 +522,7 @@ task = one commit.
   - Blocked on 16.10
   - _Requirements: 8.18_
 
-- [ ] 16.12 Log the Match Key and resolved conflicts per merge
+- [x] 16.12 Log the Match Key and resolved conflicts per merge
   - Carry the Match Key used and the fields whose conflicts were resolved on the projection result, so the log line is derived rather than hand-assembled
   - Blocked on 16.5
   - _Requirements: 21.4_

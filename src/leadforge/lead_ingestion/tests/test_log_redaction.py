@@ -574,3 +574,12 @@ def test_secret_in_a_chained_exception_cause_is_scrubbed() -> None:
         out = r(None, "error", _event(exc_info=outer))
     assert SECRET not in repr(out)
     assert "RuntimeError" in out["exception"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.3
+def test_the_match_key_secret_is_a_redacted_credential() -> None:
+    sentinel = "match-key-sentinel-" + "q" * 32
+    names = credential_manifest(SourceRegistry.discover())
+    assert "LEADFORGE_MATCH_KEY_SECRET" in names
+    found = secrets_from_environ({"LEADFORGE_MATCH_KEY_SECRET": sentinel}, names)
+    assert found == (sentinel,)

@@ -340,10 +340,14 @@ def test_large_bridged_input_stays_near_linear(
     real_union, real_find = clustering._UnionFind.union, clustering._UnionFind.find
 
     def counting_union(
-        self: Any, a: int, b: int, kind: MatchKeyKind | None = None
+        self: Any,
+        a: int,
+        b: int,
+        kind: MatchKeyKind | None = None,
+        value: str | None = None,
     ) -> None:
         calls["union"] += 1
-        real_union(self, a, b, kind)
+        real_union(self, a, b, kind, value)
 
     def counting_find(self: Any, a: int) -> int:
         calls["find"] += 1

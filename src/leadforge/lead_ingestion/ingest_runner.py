@@ -27,6 +27,12 @@ Provisional decisions (see choices.md, task 20):
   is not wired (16.6).
 * The exit code is ``map_run_exit`` over the orchestrator's results only: whether the
   merge persisted anything does not change it (6.4, 6.5).
+* Merge log (task 16.12 completion, 21.4): the Match Key digester is built from the
+  environment with the rest of the configuration, so a too-short
+  ``LEADFORGE_MATCH_KEY_SECRET`` fails the run before any record or source; an absent
+  one gives a per-run key, one warning, and ``per_run`` in the run record and report.
+  One ``lead_merge`` line per merge is logged after the merge has persisted; the
+  logger-failure count (``MergeLogOutcome.failed``) is not surfaced yet (18.x).
 """
 
 from __future__ import annotations
@@ -53,6 +59,8 @@ from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.env_file import load_env_file_into_process
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.exclusion_settings import load_identity_exclusions
+from leadforge.lead_ingestion.match_key_digest import match_key_digester_from_environ
+from leadforge.lead_ingestion.merge_log import log_merges
 from leadforge.lead_ingestion.mode_resolution import ModeResolution, resolve_data_mode
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import (
@@ -188,12 +196,19 @@ async def run_ingestion(
     profile = _read_profile(registry, target_profile_path)
     exclusions = load_identity_exclusions(exclusions_path)
     global_mode = _global_mode()
+    digester = match_key_digester_from_environ(os.environ)
 
     engine = create_store_engine()
     try:
         upgrade_to_head(engine.url.render_as_string(hide_password=False))
         writer = StoreWriter(engine)
-        recorder = _RememberRunId(StoreRunRecorder(writer, global_mode=global_mode))
+        recorder = _RememberRunId(
+            StoreRunRecorder(
+                writer,
+                global_mode=global_mode,
+                match_key_digests_comparable=digester.comparable_across_runs,
+            )
+        )
 
         def resolve(
             source_class: type[BaseLeadSource], settings: SourceSettings
@@ -263,6 +278,7 @@ async def run_ingestion(
                 retention=RetentionPolicy(),
             )
         )
+        log_merges((result for _, result in merged), digester=digester)
         with Session(engine) as session:
             report_text = render_run_report(build_run_report(session, run_id))
         return IngestionOutcome(

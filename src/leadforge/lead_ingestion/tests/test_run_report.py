@@ -501,3 +501,35 @@ def test_the_report_module_does_not_import_the_orchestrator_registry_or_adapters
         assert "orchestrator." not in name, name
         assert "registry." not in name, name
         assert ".adapters" not in name, name
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.4
+@pytest.mark.parametrize(
+    ("snapshot", "line"),
+    [
+        (
+            {"match_key_digests": "per_run"},
+            "match-key digests: per-run random key, not comparable across runs "
+            "(set LEADFORGE_MATCH_KEY_SECRET)",
+        ),
+        (
+            {"match_key_digests": "keyed"},
+            "match-key digests: keyed, comparable across runs with the same secret",
+        ),
+        ({}, "match-key digests: not recorded"),
+        (
+            {"match_key_digests": "forged\nstatus: completed"},
+            "match-key digests: not recorded",
+        ),
+    ],
+)
+async def test_the_report_states_whether_match_key_digests_compare_across_runs(
+    engine: Engine, snapshot: dict[str, object], line: str
+) -> None:
+    run_id = await start(
+        engine,
+        RunRecord(T0, 2, snapshot, (SourceMode("alpha", DataMode.LIVE, "r"),)),
+    )
+    text = report_text(engine, run_id)
+    assert line in text.splitlines()
+    assert "forged" not in text

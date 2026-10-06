@@ -15,20 +15,20 @@ Apollo's data, so it is a read-only ``Endpoint``. There is no webhook or phone p
 Provisional decisions (see choices.md, task 12.2):
 
 * A request is told apart by type: an ``EnrichmentRequest`` runs match calls, any
-  other request runs the Discovery search. Match runs only for work-list leads that
-  carry this adapter's own ``person.provider_id`` (sent as ``id``); a lead from
-  another source, or without an id, is not called, so no credit is spent on it.
-  One call per distinct id.
+  other request runs the Discovery search. (Superseded 2026-10-06: match now runs for
+  people from any source, see "Lookup ladder" below.)
 * Cost declarations: PAID, PER_LEAD, no Suppression yield (match returns no opt-out
   flag). Discovery stays free; the declaration describes the adapter's Enrichment tier.
-* The raw batch for Enrichment is ``{"matches": [{"lookup", "response"}]}``, each
-  response verbatim, so a no-match outcome stays in the persisted evidence.
+* The raw batch for Enrichment is ``{"matches": [{"lookup", "rung", "response"}],
+  "attach": [{"lookup", "rung", "anchor", "asked", "corroborate"}]}``: one match per
+  distinct lookup actually asked (verbatim, so a no-match stays in the persisted
+  evidence) and one attachment per hit and requester identity.
   ``credits_in(batch)`` derives the credit count from it (a pure function: there is
   no run-record channel yet). A no-match is also logged as ``apollo_no_match``.
 * ``match_confidence`` is a closed set (high, medium, low, none); anything else, or a
   non-none match without a person, is a ``NormalizationError``, never a silent bill.
-* ``match_confidence`` is per record, not per field, so every field's Field Confidence
-  origin stays ``none``; mapping high/medium/low to numbers would be invention.
+* ``match_confidence`` is per record, not per field, and is not mapped to numbers
+  (that would be invention). The Field Confidence is ours instead: see the ladder.
 * No Negative Evidence is emitted for match: no field question is declared as queried.
 
 Provisional decisions (see choices.md, task 12.1):
@@ -50,6 +50,44 @@ Provisional decisions (see choices.md, task 12.1):
   Apollo's published list; the snapshot date below is the stand-in's date.
 * Warnings go to the structured log; there is no run-record warning channel yet.
 
+Lookup ladder (follow-up, user decision 2026-10-06: Apollo enriches people other
+sources found, by other search terms when no Apollo id is known):
+
+* Each work-list person, from any source, is asked by the first rung it has and climbs
+  on a ``none`` answer only, stopping at the first hit: (1) the Apollo id (its own
+  record's, or the one an Apollo record with the same LinkedIn identity carries), (2)
+  ``linkedin_url``, (3) ``email``, (4) ``first_name`` + ``last_name`` + ``domain``
+  (registrable), else ``organization_name`` when there is no domain. Parameter names
+  are those Apollo's own CLI sends to people/match and its enrichment docs name
+  (live-docs-findings A9); sending them as query parameters of the POST, as the id
+  already was, is UNVERIFIED (A5 is the same open question for search). A masked or
+  blank name (any ``*``) is never a term.
+* Per-run cache keyed by the normalised lookup (id; LinkedIn identity; lowercased
+  address; casefolded name with domain or company name): duplicates and a retried
+  fetch never ask twice. ``matches`` lists each lookup once, so ``credits_in`` counts
+  real billed calls.
+* The answer carries the requester's identity at ``asked.*`` (``REQUEST_ECHO_PREFIX``)
+  so the normal Match Keys put it on that person, and the echo never corroborates. The
+  anchor is the requester's strongest key: its LinkedIn URL; else its verified address
+  (with ``email_status`` verified); else name + domain, only when it has a title or
+  employer for 8.3's corroboration; else (not Apollo's own record) the person is NOT
+  asked (``apollo_enrich_unattachable``, a count): no answer could reach it.
+* Field Confidence is origin ``heuristic`` on every field Apollo observed, by the rung
+  that hit (``RUNG_CONFIDENCE``): id, LinkedIn, email 0.9; name + domain 0.6; name +
+  company name 0.5. Echoed fields keep origin ``none``. Numbers are ours, provisional.
+* A weak hit (a name rung, or a name anchor) contributes no LinkedIn URL, address or
+  address status from Apollo: those are Match Keys, and a name-only match would split
+  the answer from its bare requester (8.3) or bridge two people. The raw answer keeps
+  them as evidence.
+* Not attached: an answer whose LinkedIn identity differs from the requester's
+  (cannot-link; ``apollo_match_discarded`` reason ``linkedin_mismatch``); a name-anchor
+  answer whose title and employer both differ from the requester's (reason
+  ``uncorroborated``); and any lookup asked on behalf of two distinguishable people
+  (distinct LinkedIn identities, none counting as one more), which is not asked at all
+  (``apollo_match_ambiguous``, a count). People/match returns one person, so "several
+  candidates" is only visible this way. A discard ends that person's ladder.
+* Logs name a rung and a reason, never a lookup value, except an Apollo id.
+
 Rate limits (follow-up, 2026-10-06; supersedes the single 600-per-hour bucket):
 
 * Apollo's limits depend on the plan and are per minute, per hour and per day, ANDed
@@ -68,9 +106,11 @@ Rate limits (follow-up, 2026-10-06; supersedes the single 600-per-hour bucket):
 
 import csv
 import io
+import json
 import os
 import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
@@ -101,7 +141,22 @@ from leadforge.lead_ingestion.errors import (
     SourceRateLimited,
     SourceUnauthorized,
 )
-from leadforge.lead_ingestion.models import DataMode
+from leadforge.lead_ingestion.match_keys import (
+    MatchKeyKind,
+    MatchKeys,
+    extract_match_keys,
+    linkedin_identity,
+    normalize_linkedin_url,
+    registrable_domains,
+)
+from leadforge.lead_ingestion.models import (
+    REQUEST_ECHO_PREFIX,
+    ConfidenceOrigin,
+    DataMode,
+    EmailStatus,
+    FieldProvenance,
+    UntrustedText,
+)
 from leadforge.lead_ingestion.normalizer import (
     FieldRule,
     NormalizationContext,
@@ -119,6 +174,7 @@ __all__ = [
     "MAX_PAGE",
     "MAX_PER_PAGE",
     "PLAN_ENV",
+    "RUNG_CONFIDENCE",
     "ApolloSource",
     "credits_in",
     "plan_rate_limit",
@@ -183,6 +239,15 @@ def plan_rate_limit(plan: str) -> Mapping[str, RateBucket]:
         _MATCH.bucket: _bucket(_MATCH.bucket, match),
     }
 
+
+# Field Confidence (origin heuristic) of an answer, by the rung that found it.
+RUNG_CONFIDENCE: Mapping[str, float] = {
+    "id": 0.9,
+    "linkedin_url": 0.9,
+    "email": 0.9,
+    "name_domain": 0.6,
+    "name_organization": 0.5,
+}
 
 _ID_PATH = "person.provider_id"
 _NO_MATCH = "none"
@@ -347,6 +412,8 @@ class ApolloSource(BaseLeadSource):
         self._environ = environ
         # Answers already paid for this run: a retried fetch must not buy them again.
         self._matched: dict[str, Mapping[str, Any]] = {}
+        # LinkedIn identities (None: none) that asked each lookup, across fetches.
+        self._asked_for: dict[str, set[str | None]] = {}
         self._allowances: dict[str, int] = {}
         self._uids = _uids_of(
             self.target_vocabulary if vocabulary is None else vocabulary
@@ -461,22 +528,50 @@ class ApolloSource(BaseLeadSource):
         return found
 
     async def _enrich(self, request: EnrichmentRequest) -> RawBatch:
-        """One ``people/match`` call per distinct Apollo id on the work list."""
-        ids = _apollo_ids(self.name, request.work_list)
-        matches: list[Mapping[str, Any]] = []
-        if ids:
-            headers = self._headers()
-            for lookup in ids:
-                if lookup not in self._matched:
-                    self._matched[lookup] = await self._match(lookup, headers)
-                matches.append({"lookup": lookup, "response": self._matched[lookup]})
-        return RawBatch(source_name=self.name, payload={"matches": matches})
+        """Each person climbs the lookup ladder once, stopping at the first hit."""
+        askers, unattachable = _plan(self.name, request.work_list)
+        if unattachable:
+            _log.info("apollo_enrich_unattachable", persons=unattachable)
+        for asker in askers:
+            for lookup in asker.ladder:
+                self._asked_for.setdefault(lookup.key, set()).add(asker.identity)
+        matches: dict[str, Mapping[str, Any]] = {}
+        attach: dict[str, Mapping[str, Any]] = {}
+        ambiguous: set[str] = set()
+        headers = self._headers() if askers else {}
+        for asker in askers:
+            for lookup in asker.ladder:
+                if len(self._asked_for[lookup.key]) > 1:
+                    ambiguous.add(lookup.key)  # one answer cannot fit two people
+                    break
+                if lookup.key not in self._matched:
+                    self._matched[lookup.key] = await self._match(
+                        lookup.params, headers
+                    )
+                response = self._matched[lookup.key]
+                matches.setdefault(
+                    lookup.key,
+                    {"lookup": lookup.key, "rung": lookup.rung, "response": response},
+                )
+                if response.get("match_confidence") != _NO_MATCH:
+                    entry = asker.attachment(lookup)
+                    attach.setdefault(json.dumps(entry, sort_keys=True), entry)
+                    break
+        if ambiguous:
+            _log.warning("apollo_match_ambiguous", lookups=len(ambiguous))
+        return RawBatch(
+            source_name=self.name,
+            payload={
+                "matches": list(matches.values()),
+                "attach": list(attach.values()),
+            },
+        )
 
     async def _match(
-        self, lookup: str, headers: Mapping[str, str]
+        self, params: Mapping[str, str], headers: Mapping[str, str]
     ) -> Mapping[str, Any]:
         response = await self._send(
-            _MATCH, params={"id": lookup}, json_body=None, headers=headers
+            _MATCH, params=params, json_body=None, headers=headers
         )
         if not isinstance(response.body, Mapping):
             raise NormalizationError(
@@ -562,17 +657,69 @@ class ApolloSource(BaseLeadSource):
             answerable_surfaces=self.answerable_surfaces,
         )
         normalizer = Normalizer()
-        contributions: list[LeadContribution] = []
-        for lookup, response in _match_entries(self.name, raw):
+        responses: dict[str, Mapping[str, object]] = {}
+        for lookup, rung, response in _match_entries(self.name, raw):
             if response["match_confidence"] == _NO_MATCH:
-                _log.info("apollo_no_match", lookup=lookup)
+                # An Apollo id is a pseudonymous provider id; every other lookup is
+                # personal data, so only its rung is logged.
+                named = {"lookup": lookup} if rung == "id" else {}
+                _log.info("apollo_no_match", rung=rung, **named)
                 continue
             if response.get("person") is None:
                 raise NormalizationError(
                     self.name, raw_field_path="person", canonical_path="<unmapped>"
                 )
-            contributions.append(normalizer.apply(response, self.MATCH_RULES, context))
+            responses[lookup] = response
+        contributions: list[LeadContribution] = []
+        for entry in _attach_entries(self.name, raw):
+            hit = responses.get(entry.lookup)
+            if hit is None:
+                raise NormalizationError(
+                    self.name, raw_field_path="attach", canonical_path="<unmapped>"
+                )
+            found = self._attached(entry, hit, normalizer, context)
+            if found is not None:
+                contributions.append(found)
         return contributions
+
+    def _attached(
+        self,
+        entry: "_Attachment",
+        response: Mapping[str, object],
+        normalizer: Normalizer,
+        context: NormalizationContext,
+    ) -> LeadContribution | None:
+        """The answer as a contribution on the requester, or None when it cannot be."""
+        person = response["person"]
+        theirs = person.get("linkedin_url") if isinstance(person, Mapping) else None
+        mine = normalize_linkedin_url(entry.asked.get("linkedin_url"))
+        if (
+            mine is not None
+            and isinstance(theirs, str)
+            and normalize_linkedin_url(theirs) not in (None, mine)
+        ):
+            # Cannot-link: a different LinkedIn profile is a different person.
+            _log.info("apollo_match_discarded", rung=entry.rung, reason=_MISMATCH)
+            return None
+        weak = entry.rung not in _STRONG_RUNGS or entry.anchor == _NAME_ANCHOR
+        echoed = {
+            rule.canonical_path for rule in _ASKED_RULES if rule.key in entry.asked
+        }
+        rules = [
+            rule
+            for rule in self.MATCH_RULES
+            if rule.canonical_path not in echoed
+            and not (weak and rule.canonical_path in _IDENTITY_PATHS)
+        ] + [rule.rule for rule in _ASKED_RULES if rule.key in entry.asked]
+        contribution = normalizer.apply(
+            {**response, _ECHO_KEY: dict(entry.asked)}, rules, context
+        )
+        if entry.anchor == _NAME_ANCHOR and not _corroborated(
+            self.name, contribution, entry.corroborate
+        ):
+            _log.info("apollo_match_discarded", rung=entry.rung, reason=_UNCORROBORATED)
+            return None
+        return _with_rung_confidence(contribution, entry.rung)
 
 
 def _error_code(body: object) -> str | None:
@@ -595,35 +742,46 @@ def _allowances_in(headers: Mapping[str, str]) -> dict[str, int]:
 
 
 def credits_in(batch: RawBatch) -> int:
-    """Credits an Enrichment batch spent: one per match, none for ``none`` (12.9)."""
+    """Credits an Enrichment batch spent: one per real match, none for ``none`` (12.9).
+
+    ``matches`` holds one entry per distinct lookup, so a cached answer shared by
+    several people, or reused by a retried fetch, counts once.
+    """
     return sum(
         1
-        for _, response in _match_entries(batch.source_name, batch)
+        for _, _, response in _match_entries(batch.source_name, batch)
         if response["match_confidence"] != _NO_MATCH
     )
 
 
 def _match_entries(
     provider: str, batch: RawBatch
-) -> list[tuple[str, Mapping[str, object]]]:
-    """Each ``(lookup, response)`` of an Enrichment batch, the response validated."""
+) -> list[tuple[str, str, Mapping[str, object]]]:
+    """Each ``(lookup, rung, response)`` of an Enrichment batch, response validated."""
     payload = batch.payload
     entries = payload.get("matches") if isinstance(payload, Mapping) else None
     if not isinstance(entries, list):
         raise NormalizationError(
             provider, raw_field_path="matches", canonical_path="<unmapped>"
         )
-    checked: list[tuple[str, Mapping[str, object]]] = []
+    checked: list[tuple[str, str, Mapping[str, object]]] = []
     for entry in entries:
         lookup = entry.get("lookup") if isinstance(entry, Mapping) else None
+        rung = entry.get("rung", "id") if isinstance(entry, Mapping) else None
         response = entry.get("response") if isinstance(entry, Mapping) else None
-        if not isinstance(lookup, str) or not isinstance(response, Mapping):
+        if (
+            not isinstance(lookup, str)
+            or not isinstance(rung, str)
+            or rung not in RUNG_CONFIDENCE
+            or not isinstance(response, Mapping)
+        ):
             raise NormalizationError(
                 provider, raw_field_path="matches", canonical_path="<unmapped>"
             )
         checked.append(
             (
                 lookup,
+                rung,
                 validate_raw_payload(
                     provider, _Match, response, ApolloSource.MATCH_RULES
                 ),
@@ -632,18 +790,335 @@ def _match_entries(
     return checked
 
 
-def _apollo_ids(provider: str, work_list: tuple[LeadContribution, ...]) -> list[str]:
-    """Distinct Apollo person ids of the work list's own leads, in work-list order."""
-    ids: dict[str, None] = {}
-    for contribution in work_list:
-        value = contribution.values.get(_ID_PATH)
+# --- the lookup ladder (follow-up, user decision 2026-10-06) -------------------------
+
+_STRONG_RUNGS = frozenset({"id", "linkedin_url", "email"})
+# Fields that are Match Keys: a weak answer must not give the person a new one.
+_IDENTITY_PATHS = frozenset(
+    {"person.linkedin_url", "person.email", "person.email_status"}
+)
+_ECHO_KEY = REQUEST_ECHO_PREFIX.rstrip(".")
+_OWN_ANCHOR = "own"
+_NAME_ANCHOR = "name"
+_ANCHORS = frozenset({_OWN_ANCHOR, "linkedin_url", "email", _NAME_ANCHOR})
+_MISMATCH = "linkedin_mismatch"
+_UNCORROBORATED = "uncorroborated"
+_MAX_NAME_LENGTH = 100
+_MAX_ORGANIZATION_LENGTH = 200
+_MAX_ADDRESS_LENGTH = 254
+_ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
+@dataclass(frozen=True)
+class _Asked:
+    """One echo field: the requester's value at ``asked.<key>``, never Apollo's."""
+
+    key: str
+    canonical_path: str
+    untrusted: bool = False
+
+    @property
+    def rule(self) -> FieldRule:
+        return FieldRule(
+            self.canonical_path, f"{REQUEST_ECHO_PREFIX}{self.key}", self.untrusted
+        )
+
+
+_ASKED_RULES = (
+    _Asked("linkedin_url", "person.linkedin_url"),
+    _Asked("email", "person.email"),
+    _Asked("email_status", "person.email_status"),
+    _Asked("first_name", "person.first_name", untrusted=True),
+    _Asked("last_name", "person.last_name", untrusted=True),
+    _Asked("domain", "company.domain"),
+)
+_ASKED_KEYS = frozenset(rule.key for rule in _ASKED_RULES)
+
+
+@dataclass(frozen=True)
+class _Lookup:
+    """One ``people/match`` question; ``key`` is the per-run cache key."""
+
+    key: str
+    rung: str
+    params: Mapping[str, str]
+
+
+@dataclass(frozen=True)
+class _Attachment:
+    """How a hit is put on its requester: the rung, the anchor and the echo."""
+
+    lookup: str
+    rung: str
+    anchor: str
+    asked: Mapping[str, str]
+    corroborate: frozenset[str]
+
+
+@dataclass(frozen=True)
+class _Asker:
+    """One work-list person: the ladder and the identity an answer must carry."""
+
+    ladder: tuple[_Lookup, ...]
+    anchor: str
+    asked: Mapping[str, str]
+    identity: str | None  # the requester's normalised LinkedIn identity
+    corroborate: tuple[str, ...]
+
+    def attachment(self, lookup: _Lookup) -> dict[str, Any]:
+        return {
+            "lookup": lookup.key,
+            "rung": lookup.rung,
+            "anchor": self.anchor,
+            "asked": dict(self.asked),
+            "corroborate": list(self.corroborate),
+        }
+
+
+def _attach_entries(provider: str, batch: RawBatch) -> list[_Attachment]:
+    payload = batch.payload
+    entries = payload.get("attach") if isinstance(payload, Mapping) else None
+    if not isinstance(entries, list):
+        raise NormalizationError(
+            provider, raw_field_path="attach", canonical_path="<unmapped>"
+        )
+    checked: list[_Attachment] = []
+    for entry in entries:
+        item = entry if isinstance(entry, Mapping) else {}
+        lookup, rung, anchor = item.get("lookup"), item.get("rung"), item.get("anchor")
+        asked, corroborate = item.get("asked"), item.get("corroborate")
         if (
-            contribution.source_name == provider
-            and isinstance(value, str)
-            and value.strip()
+            not isinstance(lookup, str)
+            or not isinstance(rung, str)
+            or rung not in RUNG_CONFIDENCE
+            or not isinstance(anchor, str)
+            or anchor not in _ANCHORS
+            or not isinstance(asked, Mapping)
+            or not set(asked) <= _ASKED_KEYS
+            or not all(isinstance(v, str) for v in asked.values())
+            or not isinstance(corroborate, list)
+            or not all(isinstance(v, str) for v in corroborate)
         ):
-            ids[value] = None
-    return list(ids)
+            raise NormalizationError(
+                provider, raw_field_path="attach", canonical_path="<unmapped>"
+            )
+        checked.append(
+            _Attachment(lookup, rung, anchor, dict(asked), frozenset(corroborate))
+        )
+    return checked
+
+
+def _corroborated(
+    provider: str, contribution: LeadContribution, requester: frozenset[str]
+) -> bool:
+    """8.3's further gate: Apollo's own title or employer equals the requester's."""
+    keys = _keys_of(provider, contribution)
+    found = {f"title:{t}" for t in keys.titles} | {
+        f"employer:{e}" for e in keys.employers
+    }
+    return bool(found & requester)
+
+
+def _with_rung_confidence(
+    contribution: LeadContribution, rung: str
+) -> LeadContribution:
+    """Our certainty of the identity, by rung, on every field Apollo observed."""
+    provenance = tuple(
+        record
+        if record.raw_field_path.startswith(REQUEST_ECHO_PREFIX)
+        else FieldProvenance.model_validate(
+            {
+                **record.model_dump(),
+                "confidence_origin": ConfidenceOrigin.HEURISTIC,
+                "confidence": RUNG_CONFIDENCE[rung],
+            }
+        )
+        for record in contribution.provenance
+    )
+    return contribution.model_copy(update={"provenance": provenance})
+
+
+def _plan(
+    provider: str, work_list: tuple[LeadContribution, ...]
+) -> tuple[list[_Asker], int]:
+    """Who to ask about, and how; plus the count of people no answer could reach."""
+    own_ids: dict[str, str] = {}
+    for contribution in work_list:
+        own = _own_id(provider, contribution)
+        identity, _ = _linkedin_of(provider, contribution)
+        if own is not None and identity is not None:
+            own_ids.setdefault(identity, own)
+    askers: list[_Asker] = []
+    unattachable = 0
+    for contribution in work_list:
+        ladder = _ladder(provider, contribution, own_ids)
+        if not ladder:
+            continue
+        asker = _asker(provider, contribution, ladder)
+        if asker is None:
+            unattachable += 1
+        else:
+            askers.append(asker)
+    return askers, unattachable
+
+
+def _ladder(
+    provider: str, contribution: LeadContribution, own_ids: Mapping[str, str]
+) -> tuple[_Lookup, ...]:
+    """The person's lookups, strongest first: id, LinkedIn, email, name."""
+    values = contribution.values
+    identity, url = _linkedin_of(provider, contribution)
+    known = _own_id(provider, contribution) or (
+        own_ids.get(identity) if identity else None
+    )
+    ladder: list[_Lookup] = []
+    if known is not None:
+        ladder.append(_Lookup(known, "id", {"id": known}))
+    if identity is not None and url is not None:
+        ladder.append(
+            _Lookup(f"linkedin_url:{identity}", "linkedin_url", {"linkedin_url": url})
+        )
+    address = _address_of(provider, contribution)
+    if address is not None:
+        ladder.append(_Lookup(f"email:{address}", "email", {"email": address}))
+    first = _term(values.get("person.first_name"), _MAX_NAME_LENGTH)
+    last = _term(values.get("person.last_name"), _MAX_NAME_LENGTH)
+    if first is not None and last is not None:
+        named = f"{first.casefold()}|{last.casefold()}"
+        domains = _domains_of(provider, contribution)
+        organization = _term(values.get("company.name"), _MAX_ORGANIZATION_LENGTH)
+        if domains:
+            ladder.append(
+                _Lookup(
+                    f"name_domain:{named}|{domains[0]}",
+                    "name_domain",
+                    {"first_name": first, "last_name": last, "domain": domains[0]},
+                )
+            )
+        elif organization is not None:
+            ladder.append(
+                _Lookup(
+                    f"name_organization:{named}|{organization.casefold()}",
+                    "name_organization",
+                    {
+                        "first_name": first,
+                        "last_name": last,
+                        "organization_name": organization,
+                    },
+                )
+            )
+    return tuple(ladder)
+
+
+def _asker(
+    provider: str, contribution: LeadContribution, ladder: tuple[_Lookup, ...]
+) -> _Asker | None:
+    """The anchor an answer joins the requester by: its strongest Match Key.
+
+    None when the requester has no key an answer could share (no LinkedIn, no verified
+    address, and no name+domain with a title or employer to corroborate), unless it is
+    Apollo's own record, asked by its id as before.
+    """
+    identity, url = _linkedin_of(provider, contribution)
+    keys = _keys_of(provider, contribution)
+    if identity is not None and url is not None:
+        return _Asker(ladder, "linkedin_url", {"linkedin_url": url}, identity, ())
+    for key in keys.keys:
+        if key.kind is MatchKeyKind.VERIFIED_EMAIL:
+            echo = {"email": key.value, "email_status": EmailStatus.VERIFIED.value}
+            return _Asker(ladder, "email", echo, None, ())
+    named = [lookup for lookup in ladder if lookup.rung == "name_domain"]
+    corroborate = tuple(
+        sorted(
+            {f"title:{t}" for t in keys.titles}
+            | {f"employer:{e}" for e in keys.employers}
+        )
+    )
+    if named and corroborate:
+        params = named[0].params
+        echo = {k: params[k] for k in ("first_name", "last_name", "domain")}
+        return _Asker(ladder, _NAME_ANCHOR, echo, None, corroborate)
+    if _own_id(provider, contribution) is not None:
+        return _Asker(ladder, _OWN_ANCHOR, {}, None, ())
+    return None
+
+
+def _keys_of(provider: str, contribution: LeadContribution) -> MatchKeys:
+    try:
+        return extract_match_keys(contribution)
+    except TypeError:
+        raise NormalizationError(
+            provider, raw_field_path="<record>", canonical_path="<unmapped>"
+        ) from None
+
+
+def _own_id(provider: str, contribution: LeadContribution) -> str | None:
+    """This adapter's own Apollo person id on the record, when usable."""
+    value = contribution.values.get(_ID_PATH)
+    if (
+        contribution.source_name == provider
+        and isinstance(value, str)
+        and value.strip()
+    ):
+        return value
+    return None
+
+
+def _linkedin_of(
+    provider: str, contribution: LeadContribution
+) -> tuple[str | None, str | None]:
+    """The requester's normalised LinkedIn identity and its own text, or Nones."""
+    try:
+        identity = linkedin_identity(contribution.values)
+    except TypeError:
+        raise NormalizationError(
+            provider,
+            raw_field_path="person.linkedin_url",
+            canonical_path="person.linkedin_url",
+        ) from None
+    if identity is None:
+        return None, None
+    value = contribution.values["person.linkedin_url"]
+    text = value.value if isinstance(value, UntrustedText) else value
+    return identity, str(text).strip()
+
+
+def _address_of(provider: str, contribution: LeadContribution) -> str | None:
+    value = contribution.values.get("person.email")
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise NormalizationError(
+            provider, raw_field_path="person.email", canonical_path="person.email"
+        )
+    address = value.strip().lower()
+    if (
+        len(address) > _MAX_ADDRESS_LENGTH
+        or not _ADDRESS.fullmatch(address)
+        or not address.isprintable()
+    ):
+        return None
+    return address
+
+
+def _term(value: object, limit: int) -> str | None:
+    """A name safe and worth asking about, else None; a masked name never is."""
+    text = value.value if isinstance(value, UntrustedText) else value
+    if not isinstance(text, str):
+        return None
+    text = text.strip()
+    if not text or len(text) > limit or "*" in text or not text.isprintable():
+        return None
+    return text
+
+
+def _domains_of(provider: str, contribution: LeadContribution) -> list[str]:
+    try:
+        return registrable_domains(contribution.values.get("company.domain"))
+    except TypeError:
+        raise NormalizationError(
+            provider, raw_field_path="company.domain", canonical_path="company.domain"
+        ) from None
 
 
 def _uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:

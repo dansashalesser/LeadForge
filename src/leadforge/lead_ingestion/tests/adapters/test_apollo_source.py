@@ -14,6 +14,7 @@ from structlog.testing import capture_logs
 from leadforge.lead_ingestion.adapters.apollo import (
     MAX_PAGE,
     MAX_PER_PAGE,
+    RUNG_CONFIDENCE,
     ApolloSource,
     credits_in,
 )
@@ -717,12 +718,16 @@ async def test_fixture_match_contributes_contact_identity_with_provenance() -> N
             {"uid": "datastax", "name": "DataStax", "category": "Databases"}
         ],
     }
-    # One provenance record per populated field, none stated by Apollo per field.
+    # One provenance record per populated field. Apollo states no per-field certainty;
+    # the confidence is ours, by the lookup rung that found the person (follow-up
+    # 2026-10-06, supersedes "origin none"): an id hit is a strong rung.
     assert {p.canonical_path for p in contribution.provenance} == set(
         contribution.values
     )
     assert all(
-        p.confidence_origin is ConfidenceOrigin.NONE for p in contribution.provenance
+        (p.confidence_origin, p.confidence)
+        == (ConfidenceOrigin.HEURISTIC, RUNG_CONFIDENCE["id"])
+        for p in contribution.provenance
     )
     assert all(p.data_mode is DataMode.SYNTHETIC for p in contribution.provenance)
     untrusted = {p.canonical_path for p in contribution.provenance if p.untrusted}

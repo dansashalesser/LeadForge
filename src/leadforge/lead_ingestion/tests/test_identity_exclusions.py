@@ -343,9 +343,11 @@ def test_large_input_with_exclusions_keeps_union_operations_near_linear(
     calls = {"union": 0, "find": 0}
     real_union, real_find = clustering._UnionFind.union, clustering._UnionFind.find
 
-    def counting_union(self: Any, a: int, b: int, kind: Any = None) -> None:
+    def counting_union(
+        self: Any, a: int, b: int, kind: Any = None, value: str | None = None
+    ) -> None:
         calls["union"] += 1
-        real_union(self, a, b, kind)
+        real_union(self, a, b, kind, value)
 
     def counting_find(self: Any, a: int) -> int:
         calls["find"] += 1

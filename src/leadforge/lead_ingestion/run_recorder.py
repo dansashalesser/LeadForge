@@ -47,10 +47,12 @@ class StoreRunRecorder:
         *,
         clock: Callable[[], datetime] = _utc_now,
         global_mode: DataMode | None = None,
+        match_key_digests_comparable: bool | None = None,
     ) -> None:
         self._writer = writer
         self._clock = clock
         self._global_mode = global_mode
+        self._match_key_digests_comparable = match_key_digests_comparable
 
     async def start(
         self,
@@ -69,6 +71,7 @@ class StoreRunRecorder:
             run_timeout_s=run_timeout_s,
             global_mode=self._global_mode,
             live_access=live_access,
+            match_key_digests_comparable=self._match_key_digests_comparable,
         )
         return await self._writer.write_batch(
             lambda session: RunRecordRepository(session).start(record)

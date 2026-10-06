@@ -54,6 +54,8 @@ Provisional decisions (choices.md, 16.5):
   and ``conflicts`` lists, per path with a losing value, the winning source, the number
   of superseded candidates and the rule that decided (``ConflictRule``). Kinds, source
   names, paths and counts only; ``contribution_count`` says whether it was a merge.
+  ``linking_keys`` (the cluster's ``linked_by``) carries the key values themselves,
+  hidden from ``repr``, so the log can show their keyed digests (``match_key_digest``).
 * Personal data stays out of ``repr`` and no error text is built from it.
 """
 
@@ -79,7 +81,7 @@ from leadforge.lead_ingestion.conflicts import (
     FieldCandidate,
     resolve_conflicts,
 )
-from leadforge.lead_ingestion.match_keys import MatchKeyKind
+from leadforge.lead_ingestion.match_keys import MatchKey, MatchKeyKind
 from leadforge.lead_ingestion.models import (
     CanonicalLead,
     CompanySignal,
@@ -142,6 +144,9 @@ class ProjectionResult:
     suppressed: bool
     # Task 16.12 (21.4): Match Key kinds that linked the cluster, strongest first.
     match_keys: tuple[MatchKeyKind, ...] = ()
+    # The Match Keys that linked it (the cluster's ``linked_by``); personal data, never
+    # in ``repr``. ``merge_log`` logs keyed digests of them, never the values.
+    linking_keys: tuple[MatchKey, ...] = field(default=(), repr=False)
     # Paths with a losing value, sorted by path.
     conflicts: tuple[ResolvedConflict, ...] = ()
     contribution_count: int = 0
@@ -186,6 +191,7 @@ def project_lead(
         suppressed=suppressed,
         compliance_sources=tuple(sorted({source for _, source in reports})),
         match_keys=cluster.merged_by,
+        linking_keys=cluster.linked_by,
         conflicts=tuple(
             ResolvedConflict(
                 f.canonical_path, f.winner.source_name, len(f.superseded), f.decided_by
