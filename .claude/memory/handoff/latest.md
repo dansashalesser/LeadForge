@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T10:34:34+00:00
+- Written: 2026-10-06T10:47:32+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,16 +10,18 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-Everything passes: 3683 tests, ruff and mypy. Recording both fixes in the spec log and committing the Hunter and provider-limits changes together:
+I've committed and pushed the harness memory files, and no source changes are uncommitted right now. Two items are still being built in the background, and each gets a self-review before I commit it:
+- Apollo enriching people that other sources found.
+- Keyed HMAC for match-key logging.
+
+Two decisions are still waiting on you:
+1. **Merging records when only one has an email.** Should two records that share a name and company domain join when only one of them has an email? Two different emails would still keep them apart.
+2. **Web evidence, task 14.2.** Should I go with option C: attach evidence to a company only when the search query and the result's domain agree, with signal strength set by how many sources agree?
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ python3 - <<'EOF'
-p='tests/test_match_keys.py'
-s=open(p).read()
-s=s.replace('''    value = one_key(MatchKeyKind.LINKED
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && python3 - <<'EOF'
 p='match_keys.py'
 s=open(p).read()
@@ -57,3 +59,4 @@ s=s.replace('''        ("hubspot",
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "note" models.py fixture*.py 2>/dev/null | grep -i "ma
 - $ uv run pytest -q 2>&1 | grep -E "^FAILED|^E " | head -8
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && sed -i 's/Unverified: its outcome comes from the hs_is_closed 
+- $ git status --short | grep -v '^.. \.claude' | head; git add .claude/memory .claude/behaviors 2>/dev/null; git diff --c
