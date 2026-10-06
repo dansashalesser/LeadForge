@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T12:06:59+00:00
+- Written: 2026-10-06T12:24:33+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,18 +10,18 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I've committed and pushed the harness memory files. The open-items work and tasks 16.6/16.11 are still being built, and I'll commit each once it passes its self-review.
+I committed and pushed the harness memory files. Three code changes are still uncommitted because they're in progress:
 
-I still need your call on two things:
-1. **HubSpot's contact record:** should it carry the identity we asked about, so it joins the right lead? I recommend option B.
-2. **Opt-outs:** should an opt-out also apply to the person's records linked by LinkedIn or verified email, but not through shared addresses like `info@`?
+- **Run lifecycle:** still being built.
+- **Tasks 16.6 and 16.11:** reviewed, but they need the run-lifecycle wiring before they can be committed.
+- **HubSpot results joining the right lead:** still being built.
+
+Each one gets committed once it passes its self-review.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git status --short src .env.example | head -40
-- $ git diff --stat src/leadforge/lead_ingestion/tests/adapters/test_fixture_outcome_matrix.py src/leadforge/lead_ingestio
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "Fully empty\|out of searches\|run out\|_EXHAUST\|def 
 - $ grep -n "_FULLY_EMPTY\|_BALANCE_MARKER" adapters/search_backends/serpapi.py; grep -n "_FULLY_EMPTY" -B12 -A8 adapters/
 - $ sed -n 140,168p adapters/search_backends/serpapi.py; grep -n "def test" tests/adapters/test_google_search_empty_result
@@ -55,3 +55,5 @@ s=s.replace('''        ("hubspot",
 Co-Authored-By: Cla
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Left unticked (par
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Task 14.2 ticked w
+- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -rn "def prune_flagged\|def _reapply\|suppress" --include
+- $ cd /home/user/LeadForge && git add .claude/memory .claude/behaviors 2>/dev/null; git diff --cached --quiet && echo NOT
