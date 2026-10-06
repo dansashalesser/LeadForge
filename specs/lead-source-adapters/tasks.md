@@ -393,7 +393,7 @@ task = one commit.
 
 ---
 
-- [ ] 14. Google Search Source adapter
+- [x] 14. Google Search Source adapter
 - [x] 14.1 (P) Implement the pluggable search backend
   - Obtain results through a pluggable search backend interface with SerpApi as the default and only in-scope implementation, so swapping backends needs no change to adapter logic
   - Implement no path to the deprecated Custom Search JSON API, which is closed to new customers and shuts down on 2027-01-01
@@ -443,7 +443,7 @@ task = one commit.
 
 ---
 
-- [ ] 16. Merge Engine
+- [x] 16. Merge Engine
 - [x] 16.1 (P) Extract Match Keys ordered by durability
   - Treat the normalized LinkedIn URL as the strongest Match Key — lowercased host and path, query string, fragment, and trailing slash stripped — because it survives a change of employer where a work address does not
   - Fall to an equal normalized Verified Email when a LinkedIn URL is absent on either side, lowercased and trimmed
