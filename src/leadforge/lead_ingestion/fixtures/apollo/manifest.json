@@ -23,7 +23,7 @@
       "schema_verified_on": null,
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in; not a capture. POST /api/v1/people/match and the match_confidence values matched the docs on 2026-10-06; the person object shape was not checked, so the file stays unverified. Evidence: search-engine extract of the official page (site network-blocked)."
+      "note": "Hand-made stand-in; not a capture. POST /api/v1/people/match and the match_confidence values matched the docs on 2026-10-06; the person object shape was not checked, so the file stays unverified. person.organization.primary_domain (added 2026-10-06, ADR-0006) is UNVERIFIED too: no captured or doc-quoted field table names it. Evidence: search-engine extract of the official page (site network-blocked)."
     },
     {
       "file": "supported_technologies.csv",

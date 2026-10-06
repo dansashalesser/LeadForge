@@ -182,8 +182,16 @@ class Run:
         ]
 
 
+def echo_verdict(params: Mapping[str, object]) -> TransportResponse:
+    """A valid verdict for the address asked, as Hunter's verifier answers."""
+    return hunter_t.verdict(address=str(params["email"]))
+
+
 def hunter_routed(**answers: Any) -> hunter_t.Routed:
-    return hunter_t.Routed(**answers)
+    # The verifier echoes the asked address: since tiers feed later tiers (ADR-0006),
+    # a stand-in answering a different address would be a different person reaching
+    # Apollo's paid match.
+    return hunter_t.Routed(**{"verifier": echo_verdict, **answers})
 
 
 def asked_addresses(transport: hunter_t.Routed) -> list[str]:

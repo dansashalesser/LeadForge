@@ -214,6 +214,9 @@ class GoogleSearchSource(BaseLeadSource):
     cost_class: ClassVar[CostClass] = CostClass.PAID
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_CALL
     yields_suppression: ClassVar[bool] = False
+    # Web evidence attaches to companies other sources found and adds no identity, so
+    # Google runs after Apollo's match and anchors on the domain it found (ADR-0006).
+    evidence_only: ClassVar[bool] = True
     target_vocabulary: ClassVar[Mapping[str, object]] = {}
     endpoints: ClassVar[Mapping[str, Endpoint]] = {"search": _DEFAULT_BACKEND.endpoint}
     required_env: ClassVar[tuple[str, ...]] = _DEFAULT_BACKEND.required_env

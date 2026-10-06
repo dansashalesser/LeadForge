@@ -144,4 +144,8 @@ async def test_a_real_hubspot_opt_out_keeps_the_lead_from_a_later_paid_tier() ->
     assert transport.calls, "HubSpot looked nothing up for an Apollo-shaped work list"
     request = probe.requests["paid:enrich"]
     assert isinstance(request, EnrichmentRequest)
-    assert [c.values["person.email"] for c in request.work_list] == ["bob@example.com"]
+    # Since tiers feed later tiers (ADR-0006), HubSpot's own record of bob (found or
+    # not) reaches the paid tier too; ada, opted out, reaches it in no record.
+    assert {
+        c.values.get("person.email", c.values.get("email")) for c in request.work_list
+    } == {"bob@example.com"}

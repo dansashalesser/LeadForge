@@ -84,8 +84,9 @@ Two-phase run (task 11.5, Requirement 6.9; ADR-0002). Provisional decisions
 Enrichment order (task 11.6, Requirement 6.10; ADR-0002). Provisional decisions
 (choices.md, 11.6):
 
-* Order comes only from the declared ``cost_class``, ``charge_unit`` and
-  ``yields_suppression`` (``enrichment_tiers``); nothing here lists a source. Sources
+* Order comes only from the declared ``cost_class``, ``charge_unit``,
+  ``yields_suppression`` and (ADR-0006) ``evidence_only`` (``enrichment_tiers``);
+  nothing here lists a source. Sources
   with equal declarations form a tier. Tiers run one after another, so a free
   Suppression-bearing source has finished before any Credit-bearing source starts;
   inside a tier the sources still run concurrently under the pool bound. This
@@ -100,6 +101,26 @@ Enrichment order (task 11.6, Requirement 6.10; ADR-0002). Provisional decisions
 * When pruning empties the work list, the remaining tiers are not called and record no
   result, exactly like an empty work list from Discovery (11.5).
 * Results still follow registry order within each phase.
+
+Tiers feed later tiers (follow-up 2026-10-06, ADR-0006 amending ADR-0002; user
+decision: sources enhance each other). Provisional decisions (choices.md, follow-up):
+
+* After a tier finishes, its contributions are appended to the work list, in tier
+  (name) order, before the next tier is called. A later tier therefore sees the
+  people, addresses, LinkedIn URLs and company domains an earlier tier added (a
+  verified address reaches the per-lead match; the match's company domain reaches the
+  evidence-only source). Results are untouched: each still holds only its own source's
+  contributions.
+* One forward pass: every tier is called at most once and nothing found later is fed
+  back to an earlier tier. A person only a later tier finds is therefore never asked of
+  the free tier (known gap, recorded in ADR-0006).
+* Pruning uses every report so far, not only the last tier's, so a person suppressed
+  by an earlier tier and re-added by a later tier's record leaves the list again before
+  the next tier. ``enrichment_work_list`` (Discovery only) is unchanged.
+* Per-person dedupe is the adapters' (per-run caches keyed by the lookup; a per-lead
+  match asks once per person across the records naming them); per-company dedupe
+  still runs on the fed list (``per_company_work_list``), a fed record joining the
+  person it names.
 
 Per-company calls (task 11.7, Requirement 6.11; ADR-0002). Provisional decisions
 (choices.md, 11.7):
@@ -454,14 +475,51 @@ def per_company_work_list(
     """The work list with one Lead per distinct company (Requirement 6.11).
 
     Companies are clustered on their registrable-domain sets (``companies``, task 16.9):
-    Leads whose sets overlap, transitively, are one company. Keeps the first Lead of
-    each company, in work-list order, and every Lead that names no usable company.
+    Leads whose sets overlap, transitively, are one company. Keeps the first record of
+    each company, in work-list order. A record naming no usable company is dropped when
+    another record of its person (a shared address or LinkedIn identity) names one
+    (ADR-0006: a fed record is that person, not a new Lead); otherwise the first such
+    record of each person is kept. A person's records never fuse two companies: one
+    person at a former and a current employer leaves both companies worked.
     Pure: the input is a tuple and the kept items are the same objects.
     """
-    labels = domain_components(
-        [company_domains(c.values.get(_COMPANY_DOMAIN_PATH)) for c in work_list]
-    )
-    return tuple(c for index, c in enumerate(work_list) if labels[index] == index)
+    person = _person_labels(work_list)
+    sets = [company_domains(c.values.get(_COMPANY_DOMAIN_PATH)) for c in work_list]
+    labels = domain_components(sets)
+    placed = {person[index] for index, domains in enumerate(sets) if domains}
+    seen: set[tuple[str, int]] = set()
+    kept: list[LeadContribution] = []
+    for index, c in enumerate(work_list):
+        if sets[index]:
+            key = ("company", labels[index])
+        elif person[index] in placed:
+            continue  # the person is worked through a record naming their company
+        else:
+            key = ("person", person[index])
+        if key not in seen:
+            seen.add(key)
+            kept.append(c)
+    return tuple(kept)
+
+
+def _person_labels(work_list: tuple[LeadContribution, ...]) -> list[int]:
+    """Each record's person: the lowest index sharing an address or LinkedIn identity
+    with it, transitively (ADR-0006: a fed record is that person, not a new Lead)."""
+    parent = list(range(len(work_list)))
+
+    def root(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    holder: dict[tuple[str, str], int] = {}
+    for index, contribution in enumerate(work_list):
+        for identity in identities(contribution):
+            a, b = root(holder.setdefault(identity, index)), root(index)
+            if a != b:
+                parent[max(a, b)] = min(a, b)
+    return [root(index) for index in range(len(work_list))]
 
 
 class IngestionOrchestrator:
@@ -656,6 +714,9 @@ class IngestionOrchestrator:
                         )
                     )
                 )
+                # Every report so far, so a person pruned by an earlier tier is pruned
+                # again when a later tier's record re-adds them (ADR-0006).
+                reports: tuple[LeadContribution, ...] = ()
                 for tier in enrichment_tiers(enrichment):
                     if not work_list:
                         break
@@ -670,16 +731,17 @@ class IngestionOrchestrator:
                         Phase.ENRICHMENT,
                         EnrichmentRequest(kind="enrich", work_list=tier_list),
                     )
-                    work_list = prune_flagged(
-                        work_list,
-                        tuple(
-                            contribution
-                            for s in tier
-                            for contribution in (
-                                finished[(s.name, Phase.ENRICHMENT)].contributions or ()
-                            )
-                        ),
+                    # The tier's findings feed every later tier (ADR-0006): one forward
+                    # pass, so nothing is fed back and no tier is called again.
+                    added = tuple(
+                        contribution
+                        for s in tier
+                        for contribution in (
+                            finished[(s.name, Phase.ENRICHMENT)].contributions or ()
+                        )
                     )
+                    reports = (*reports, *added)
+                    work_list = prune_flagged((*work_list, *added), reports)
         except TimeoutError:
             # Only the deadline's own expiry is a record; any other TimeoutError
             # (there is no such path today) must not be mistaken for it.

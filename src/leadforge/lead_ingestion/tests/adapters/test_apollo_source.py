@@ -717,6 +717,8 @@ async def test_fixture_match_contributes_contact_identity_with_provenance() -> N
         "company.technologies": [
             {"uid": "datastax", "name": "DataStax", "category": "Databases"}
         ],
+        # organization.primary_domain, registrable (ADR-0006, 2026-10-06).
+        "company.domain": "example.com",
     }
     # One provenance record per populated field. Apollo states no per-field certainty;
     # the confidence is ours, by the lookup rung that found the person (follow-up

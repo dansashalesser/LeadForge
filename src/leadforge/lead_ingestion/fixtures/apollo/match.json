@@ -10,6 +10,7 @@
     "email_status": "verified",
     "organization": {
       "name": "Example Data Corp",
+      "primary_domain": "example.com",
       "current_technologies": [
         {"uid": "datastax", "name": "DataStax", "category": "Databases"}
       ]

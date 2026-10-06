@@ -402,7 +402,7 @@ task = one commit.
   - Parallel with 12.x, 13.x, and 15.x. Within this major, run 14.1 before 14.2 and 14.3
   - _Requirements: 14.1, 14.2, 14.3, 14.7_
 
-- [ ] 14.2 (P) Contribute untrusted web evidence as Company Signals
+- [x] 14.2 (P) Contribute untrusted web evidence as Company Signals
   - Read results from the organic-results array and parse optional answer-box and knowledge-graph blocks defensively, tolerating their absence without raising
   - Contribute intent and technographic evidence as Signals carrying the matched query, result URL, snippet text, and retrieval date
   - Wrap every snippet and title in the untrusted provider-text type so the marker reaches provenance

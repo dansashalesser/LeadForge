@@ -23,3 +23,7 @@ source cannot silently land it in the wrong tier.
   answer.
 - Residual cost that cannot be designed away: Hunter's 451 opt-out is only discoverable
   by spending a credit.
+
+## Amendment
+
+Amended by ADR-0006 (2026-10-06): each finished Enrichment tier's contributions now feed the work list of later tiers (one forward pass), and an `evidence_only` declaration orders Google Search after Apollo. The work list is no longer Discovery output only.

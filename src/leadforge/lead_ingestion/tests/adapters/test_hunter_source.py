@@ -290,7 +290,7 @@ def test_declares_paid_per_lead_enrichment_that_yields_suppression() -> None:
     assert HunterSource.cost_class is CostClass.PAID
     assert HunterSource.charge_unit is ChargeUnit.PER_LEAD
     assert HunterSource.yields_suppression is True
-    assert enrichment_sort_key(HunterSource) == (True, False, 2, "hunter")
+    assert enrichment_sort_key(HunterSource) == (True, False, False, 2, "hunter")
 
 
 # --- batching by domain (16.5 via ADR-0002, 6.11) ----------------------------------
@@ -2162,9 +2162,9 @@ def test_hunter_runs_in_a_paid_tier_of_its_own_before_apollo() -> None:
     # Reverses the earlier pin "Hunter shares Apollo's tier" (user decision,
     # 2026-10-06): Hunter declares yields_suppression, so a Hunter 451 prunes that
     # person from the work list before Apollo's paid match is asked about them.
-    def tier(source: type[BaseLeadSource]) -> tuple[bool, bool, int]:
-        cost, no_suppression, unit, _ = enrichment_sort_key(source)
-        return cost, no_suppression, unit
+    def tier(source: type[BaseLeadSource]) -> tuple[bool, bool, bool, int]:
+        cost, no_suppression, evidence_only, unit, _ = enrichment_sort_key(source)
+        return cost, no_suppression, evidence_only, unit
 
     # Suppression outranks charge unit within the paid tier, so Hunter also moves
     # ahead of Google Search (which prunes nothing, so it asks Hunter nothing less).

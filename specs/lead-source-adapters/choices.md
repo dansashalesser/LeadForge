@@ -2654,3 +2654,82 @@ Independent review (spec-refactor agent, 2026-10-06). Tests: `uv run pytest -q` 
 - CHANGED after coordinator decision (user, 2026-10-06: "if information is agreed between many sources then it should likely be ok"). The company's own domains and subdomains together now count as ONE agreeing host. Each distinct third-party registrable domain adds one. New `web_evidence.agreeing_host(url, attachment)` returns one own-domain sentinel; google_search counts hosts with it. Own-domain-only evidence therefore stays at 0.25, however many own domains appear. Level 3 ("own + >=1 third-party") is now exactly `own_domain and hosts>=2`. The rest of the scale is unchanged. This resolves the skipped item above. Red first: test_the_company_own_domains_together_are_one_agreeing_host failed (`{2} == {1}`). Mutation checks (own domains counted separately, third-party counted as own, unattached counted) were each killed. The file was restored and its sha256 check returned OK. The rule is documented in the web_evidence module docstring. choices.md has no completion entry yet, so the parent should carry this rule there. Final run: pytest 3800 passed, 1 skipped; ruff check src all passed; mypy clean.
 
 - **Left unticked (parent):** the attach-by-agreement machinery is built and reviewed, but in a real run Google makes no call: Apollo people search returns no company domain, and Apollo enrichment output (which carries `organization.primary_domain`) never reaches Google because enrichment tiers do not feed later tiers (ADR-0002). Tick 14.2 when open item 6 (enrichment results feed later tiers) lands and a real-adapter run shows Google called.
+
+## Follow-up — enrichment tiers feed later tiers (ADR amendment, 2026-10-06)
+
+User decisions (2026-10-06): sources should enhance each other ("can't we use either source to enhance information from other sources?"); HubSpot and Hunter "have information we can cross reference or append to the lead"; a Lead is a person; Hunter runs before Apollo, so a Hunter 451 prunes the person before Apollo's paid match. Recorded as ADR-0006 (`specs/lead-source-adapters/docs/adr/0006-enrichment-tiers-feed-later-tiers.md`), which amends ADR-0002. ADR-0002 now ends with an amendment pointer.
+
+Provisional decisions:
+
+- **Feed** (`orchestrator._execute`): when a tier finishes, its contributions (tier order, then source name) are appended to the work list before the next tier is called. One forward pass: each tier is called at most once, and nothing is fed back to an earlier tier. Results are unchanged; each holds only its own source's contributions. `enrichment_work_list` still returns Discovery only.
+- **Cumulative pruning**: every flagged report so far prunes the list before each later tier, so a person suppressed early stays out even if a later record re-adds them.
+- **Order** (`base_source`): new defaulted declaration `evidence_only: bool = False`, validated as a bool. Sort key is (paid, not suppression, evidence_only, charge-unit rank, name), and the tier key is its first four fields. GoogleSearchSource sets `evidence_only=True`. Shipped tiers: hubspot, hunter, apollo, google_search. Why: Google needs the domain Apollo's match finds. Neither source prunes for the other, so moving Google later changes no spend. Rejected alternatives: swapping the per_call and per_lead ranks (it is a billing rule and would move every per-call source), and re-running tiers until nothing changes (spend would be unbounded).
+- **Apollo, once per person** (`apollo._plan`): records sharing an address or LinkedIn identity, transitively, share one merged ladder (strongest rung first) and one asker on the strongest anchor (LinkedIn, then verified email, then name, then own record), with the person's LinkedIn identity. Only records with a ladder of their own can be the anchor. A group naming two LinkedIn identities falls back to the old per-record askers. If no record in a group can anchor, the group counts as one unattachable person. This supersedes "the answer reaches both" for two spellings of one LinkedIn: there is now one attachment, and the merge joins the other spelling by the normalised key.
+- **Apollo `organization.primary_domain` -> `company.domain`** (MATCH_RULES): reduced through `companies.company_domains` (pinned PSL, webmail excluded) to one registrable domain, else nothing. It is excluded from weak hits (`_IDENTITY_PATHS` now includes `company.domain`), and the requester's echoed domain wins. Shipped `fixtures/apollo/match.json` gains `"primary_domain": "example.com"`, and the manifest note marks the field UNVERIFIED (live-docs-findings has no people/match field table naming it).
+- **Per-company list** (`per_company_work_list`): records naming one person are one Lead whose domains are all of theirs. The list keeps the first record per company, and the first record per domainless person, so a fed domainless record of a known person no longer stands alone.
+- **Google corroboration** (`web_evidence.company_anchors`): a `company.domain` whose provenance raw path starts with `asked.` (an echo) still forms an anchor but adds no corroborating source.
+- **Tests repinned**:
+  - Hunter sort-key shape is now a 5-tuple.
+  - `test_base_source` rank index changes from 2 to 3.
+  - In the suppression E2E stub, Hunter's verifier echoes the asked address. A stand-in answering a different address is now a different person reaching Apollo.
+  - In the HubSpot suppression-paths test, HubSpot's own record of bob reaches the paid tier.
+  - In the zero-credential run, gap (d) is closed: Google is served and stores unattached evidence.
+  - The Apollo fixture match now includes `company.domain`.
+- **E2E proof**: `tests/adapters/test_tier_feed_end_to_end.py` runs through `run_ingestion` in synthetic mode with the 4 real adapters on shipped fixture files, routed per request, plus one labelled stand-in Discovery (gap c: no shipped Discovery yields an address).
+  - Google asks `"example.com" DataStax` for the domain only Apollo found, and its own-domain evidence attaches. It never asks about Sam's domain.
+  - Apollo makes 1 search and 3 matches (Ada by id, Grace by id, Hana by LinkedIn once, although 3 records name her). It never asks about Sam.
+  - Hunter makes 2 verifier calls. HubSpot makes 2 contact searches and 1 deal search. Total calls: 11.
+  - Hana's Apollo enrichment is on ONE lead, together with her Discovery record and Hunter's verdict.
+  - Sam's leads are all suppressed, and Apollo contributed to none of them.
+  - The report's per-source `leads_normalized` equals the run's contribution counts, and the web_evidence counts match the store.
+  - A mutation check (feed disabled) makes the E2E fail, because Google is no longer asked about example.com.
+
+Known gaps:
+
+- A person found only by a later tier is never asked of an earlier one (one forward pass). HubSpot never sees an address Hunter or Apollo found, so a CRM opt-out for that address is applied at merge, after Apollo may have spent.
+- Hunter routes each record on its own. Two fed records of one person (one with an address, one with name and domain) would cost a verifier call and a finder call. This is latent: no shipped tier before Hunter emits `person.email` (HubSpot uses `email`).
+- HubSpot's record (address with no status and no name) is not joined by the merge, because 8.2 keys only verified addresses. It stays a separate Lead, as before; this is pinned in the E2E as a known gap. Fixing it would mean changing the merge rules, which is outside this follow-up.
+- Apollo's Discovery search does not map `organization.primary_domain`, so search records still carry no domain.
+- `primary_domain` is UNVERIFIED against a capture.
+- Not run: the spec-refactor-agent and validate-production-agent sub-agents (no Agent tool in this session), and serena/gitnexus blast-radius tools (not available). Callers were found with grep instead.
+
+### Self-review findings
+
+This is an independent review by spec-refactor-agent in a fresh context. Baseline: 3824 passed, 1 skipped. After the fixes, `uv run pytest -q` gives 3827 passed, 1 skipped. `ruff check src` is clean and `mypy` is clean (178 files). The touched files were formatted with `ruff format`.
+
+Fixed (test-first; each new test was red before its fix):
+- `orchestrator.per_company_work_list` fused companies through a person. One person at a former employer (a.io) and a current one (b.io) had both domains unioned. A colleague's only b.io record was then dropped, so company b.io was never worked. This is a 6.11 regression, latent because no shipped adapter is per-company. Domain sets are no longer unioned per person. A domainless record is dropped only when its person has a record naming a company; otherwise the first such record per person is kept. Test: `test_a_person_at_two_companies_does_not_fuse_those_companies`.
+- `apollo._plan` put distinct people sharing a role address into one merged ladder. With Ada {LinkedIn, info@} and Bob {info@ verified}, a LinkedIn miss climbed to info@ and then to Bob's NAME rung, so Bob's answer was attached to Ada's record. A group naming two distinct `normalized_person_name` values (the 8.14 rule) now falls back to per-record askers, as a two-LinkedIn group already did. The shared address is then ambiguous, and the calls are the same as before ADR-0006. Test: `test_two_names_sharing_an_address_stay_two_people`.
+- Added `test_a_failed_tier_feeds_nothing_and_later_tiers_still_run_once`. It checks isolation and the exact call count. It passes and is a regression guard.
+- Corrected ADR-0006 Consequences in three places: pruning is not transitive; the distinct-names fallback; the per-company wording.
+
+Checked, no defect:
+- Pruning keys on `compliance.identities`, which uses normalize_email and normalize_linkedin_url and reads both `person.*` and bare paths. It is cumulative over every report. Google reads only `company_anchors` (company.domain), so no person data reaches its queries.
+- A failed source has contributions None and feeds nothing. Fetch and normalize are one attempt, so there is no partial output. A timeout aborts the remaining tiers.
+- The feed order is tier order, then source name, so it is deterministic. No tier is called twice (pinned by a test).
+- The sort key still puts free before paid and suppression-yielding first; evidence_only comes after both. HubSpot before Hunter is unchanged (free before paid).
+- primary_domain goes through `company_domains` (pinned PSL, webmail excluded). linkedin.com is not excluded, and should not be: it is a real employer domain, and the existing companies rules exclude only webmail. UNVERIFIED is in the manifest note.
+- ADR-0006 follows the ADR format (title, context, Considered Options, Consequences). ADR-0002 only gained the Amendment pointer.
+- Mutation checks: all KILLED, and every file was restored (sha256 verified). Mutants: feed off; cumulative reports off; Google evidence_only False (Google runs before Apollo); evidence_only removed from the sort key; Apollo one-ask-per-person off; primary_domain rule off; company.domain removed from _IDENTITY_PATHS; echoed domains corroborate; company fusion restored; distinct-names fallback off.
+
+Not fixed (needs-user):
+- HIGH (spend): pruning is not transitive. Probe: Discovery has {LinkedIn X} and {z@}. HubSpot opts out z@. Hunter's fed record {z@, echoed LinkedIn X} links the two, yet {LinkedIn X} still reaches Apollo's paid match. Closing the block over linked identities would over-prune through shared role addresses, so this is a design choice. Output stays compliant because projection blocks by identity.
+- Duplicate union-find in orchestrator._person_labels and apollo._people (companies already has `_UnionFind`). There are only two call sites, so no extraction under the scope rule.
+- `evidence_only` is a hand-set ordering flag and is not checked against `answerable_surfaces`. A source could claim it while filling person.* paths. A derived check ("fills no identity path") would be sturdier.
+
+Option note (e): HubSpot's own record does not join.
+
+Facts:
+- HubSpot writes the bare `email` path from the raw `lookup` field. That is the address we asked about, echoed back.
+- It carries no `email_status`.
+- HubSpot emits it even when no contact exists (negative evidence).
+- 16.1 (choices.md:1522): only EmailStatus.VERIFIED is a key; UNVERIFIED and ACCEPT_ALL only corroborate; a missing status gives nothing. 8.2 and 8.11: only verified addresses are Match Keys.
+
+So the address is not customer-entered first-party data. It echoes our question, and for an unknown contact HubSpot does not hold it at all.
+
+1. Status quo: HubSpot's record stays a separate Lead. Suppression still applies, because projection blocks by identity.
+2. (Recommended) HubSpot echoes the requester's identity under `asked.*`, as Hunter and Apollo already do: the requester's `person.linkedin_url`, plus `person.email` and `email_status` only when the requester's own status is verified. The record then joins through the existing 8.1/8.2 keys, with no merge-rule change.
+3. Amend 8.2 so that a CRM-held address (contact found) is a key. This needs a user decision and conflicts with 8.11 (verified only). Marking HubSpot addresses VERIFIED is rejected: presence in the CRM says nothing about deliverability.
+
+- **Task 14.2 ticked with this change (parent):** the real-adapter run in `test_tier_feed_end_to_end.py` shows Google called for the company domain Apollo enrichment found, with evidence attached (Discovery there is a stand-in, since no shipped Discovery source returns emails).
+- **Open for the user (needs-user):** (1) suppression pruning is not transitive: a LinkedIn-only record of a person HubSpot opted out still reaches Apollo paid match even after Hunter output links the two records; (2) HubSpot contact record stays a separate lead (its email repeats the looked-up address with no verification status, so it is not a Match Key): options keep separate / echo requester identity under `asked.*` (recommended) / change 8.2.

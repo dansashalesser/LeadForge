@@ -42,6 +42,7 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.companies import company_domains, domain_components
 from leadforge.lead_ingestion.match_keys import registrable_domains
+from leadforge.lead_ingestion.models import REQUEST_ECHO_PREFIX
 
 __all__ = [
     "STRENGTH_LEVELS",
@@ -92,24 +93,37 @@ def company_anchors(
 
     Companies are clustered on overlapping registrable-domain sets, as everywhere in
     the slice. Contributions of ``exclude_source`` (the searching source) and those
-    naming no usable domain are skipped.
+    naming no usable domain are skipped. A domain that only echoes what its requester
+    asked (raw path ``asked.*``, ADR-0006) names the company but is no independent
+    source, so it adds no corroboration.
     """
     items = [
-        (c.source_name, domains)
+        (c.source_name, domains, _echoed_domain(c))
         for c in work_list
         if c.source_name != exclude_source
         and (domains := company_domains(c.values.get(_COMPANY_DOMAIN)))
     ]
-    labels = domain_components([domains for _, domains in items])
+    labels = domain_components([domains for _, domains, _ in items])
     groups: dict[int, list[int]] = {}
     for index, label in enumerate(labels):
         groups.setdefault(label, []).append(index)
     return tuple(
         CompanyAnchor(
             domains=tuple(sorted(frozenset().union(*(items[i][1] for i in members)))),
-            corroborating_sources=len({items[i][0] for i in members}),
+            corroborating_sources=len(
+                {items[i][0] for i in members if not items[i][2]}
+            ),
         )
         for members in groups.values()  # labels ascend: first appearance first
+    )
+
+
+def _echoed_domain(contribution: LeadContribution) -> bool:
+    """Whether the contribution's company domain is its requester's echo."""
+    return any(
+        p.canonical_path == _COMPANY_DOMAIN
+        and p.raw_field_path.startswith(REQUEST_ECHO_PREFIX)
+        for p in contribution.provenance
     )
 
 

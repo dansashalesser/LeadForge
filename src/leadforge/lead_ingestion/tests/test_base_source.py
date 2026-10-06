@@ -474,7 +474,7 @@ def test_every_charge_unit_is_rankable() -> None:
     # A unit added to the enum without a rank would KeyError at ordering time.
     for unit in ChargeUnit:
         src = _src(f"u_{unit.value}", CostClass.FREE, unit, False)
-        assert enrichment_sort_key(src)[2] >= 0
+        assert enrichment_sort_key(src)[3] >= 0  # the charge-unit rank (ADR-0006)
 
 
 # --- per-source Target Profile vocabulary (task 3.3) -------------------------

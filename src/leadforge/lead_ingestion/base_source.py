@@ -200,9 +200,11 @@ class LeadContribution(_Entity):
 class EnrichmentRequest(SourceRequest):
     """The request an Enrichment-phase source receives (task 11.5, Requirement 6.9).
 
-    ``work_list`` is every contribution Discovery produced, in run order, unfiltered
-    and unranked. It is the one extra thing an Enrichment call can be told, so it is a
-    named subclass of the closed ``SourceRequest`` rather than a widened ``fetch_raw``.
+    ``work_list`` is every contribution Discovery produced, in run order, unranked,
+    followed by what each earlier Enrichment tier contributed (ADR-0006), with leads
+    a tier reported suppressed or opted out removed. It is the one extra thing an
+    Enrichment call can be told, so it is a named subclass of the closed
+    ``SourceRequest`` rather than a widened ``fetch_raw``.
     """
 
     work_list: tuple[LeadContribution, ...]
@@ -268,6 +270,11 @@ class BaseLeadSource(ABC):
     cost_class: ClassVar[CostClass]
     charge_unit: ClassVar[ChargeUnit]
     yields_suppression: ClassVar[bool]
+    # True for a source that only attaches evidence to companies other sources found and
+    # adds no identity or field a later tier could act on (Google web evidence). It runs
+    # after the identity-yielding sources of its cost and suppression class, so it sees
+    # what they found (ADR-0006). Defaulted, so a new adapter stays one class.
+    evidence_only: ClassVar[bool] = False
     # Whether the provider can run live for a demo operator (3.6). Defaulted, so a new
     # adapter stays one class; a configuration override may replace it per source.
     live_access: ClassVar[LiveAccess] = LiveAccess.AVAILABLE
@@ -340,6 +347,8 @@ class BaseLeadSource(ABC):
             raise TypeError(f"{cls}.charge_unit must be a ChargeUnit")
         if not isinstance(self.yields_suppression, bool):
             raise TypeError(f"{cls}.yields_suppression must be a bool")
+        if not isinstance(self.evidence_only, bool):
+            raise TypeError(f"{cls}.evidence_only must be a bool")
         if not isinstance(self.live_access, LiveAccess):
             raise TypeError(f"{cls}.live_access must be a LiveAccess")
         for path, surfaces in self.answerable_surfaces.items():
@@ -637,16 +646,20 @@ class BaseLeadSource(ABC):
 
 def enrichment_sort_key(
     source: "BaseLeadSource | type[BaseLeadSource]",
-) -> tuple[bool, bool, int, str]:
+) -> tuple[bool, bool, bool, int, str]:
     """Pure ordering key over a source's declarations; smaller runs earlier.
 
     Free before Credit-bearing, so Suppression and dedupe cost nothing; within a tier,
     Suppression-bearing first so suppressed leads leave the work list before later
-    sources are called; then fewest billable events; name breaks ties deterministically.
+    sources are called; then evidence-only sources last, so they see the identities and
+    company domains earlier tiers added (ADR-0006: neither side prunes for the other, so
+    this moves no spend); then fewest billable events; name breaks ties
+    deterministically.
     """
     return (
         source.cost_class is CostClass.PAID,
         not source.yields_suppression,
+        source.evidence_only,
         _CHARGE_UNIT_RANK[source.charge_unit],
         source.name,
     )
@@ -684,13 +697,14 @@ def resolve_credentials(
 def enrichment_tiers[S: BaseLeadSource](sources: Iterable[S]) -> list[list[S]]:
     """``enrichment_order`` split into tiers of equal declarations (Requirement 6.10).
 
-    Sources sharing ``cost_class``, ``charge_unit`` and ``yields_suppression`` form one
-    tier (the name only breaks ties inside it); tiers come out in run order.
+    Sources sharing ``cost_class``, ``charge_unit``, ``yields_suppression`` and
+    ``evidence_only`` form one tier (the name only breaks ties inside it); tiers come
+    out in run order.
     """
     tiers: list[list[S]] = []
-    last: tuple[bool, bool, int] | None = None
+    last: tuple[bool, bool, bool, int] | None = None
     for source in enrichment_order(sources):
-        tier_key = enrichment_sort_key(source)[:3]
+        tier_key = enrichment_sort_key(source)[:4]
         if tier_key != last:
             tiers.append([])
             last = tier_key

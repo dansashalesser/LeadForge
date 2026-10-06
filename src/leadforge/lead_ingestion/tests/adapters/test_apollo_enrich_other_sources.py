@@ -424,7 +424,9 @@ async def test_two_spellings_of_one_linkedin_profile_are_asked_once() -> None:
     )
     assert len(transport.matches) == 1  # one identity, one question
     assert credits_in(batch) == 1
-    assert len(source.normalize_checked(batch)) == 2  # the answer reaches both
+    # One person, one attachment (ADR-0006, supersedes "the answer reaches both"):
+    # the merge joins the other spelling to it by the normalised LinkedIn key.
+    assert len(source.normalize_checked(batch)) == 1
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.9

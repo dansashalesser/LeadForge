@@ -110,7 +110,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
@@ -134,6 +134,8 @@ from leadforge.lead_ingestion.base_source import (
     resolve_credentials,
     retry_after_seconds,
 )
+from leadforge.lead_ingestion.companies import company_domains
+from leadforge.lead_ingestion.compliance import identities
 from leadforge.lead_ingestion.errors import (
     ConfigurationError,
     NormalizationError,
@@ -147,6 +149,7 @@ from leadforge.lead_ingestion.match_keys import (
     extract_match_keys,
     linkedin_identity,
     normalize_linkedin_url,
+    normalized_person_name,
     registrable_domains,
 )
 from leadforge.lead_ingestion.models import (
@@ -273,6 +276,7 @@ class _Technology(BaseModel):
 class _Organization(BaseModel):
     name: StrictStr | None = None
     current_technologies: list[_Technology] | None = None
+    primary_domain: StrictStr | None = None
 
 
 class _Person(BaseModel):
@@ -298,6 +302,15 @@ class _MatchedPerson(BaseModel):
 class _Match(BaseModel):
     match_confidence: Literal["high", "medium", "low", "none"]
     person: _MatchedPerson | None = None
+
+
+def _company_domain(value: object) -> str | None:
+    """Apollo's ``primary_domain`` as one registrable domain (pinned PSL), else None.
+
+    Webmail, a bare suffix, ``localhost`` and blank name no company (``companies``).
+    """
+    domains = company_domains(value)
+    return next(iter(domains)) if len(domains) == 1 else None
 
 
 class ApolloSource(BaseLeadSource):
@@ -374,6 +387,11 @@ class ApolloSource(BaseLeadSource):
         FieldRule("person.email_status", "person.email_status"),
         FieldRule("company.name", "person.organization.name", untrusted=True),
         FieldRule("company.technologies", "person.organization.current_technologies"),
+        FieldRule(
+            "company.domain",
+            "person.organization.primary_domain",
+            transform=_company_domain,
+        ),
     )
     # Search returns presence flags and a refresh time, none of which we contribute.
     IGNORED: ClassVar[frozenset[str]] = frozenset(
@@ -793,9 +811,11 @@ def _match_entries(
 # --- the lookup ladder (follow-up, user decision 2026-10-06) -------------------------
 
 _STRONG_RUNGS = frozenset({"id", "linkedin_url", "email"})
-# Fields that are Match Keys: a weak answer must not give the person a new one.
+# Fields that are Match Keys: a weak answer must not give the person a new one. The
+# company domain is one with the name (name + domain, 8.3), so Apollo's own
+# ``primary_domain`` is dropped from a weak answer too (ADR-0006).
 _IDENTITY_PATHS = frozenset(
-    {"person.linkedin_url", "person.email", "person.email_status"}
+    {"person.linkedin_url", "person.email", "person.email_status", "company.domain"}
 )
 _ECHO_KEY = REQUEST_ECHO_PREFIX.rstrip(".")
 _OWN_ANCHOR = "own"
@@ -941,7 +961,16 @@ def _with_rung_confidence(
 def _plan(
     provider: str, work_list: tuple[LeadContribution, ...]
 ) -> tuple[list[_Asker], int]:
-    """Who to ask about, and how; plus the count of people no answer could reach."""
+    """Who to ask about, and how; plus the count of people no answer could reach.
+
+    Asked once per person (ADR-0006): records naming one address or LinkedIn identity
+    share one ladder, strongest rung first, and the answer attaches once, on the
+    strongest anchor any of them has (LinkedIn, verified address, name, own record), so
+    one answer never lands on two records the merge might not join. Only records with a
+    ladder of their own can be the anchor. A group naming two LinkedIn identities, or
+    two distinct person names (a shared role address, 8.14), is not one person: each
+    record is asked as itself, as before.
+    """
     own_ids: dict[str, str] = {}
     for contribution in work_list:
         own = _own_id(provider, contribution)
@@ -950,16 +979,74 @@ def _plan(
             own_ids.setdefault(identity, own)
     askers: list[_Asker] = []
     unattachable = 0
-    for contribution in work_list:
-        ladder = _ladder(provider, contribution, own_ids)
-        if not ladder:
+    for group in _people(work_list):
+        records = [work_list[index] for index in group]
+        ladders = [_ladder(provider, c, own_ids) for c in records]
+        linked = {_linkedin_of(provider, c)[0] for c in records} - {None}
+        names = {_name_of(provider, c) for c in records} - {None}
+        if len(records) > 1 and len(linked) <= 1 and len(names) <= 1:
+            # One person: one ladder, one asker on the strongest anchor, one answer.
+            merged = _merged(ladders)
+            found = [
+                asker
+                for c, own in zip(records, ladders, strict=True)
+                if own and (asker := _asker(provider, c, merged)) is not None
+            ]
+            if found:
+                best = min(found, key=lambda asker: _ANCHOR_RANK[asker.anchor])
+                askers.append(replace(best, identity=next(iter(linked), None)))
+            elif any(ladders):
+                unattachable += 1
             continue
-        asker = _asker(provider, contribution, ladder)
-        if asker is None:
-            unattachable += 1
-        else:
-            askers.append(asker)
+        for contribution, ladder in zip(records, ladders, strict=True):
+            if not ladder:
+                continue
+            asker = _asker(provider, contribution, ladder)
+            if asker is None:
+                unattachable += 1
+            else:
+                askers.append(asker)
     return askers, unattachable
+
+
+# The person's strongest anchor first; a LinkedIn anchor carries the cannot-link check.
+_ANCHOR_RANK = {"linkedin_url": 0, "email": 1, "name": 2, "own": 3}
+_RUNG_RANK = {rung: rank for rank, rung in enumerate(RUNG_CONFIDENCE)}
+
+
+def _merged(ladders: list[tuple[_Lookup, ...]]) -> tuple[_Lookup, ...]:
+    """The person's ladder: every record's lookups once, strongest rung first."""
+    seen: dict[str, _Lookup] = {}
+    for ladder in ladders:
+        for lookup in ladder:
+            seen.setdefault(lookup.key, lookup)
+    return tuple(sorted(seen.values(), key=lambda lookup: _RUNG_RANK[lookup.rung]))
+
+
+def _people(work_list: tuple[LeadContribution, ...]) -> list[list[int]]:
+    """Record indices per person: a shared address or LinkedIn identity, transitively.
+
+    Groups come in order of their first record; records keep work-list order.
+    """
+    parent = list(range(len(work_list)))
+
+    def root(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    holder: dict[tuple[str, str], int] = {}
+    for index, contribution in enumerate(work_list):
+        for identity in identities(contribution):
+            first = holder.setdefault(identity, index)
+            a, b = root(first), root(index)
+            if a != b:
+                parent[max(a, b)] = min(a, b)
+    groups: dict[int, list[int]] = {}
+    for index in range(len(work_list)):
+        groups.setdefault(root(index), []).append(index)
+    return list(groups.values())
 
 
 def _ladder(
@@ -1046,6 +1133,16 @@ def _asker(
 def _keys_of(provider: str, contribution: LeadContribution) -> MatchKeys:
     try:
         return extract_match_keys(contribution)
+    except TypeError:
+        raise NormalizationError(
+            provider, raw_field_path="<record>", canonical_path="<unmapped>"
+        ) from None
+
+
+def _name_of(provider: str, contribution: LeadContribution) -> str | None:
+    """The person name as 8.14 compares it, or None when the record names no one."""
+    try:
+        return normalized_person_name(contribution.values)
     except TypeError:
         raise NormalizationError(
             provider, raw_field_path="<record>", canonical_path="<unmapped>"
