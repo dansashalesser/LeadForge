@@ -8,6 +8,7 @@ import dataclasses
 import uuid
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -660,10 +661,12 @@ def test_fetched_and_credits_sum_over_phases_and_stay_none_when_unreported() -> 
         result("alpha"), records_fetched=3, credits_consumed=None
     )
     enrichment = dataclasses.replace(
-        result("alpha", phase=Phase.ENRICHMENT), records_fetched=2, credits_consumed=5
+        result("alpha", phase=Phase.ENRICHMENT),
+        records_fetched=2,
+        credits_consumed=Decimal(5),
     )
     alpha, bravo = build_source_counts((discovery, enrichment, result("bravo")))
-    assert (alpha.records_fetched, alpha.credits_consumed) == (5, 5)
+    assert (alpha.records_fetched, alpha.credits_consumed) == (5, Decimal(5))
     assert (bravo.records_fetched, bravo.credits_consumed) == (None, None)
 
 
@@ -683,7 +686,7 @@ async def test_what_the_adapter_reports_of_its_batch_is_persisted(
     ).run(REQUEST)
     rows = source_rows(engine)
     alpha, bravo = rows["alpha"], rows["bravo"]
-    assert (alpha.records_fetched, alpha.credits_consumed) == (4, 2)
+    assert (alpha.records_fetched, alpha.credits_consumed) == (4, Decimal(2))
     assert (bravo.records_fetched, bravo.credits_consumed) == (None, None)
     assert (alpha.attempted, alpha.succeeded, alpha.failed) == (1, 1, 0)
 

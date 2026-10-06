@@ -114,10 +114,11 @@ def test_winning_values_map_onto_the_lead() -> None:
 def test_changing_trust_ranks_changes_the_winner() -> None:
     out = project(*sample(), ranks={"a": 1, "b": 9, "c": 1})
     assert out.lead is not None
-    assert out.lead.email == "ann@other.com"
     assert out.lead.full_name == "Ann B"
-    # The status described a's address, not b's, so it is not carried over.
-    assert out.lead.email_status is EmailStatus.UNKNOWN
+    # The email is chosen verified first (user decision 2026-10-06): a's verified
+    # address keeps it whatever the ranks, and its own status comes with it.
+    assert out.lead.email == "ann@x.com"
+    assert out.lead.email_status is EmailStatus.VERIFIED
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.6

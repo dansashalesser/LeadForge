@@ -180,6 +180,7 @@ import math
 import uuid
 from collections.abc import Awaitable, Callable, Hashable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
@@ -449,7 +450,7 @@ class _Fetched:
     batch: RawBatch
     contributions: tuple[LeadContribution, ...]
     records_fetched: int | None
-    credits_consumed: int | None
+    credits_consumed: Decimal | None
 
 
 class Phase(StrEnum):
@@ -481,7 +482,7 @@ class SourceResult:
     # What the adapter reported of this result's batch (``records_fetched`` and
     # ``credits_spent``); ``None`` when it reports none or there is no batch.
     records_fetched: int | None = None
-    credits_consumed: int | None = None
+    credits_consumed: Decimal | None = None
 
 
 def enrichment_work_list(
@@ -800,11 +801,12 @@ class IngestionOrchestrator:
                 contributions = tuple(source.normalize_checked(batch))
                 # Inside the call, so a malformed batch the report hooks refuse is
                 # this source's recorded failure, like a normalization error.
+                spent = source.credits_spent(batch)
                 return _Fetched(
                     batch,
                     contributions,
                     source.records_fetched(batch),
-                    source.credits_spent(batch),
+                    None if spent is None else Decimal(spent),
                 )
 
             async with slots:

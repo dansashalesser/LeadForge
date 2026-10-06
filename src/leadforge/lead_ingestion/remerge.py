@@ -161,13 +161,19 @@ def identify(
             anchor[index] = target
     if not anchor:
         return clusters
-    joined: dict[int, list[LeadContribution]] = defaultdict(list)
+    joined: dict[int, list[IdentityCluster]] = defaultdict(list)
     for index, cluster in enumerate(clusters):
-        joined[anchor.get(index, index)].extend(cluster.contributions)
+        joined[anchor.get(index, index)].append(cluster)
+    # A joined loose record keeps its role addresses (projection's email order).
     out = [
         replace(
             clusters[index],
-            contributions=tuple(sorted(members, key=canonical_json)),
+            contributions=tuple(
+                sorted(
+                    (c for m in members for c in m.contributions), key=canonical_json
+                )
+            ),
+            role_addresses=frozenset().union(*(m.role_addresses for m in members)),
         )
         for index, members in joined.items()
     ]

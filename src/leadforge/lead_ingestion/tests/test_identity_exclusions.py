@@ -69,7 +69,10 @@ def serialise(
 
 
 def over_merged_pool() -> list[LeadContribution]:
-    """Three people sharing a role address that carries one LinkedIn and no names.
+    """Three people sharing an address that carries one LinkedIn and no names.
+
+    ``shared@`` is no role word (user decision 2026-10-06 bars ``info@`` unaided), so
+    only an exclusion can stop it linking.
 
     Follow-up: this pool used to give b a second LinkedIn (bob), bridged to a by the
     bare c. Two distinct LinkedIns now disqualify the address unaided, so the
@@ -79,11 +82,11 @@ def over_merged_pool() -> list[LeadContribution]:
         li(
             "a",
             "linkedin.com/in/ann",
-            person__email="info@x.com",
+            person__email="shared@x.com",
             person__email_status=V,
         ),
-        em("b", "info@x.com"),
-        em("c", "info@x.com"),
+        em("b", "shared@x.com"),
+        em("c", "shared@x.com"),
         em("d", "ann@x.com"),
     ]
 
@@ -92,7 +95,7 @@ def over_merged_pool() -> list[LeadContribution]:
 def test_adding_an_excluded_email_separates_a_previously_over_merged_cluster() -> None:
     pool = over_merged_pool()
     assert partition(pool, NONE) == {frozenset("abc"), frozenset("d")}
-    barred = IdentityExclusions.from_values(emails=["Info@X.com "])
+    barred = IdentityExclusions.from_values(emails=["Shared@X.com "])
     assert partition(pool, barred) == {
         frozenset("a"),
         frozenset("b"),
@@ -106,7 +109,7 @@ def test_exclusion_mutates_no_contribution_and_drops_none() -> None:
     pool = over_merged_pool()
     before = [canonical_json(c) for c in pool]
     result = cluster_contributions(
-        pool, IdentityExclusions.from_values(emails=["info@x.com"])
+        pool, IdentityExclusions.from_values(emails=["shared@x.com"])
     )
     assert [canonical_json(c) for c in pool] == before
     assert sorted(
@@ -181,14 +184,17 @@ def test_an_exclusion_naming_nothing_present_is_a_no_op() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#8.13
 def test_applying_an_exclusion_twice_is_idempotent() -> None:
     pool = over_merged_pool()
-    barred = IdentityExclusions.from_values(emails=["info@x.com"])
+    barred = IdentityExclusions.from_values(emails=["shared@x.com"])
     once = cluster_contributions(pool, barred)
     flat = [m for cl in once for m in cl.contributions]
     twice = cluster_contributions(flat, barred)
     assert [
         (c.cluster_id, [canonical_json(m) for m in c.contributions]) for c in once
     ] == [(c.cluster_id, [canonical_json(m) for m in c.contributions]) for c in twice]
-    assert IdentityExclusions.from_values(emails=["info@x.com", "INFO@x.com"]) == barred
+    assert (
+        IdentityExclusions.from_values(emails=["shared@x.com", "SHARED@x.com"])
+        == barred
+    )
 
 
 def exclusion_pool() -> list[LeadContribution]:
@@ -196,16 +202,16 @@ def exclusion_pool() -> list[LeadContribution]:
         li(
             "a",
             "linkedin.com/in/ann",
-            person__email="info@x.com",
+            person__email="shared@x.com",
             person__email_status=V,
         ),
         li(
             "b",
             "linkedin.com/in/bob",
-            person__email="info@x.com",
+            person__email="shared@x.com",
             person__email_status=V,
         ),
-        em("c", "info@x.com"),
+        em("c", "shared@x.com"),
         li("d", "linkedin.com/in/ann"),
         em("e", "ann@x.com"),
         li(
@@ -218,11 +224,11 @@ def exclusion_pool() -> list[LeadContribution]:
 
 
 EXCLUSION_SETS = [
-    IdentityExclusions.from_values(emails=["info@x.com"]),
+    IdentityExclusions.from_values(emails=["shared@x.com"]),
     IdentityExclusions.from_values(emails=["ann@x.com"]),
     IdentityExclusions.from_values(linkedin_urls=["linkedin.com/in/ann"]),
     IdentityExclusions.from_values(
-        emails=["info@x.com"], linkedin_urls=["linkedin.com/in/bob"]
+        emails=["shared@x.com"], linkedin_urls=["linkedin.com/in/bob"]
     ),
 ]
 
@@ -245,7 +251,7 @@ def test_every_permutation_of_contributions_gives_identical_clusters(
 def test_every_permutation_of_the_exclusion_input_gives_the_same_set_and_clusters() -> (
     None
 ):
-    emails = ["info@x.com", "ann@x.com", "z@x.com"]
+    emails = ["shared@x.com", "ann@x.com", "z@x.com"]
     urls = ["linkedin.com/in/ann", "linkedin.com/in/bob"]
     pool = exclusion_pool()
     reference = IdentityExclusions.from_values(emails=emails, linkedin_urls=urls)
@@ -271,7 +277,7 @@ def test_seeded_shuffles_with_exclusions_give_byte_identical_clusters(
         contribution("i"),
     ]
     barred = IdentityExclusions.from_values(
-        emails=["info@x.com"], linkedin_urls=["linkedin.com/in/bob"]
+        emails=["shared@x.com"], linkedin_urls=["linkedin.com/in/bob"]
     )
     expected = serialise(pool, barred)
     shuffled = list(pool)
@@ -284,7 +290,7 @@ def test_an_exclusion_never_merges_anything_it_only_refines() -> None:
     pool = exclusion_pool()
     base = partition(pool, NONE)
     entries = [
-        ("emails", "info@x.com"),
+        ("emails", "shared@x.com"),
         ("emails", "ann@x.com"),
         ("linkedin_urls", "linkedin.com/in/ann"),
         ("linkedin_urls", "linkedin.com/in/bob"),
@@ -346,12 +352,12 @@ def test_large_input_with_exclusions_keeps_union_operations_near_linear(
     monkeypatch.setattr(clustering._UnionFind, "find", counting_find)
     n = 5000
     pool = [em(f"star{i:05d}", "shared@x.com") for i in range(n // 2)]
-    pool += [em(f"role{i:05d}", "info@x.com") for i in range(n // 4)]
+    pool += [em(f"role{i:05d}", "shared@x.com") for i in range(n // 4)]
     pool += [
         li(f"li{i:05d}", f"linkedin.com/in/p{i % 50}") for i in range(n - len(pool))
     ]
     barred = IdentityExclusions.from_values(
-        emails=["info@x.com", "x1@x.com", "x2@x.com"],
+        emails=["shared@x.com", "x1@x.com", "x2@x.com"],
         linkedin_urls=["linkedin.com/in/p3", "linkedin.com/in/p4"],
     )
     result = cluster_contributions(pool, barred)
@@ -376,10 +382,10 @@ def test_the_repair_projects_two_people_to_two_leads_end_to_end() -> None:
         li(
             "a",
             "linkedin.com/in/ann",
-            person__email="info@x.com",
+            person__email="shared@x.com",
             person__email_status=V,
         ),
-        em("c", "info@x.com"),
+        em("c", "shared@x.com"),
     ]
     ranks = {"a": 1, "c": 3}
 
@@ -388,7 +394,7 @@ def test_the_repair_projects_two_people_to_two_leads_end_to_end() -> None:
         return sum(1 for lead in out if lead is not None)
 
     assert leads(NONE) == 1
-    assert leads(IdentityExclusions.from_values(emails=["INFO@x.com"])) == 2
+    assert leads(IdentityExclusions.from_values(emails=["SHARED@x.com"])) == 2
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13

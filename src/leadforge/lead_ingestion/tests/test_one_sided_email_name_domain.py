@@ -19,8 +19,6 @@ import random
 from datetime import UTC, datetime
 from typing import Any
 
-import pytest
-
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import (
     IdentityCluster,
@@ -477,13 +475,8 @@ def test_every_permutation_of_small_mixed_pools_gives_one_result() -> None:
 
 # --- role addresses and guesses are not identity (user-directed fix 2026-10-06) --
 
-# Projection resolves person.email by Source Trust Rank first (8.4), not by
-# verification or role, so a higher-ranked source wins the field. Projection is
-# outside this change; strict, so these fail loudly once projection is fixed.
-PROJECTION_RANKS_BEFORE_VERIFICATION = pytest.mark.xfail(
-    strict=True,
-    reason="projection picks person.email by trust rank, not verified status",
-)
+# Projection picks person.email verified first, then personal over a role address,
+# then by 8.4 (user decision 2026-10-06; ``test_email_preference``).
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
@@ -508,7 +501,6 @@ def test_a_role_address_does_not_block_an_unverified_own_address() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
 # Verifies: specs/lead-source-adapters/requirements.md#8.14
-@PROJECTION_RANKS_BEFORE_VERIFICATION
 def test_a_role_address_never_becomes_the_email_from_a_higher_ranked_source() -> None:
     pool = [jane("g", ROLE), jane("b", E1), zed()]
     (own,) = [lead for lead in leads(pool) if lead.full_name == "Jane Doe"]
@@ -540,7 +532,6 @@ def test_a_verified_address_and_a_different_guess_are_one_lead_end_to_end() -> N
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.3
-@PROJECTION_RANKS_BEFORE_VERIFICATION
 def test_the_guess_never_becomes_the_email_even_from_a_higher_ranked_source() -> None:
     pool = [jane("a", E1), jane("g", E2, U)]
     (lead,) = leads(pool)

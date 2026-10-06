@@ -11,10 +11,12 @@ from leadforge.lead_ingestion import clustering
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import canonical_json, cluster_contributions
 from leadforge.lead_ingestion.match_keys import (
+    ROLE_LOCAL_PARTS,
     DisqualifiedAddresses,
     IdentityExclusions,
     MatchKeyKind,
     extract_match_keys,
+    is_role_address,
 )
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
@@ -219,9 +221,14 @@ def test_a_disqualified_address_is_not_personal_identity_for_name_domain() -> No
         frozenset("xy"),
         frozenset("z"),
     }
-    # Without z nothing shows the address is shared: it stays x's own verified
-    # address, and two different verified addresses still keep x and y apart.
-    assert partition([pool[0], verified]) == {frozenset("x"), frozenset("y")}
+    # Without z, info@ is still a role address by its local part (role words, user
+    # decision 2026-10-06), so x joins y. An address no rule finds shared stays x's
+    # own, and two different verified addresses still keep x and y apart.
+    assert partition([pool[0], verified]) == {frozenset("xy")}
+    own = named(
+        "x", "jd@x.com", "Jane Doe", company__domain="acme.com", person__title="CTO"
+    )
+    assert partition([own, verified]) == {frozenset("x"), frozenset("y")}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.14
@@ -433,3 +440,80 @@ def test_a_disqualified_address_stays_on_the_projected_lead() -> None:
         lead = project_lead(cl, ranks).lead
         assert lead is not None
         assert "info@x.com" in repr(lead.model_dump(mode="json")).lower()
+
+
+# Role-word local parts (user decision 2026-10-06: "I don't know whats in info@";
+# "email is the most relevant item so it should beat info@"). A generic inbox is a
+# role address even when only one name is reported against it.
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+@pytest.mark.parametrize(
+    ("address", "normalised"),
+    [
+        ("info@x.com", "info@x.com"),
+        (" INFO@X.com", "info@x.com"),
+        ("sales+eu@x.com", "sales+eu@x.com"),
+        ("no-reply@x.com", "no-reply@x.com"),
+        ("noreply@x.com", "noreply@x.com"),
+        ("Enquiries@x.com", "enquiries@x.com"),
+        ("postmaster@x.com", "postmaster@x.com"),
+    ],
+)
+def test_a_role_word_local_part_is_a_role_address_under_one_name(
+    address: str, normalised: str
+) -> None:
+    assert is_role_address(address)
+    pool = [named("a", address, "Ann Lee")]
+    assert DisqualifiedAddresses.from_contributions(pool).addresses == frozenset(
+        {normalised}
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+@pytest.mark.parametrize(
+    "address",
+    [
+        "ann@x.com",
+        "information@x.com",
+        "infos@x.com",
+        "ann.info@x.com",
+        "ann+info@x.com",
+        "ann@info.com",
+        "info",
+        "@x.com",
+        "",
+    ],
+)
+def test_only_the_whole_local_part_before_a_plus_tag_names_a_role(
+    address: str,
+) -> None:
+    assert not is_role_address(address)
+    if "@" in address and not address.startswith("@"):
+        pool = [named("a", address, "Ann Lee")]
+        assert DisqualifiedAddresses.from_contributions(pool).addresses == frozenset()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_the_role_word_list_is_one_lowercase_set() -> None:
+    assert "info" in ROLE_LOCAL_PARTS
+    assert all(word == word.strip().lower() and word for word in ROLE_LOCAL_PARTS)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_a_bare_crm_role_address_is_a_role_address() -> None:
+    crm = contribution("crm", email="Sales@x.com", person__full_name="Ann Lee")
+    found = DisqualifiedAddresses.from_contributions([crm])
+    assert found.addresses == frozenset({"sales@x.com"})
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.14
+def test_a_verified_role_word_address_never_links_even_one_name() -> None:
+    pool = [named("a", "info@x.com", "Ann Lee"), named("b", "info@x.com", "Ann Lee")]
+    shared = DisqualifiedAddresses.from_contributions(pool)
+    keys = extract_match_keys(pool[0], None, shared)
+    assert all(k.kind is not MatchKeyKind.VERIFIED_EMAIL for k in keys.keys)
+    assert MatchKeyKind.VERIFIED_EMAIL in keys.barred_kinds
+    assert partition(pool) == {frozenset("a"), frozenset("b")}
+    for perm in itertools.permutations(pool):
+        assert serialise(list(perm)) == serialise(pool)

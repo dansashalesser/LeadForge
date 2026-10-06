@@ -32,6 +32,13 @@ mutated. Provisional decisions (choices.md, 16.3):
   observed candidate holds it. Otherwise it is left out, so it never counts as an
   agreeing source, never creates a conflict and never outranks the requester's own
   value; alone, it still fills the field.
+* ``person.email`` only (user decision 2026-10-06, Requirement 8.4 amendment): two
+  rules come before the order above. A candidate whose own contribution states
+  ``person.email_status`` VERIFIED beats any other status; then a personal address
+  beats a role address (one of ``IdentityCluster.role_addresses``: the 8.14 pass's
+  shared or role-word addresses, such as ``info@``). Both are read with
+  ``match_keys.personal_email``, as clustering reads them. For every other path the two
+  components are equal, so they never decide and 8.4 stands unchanged.
 * Values and sources are personal data: errors name types and source names only.
 """
 
@@ -46,6 +53,7 @@ from leadforge.lead_ingestion.clustering import (
     IdentityCluster,
     canonical_value_json,
 )
+from leadforge.lead_ingestion.match_keys import personal_email
 from leadforge.lead_ingestion.models import (
     REQUEST_ECHO_PREFIX,
     AbsenceKind,
@@ -71,11 +79,19 @@ _ORIGIN_TIER = {
     ConfidenceOrigin.HEURISTIC: 1,
     ConfidenceOrigin.NONE: 0,
 }
+_EMAIL = "person.email"
+# Any other path: both email preference components equal, so they never decide.
+_NO_PREFERENCE = (0, 0)
 
 
 class ConflictRule(Enum):
-    """The rule of 8.4 that decided a conflict; ``TIE_BREAK`` is the design extras."""
+    """The rule of 8.4 that decided a conflict; ``TIE_BREAK`` is the design extras.
 
+    ``VERIFIED_EMAIL`` and ``PERSONAL_EMAIL`` decide ``person.email`` only.
+    """
+
+    VERIFIED_EMAIL = "verified_email"
+    PERSONAL_EMAIL = "personal_email"
     TRUST_RANK = "trust_rank"
     CONFIDENCE_ORIGIN = "confidence_origin"
     CONFIDENCE = "confidence"
@@ -85,6 +101,8 @@ class ConflictRule(Enum):
 
 # Positions of the order key (see ``_order_key``) that name a rule of 8.4.
 _RULES = (
+    ConflictRule.VERIFIED_EMAIL,
+    ConflictRule.PERSONAL_EMAIL,
     ConflictRule.TRUST_RANK,
     ConflictRule.CONFIDENCE_ORIGIN,
     ConflictRule.CONFIDENCE,
@@ -152,9 +170,14 @@ def resolve_conflicts(
             value = contribution.values[record.canonical_path]
             value_json = canonical_value_json(_without_strength(value))
             rank = trust_ranks.get(record.source_name, LOWEST_TRUST_RANK)
+            preference = (
+                _email_preference(contribution.values, cluster.role_addresses)
+                if record.canonical_path == _EMAIL
+                else _NO_PREFERENCE
+            )
             by_path.setdefault(record.canonical_path, []).append(
                 (
-                    _order_key(record, rank, value_json),
+                    _order_key(record, rank, value_json, preference),
                     value_json,
                     FieldCandidate(record.source_name, value, record),
                 )
@@ -204,11 +227,27 @@ def _without_strength(value: object) -> object:
     return value
 
 
-def _order_key(record: FieldProvenance, rank: int, value_json: str) -> tuple[Any, ...]:
+def _email_preference(
+    values: Mapping[str, object], role_addresses: frozenset[str]
+) -> tuple[int, int]:
+    """``(not verified, role)``: ascending puts verified, then personal, first."""
+    stated = personal_email(values)
+    if stated is None:
+        return (1, 0)
+    return (0 if stated.verified else 1, int(stated.address in role_addresses))
+
+
+def _order_key(
+    record: FieldProvenance,
+    rank: int,
+    value_json: str,
+    preference: tuple[int, int],
+) -> tuple[Any, ...]:
     origin = record.confidence_origin
     # Origin none carries no confidence; it must not be read as 0.0 against a number.
     confidence = 0.0 if record.confidence is None else record.confidence
     return (
+        *preference,
         -rank,
         -_ORIGIN_TIER[origin],
         -confidence,

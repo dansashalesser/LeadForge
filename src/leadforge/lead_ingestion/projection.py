@@ -23,8 +23,18 @@ Provisional decisions (choices.md, 16.5):
   candidate is promoted in its place, so the field still resolves to the winning
   provenance record.
 * ``email_status`` is only meaningful for the address it was stated about, so it is
-  taken from the first candidate (winner, agreeing, superseded) whose source also
-  supplied the chosen address; otherwise ``unknown``. A status with no email is never
+  taken from the first contribution, in ``person.email`` candidate order (winner,
+  agreeing, superseded), that supplied the chosen address and states a counted status
+  in the same record; else ``unknown``. Paired per contribution, not per source: a
+  source's other record (its ``info@``) never labels the chosen address. That order
+  puts a verified statement first (user decision 2026-10-06), so an address one source
+  verified reads verified even when a higher-ranked source called it unverified.
+* ``person.email`` is chosen verified first, then personal over role, then 8.4
+  (``conflicts``; user decision 2026-10-06). A role address (``IdentityCluster.
+  role_addresses``) is never dropped: when it is the email, ``email_is_role_address``
+  is set (the person has no personal address that won); every other one stated in the
+  cluster goes to ``role_contact_emails`` (company contacts), normalised, sorted and
+  distinct. A status with no email is never
   built, so the model's validator cannot reject the merge.
 * ``opt_out`` and ``suppressed`` are the OR over every candidate of every source, not
   the winner: a flag from any source is never lost to a conflict (design: OR
@@ -93,6 +103,7 @@ from leadforge.lead_ingestion.match_keys import (
     IdentityExclusions,
     MatchKey,
     MatchKeyKind,
+    normalize_email,
 )
 from leadforge.lead_ingestion.models import (
     REQUEST_ECHO_PREFIX,
@@ -136,8 +147,11 @@ __all__ = [
 # one-sided email rule (8.3), request-echo fields counted only when no other source has
 # the field, LinkedIn cannot-link, the confidence table changes, and the display
 # primary domain read from the stored tie resolution (16.11). 3: a request-echo
-# ``person.email`` no longer hides a CRM source's own bare ``email``.
-PROJECTION_RULES_REVISION = 3
+# ``person.email`` no longer hides a CRM source's own bare ``email``. 4: the email is
+# chosen verified first, then personal over role (user decision 2026-10-06), with the
+# role flag and the company contact addresses; role-word addresses (``info@``) count as
+# role addresses, also for clustering.
+PROJECTION_RULES_REVISION = 4
 
 _BARE_EMAIL = "email"
 _EMAIL = "person.email"
@@ -324,10 +338,12 @@ def project_lead(
     the stored answer to an exact primary-domain tie (16.11); without it, or with
     nothing stored, a tie is the lowest-sorted candidate, flagged.
     """
-    members = tuple(_with_canonical_email(c) for c in cluster.contributions)
-    resolution = _flagged_first(
-        resolve_conflicts(IdentityCluster(cluster.cluster_id, members), trust_ranks)
+    merged = replace(
+        cluster,
+        contributions=tuple(_with_canonical_email(c) for c in cluster.contributions),
     )
+    members = merged.contributions
+    resolution = _flagged_first(resolve_conflicts(merged, trust_ranks))
     sources = sorted(
         {c.source_name for c in members} | set(contributing_sources(resolution))
     )
@@ -336,7 +352,7 @@ def project_lead(
     suppressed = any(flag == _SUPPRESSED for flag, _ in reports)
     primary, tie = _primary_domain(resolution, trust_ranks, tie_resolutions)
     return ProjectionResult(
-        lead=_build_lead(resolution, cluster.cluster_id, opt_out, suppressed),
+        lead=_build_lead(resolution, merged, opt_out, suppressed),
         contributing_sources=tuple(sources),
         agreement=tuple(
             (f.canonical_path, agreeing_source_count(f)) for f in resolution.fields
@@ -508,9 +524,13 @@ def _text(value: object) -> str | None:
 
 
 def _build_lead(
-    resolution: ClusterResolution, cluster_id: str, opt_out: bool, suppressed: bool
+    resolution: ClusterResolution,
+    cluster: IdentityCluster,
+    opt_out: bool,
+    suppressed: bool,
 ) -> CanonicalLead | None:
     email = _valid_email(_text(_winner_value(resolution, _EMAIL)))
+    roles = cluster.role_addresses
     linkedin = _valid_url(_text(_winner_value(resolution, _LINKEDIN)))
     full_name = _full_name(resolution)
     if email is None and linkedin is None and full_name is None:
@@ -518,15 +538,26 @@ def _build_lead(
     tech, intent = _signals(resolution)
     return CanonicalLead(
         email=email,
-        email_status=_email_status(resolution, email),
+        email_status=_email_status(resolution, cluster.contributions, email),
+        email_is_role_address=normalize_email(email) in roles,
         linkedin_url=linkedin,
         full_name=full_name,
-        employments=_employments(resolution, cluster_id),
+        employments=_employments(resolution, cluster.cluster_id),
         tech_signals=tech,
         intent_signals=intent,
         opt_out=opt_out,
         suppressed=suppressed,
+        role_contact_emails=_role_contacts(resolution, roles, email),
     )
+
+
+def _role_contacts(
+    resolution: ClusterResolution, roles: frozenset[str], email: str | None
+) -> tuple[str, ...]:
+    """The role addresses stated as ``person.email`` here, other than the email."""
+    stated = {normalize_email(_text(c.value)) for c in _candidates(resolution, _EMAIL)}
+    contacts = roles.intersection(stated) - {normalize_email(email)}
+    return tuple(a for a in sorted(contacts) if _valid_email(a) is not None)
 
 
 def _valid_email(text: str | None) -> str | None:
@@ -559,22 +590,31 @@ def _full_name(resolution: ClusterResolution) -> str | None:
     return None if "*" in name else name
 
 
-def _email_status(resolution: ClusterResolution, email: str | None) -> EmailStatus:
+def _email_status(
+    resolution: ClusterResolution,
+    members: tuple[LeadContribution, ...],
+    email: str | None,
+) -> EmailStatus:
     if email is None:
         return EmailStatus.UNKNOWN
-    wanted = email.strip().casefold()
-    stated_by = {
-        c.source_name
-        for c in _candidates(resolution, _EMAIL)
-        if (text := _text(c.value)) is not None and text.strip().casefold() == wanted
-    }
-    for candidate in _candidates(resolution, _EMAIL_STATUS):
-        if candidate.source_name not in stated_by:
+    wanted = normalize_email(email)
+    # The statuses 16.3 counts (an echo only when nothing was observed).
+    counted = {c.provenance for c in _candidates(resolution, _EMAIL_STATUS)}
+    for candidate in _candidates(resolution, _EMAIL):
+        if normalize_email(_text(candidate.value)) != wanted:
             continue
-        try:
-            return EmailStatus(candidate.value)
-        except ValueError:
-            return EmailStatus.UNKNOWN
+        for member in members:
+            if candidate.provenance not in member.provenance:
+                continue
+            if normalize_email(_text(member.values.get(_EMAIL))) != wanted:
+                continue
+            if not counted.intersection(member.provenance):
+                continue
+            status: Any = member.values.get(_EMAIL_STATUS)
+            try:
+                return EmailStatus(status)
+            except ValueError:
+                return EmailStatus.UNKNOWN
     return EmailStatus.UNKNOWN
 
 

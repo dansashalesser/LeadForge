@@ -81,6 +81,7 @@ from leadforge.lead_ingestion.match_keys import (
     extract_match_keys,
     linkedin_identity,
     personal_email,
+    stated_email,
 )
 
 __all__ = [
@@ -104,6 +105,11 @@ class IdentityCluster:
     # sorted strongest kind first then by value. Personal data: never in ``repr``;
     # only ``match_key_digest`` digests of them reach a log.
     linked_by: tuple[MatchKey, ...] = field(default=(), repr=False)
+    # The members' stated addresses that the 8.14 pass over the whole clustered set
+    # found shared or role-word (``DisqualifiedAddresses.addresses``: a role address
+    # such as ``info@``). Projection prefers a personal address over these for the
+    # Lead's email (user decision 2026-10-06). Personal data: never in ``repr``.
+    role_addresses: frozenset[str] = field(default=frozenset(), repr=False)
 
 
 class _UnionFind:
@@ -267,6 +273,11 @@ def cluster_contributions(
                 tuple(items[i][1] for i in group),
                 tuple(sorted(forest.kinds(group[0]))),
                 tuple(sorted(forest.keys(group[0]))),
+                frozenset(
+                    address
+                    for i in group
+                    if (address := stated_email(items[i][1].values)) in shared.addresses
+                ),
             )
         )
     return tuple(sorted(clusters, key=lambda c: c.cluster_id))

@@ -11,25 +11,41 @@ branches): SQLite does not enforce foreign keys unless ``PRAGMA foreign_keys`` i
 and an in-memory SQLite database exists per connection. Schema creation stays with the
 migrations; nothing here creates tables or runs at import.
 
+``database_now(seconds)`` (follow-up fu3, 2026-10-06) is the database SERVER's current
+instant plus ``seconds``, evaluated inside the statement that uses it, for the run
+lock's lease: no host clock decides it. PostgreSQL: ``statement_timestamp() +
+make_interval(secs => n)`` (the statement's start, so a lock statement late in a long
+transaction is not stamped with the transaction's start, as ``CURRENT_TIMESTAMP``
+would be; one instant within the statement, unlike ``clock_timestamp()``). SQLite has
+no interval arithmetic: ``strftime('%Y-%m-%d %H:%M:%f', 'now', 'n seconds')``, UTC in
+the layout SQLAlchemy stores instants in, so stored and computed instants compare
+correctly. Another backend is refused when the
+statement compiles, never guessed.
+
 Credentials never appear in messages, reprs or logs from this module: errors never echo
 the raw value, and URLs are rendered through ``redact_url``.
 """
 
 import os
 from collections.abc import Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import DateTime, Engine, Float, create_engine, event, literal
 from sqlalchemy.engine import URL, make_url
-from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+from sqlalchemy.exc import ArgumentError, CompileError, NoSuchModuleError
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
+from sqlalchemy.sql.compiler import SQLCompiler
+from sqlalchemy.sql.functions import FunctionElement
 
 __all__ = [
     "DATABASE_URL_ENV",
     "DEFAULT_SQLITE_RELATIVE_PATH",
     "DatabaseConfigError",
     "create_store_engine",
+    "database_now",
     "redact_url",
     "resolve_database_url",
 ]
@@ -169,3 +185,39 @@ def _enable_foreign_keys(dbapi_connection: Any, _record: ConnectionPoolEntry) ->
         cursor.execute("PRAGMA foreign_keys=ON")
     finally:
         cursor.close()
+
+
+class database_now(FunctionElement[datetime]):  # noqa: N801 - an SQL function
+    """The database server's current instant plus ``seconds``, in the statement."""
+
+    type = DateTime(timezone=True)
+    inherit_cache = True
+
+    def __init__(self, seconds: float = 0.0) -> None:
+        super().__init__(literal(float(seconds), Float()))
+
+
+def _seconds(element: database_now, compiler: SQLCompiler, **kw: Any) -> str:
+    (seconds,) = element.clauses
+    return compiler.process(seconds, **kw)
+
+
+@compiles(database_now, "postgresql")
+def _postgresql_now(element: database_now, compiler: SQLCompiler, **kw: Any) -> str:
+    return (
+        "(statement_timestamp() + make_interval(secs => "
+        f"{_seconds(element, compiler, **kw)}))"
+    )
+
+
+@compiles(database_now, "sqlite")
+def _sqlite_now(element: database_now, compiler: SQLCompiler, **kw: Any) -> str:
+    return (
+        "strftime('%Y-%m-%d %H:%M:%f', 'now', "
+        f"{_seconds(element, compiler, **kw)} || ' seconds')"
+    )
+
+
+@compiles(database_now)
+def _unsupported_now(element: database_now, compiler: SQLCompiler, **kw: Any) -> str:
+    raise CompileError("no database clock for this backend")

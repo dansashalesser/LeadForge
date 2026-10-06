@@ -24,18 +24,22 @@ Provisional decisions (see choices.md, task 20):
   (``store.run_lock``) after migrating and BEFORE its run record or any provider
   call; a second run raises ``RunInProgressError`` ("another run in progress", no
   value) having recorded and spent nothing. The lease is the run timeout plus
-  ``LOCK_STALE_GRACE_S``; a crashed run's lock is taken over once it expired. The
-  merge transaction renews the lease first, so a run whose lock was taken over is
-  refused there (``merge: RunLockLostError``). The lock is released at the end.
+  ``LOCK_STALE_GRACE_S``, on the database server's clock (follow-up fu3: the host
+  clock and ``clock`` never decide it); a crashed run's lock is taken over once it
+  expired. The merge transaction renews the lease first, so a run whose lock was
+  taken over is refused there (``merge: RunLockLostError``). The lock is released at
+  the end.
 * Run lifecycle (follow-up 2026-10-06): the orchestrator's completion is deferred.
-  The run's raw payloads, contributions and per-source counts (calls, records,
-  credits, ``contributions_written``) commit FIRST in their own transaction
-  (``persist_observations`` + ``StoreRunRecorder.spend``; idempotent, so a repeated
-  record is stored once). The merge and the completion (status, exit code) are a
-  second transaction, so the record says ``completed`` only once the merge
-  committed. A failure after the sources ran rolls back only its own transaction,
-  marks the run ``aborted`` with the reason ``<stage>: <exception class>``
-  (``observe``, ``merge`` or ``merge_write``; never the exception's text) and
+  The spend (``StoreRunRecorder.spend``: calls, records fetched, Credits) commits
+  FIRST, alone (follow-up fu3): a failing contribution write keeps it, and the
+  figures are set, not added, so writing them again never counts twice. The run's
+  raw payloads, contributions and ``contributions_written`` commit next
+  (``persist_observations``; idempotent, so a repeated record is stored once). The
+  merge and the completion (status, exit code) are a third transaction, so the
+  record says ``completed`` only once the merge committed. A failure after the
+  sources ran rolls back only its own transaction, marks the run ``aborted`` with
+  the reason ``<stage>: <exception class>`` (``spend``, ``observe``, ``merge`` or
+  ``merge_write``; never the exception's text) and
   propagates; contributions an aborted merge left unmerged are merged by the next
   run. ``aborted`` is the existing vocabulary for "ended by an exception".
 * Projection version (16.6 wiring, follow-up 2026-10-06): the basis
@@ -344,9 +348,7 @@ async def run_ingestion(
         holder = uuid.uuid4()
         lease = timeout + LOCK_STALE_GRACE_S
         held = await writer.write_batch(
-            lambda session: try_acquire_run_lock(
-                session, holder, now=clock(), lease_s=lease
-            )
+            lambda session: try_acquire_run_lock(session, holder, lease_s=lease)
         )
         if held is not None:
             raise RunInProgressError(
@@ -391,8 +393,11 @@ async def run_ingestion(
             if run_id is None:  # the orchestrator starts the record before any source
                 raise RuntimeError("the run record was not started")
 
-            stage = "observe"
+            stage = "spend"
             try:
+                # Alone and first: what the run spent survives any later failure.
+                await writer.write_batch(store_recorder.spend(run_id, results))
+                stage = "observe"
                 batches = tuple(
                     SourceBatch(
                         r.source_name,
@@ -405,11 +410,10 @@ async def run_ingestion(
                     if r.batch is not None and r.contributions is not None
                 )
                 computed_at = clock()
-                spend = store_recorder.spend(run_id, results)
 
                 def observe(session: Session) -> Observed:
                     # Committed on its own, before the merge: what the run fetched
-                    # and spent survives a merge that fails.
+                    # survives a merge that fails.
                     observed = persist_observations(
                         session,
                         run_id=run_id,
@@ -417,7 +421,7 @@ async def run_ingestion(
                         computed_at=computed_at,
                         retention=RetentionPolicy(),
                     )
-                    spend(session)
+                    RunRecordRepository(session).record_contributions_written(run_id)
                     return observed
 
                 observed = await writer.write_batch(observe)
@@ -429,7 +433,7 @@ async def run_ingestion(
                     # One transaction, under the renewed lock: the clusters that
                     # need it are re-projected and saved through the one path.
                     nonlocal stage, plan
-                    renew_run_lock(session, holder, now=clock(), lease_s=lease)
+                    renew_run_lock(session, holder, lease_s=lease)
                     runs = RunRecordRepository(session)
                     previous = runs.latest_projection_stamp()
                     stamp = stamp_projection(

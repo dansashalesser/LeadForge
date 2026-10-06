@@ -8,6 +8,7 @@ import inspect
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -231,7 +232,7 @@ async def test_a_provider_stated_quota_and_the_counters_are_shown(
         )
         row = s.scalars(sa.select(m.SourceRun)).one()
         row.quota_remaining = {"minute": 7, "day": 40}
-        row.credits_consumed = 12
+        row.credits_consumed = Decimal(12)
         row.retries, row.throttle_waits, row.http_429_count = 2, 3, 1
 
     await StoreWriter(engine).write_batch(finish)

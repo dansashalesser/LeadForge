@@ -3,7 +3,8 @@
 A scripted source answers with the people it was given (one contribution each, keyed
 by the canonical paths it names), may block on a ``threading.Event`` while "calling
 the provider" so a second run can be started meanwhile, and records every call it
-makes, so a test can prove a refused run spent nothing.
+makes, so a test can prove a refused run spent nothing. It reports the records it
+fetched and, when given, the Credits each batch spent (exact ``Decimal``).
 """
 
 import asyncio
@@ -11,6 +12,7 @@ import threading
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, ClassVar
 
 import sqlalchemy as sa
@@ -43,6 +45,7 @@ class Script:
     gate: threading.Event | None = None  # the call waits for it, when given
     entered: threading.Event = field(default_factory=threading.Event)
     calls: list[str] = field(default_factory=list)
+    credits: Decimal | None = None  # what each batch spent; None: not reported
 
 
 def contribution_of(source: str, values: Mapping[str, Any]) -> LeadContribution:
@@ -89,6 +92,12 @@ def scripted_source(source_name: str, script: Script) -> type[BaseLeadSource]:
 
         def normalize(self, raw: RawBatch) -> list[LeadContribution]:
             return [contribution_of(self.name, p) for p in raw.payload["people"]]
+
+        def records_fetched(self, batch: RawBatch) -> int:
+            return len(batch.payload["people"])
+
+        def credits_spent(self, batch: RawBatch) -> Decimal | None:
+            return script.credits
 
     return Scripted
 

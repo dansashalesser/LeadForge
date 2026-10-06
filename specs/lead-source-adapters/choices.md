@@ -3033,3 +3033,95 @@ Independent review (spec-refactor), clean worktree at HEAD + only this change's 
 - (f) The new logs carry counts only.
 - (g) 15 mutants, sha256-restored: 13 killed. H7 (a stored batch without `plan` refused) SURVIVED -> added `test_a_stored_batch_from_before_the_plan_is_priced_as_data`, which kills it. P6 (alias setdefault -> overwrite) survives as near-equivalent: both hits name the same person. Skipped.
 - Verification: worktree full suite 4069 passed / 1 skipped / 2 xfailed. The opt-out e2e test passes there, and main's adapter tests are 985 passed. ruff, format and mypy are clean on the touched files.
+
+## Follow-up — lead email: verified, then personal, before trust rank (user decision 2026-10-06)
+
+User decision (verbatim): "a verified email should beat an unverified one"; "email is the most relevant item so it should beat info@". Amends 8.4 for `person.email` only.
+
+Files: conflicts.py, projection.py, clustering.py (IdentityCluster.role_addresses), models.py (CanonicalLead fields); tests: test_email_preference.py (new), test_one_sided_email_name_domain.py (2 strict xfails removed), test_projection_version.py, test_projection.py.
+
+### Decisions
+1. **Order for `person.email`.** `conflicts._order_key` is prefixed by `(not verified, role)`: a verified status (the candidate's own contribution's `person.email_status`, read with `match_keys.personal_email`, as clustering reads it) beats any other status; then a personal address beats a role address; then the unchanged 8.4 order (trust rank, origin, confidence, recency, source, sha). Other paths get `(0, 0)`, so 8.4 is untouched for them. New `ConflictRule.VERIFIED_EMAIL` / `PERSONAL_EMAIL` name the deciding rule in the merge log.
+2. **Literal order.** Verified comes before personal: a verified `info@` beats an unverified personal guess (and is flagged as a role address). Taken literally from the decision's order.
+3. **Role address = the existing 8.14 detection, imported.** (Superseded by the self-review below: role words now count too.) Originally no role-word list: `DisqualifiedAddresses.addresses` (an address reported against two distinct names, or with two LinkedIn URLs) over the whole clustered set. `cluster_contributions` puts each cluster's share of it on `IdentityCluster.role_addresses` (default empty; hidden from repr). An `info@` seen against one name only is not a role address.
+4. **Role addresses kept.** No company-contact field existed. Added `CanonicalLead.email_is_role_address: bool = False` (needs an email) and `CanonicalLead.role_contact_emails: tuple[StrictEmail, ...] = ()` (the role addresses stated in the cluster other than the email; normalised, sorted, distinct). Not named `company_*`: test_canonical_entities forbids company/employer attributes on the Lead. Not on `CompanySignal`: it is shared per `company_id` and must be equal across Leads.
+5. **`email_status`** is read from the first source, in email-candidate order, that stated the chosen address and a status, so a lower-ranked source's verification of the same address reports `verified`. Pinned test `test_changing_trust_ranks_changes_the_winner` changed on purpose (the email stays the verified `ann@x.com`; the name still follows the ranks).
+6. **Echoes unchanged.** `asked.` candidates still compete only when no observed candidate exists, so they never add agreement nor win on their own.
+7. **`PROJECTION_RULES_REVISION` 3 -> 4**: the basis fingerprint changes, so every stored Lead is stale and recomputes.
+
+### Gaps
+- The Lead Store does not persist `email_is_role_address` / `role_contact_emails` (store/* is another agent's scope): they live on the projected `CanonicalLead` only until columns are added.
+- Vendor neutrality forbids vendor names in tests: the end-to-end test uses neutral source names (`verifier`, low rank, for the Hunter verifier; `enricher`, high rank).
+
+### Self-review (spec-refactor, user intent: role words)
+- **Role words.** User intent ("I don't know whats in info@") means generic inboxes. `match_keys.ROLE_LOCAL_PARTS` (29 words, listed in requirements 8.14 amendment) is the one list; `is_role_address` compares the whole local part, lowercased, before any `+tag` (`information@`, `ann.info@` are not roles). `DisqualifiedAddresses.from_contributions` adds every stated address (`stated_email`, bare CRM path included, any status) that matches, so role address = word OR two names OR two LinkedIns, read by match keys, 8.3 (`personal_email`), clustering's `role_addresses`, projection and orchestrator opt-out linking with no other copy. English words only: a role inbox in another language still relies on the two-names rule. Supersedes ADR-0003 on this point.
+- **Effect on merge.** A role-word address never acts as a Match Key (even verified, under one name) and is no personal evidence, so it never blocks a one-sided name+domain join. Exclusion tests that used `info@x.com` as an address only an exclusion can stop now use `shared@x.com`; `test_a_disqualified_address_is_not_personal_identity_for_name_domain` now expects x and y to join without z.
+- **remerge.identify** joined loose records (provider id) into a keyed cluster but kept only the anchor's `role_addresses`; it now unions them.
+- **email_status** was paired with the address per source, so a source's `info@` status (e.g. `invalid`) could label its personal address. It is now paired per contribution.
+- Literal order kept: a VERIFIED `info@` beats an UNVERIFIED personal guess (flagged).
+- Store gap: `canonical_lead` needs `email_is_role_address BOOLEAN NOT NULL DEFAULT false` and `role_contact_emails JSON NULL` (migration 0009 after 0008), written in `store/merged_leads._write_canonical` and compared in `_content`.
+- `PROJECTION_RULES_REVISION` stays 4 (not yet shipped; covers this).
+
+## Follow-up — lead email: verified, then personal, before trust rank (user decision 2026-10-06)
+
+Files: conflicts.py, projection.py, clustering.py (IdentityCluster.role_addresses), models.py (CanonicalLead.email_is_role_address, CanonicalLead.role_contact_emails); tests: test_email_preference.py (new, 15 tests), test_one_sided_email_name_domain.py (2 strict xfails removed, unused pytest import dropped), test_projection_version.py (pin 3 -> 4), test_projection.py (pinned test changed on purpose). Specs: requirements.md 8.4 amendment note; choices.md entry.
+
+RED (scratchpad red.txt): 14 failed / 47 passed. Reasons: no email_is_role_address/role contacts attribute, info@ or the higher-ranked guess won person.email, status unverified, revision 3 != 4. GREEN: green.txt, then t2.txt.
+
+### Decisions
+- person.email order: (not verified, role) prefix on the 16.3 key, then the unchanged 8.4 order. Other paths get (0, 0), so they never decide there. New ConflictRule.VERIFIED_EMAIL / PERSONAL_EMAIL show in merge log `rule`.
+- Verified is read with match_keys.personal_email from the candidate's own contribution (imported, not copied). Role = the existing 8.14 DisqualifiedAddresses.addresses, carried on the cluster as IdentityCluster.role_addresses by cluster_contributions. There is no role-word list: an info@ seen against one name only is not a role address.
+- Literal order: a verified info@ beats an unverified personal guess, and is flagged as a role address.
+- No company-contact field existed. Added CanonicalLead.role_contact_emails, because test_canonical_entities forbids company_* attributes on the Lead and CompanySignal is shared per company_id. Also added email_is_role_address, which the validator rejects without an email.
+- email_status follows the email candidate order: if a lower-ranked source verifies the same address, the status reads verified. test_projection::test_changing_trust_ranks_changes_the_winner was changed on purpose (the email stays the verified one; the name still follows the ranks).
+- Echoes are unchanged (asked.* compete only when no observed candidate exists). This is tested.
+- PROJECTION_RULES_REVISION 3 -> 4; the fingerprint differs from the rev-3 basis (tested), so stored leads are stale and get recomputed.
+- E2E runs through cluster_contributions + project_lead, with permutation tests (40 seeds, every order). Sources have neutral names (verifier = Hunter role, low rank; enricher = high rank) because test_vendor_neutrality bans vendor names in tests.
+- Mutation (sha256-restored): swapping the verified/role order and dropping the prefix were both killed. "No address treated as verified" survived until test_a_value_that_is_no_address_never_counts_as_verified was added; it is killed now.
+
+### Gaps
+- The store does not persist email_is_role_address / role_contact_emails. store/* belongs to the other agent, so a column is needed.
+- spec-refactor-agent / validate-production-agent were not spawned (no Agent tool). Serena/GitNexus/ctx tools were not available, so blast radius was checked by grep: IdentityCluster is built only in clustering.py and projection.py; resolve_conflicts' signature is unchanged; ConflictRule is read by merge_log (.value) only.
+
+### Verification
+ruff check src: clean. mypy: clean (207 files). Full pytest: 4196 passed, 1 skipped, 5 failed. All 5 failures are in the other agent's files: test_database_engine branching, test_store_schema raw SQL, and 2x test_structural_rules (all from store/run_lock.py and database.py); test_vendor_neutrality (base_source.py, store/models.py, 0008 migration, and test_spend_record_both_engines.py naming 'hunter').
+
+### Self-review findings
+Independent review (spec-refactor) in a clean worktree (HEAD + only this change's files), then copied to main.
+- FIXED (user intent, test-first): role address now = role-word local part OR the two-names / two-LinkedIns rule. `match_keys.ROLE_LOCAL_PARTS` (29 words) + `is_role_address` (whole local part, lowercased, before `+tag`); `DisqualifiedAddresses.from_contributions` adds matching `stated_email` addresses. That one detection feeds match keys, 8.3 `personal_email`, `IdentityCluster.role_addresses`, projection and orchestrator opt-out linking (orchestrator, conflicts logic untouched). A role-word address never links (even verified, one name) and never blocks a one-sided join.
+- FIXED: `remerge.identify` dropped a joined loose record's `role_addresses` (kept the anchor's only); now unions them.
+- FIXED: `projection._email_status` paired status with address per SOURCE, so one source's `info@` status (e.g. invalid) labelled its personal address. Now per contribution.
+- Tests: test_role_addresses (+5 tests, parametrised), test_email_preference (+6, replaced the "no word list" test), test_identity_exclusions/test_projection_version fixtures `info@x.com` -> `shared@x.com` (non-role address only an exclusion stops); one pinned assertion in test_role_addresses updated on purpose (x, y now join without z).
+- (a) Verified info@ beats unverified personal guess: kept, tested. (b) Store needs migration 0009: `canonical_lead.email_is_role_address BOOLEAN NOT NULL DEFAULT false`, `canonical_lead.role_contact_emails JSON NULL`; write in `store/merged_leads._write_canonical`, compare in `_content`. (c) Revision 4 (unshipped) covers this; fingerprint test passes. (d) Permutation tests pass; echoes never win (tested).
+- (e) Mutation: 10 mutants, sha256-restored; 9 killed first pass, M8 (status "counted" check dropped) survived -> added `test_a_record_stating_the_address_without_a_status_defers_to_one_with_it`, now killed (10/10).
+- Specs: requirements 8.14 amendment (supersedes ADR-0003 on this point); choices.md self-review subsection.
+- Verification: worktree full suite 4205 passed / 1 skipped; main full suite 4232 passed / 1 skipped; ruff, format, mypy clean.
+- Skipped: English-only list (non-English role inboxes rely on the two-names rule).
+
+## Follow-up — exact fractional credits, spend committed first, DB-clock run lock (2026-10-06)
+
+Evidence (test-first): RED fu3-red-credits.txt (13 failed: credits_in returned int 2, column rounded 1.5 to 2, no 0008, spend lost on a contribution-write failure (None,None,None)); fu3-red-lock.txt (behavioural: a host 6h ahead STOLE a live lock (DID NOT RAISE); a host 6h behind was refused a dead lock; old API took `now`). GREEN: fu3-green-credits.txt, fu3-green-lock.txt (30 passed), fu3-full.txt: 4204 passed, 1 skipped, 0 failed (Postgres legs ran). ruff check src clean; mypy clean (208 files). Baseline fu3-baseline.txt is NOT clean evidence (my edits landed mid-run).
+
+### Decisions
+- Credits storage: integer milli-Credits, not Numeric. SQLite has no exact decimal (NUMERIC keeps a float); an Integer is exact and identical on both engines and stays inside the portable-type rule. `store.models.MilliCredits` (TypeDecorator over Integer) reads/writes `Decimal`; column renamed `credits_consumed_milli` so a raw DB reader cannot mistake units; ORM attribute keeps the name `credits_consumed`. A float or a figure finer than 0.001 is refused (StatementError), never rounded.
+- Migration 0008: upgrade = x1000 (exact, NULL stays NULL); downgrade = ceil(milli/1000) via `//` (integer floor division on both engines, figures non-negative) so the old schema never under-reports spend. Proven both directions on both engines (3 -> 3, NULL -> NULL, 1.5 -> 2 down, back up as 2). Autogenerate drift test passes (alembic compares the impl).
+- Adapter: hunter `_VERIFIER_PRICE` is Decimal (data 1, all-in-one 0.5); `credits_in -> Decimal`, no ceil. `BaseLeadSource.credits_spent -> Decimal | int | None` (Apollo's int stays valid, untouched); orchestrator normalises to Decimal; `run_record._total` sums exactly (typed generic, no float); report prints `credits=1.5`.
+- Spend first: `StoreRunRecorder.spend` now writes only the source counts (calls, fetched, credits, failure class, throttle) and the runner commits it ALONE, stage `spend`, before `observe` (persist_observations + record_contributions_written). A contribution-write failure aborts `observe: <class>` with the spend intact. Idempotent: record_source_counts SETs figures (never adds); test writes them twice -> 1.5 not 3.
+- Lock clock: `database.database_now(seconds)` (one FunctionElement, compiled per dialect in database.py, the only module allowed to name a backend): PG `CURRENT_TIMESTAMP + make_interval(secs => n)`, SQLite `strftime('%Y-%m-%d %H:%M:%f','now','n seconds')` (UTC, SQLAlchemy's stored layout). acquire/renew lost their `now` parameter; the host clock and `run_ingestion(clock=)` no longer reach the lock. Other dialects: CompileError.
+- Tests adapted (behaviour change, not weakened): lock tests expire a lease by writing a past expires_at (DB time passed) instead of injecting a future host clock; lifecycle `_WRITE_STEPS` record_source_counts -> `spend` with a new `observe` branch asserting spend kept; schema portable-type test checks a TypeDecorator's impl; Decimal in typed fixtures. Vendor-specific proof moved to tests/adapters/test_exact_credits_both_engines.py (vendor-neutrality rule).
+
+### Gaps
+- PG CURRENT_TIMESTAMP is the transaction start; correct here because every lock statement is the first of its transaction. A future caller that renews late in a long transaction would get a stale instant (statement_timestamp() would fix it).
+- SQLite lease precision is milliseconds.
+- Hunter's own invoice rounding of half credits remains UNVERIFIED; we now report the exact list price.
+- spec-refactor-agent / validate-production-agent not spawned (no Agent tool in this harness); no mutation pass beyond the behavioural REDs.
+
+### Self-review findings
+Independent review (spec-refactor) in a throwaway worktree (HEAD + this change's files only); full suite there: 4191 passed, 1 skipped (env-file mode, root), 2 xfailed; Postgres legs ran. ruff/format/mypy clean.
+- FIXED (test-first, RED on postgres): `database_now` used `CURRENT_TIMESTAMP` (transaction start) on PostgreSQL; now `statement_timestamp()`, one instant per statement, correct wherever a lock statement falls in its transaction. The "first of its transaction" gap is closed. New test: `test_the_lease_clock_is_the_statements_instant_not_the_transactions_start`.
+- FIXED (test-first, RED both engines): the spend write came after the batch building and `clock()`, so a failure there lost the spend and was labelled `spend:`. The spend now commits first. New test: `test_the_spend_commits_before_anything_else_can_fail` (also checks the aborted run's report prints `credits=1.5`).
+- FIXED (test weakness): the skew test only patched `ingest_runner.datetime`, so a host-clock regression inside `run_lock` survived. It now patches `run_lock` too.
+- Mutation pass: 11 mutants (bind float/sub-milli guard, 0008 up x1, 0008 down floor, hunter ceil, spend write removed, PG CURRENT_TIMESTAMP, host clock in acquire, `_total` first-only, report int(), zero lease). All killed after the skew-test fix; each file restored (sha256 verified).
+- OPEN (not fixed; orchestrator.py is locked by another reviewer): orchestrator `Decimal(spent)` accepts a float from an adapter, so the bind's float refusal cannot be reached on the run path. A sub-milli or inexact float then fails the whole `spend` write for every source, not just the one source. Validation belongs inside the source call, in one helper shared with `MilliCredits`.
+- OPEN (minor): `record_contributions_written` is now called from both `run_recorder.finish` and `ingest_runner.observe` (two one-line call sites, acceptable). `database_now` binds the lease seconds as a float. SQLite's modifier cannot parse exponent notation (`1e-05`), but realistic leases (900 s+) never produce it.
+- Checked OK: Decimal end to end for credits (no float, no `/` on credits outside `MilliCredits`); 0008 up/down on both engines; SQLite `%f` (ms) text parses and compares correctly against SQLAlchemy's microsecond layout; set-not-add spend; fencing (PG row lock serializes renew vs takeover).

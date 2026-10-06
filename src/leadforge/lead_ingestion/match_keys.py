@@ -25,8 +25,8 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   suffix, an IP, ``localhost``) is skipped.
 * Key 3 is only a candidate. ``corroborates`` is the pairwise gate; employment dates
   have no canonical path yet, so only title and employer name corroborate.
-* Role addresses are not recognised here: 8.14 disqualifies them structurally by
-  names reported against them (task 16.7), with no curated role-word list.
+* Role addresses are not recognised by the key reading itself: ``DisqualifiedAddresses``
+  (8.14, below) finds them and ``extract_match_keys`` skips them.
 * Identity Exclusions (task 16.6, 8.13) are specific normalised LinkedIn URLs and
   verified emails barred from acting as a key; ``extract_match_keys`` skips them. A
   barred key's kind stays in ``MatchKeys.barred_kinds``, because the contribution still
@@ -48,8 +48,16 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   ``Doe, Jane`` is another name: that only ever under-merges). A missing, blank or
   masked name (any ``*``, as a provider obfuscates last names) is not a name. Addresses
   of EVERY ``email_status`` count, since the status says deliverable, not unshared.
-  No role-word list. The set is independent of Identity Exclusions; both bar. The
+  The set is independent of Identity Exclusions; both bar. The
   address stays on the contribution and in provenance; it just is not a key.
+* Role words (user decision 2026-10-06, amends 8.14: "I don't know whats in info@").
+  The same set also holds every stated address (``stated_email``, any status) whose
+  local part, lowercased and without a ``+tag``, is in ``ROLE_LOCAL_PARTS``: a generic
+  inbox is a role address even under one name. ``is_role_address`` is that test; the
+  list lives only here. Whole local part only (``information@``, ``ann.info@`` are
+  not roles); English words only, so a role inbox in another language still relies
+  on the two-names rule. Consumers read ``DisqualifiedAddresses.addresses`` (or the
+  cluster's ``role_addresses``), never the list.
 * Distinct LinkedIn identities (follow-up, user decision: a different LinkedIn URL is
   a different person). The same first pass also disqualifies an address, and a
   name+domain candidate value, reported together with two or more DISTINCT normalised
@@ -91,6 +99,7 @@ from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.models import EmailStatus, UntrustedText
 
 __all__ = [
+    "ROLE_LOCAL_PARTS",
     "DisqualifiedAddresses",
     "IdentityExclusions",
     "MatchKey",
@@ -100,6 +109,7 @@ __all__ = [
     "corroborates",
     "emails_conflict",
     "extract_match_keys",
+    "is_role_address",
     "linkedin_identity",
     "normalize_email",
     "normalize_linkedin_url",
@@ -123,6 +133,41 @@ _COMPANY_DOMAIN = "company.domain"
 _MASK = "*"
 _NAME_DOMAIN_SEPARATOR = "\x1f"
 _CORROBORATING_STATUSES = frozenset({EmailStatus.UNVERIFIED, EmailStatus.ACCEPT_ALL})
+# Generic inbox local parts (role words, user decision 2026-10-06). The one list:
+# lowercase, compared with the whole local part before any ``+tag``.
+ROLE_LOCAL_PARTS = frozenset(
+    {
+        "accounts",
+        "admin",
+        "billing",
+        "careers",
+        "contact",
+        "enquiries",
+        "finance",
+        "hello",
+        "help",
+        "hr",
+        "info",
+        "inquiries",
+        "jobs",
+        "legal",
+        "marketing",
+        "media",
+        "no-reply",
+        "noreply",
+        "office",
+        "postmaster",
+        "press",
+        "privacy",
+        "recruiting",
+        "sales",
+        "security",
+        "service",
+        "support",
+        "team",
+        "webmaster",
+    }
+)
 
 # Offline: only the Public Suffix List snapshot shipped in the pinned tldextract.
 # Private suffixes (github.io, blogspot.com) count as suffixes, so two tenants of a
@@ -193,8 +238,9 @@ class IdentityExclusions:
 class DisqualifiedAddresses:
     """Key values evidently shared by different people; personal data.
 
-    ``addresses``: reported against two or more distinct names (8.14) or together with
-    two or more distinct normalised LinkedIn URLs. ``name_domains``: name+domain
+    ``addresses``: reported against two or more distinct names (8.14), together with
+    two or more distinct normalised LinkedIn URLs, or stated with a role-word local
+    part (``is_role_address``). ``name_domains``: name+domain
     candidate values reported together with two or more distinct LinkedIn URLs, or by
     LinkedIn-less records whose personal addresses conflict (``emails_conflict``).
     """
@@ -211,8 +257,11 @@ class DisqualifiedAddresses:
         address_urls: dict[str, set[str]] = {}
         candidate_urls: dict[str, set[str]] = {}
         candidate_emails: dict[str, set[PersonalEmail]] = {}
+        listed: set[str] = set()
         for contribution in contributions:
             values = contribution.values
+            if (role := stated_email(values)) and is_role_address(role):
+                listed.add(role)
             address = normalize_email(_text(values, _EMAIL))
             name = normalized_person_name(values)
             url = linkedin_identity(values)
@@ -230,7 +279,7 @@ class DisqualifiedAddresses:
                     candidate_emails.setdefault(candidate, set()).add(stated)
         # Shared addresses are known only once the whole set is read, so the
         # candidate test runs second and skips them.
-        addresses = _shared(names) | _shared(address_urls)
+        addresses = _shared(names) | _shared(address_urls) | listed
         ambiguous = frozenset(
             candidate
             for candidate, stated in candidate_emails.items()
@@ -396,6 +445,15 @@ def stated_email(values: Mapping[str, object]) -> str | None:
     """
     path = _EMAIL if values.get(_EMAIL) is not None else _BARE_EMAIL
     return normalize_email(_text(values, path))
+
+
+def is_role_address(address: str | None) -> bool:
+    """Whether ``address`` has a role-word local part (``ROLE_LOCAL_PARTS``)."""
+    normalised = normalize_email(address)
+    if normalised is None:
+        return False
+    local = normalised.partition("@")[0].partition("+")[0]
+    return local in ROLE_LOCAL_PARTS
 
 
 def normalize_email(address: str | None) -> str | None:

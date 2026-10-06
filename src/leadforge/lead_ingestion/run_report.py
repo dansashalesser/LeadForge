@@ -18,7 +18,8 @@ Provisional decisions (see choices.md, task 18.3):
   ``calls: attempted= succeeded= failed=`` line and ``contributions_written`` are read
   from the ``source_run`` row; ``fetched`` and Credits stay ``not recorded`` for an
   adapter that reports no such figure. An aborted run shows its ``abort reason`` (a
-  stage and an exception class) when one was stored.
+  stage and an exception class) when one was stored. Credits print exactly
+  (``credits=1.5``; follow-up fu3, 0008).
 * ``failure_class`` NULL means ok or not run (an Enrichment source with no work). On a
   completed run a row with any recorded activity (leads, retries, throttle waits, 429s)
   certainly ran and renders ``ok``; an all-zero row cannot be told from a source that
@@ -39,6 +40,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 import sqlalchemy as sa
@@ -93,7 +95,7 @@ class SourceReport:
     retries: int | None
     throttle_waits: int | None
     http_429_count: int | None
-    credits_consumed: int | None
+    credits_consumed: Decimal | None  # exact (0008): 1.5, never rounded
     quota_remaining: Mapping[str, int] | None
     warnings: tuple[str, ...]
     # Task 14.2 completion: (attached, unattached) web evidence; None: none stored.
@@ -276,7 +278,7 @@ def _cut(text: str) -> str:
     return safe[: MAX_WARNING_CHARS - 1] + "…"
 
 
-def _figure(value: int | None) -> str:
+def _figure(value: int | Decimal | None) -> str:
     return NOT_RECORDED if value is None else str(value)
 
 

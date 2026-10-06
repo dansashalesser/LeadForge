@@ -40,11 +40,13 @@ Provisional decisions (see choices.md, task 15.1):
   network-blocked). Unset or blank means ``data``, the conservative price; any other
   value is a ``ConfigurationError`` naming the variable, never the value, raised when a
   live run starts (``run_rate_limit``) and again before a live fetch spends. The batch
-  records the plan (``plan``) so a stored batch is priced as it was bought; a batch's
-  half credits round up (``ceil(verifications x price)``). UNVERIFIED: the plan names
-  beyond those two, whether a Data plan's separate Verification credit type should be
-  counted apart from search credits (it is summed here), and how Hunter rounds half
-  credits. A verification Hunter could not finish (202 give-up) or answered ``unknown``
+  records the plan (``plan``) so a stored batch is priced as it was bought. Credits
+  are an exact ``Decimal`` (follow-up fu3, 2026-10-06): three all-in-one
+  verifications are 1.5, never rounded and never a float; the store keeps them exact
+  (migration 0008). UNVERIFIED: the plan names beyond those two, whether a Data
+  plan's separate Verification credit type should be counted apart from search
+  credits (it is summed here), and how Hunter itself rounds half credits on its
+  invoice. A verification Hunter could not finish (202 give-up) or answered ``unknown``
   is still priced, also conservative; Hunter's "no credit if it can't verify" may make
   it 0.
 * A found address carries the person it was asked for (follow-up, 2026-10-06): the
@@ -126,7 +128,7 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from fractions import Fraction
+from decimal import Decimal
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
 import structlog
@@ -224,9 +226,9 @@ _CREDITS_DOCS = (
 PLAN_ENV = "HUNTER_PLAN"
 DEFAULT_PLAN = "data"  # the dearer verification price, safe on every plan
 # Plan -> Credits one Email Verifier call costs (help.hunter.io, checked 2026-10-06).
-_VERIFIER_PRICE: Mapping[str, Fraction] = {
-    "data": Fraction(1),
-    "all-in-one": Fraction(1, 2),
+_VERIFIER_PRICE: Mapping[str, Decimal] = {
+    "data": Decimal(1),
+    "all-in-one": Decimal("0.5"),
 }
 _ADDRESS = re.compile(r"[^\s@?#/\\:]+@" + _HOSTNAME.pattern)
 # The finder question echoed back (``REQUEST_ECHO_RULES`` keys), in this order.
@@ -711,7 +713,7 @@ class HunterSource(BaseLeadSource):
         )
         return listed + found
 
-    def credits_spent(self, batch: RawBatch) -> int | None:
+    def credits_spent(self, batch: RawBatch) -> Decimal | None:
         """``credits_in``: Hunter's billing; the sandbox and synthetic spend none."""
         return credits_in(batch)
 
@@ -896,13 +898,13 @@ def _total_of(body: Mapping[str, Any]) -> int | None:
     return total if isinstance(total, int) and not isinstance(total, bool) else None
 
 
-def credits_in(batch: RawBatch) -> int:
+def credits_in(batch: RawBatch) -> Decimal:
     """Credits a real key's live batch spent, by Hunter's billing rules (16.8).
 
     A domain search costs one per 1-10 addresses returned (none for none); a finder
-    one only when it found an address; a verification the batch's plan price, half
-    credits rounded up per batch (a batch without ``plan`` predates it: ``data``). The
-    sandbox key and synthetic mode spend none.
+    one only when it found an address; a verification the batch's plan price, exactly
+    (a batch without ``plan`` predates it: ``data``). The sandbox key and synthetic
+    mode spend none.
     """
     payload = batch.payload
     billable = payload.get("credits_billable") if isinstance(payload, Mapping) else None
@@ -915,7 +917,7 @@ def credits_in(batch: RawBatch) -> int:
             canonical_path="<unmapped>",
         )
     if not billable:
-        return 0
+        return Decimal(0)
     provider = batch.source_name
     searched = sum(
         math.ceil(len(_listed(provider, response)) / _ADDRESSES_PER_CREDIT)
@@ -927,7 +929,7 @@ def credits_in(batch: RawBatch) -> int:
         if _data_of(provider, response, "finds").get("email") is not None
     )
     verified = len(_responses(provider, batch, "verifications"))
-    return searched + found + math.ceil(verified * price)
+    return searched + found + verified * price
 
 
 def _data_of(

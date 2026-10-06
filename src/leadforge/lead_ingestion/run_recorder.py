@@ -93,6 +93,7 @@ class StoreRunRecorder:
 
         def write(session: Session) -> None:
             spend(session)
+            RunRecordRepository(session).record_contributions_written(run_id)
             complete(session)
 
         await self._writer.write_batch(write)
@@ -100,21 +101,18 @@ class StoreRunRecorder:
     def spend(
         self, run_id: uuid.UUID, results: tuple[SourceResult, ...]
     ) -> Callable[[Session], None]:
-        """Every source's counts (calls, records, credits) and the contributions
-        stored for the run, to run inside the caller's transaction.
+        """Every source's spend (calls, records fetched, Credits, failure class), to
+        run inside the caller's transaction.
 
-        The composition root runs it in the transaction that stores the run's raw
-        payloads and contributions, BEFORE the merge (follow-up 2026-10-06): what a
-        run spent is recorded even when its merge then fails.
+        The composition root commits it ON ITS OWN, before the run's contributions
+        are stored (follow-up fu3, 2026-10-06): a failing contribution write cannot
+        lose what the run spent. The figures are set, never added, so writing them
+        again (a retried store) does not count the spend twice.
         """
         counts = build_source_counts(results)
-
-        def write(session: Session) -> None:
-            repo = RunRecordRepository(session)
-            repo.record_source_counts(run_id, counts)
-            repo.record_contributions_written(run_id)
-
-        return write
+        return lambda session: RunRecordRepository(session).record_source_counts(
+            run_id, counts
+        )
 
     def completion(
         self, run_id: uuid.UUID, results: tuple[SourceResult, ...]

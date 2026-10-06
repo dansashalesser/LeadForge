@@ -17,6 +17,7 @@ a conftest, hence the file-wide F811 waiver.
 # ruff: noqa: F811
 
 import uuid
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -152,7 +153,7 @@ async def test_call_counts_fetched_and_credits_commit_with_the_finish(
                     succeeded=1,
                     failed=2,
                     records_fetched=7,
-                    credits_consumed=3,
+                    credits_consumed=Decimal(3),
                 ),
                 SourceCounts("bravo", None, 0, 0, 0, 0, None, None),
             ),
@@ -163,14 +164,14 @@ async def test_call_counts_fetched_and_credits_commit_with_the_finish(
     rows = _rows(backend)
     a, b = rows["alpha"], rows["bravo"]
     assert (a.attempted, a.succeeded, a.failed) == (5, 1, 2)
-    assert (a.records_fetched, a.credits_consumed) == (7, 3)
+    assert (a.records_fetched, a.credits_consumed) == (7, Decimal(3))
     assert (b.attempted, b.succeeded, b.failed) == (0, 0, 0)
     assert (b.records_fetched, b.credits_consumed) == (None, None)
     with Session(backend.engine) as s:
         report = build_run_report(s, run_id)
     alpha = report.sources[0]
     assert (alpha.attempted, alpha.succeeded, alpha.failed) == (5, 1, 2)
-    assert (alpha.records_fetched, alpha.credits_consumed) == (7, 3)
+    assert (alpha.records_fetched, alpha.credits_consumed) == (7, Decimal(3))
     lines = render_run_report(report).splitlines()
     assert "  calls: attempted=5 succeeded=1 failed=2" in lines
     assert any("fetched=7 " in line and line.startswith("  failure=") for line in lines)
@@ -433,12 +434,13 @@ class _MergeBrokeError(Exception):
     """A merge failure the tests raise (its text is never stored)."""
 
 
-# Step -> the transaction it belongs to (follow-up 2026-10-06): the counts commit
-# with the fetched records ("observe"), the projection and the finish with the merge.
+# Step -> the transaction it belongs to (follow-up 2026-10-06, fu3): the spend
+# commits alone first ("spend"), ``contributions_written`` with the fetched records
+# ("observe"), the projection and the finish with the merge.
 _WRITE_STEPS = {
     "record_projection": "merge_write",
     "finish": "merge_write",
-    "record_source_counts": "observe",
+    "record_source_counts": "spend",
     "record_contributions_written": "observe",
 }
 
@@ -468,9 +470,13 @@ async def test_a_failure_at_any_completing_write_rolls_the_whole_merge_back(
     assert run.projection_version is None
     assert _count(composed, m.CanonicalLeadRow) == 0
     rows = _rows(composed).values()
-    if _WRITE_STEPS[step] == "observe":  # its own transaction rolled back whole
+    if _WRITE_STEPS[step] == "spend":  # its own transaction rolled back whole
         assert _count(composed, m.SourceContribution) == 0
         assert {(r.attempted, r.contributions_written) for r in rows} == {(None, 0)}
+    elif _WRITE_STEPS[step] == "observe":  # the spend committed before it
+        assert _count(composed, m.SourceContribution) == 0
+        assert all(r.attempted is not None for r in rows)
+        assert {r.contributions_written for r in rows} == {0}
     else:  # the fetched records and the spend committed before the merge
         assert _count(composed, m.SourceContribution) > 0
         assert all(r.attempted is not None for r in rows)

@@ -46,7 +46,8 @@ Per-source counts (task 18.2; Requirement 21.2). Provisional decisions (choices.
   headers, 12.5; last response) and ``NULL`` when none was: the local limiter's tokens
   are never reported as a quota. Only an adapter exposing ``allowances`` reports any.
   ``credits_consumed`` is the sum of what the adapter reported per batch
-  (``BaseLeadSource.credits_spent``) and ``NULL`` when it reported none.
+  (``BaseLeadSource.credits_spent``) and ``NULL`` when it reported none. It is an
+  exact ``Decimal`` (follow-up fu3, migration 0008): fractions are summed, not rounded.
 * Follow-up (2026-10-06, migration 0005): ``attempted``, ``succeeded`` and ``failed``
   are the ledger's cumulative call counts (the latest result's, like ``retries``);
   ``records_fetched`` is the sum of ``BaseLeadSource.records_fetched`` over the
@@ -62,6 +63,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -150,13 +152,13 @@ class SourceCounts:
     succeeded: int = 0
     failed: int = 0
     records_fetched: int | None = None
-    credits_consumed: int | None = None
+    credits_consumed: Decimal | None = None
 
 
-def _total(figures: list[int | None]) -> int | None:
-    """The sum of the figures reported; ``None`` when no batch reported one."""
+def _total[T: (int, Decimal)](figures: list[T | None]) -> T | None:
+    """The exact sum of the figures reported; ``None`` when no batch reported one."""
     reported = [f for f in figures if f is not None]
-    return sum(reported) if reported else None
+    return sum(reported[1:], start=reported[0]) if reported else None
 
 
 def build_source_counts(results: tuple[SourceResult, ...]) -> tuple[SourceCounts, ...]:
@@ -169,7 +171,7 @@ def build_source_counts(results: tuple[SourceResult, ...]) -> tuple[SourceCounts
     latest: dict[str, SourceResult] = {}
     leads: dict[str, int] = {}
     fetched: dict[str, list[int | None]] = {}
-    credits: dict[str, list[int | None]] = {}
+    credits: dict[str, list[Decimal | None]] = {}
     for r in results:
         name = r.outcome.source_name
         latest[name] = r

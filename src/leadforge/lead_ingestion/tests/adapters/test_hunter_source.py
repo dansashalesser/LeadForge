@@ -5,6 +5,7 @@ import json
 import socket
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -2493,17 +2494,19 @@ def verifications(count: int) -> EnrichmentRequest:
         (None, 3, 3),  # unset: the conservative price, 1 per verification
         ("data", 3, 3),
         (" Data ", 1, 1),
-        ("all-in-one", 1, 1),  # half a credit, rounded up per batch
+        ("all-in-one", 1, Decimal("0.5")),  # exact: half a credit, never rounded
         ("all-in-one", 2, 1),
-        ("ALL-IN-ONE", 3, 2),
+        ("ALL-IN-ONE", 3, Decimal("1.5")),
     ],
 )
 async def test_the_verifier_price_follows_hunter_plan(
-    plan: str | None, count: int, credits: int
+    plan: str | None, count: int, credits: Decimal | int
 ) -> None:
     environ = dict(ENV) if plan is None else {**ENV, "HUNTER_PLAN": plan}
     batch = await live(Routed(), environ=environ).fetch_raw(verifications(count))
-    assert credits_in(batch) == credits
+    spent = credits_in(batch)
+    assert isinstance(spent, Decimal)  # never a float
+    assert spent == credits
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.8
@@ -2516,7 +2519,7 @@ async def test_the_plan_prices_verifications_only() -> None:
     batch = await live(
         Routed(), environ={**ENV, "HUNTER_PLAN": "all-in-one"}
     ).fetch_raw(work)
-    assert credits_in(batch) == 3  # search 1 + finder 1 + one half verification -> 1
+    assert credits_in(batch) == Decimal("2.5")  # search 1 + finder 1 + a half
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#7.1

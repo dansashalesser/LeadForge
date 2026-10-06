@@ -77,16 +77,16 @@ def contribution(source: str, **values: Any) -> LeadContribution:
 
 
 def over_merged_pool() -> list[LeadContribution]:
-    # Ann's LinkedIn record and a bare record share info@x.com: one cluster until
+    # Ann's LinkedIn record and a bare record share shared@x.com: one cluster until
     # the shared address is excluded (as in test_identity_exclusions).
     return [
         contribution(
             "a",
             person__linkedin_url="https://linkedin.com/in/ann",
-            person__email="info@x.com",
+            person__email="shared@x.com",
             person__email_status=V,
         ),
-        contribution("c", person__email="info@x.com", person__email_status=V),
+        contribution("c", person__email="shared@x.com", person__email_status=V),
     ]
 
 
@@ -95,9 +95,10 @@ def test_the_rules_revision_is_bumped_for_the_rule_changes_since_16_5() -> None:
     # 1 = the 16.5 rules; 2 = one-sided email (8.3), request-echo fields counted only
     # when no other source has the field, LinkedIn cannot-link, the confidence table
     # changes and the primary domain read from the stored tie resolution (16.11);
-    # 3 = an echoed person.email no longer hides a CRM source's own bare email.
-    assert PROJECTION_RULES_REVISION == 3
-    assert ProjectionBasis.of(NONE, RANKS).rules_revision == 3
+    # 3 = an echoed person.email no longer hides a CRM source's own bare email;
+    # 4 = person.email verified first, then personal over role (user decision).
+    assert PROJECTION_RULES_REVISION == 4
+    assert ProjectionBasis.of(NONE, RANKS).rules_revision == 4
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13
@@ -118,7 +119,7 @@ def test_an_unchanged_basis_keeps_the_version() -> None:
 def test_changing_the_exclusion_set_bumps_the_version() -> None:
     first = stamp_projection(None, ProjectionBasis.of(NONE, RANKS))
     barred = ProjectionBasis.of(
-        IdentityExclusions.from_values(emails=["info@x.com"]), RANKS, digester=KEY
+        IdentityExclusions.from_values(emails=["shared@x.com"]), RANKS, digester=KEY
     )
     second = stamp_projection(first, barred)
     assert second.version == 2
@@ -147,7 +148,7 @@ def test_changing_the_rules_revision_bumps_the_version() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13 (property)
 def test_the_fingerprint_ignores_input_order_and_separates_every_distinct_set() -> None:
-    values = ["info@x.com", "sales@y.com", "ops@z.com"]
+    values = ["shared@x.com", "sales@y.com", "ops@z.com"]
     seen: dict[frozenset[str], str] = {}
     for size in range(len(values) + 1):
         for subset in itertools.combinations(values, size):
@@ -167,11 +168,11 @@ def test_the_fingerprint_ignores_input_order_and_separates_every_distinct_set() 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13
 def test_the_basis_and_stamp_never_show_exclusion_values_or_digests() -> None:
     basis = ProjectionBasis.of(
-        IdentityExclusions.from_values(emails=["info@x.com"]), RANKS, digester=KEY
+        IdentityExclusions.from_values(emails=["shared@x.com"]), RANKS, digester=KEY
     )
     stamp = stamp_projection(None, basis)
     for text in (repr(basis), repr(stamp)):
-        assert "info@x.com" not in text
+        assert "shared@x.com" not in text
         assert basis.fingerprint not in text
         assert basis.exclusions_token not in text
 
@@ -181,7 +182,7 @@ def test_the_exclusion_part_is_keyed_never_a_plain_hash_of_the_values() -> None:
     # A plain sha256 of a low-entropy email is reversible by dictionary attack, and
     # the fingerprint is meant to be stored: the exclusions enter it only as keyed
     # HMAC digests (match_key_digest), so without the secret nothing can be guessed.
-    exclusions = IdentityExclusions.from_values(emails=["info@x.com"])
+    exclusions = IdentityExclusions.from_values(emails=["shared@x.com"])
     keyed = ProjectionBasis.of(exclusions, RANKS, digester=KEY)
     other = MatchKeyDigester(b"q" * 32, comparable_across_runs=True)
     assert keyed.fingerprint != ProjectionBasis.of(NONE, RANKS).fingerprint
@@ -208,10 +209,10 @@ def test_exclusions_without_a_stable_secret_are_refused(
 ) -> None:
     # A per-run key would change the fingerprint every run: every Lead stale, every
     # run, silently. Fail closed and name the variable, never the value.
-    exclusions = IdentityExclusions.from_values(emails=["info@x.com"])
+    exclusions = IdentityExclusions.from_values(emails=["shared@x.com"])
     with pytest.raises(ValueError, match=MATCH_KEY_SECRET_ENV) as caught:
         ProjectionBasis.of(exclusions, RANKS, digester=digester)
-    assert "info@x.com" not in str(caught.value)
+    assert "shared@x.com" not in str(caught.value)
     # No exclusions: nothing personal to key, so no secret is needed.
     assert ProjectionBasis.of(NONE, RANKS, digester=digester).fingerprint == (
         ProjectionBasis.of(NONE, RANKS).fingerprint
@@ -286,7 +287,7 @@ def test_a_stored_projection_of_an_older_version_is_flagged_and_recomputed(
         assert stale_projections(session, current_version=stored_stamp.version) == ()
 
         # The operator bars the shared address: the version bumps ...
-        exclusions = IdentityExclusions.from_values(emails=["info@x.com"])
+        exclusions = IdentityExclusions.from_values(emails=["shared@x.com"])
         current = stamp_projection(
             stored_stamp, ProjectionBasis.of(exclusions, RANKS, digester=KEY)
         )

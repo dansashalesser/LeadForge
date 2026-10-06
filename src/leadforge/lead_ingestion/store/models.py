@@ -1,7 +1,8 @@
 """Typed ORM schema for the Lead Store (design.md, Logical Data Model).
 
 Column types are the engine-portable set only: ``Uuid``, ``String``, ``Integer``,
-``Float``, ``Boolean``, ``JSON`` and ``DateTime(timezone=True)``. There is no
+``Float``, ``Boolean``, ``JSON`` and ``DateTime(timezone=True)``, plus ``MilliCredits``
+(an ``Integer`` read and written as an exact ``Decimal``). There is no
 dialect type, no dialect-conditional branch, no ``server_default`` and no raw SQL
 here; the schema reaches a database through migrations (task 6.2).
 
@@ -15,6 +16,7 @@ merge rebuilds it, so a cluster that splits or joins never relinks a contributio
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -30,6 +32,7 @@ from sqlalchemy import (
     Uuid,
     event,
 )
+from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -38,6 +41,7 @@ from sqlalchemy.orm import (
     Session,
     mapped_column,
 )
+from sqlalchemy.types import TypeDecorator
 
 __all__ = [
     "AppendOnlyViolationError",
@@ -52,6 +56,7 @@ __all__ = [
     "IngestionRun",
     "LeadIdentity",
     "LeadSuccession",
+    "MilliCredits",
     "PrimaryDomainTieResolution",
     "RawResponse",
     "RunLock",
@@ -74,6 +79,38 @@ class ColumnValueError(ValueError):
 
 def _utc(**kw: Any) -> Mapped[datetime]:
     return mapped_column(DateTime(timezone=True), **kw)
+
+
+_MILLI = Decimal(1000)
+
+
+class MilliCredits(TypeDecorator[Decimal]):
+    """Credits as an exact ``Decimal``, stored as integer milli-Credits (0008).
+
+    An integer is exact and alike on every engine; SQLite has no exact decimal (its
+    NUMERIC keeps a float), and a fraction such as half a Credit must not be rounded.
+    A float, or a figure finer than a milli-Credit, is refused rather than rounded.
+    """
+
+    impl = Integer
+    cache_ok = True
+
+    def process_bind_param(
+        self, value: Decimal | int | None, dialect: Dialect
+    ) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, Decimal | int):
+            raise TypeError("Credits are a Decimal or an int, never a float")
+        milli = Decimal(value) * _MILLI
+        if not milli.is_finite() or milli != milli.to_integral_value():
+            raise ValueError("Credits are exact to a milli-Credit")
+        return int(milli)
+
+    def process_result_value(
+        self, value: int | None, dialect: Dialect
+    ) -> Decimal | None:
+        return None if value is None else Decimal(value) / _MILLI
 
 
 def _uuid_pk() -> Mapped[uuid.UUID]:
@@ -138,7 +175,10 @@ class SourceRun(Base):
     throttle_waits: Mapped[int] = mapped_column(Integer, default=0)
     retries: Mapped[int] = mapped_column(Integer, default=0)
     http_429_count: Mapped[int] = mapped_column(Integer, default=0)
-    credits_consumed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Exact, fractions included (0008): integer milli-Credits in the database.
+    credits_consumed: Mapped[Decimal | None] = mapped_column(
+        "credits_consumed_milli", MilliCredits, nullable=True
+    )
     quota_remaining: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     warnings: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
     # Calls and records of the source (0005); NULL: not recorded (a run before 0005,

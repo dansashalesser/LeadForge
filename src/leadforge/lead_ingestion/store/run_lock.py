@@ -25,15 +25,23 @@ Provisional decisions:
 * The holder is a random uuid per run, never a run id or a host name. Messages carry
   only the lock's instants: no value of any record.
 * Releasing a lock someone else holds is a no-op.
+* The lease is on the DATABASE server's clock (follow-up fu3, 2026-10-06): every
+  lease instant is computed and compared inside the statement that uses it, so no
+  host's clock is ever read. A host whose clock is skewed can neither take a live
+  lock over nor keep a dead one. Interval arithmetic differs per backend, so the
+  one expression, ``database.database_now``, lives with the other backend-specific
+  code. It is the statement's instant on both engines, wherever the statement falls
+  in its transaction.
 """
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.database import database_now
 from leadforge.lead_ingestion.store.models import RunLock
 
 __all__ = [
@@ -91,25 +99,21 @@ def _aware(value: datetime | None) -> datetime | None:
     )
 
 
-def _utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        raise ValueError("a lock instant must carry a timezone")
-    return value.astimezone(UTC)
-
-
 def try_acquire_run_lock(
-    session: Session, holder: uuid.UUID, *, now: datetime, lease_s: float
+    session: Session, holder: uuid.UUID, *, lease_s: float
 ) -> LockHeld | None:
-    """Take the lock for ``holder``: ``None`` when taken, else the current holder."""
-    at = _utc(now)
+    """Take the lock for ``holder``: ``None`` when taken, else the current holder.
+
+    Free, or expired on the database clock; the lease runs ``lease_s`` from the
+    database's now."""
     taken = session.execute(
         sa.update(RunLock)
         .where(
             RunLock.name == LOCK_NAME,
-            sa.or_(RunLock.holder.is_(None), RunLock.expires_at < at),
+            sa.or_(RunLock.holder.is_(None), RunLock.expires_at < database_now()),
         )
         .values(
-            holder=holder, acquired_at=at, expires_at=at + timedelta(seconds=lease_s)
+            holder=holder, acquired_at=database_now(), expires_at=database_now(lease_s)
         )
         .execution_options(synchronize_session=False)
     )
@@ -125,15 +129,13 @@ def try_acquire_run_lock(
     return LockHeld(_aware(row[0]), _aware(row[1]))
 
 
-def renew_run_lock(
-    session: Session, holder: uuid.UUID, *, now: datetime, lease_s: float
-) -> None:
-    """Extend ``holder``'s lease; ``RunLockLostError`` when it no longer holds it."""
-    at = _utc(now)
+def renew_run_lock(session: Session, holder: uuid.UUID, *, lease_s: float) -> None:
+    """Extend ``holder``'s lease to ``lease_s`` from the database's now;
+    ``RunLockLostError`` when it no longer holds it."""
     renewed = session.execute(
         sa.update(RunLock)
         .where(RunLock.name == LOCK_NAME, RunLock.holder == holder)
-        .values(expires_at=at + timedelta(seconds=lease_s))
+        .values(expires_at=database_now(lease_s))
         .execution_options(synchronize_session=False)
     )
     if renewed.rowcount != 1:  # type: ignore[attr-defined]

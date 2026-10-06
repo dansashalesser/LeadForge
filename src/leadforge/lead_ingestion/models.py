@@ -299,6 +299,9 @@ class CanonicalLead(_Entity):
 
     email: StrictEmail | None = None
     email_status: EmailStatus = EmailStatus.UNKNOWN
+    # True when ``email`` is a role address (shared, such as ``info@``): the person
+    # has no personal address (user decision 2026-10-06).
+    email_is_role_address: bool = False
     linkedin_url: HttpUrl | None = None
     full_name: NonBlank | None = None
     employments: tuple[Employment, ...] = ()
@@ -306,6 +309,9 @@ class CanonicalLead(_Entity):
     intent_signals: tuple[IntentSignal, ...] = ()
     opt_out: bool = False
     suppressed: bool = False
+    # Role addresses the sources stated for this person other than ``email``: company
+    # contacts, never discarded (user decision 2026-10-06). Sorted, distinct.
+    role_contact_emails: tuple[StrictEmail, ...] = ()
 
     @property
     def current_employments(self) -> tuple[Employment, ...]:
@@ -331,6 +337,8 @@ class CanonicalLead(_Entity):
             raise ValueError(
                 f"email_status {self.email_status.value!r} given without an email"
             )
+        if self.email is None and self.email_is_role_address:
+            raise ValueError("email_is_role_address: role address given without email")
         return self
 
     @model_validator(mode="after")

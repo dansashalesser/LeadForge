@@ -174,15 +174,22 @@ def test_match_key_unique_on_type_and_value_enforced_by_database(
 def test_only_portable_column_types_and_no_dialect_defaults() -> None:
     for table in m.Base.metadata.tables.values():
         for col in table.columns:
-            assert type(col.type).__module__.startswith("sqlalchemy.sql.sqltypes"), (
+            # A TypeDecorator converts in Python only (0008 ``MilliCredits``): what
+            # reaches the database is its impl, which must be portable itself.
+            stored = (
+                col.type.impl_instance
+                if isinstance(col.type, sa.types.TypeDecorator)
+                else col.type
+            )
+            assert type(stored).__module__.startswith("sqlalchemy.sql.sqltypes"), (
                 table.name,
                 col.name,
-                col.type,
+                stored,
             )
-            assert isinstance(col.type, PORTABLE_TYPES), (table.name, col.name)
+            assert isinstance(stored, PORTABLE_TYPES), (table.name, col.name)
             assert col.server_default is None, (table.name, col.name)
-            if isinstance(col.type, sa.DateTime):
-                assert col.type.timezone, (table.name, col.name)
+            if isinstance(stored, sa.DateTime):
+                assert stored.timezone, (table.name, col.name)
 
 
 SQL_SHAPE = re.compile(

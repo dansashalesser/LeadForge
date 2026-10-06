@@ -186,3 +186,7 @@
 2026-10-06 13:45 | spec-refactor-agent | inherit | pass | medium
 2026-10-06 14:02 | spec-refactor-agent | inherit | pass | medium
 2026-10-06 14:03 | spec-refactor-agent | inherit | pass | medium
+2026-10-06 14:22 | spec-tdd-impl-agent | inherit | pass | medium
+2026-10-06 14:22 | spec-tdd-impl-agent | inherit | error | medium
+2026-10-06 14:37 | spec-refactor-agent | inherit | pass | medium
+2026-10-06 14:41 | spec-refactor-agent | inherit | error | medium

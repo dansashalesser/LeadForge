@@ -12,6 +12,7 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
@@ -425,10 +426,12 @@ class BaseLeadSource(ABC):
         """
         return None
 
-    def credits_spent(self, batch: RawBatch) -> int | None:
+    def credits_spent(self, batch: RawBatch) -> Decimal | int | None:
         """The Credits ``batch`` spent (21.2); ``None`` (the default): not reported.
 
-        Called like ``records_fetched``. A synthetic batch spends none.
+        Called like ``records_fetched``. A synthetic batch spends none. Exact: a
+        fraction (a plan priced at 0.5 per call) is a ``Decimal``, never a float,
+        and is stored as is.
         """
         return None
 
