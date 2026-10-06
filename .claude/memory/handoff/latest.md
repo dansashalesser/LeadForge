@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T10:07:14+00:00
+- Written: 2026-10-06T10:16:28+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,17 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the harness memory file. One file is still uncommitted on purpose: `tests/adapters/test_hunter_source.py`. That's the Hunter fix in progress, now including Hunter running before Apollo, and I'll commit it once its self-review passes.
+The harness memory files are committed and pushed. The source and test changes stay uncommitted for now, because two pieces of work haven't finished:
+
+- **Hunter fix:** finder results attach to the right person, credits follow the docs, and Hunter runs before Apollo. Its self-review is still running.
+- **Live-docs fixes:** SerpApi and Apollo rate limits, the empty-result test data, and HubSpot's deal permission. These are still being written.
+
+I'll commit each change once its self-review passes and the full suite is green.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git status --short | grep -v "\.claude/memory" | head -20; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb
 - $ git status --short | grep -v "\.claude/memory" | head; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f
 - $ sed -n 595,680p specs/lead-source-adapters/tasks.md | cut -c1-600
 - $ git status --short | grep -v "\.claude/memory" | head -30; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb
@@ -53,3 +57,4 @@ old='''
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthr
 - $ git status --short | head -20
+- $ git status --short | grep '^.. \.claude' ; git add .claude/memory .claude/behaviors 2>/dev/null; git diff --cached --q
