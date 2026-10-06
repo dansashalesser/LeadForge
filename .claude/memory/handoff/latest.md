@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T09:44:22+00:00
+- Written: 2026-10-06T09:53:27+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,32 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The Hunter change is in. Every person now reaches Hunter, and domain search still runs at most once per company domain per run. One side effect needs judging: Hunter now shares a tier with Apollo, so a Hunter compliance restriction (451) no longer stops Apollo's paid call for that person. I'm starting its self-review while the over-merge agent is still working.
+Probe files are in the scratchpad (outside the repo), so they're harmless. Committing:
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ grep -rn "follow_redirects" src/leadforge/lead_ingestion --include=*.py | head
-- $ sed -n 1,60p src/leadforge/lead_ingestion/tests/test_transport.py | grep -n "BASE\|LOOKUP\|def make\|import\|headers" 
-- $ sed -n 176,195p src/leadforge/lead_ingestion/tests/test_transport.py
-- $ F=src/leadforge/lead_ingestion/transport.py && B=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f68929908
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Correction by the 
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; sed -i 's|^sed -i "s/^- \\\[ \\\
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **LEFT UNCHECKED IN 
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Parent note:** the
-- $ python3 - <<'PY'
-import re
-p="specs/lead-source-adapters/tasks.md"
-L=open(p).read().split("\n")
-parents={}
-for i,l in 
-- $ grep -n "strength\|Signal\|canonical_value_json\|def \|sha256" src/leadforge/lead_ingestion/conflicts.py | head -50; g
-- $ sed -n 100,152p src/leadforge/lead_ingestion/conflicts.py; sed -n 326,380p src/leadforge/lead_ingestion/tests/test_con
-- $ python3 - <<'PY'
-p="src/leadforge/lead_ingestion/tests/test_conflicts.py"
-s=open(p).read()
-old='''    def outcome(stre
 - $ grep -n "^from\|^import\|    Signal\|IntentSignal" src/leadforge/lead_ingestion/conflicts.py | head -20
 - $ sed -n 36,46p src/leadforge/lead_ingestion/conflicts.py
 - $ python3 - <<'PY'
@@ -54,3 +34,23 @@ s=s.replace("    FieldProvenance,\n
 - $ git add .claude/memory && git commit -q -m "chore: update session memory state
 
 Co-Authored-By: Claude Opus 5.5 <norep
+- $ git status --short | head -30
+- $ git add .claude/memory .claude/behaviors && git commit -q -m "chore: sync harness memory while reviews run
+
+Co-Authore
+- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -rn "linkedin" --include=*.py . | grep -v "/tests/" | gre
+- /home/user/LeadForge/src/leadforge/lead_ingestion/match_keys.py
+- $ sed -n 290,325p match_keys.py && grep -n "_LINKEDIN_PATH_RE\|_LINKEDIN_RE\|linkedin.com" match_keys.py | head
+- $ grep -rln "normalize_linkedin_url" tests | head; grep -rn "def test.*linkedin" tests/test_match_keys.py | head
+- $ sed -n 1,20p tests/test_match_keys.py && sed -n 60,100p tests/test_match_keys.py
+- $ python3 - <<'EOF'
+p='tests/test_match_keys.py'
+s=open(p).read()
+s=s.replace('''    value = one_key(MatchKeyKind.LINKED
+- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && python3 - <<'EOF'
+p='match_keys.py'
+s=open(p).read()
+old='''  
+- $ cd /home/user/LeadForge && sed -i '71s/.*/from urllib.parse import unquote, urlsplit/' src/leadforge/lead_ingestion/ma
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Fixed after review
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; NOTICK=1 bash $S/finish.sh fu "f
