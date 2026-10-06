@@ -25,7 +25,10 @@ EXPECTED_TABLES = {
     "raw_response",
     "source_contribution",
     "contribution_field",
+    "contribution_absence",  # 0006
+    "contribution_lead",  # 0006, derived
     "lead_identity",
+    "lead_succession",  # 0006
     "identity_key",
     "primary_domain_tie_resolution",
     "canonical_lead",

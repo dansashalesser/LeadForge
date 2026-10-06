@@ -35,9 +35,15 @@ Provisional decisions (see choices.md, task 20):
   record. In the merge transaction the stamp is ``stamp_projection`` over the newest
   completed run's stored stamp (kept when the basis is unchanged, else bumped), the
   canonical leads are written under its version, and the run stores the stamp and the
-  count of flagged primary-domain tie fallbacks. Projection reads stored tie
-  resolutions (16.11); no model is called here, so a tie with nothing stored is the
-  flagged lowest-sorted fallback. Two runs racing for the stamp are not serialized.
+  count of flagged primary-domain tie fallbacks. Two runs racing for the stamp are
+  not serialized.
+* Re-merge (follow-up, user option A, 2026-10-06): in that same transaction the run
+  merges its contributions with the whole stored log (``remerge.project_with_store``)
+  and saves through the one ``persist_merge`` path, so a repeated run adds no
+  contribution and no lead, and a split or join retires the replaced leads. An exact
+  primary-domain tie is asked for through ``tie_resolution.resolve_primary_domain``
+  (stored answer first; a model only in live mode and only when ``tie_resolver`` is
+  given, none by default); the run records the leads merged and retired.
 * The exit code is ``map_run_exit`` over the orchestrator's results only: whether the
   merge persisted anything does not change it (6.4, 6.5).
 * Configuration is read and validated before the run record exists (follow-up
@@ -74,8 +80,6 @@ from leadforge.lead_ingestion.base_source import (
     RateBucket,
     SourceRequest,
 )
-from leadforge.lead_ingestion.clustering import cluster_contributions
-from leadforge.lead_ingestion.compliance import blocked_identities
 from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.env_file import load_env_file_into_process
 from leadforge.lead_ingestion.errors import ConfigurationError
@@ -95,10 +99,10 @@ from leadforge.lead_ingestion.pacing import SourcePacing
 from leadforge.lead_ingestion.projection import (
     ProjectionBasis,
     ProjectionStamp,
-    project_lead,
     stamp_projection,
 )
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
+from leadforge.lead_ingestion.remerge import Merged, project_with_store
 from leadforge.lead_ingestion.run_exit import RunExit, map_run_exit
 from leadforge.lead_ingestion.run_recorder import StoreRunRecorder
 from leadforge.lead_ingestion.run_report import build_run_report, render_run_report
@@ -115,7 +119,6 @@ from leadforge.lead_ingestion.store.merged_leads import (
 from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 from leadforge.lead_ingestion.store.raw_responses import RetentionPolicy
 from leadforge.lead_ingestion.store.run_records import RunRecordRepository
-from leadforge.lead_ingestion.store.tie_resolutions import TieResolutionRepository
 from leadforge.lead_ingestion.store.transactions import StoreWriter
 from leadforge.lead_ingestion.target_profile import (
     DEFAULT_TARGET_PROFILE_PATH,
@@ -124,6 +127,7 @@ from leadforge.lead_ingestion.target_profile import (
     effective_vocabulary,
     load_target_profile,
 )
+from leadforge.lead_ingestion.tie_resolution import TieResolver
 
 __all__ = ["IngestionOutcome", "live_rate_limits", "run_ingestion"]
 GLOBAL_MODE_VARIABLE = "LEADFORGE_MODE"
@@ -258,12 +262,15 @@ async def run_ingestion(
     exclusions_path: Path | None = None,
     env_file_path: Path | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    tie_resolver: Callable[[], TieResolver] | None = None,
 ) -> IngestionOutcome:
     """Run every enabled source, merge and persist, and report. Raises on bad config.
 
     ``registry`` replaces discovery (tests register scripted sources through it); its
     own settings then replace ``sources_path``'s per-source entries, but the pool bound
-    and the run timeout are still read from ``sources_path``.
+    and the run timeout are still read from ``sources_path``. ``tie_resolver`` builds
+    the port that may answer an exact primary-domain tie in live mode (8.18); none by
+    default, so such a tie stays the flagged fallback.
     """
     load_env_file_into_process(env_file_path)
     if registry is None:
@@ -328,6 +335,7 @@ async def run_ingestion(
             run_timeout_s=timeout,
             run_recorder=recorder,
             live_rate_limits=rate_limits,
+            identity_exclusions=exclusions,
         )
         results = await orchestrator.run(SourceRequest(kind="discovery"))
         run_id = recorder.run_id
@@ -350,31 +358,28 @@ async def run_ingestion(
             contributions: list[LeadContribution] = [
                 c for b in batches for c in b.contributions
             ]
-            blocked = blocked_identities(contributions)
-            with Session(engine) as read:
-                stored_ties = TieResolutionRepository(read)
-                merged = [
-                    (
-                        cluster,
-                        project_lead(
-                            cluster,
-                            ranks,
-                            blocked=blocked,
-                            tie_resolutions=stored_ties,
-                        ),
-                    )
-                    for cluster in cluster_contributions(contributions, exclusions)
-                ]
-            ties_flagged = sum(1 for _, r in merged if r.primary_domain_flagged)
             computed_at = clock()
             complete = store_recorder.completion(run_id, results)
+            merged: Merged = ()
 
             def merge_and_complete(session: Session) -> MergeStored:
+                # One transaction: the stored log is read, merged with this run's
+                # contributions and saved through the one persist path (option A).
+                nonlocal stage, merged
                 runs = RunRecordRepository(session)
                 previous = runs.latest_projection_stamp()
                 stamp = stamp_projection(
                     None if previous is None else ProjectionStamp(*previous), basis
                 )
+                merged = project_with_store(
+                    session,
+                    contributions,
+                    exclusions=exclusions,
+                    trust_ranks=ranks,
+                    now=computed_at,
+                    tie_resolver=tie_resolver,
+                )
+                stage = "merge_write"
                 stored = persist_merge(
                     session,
                     run_id=run_id,
@@ -382,18 +387,20 @@ async def run_ingestion(
                     merged=merged,
                     computed_at=computed_at,
                     projection_version=stamp.version,
+                    projection_fingerprint=stamp.fingerprint,
                     retention=RetentionPolicy(),
                 )
                 runs.record_projection(
                     run_id,
                     version=stamp.version,
                     fingerprint=stamp.fingerprint,
-                    ties_flagged=ties_flagged,
+                    ties_flagged=sum(1 for _, r in merged if r.primary_domain_flagged),
+                    leads_merged=stored.canonical_leads,
+                    leads_retired=stored.leads_retired,
                 )
                 complete(session)
                 return stored
 
-            stage = "merge_write"
             stored = await writer.write_batch(merge_and_complete)
         except BaseException as error:
             await _abort(store_recorder, run_id, stage, error)

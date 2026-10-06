@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T13:05:33+00:00
+- Written: 2026-10-06T13:14:45+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,21 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The only uncommitted files are two harness memory files: `handoff/latest.md` and `trace.log`. Last time the safety check blocked a commit of just these files, so I'm not retrying it. They'll go in with the next code commit, because `finish.sh` stages `.claude/memory`.
-
-Two pieces of work are running in the background, each followed by its own self-review:
-- **Orchestrator:** opt-outs following strong identity links, plus the second HubSpot pass.
-- **Lead store:** the record-to-lead mapping (option A).
+The review found no defects in `orchestrator.py`. Opt-out pruning reuses the merge's own grouping and ambiguous-email rules, so a shared mailbox never links two people. It added a test that runs all 720 orderings of a six-record set. The lead-store work is still mid-flight in the tree, so I'm committing only this change's files. The reviewer already validated them, in a clean worktree, on the last commit plus this change:
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ sed -n 1,74p tests/adapters/test_google_search_empty_results.py | grep -n "def \|^[A-Z_]* =\|import" ; sed -n 100,135p
-- $ python3 - <<'EOF'
-p='tests/adapters/test_google_search_empty_results.py'
-s=open(p).read()
-anchor='''# Verifies: specs/
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && python3 - <<'EOF'
 p='adapters/search_backends/serpapi.py'
 s=op
@@ -55,3 +46,5 @@ Co-Authored-By: Cla
 - $ ls -la src/leadforge/lead_ingestion/.claude/memory 2>&1 | head; git status --short src/leadforge/lead_ingestion/.claud
 - $ cat src/leadforge/lead_ingestion/.claude/memory/trace.log && rm -r src/leadforge/lead_ingestion/.claude && git status 
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **16.6/16.11 left un
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad && T=src/leadforge/lead_ingestion
+- $ git diff --cached --name-only && git commit -q -m "feat: opt-outs follow strong identity links; second free HubSpot pa

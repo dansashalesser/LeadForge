@@ -95,6 +95,7 @@ from leadforge.lead_ingestion.match_keys import (
     MatchKeyKind,
 )
 from leadforge.lead_ingestion.models import (
+    REQUEST_ECHO_PREFIX,
     CanonicalLead,
     CompanySignal,
     EmailStatus,
@@ -106,7 +107,7 @@ from leadforge.lead_ingestion.models import (
     TechSignal,
     UntrustedText,
 )
-from leadforge.lead_ingestion.primary_domain import elect_by_votes
+from leadforge.lead_ingestion.primary_domain import PrimaryDomain, elect_by_votes
 from leadforge.lead_ingestion.superseded import (
     agreeing_source_count,
     contributing_sources,
@@ -121,6 +122,7 @@ from leadforge.lead_ingestion.tie_resolution import (
 
 __all__ = [
     "PROJECTION_RULES_REVISION",
+    "PrimaryDomainTie",
     "ProjectionBasis",
     "ProjectionResult",
     "ProjectionStamp",
@@ -133,8 +135,9 @@ __all__ = [
 # the same change as any rule that can alter a projection. 1: the 16.5 rules. 2: the
 # one-sided email rule (8.3), request-echo fields counted only when no other source has
 # the field, LinkedIn cannot-link, the confidence table changes, and the display
-# primary domain read from the stored tie resolution (16.11).
-PROJECTION_RULES_REVISION = 2
+# primary domain read from the stored tie resolution (16.11). 3: a request-echo
+# ``person.email`` no longer hides a CRM source's own bare ``email``.
+PROJECTION_RULES_REVISION = 3
 
 _BARE_EMAIL = "email"
 _EMAIL = "person.email"
@@ -151,6 +154,14 @@ _SUPPRESSED = "suppressed"
 
 _EMAIL_ADAPTER: TypeAdapter[str] = TypeAdapter(StrictEmail)
 _URL_ADAPTER: TypeAdapter[HttpUrl] = TypeAdapter(HttpUrl)
+
+
+@dataclass(frozen=True)
+class PrimaryDomainTie:
+    """An exact primary-domain tie: the company and its election (domains hidden)."""
+
+    company: CompanyCluster = field(repr=False)
+    election: PrimaryDomain = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -192,6 +203,10 @@ class ProjectionResult:
     # company has no usable domain.
     primary_domain: str | None = field(default=None, repr=False)
     primary_domain_source: TieSource | None = None
+    # The exact tie behind a flagged fallback, so the run can ask for a resolution
+    # (``tie_resolution.resolve_primary_domain``) and project again; the projection
+    # itself never asks. ``None`` when nothing is tied.
+    primary_domain_tie: "PrimaryDomainTie | None" = field(default=None, repr=False)
 
     @property
     def primary_domain_flagged(self) -> bool:
@@ -319,7 +334,7 @@ def project_lead(
     reports = _compliance_reports(resolution, members, blocked or {})
     opt_out = any(flag == _OPT_OUT for flag, _ in reports)
     suppressed = any(flag == _SUPPRESSED for flag, _ in reports)
-    primary = _primary_domain(resolution, trust_ranks, tie_resolutions)
+    primary, tie = _primary_domain(resolution, trust_ranks, tie_resolutions)
     return ProjectionResult(
         lead=_build_lead(resolution, cluster.cluster_id, opt_out, suppressed),
         contributing_sources=tuple(sources),
@@ -344,6 +359,7 @@ def project_lead(
         contribution_count=len(members),
         primary_domain=None if primary is None else primary.domain,
         primary_domain_source=None if primary is None else primary.source,
+        primary_domain_tie=tie,
     )
 
 
@@ -351,7 +367,7 @@ def _primary_domain(
     resolution: ClusterResolution,
     trust_ranks: Mapping[str, int],
     store: TieResolutionReader | None,
-) -> TieOutcome | None:
+) -> tuple[TieOutcome | None, PrimaryDomainTie | None]:
     """The display domain of the Employment's company, by trust-weighted vote.
 
     The company is the winning ``company.domain`` value's registrable-domain set (as
@@ -362,7 +378,7 @@ def _primary_domain(
     """
     domains = tuple(sorted(company_domains(_winner_value(resolution, _COMPANY_DOMAIN))))
     if not domains:
-        return None
+        return None, None
     votes = {
         (candidate.source_name, domain)
         for candidate in _candidates(resolution, _COMPANY_DOMAIN)
@@ -371,22 +387,38 @@ def _primary_domain(
     }
     primary = elect_by_votes(votes, trust_ranks)
     company = CompanyCluster(company_id_for(domains), domains, ())
-    return read_primary_domain_outcome(company, primary, store)
+    tie = PrimaryDomainTie(company, primary) if primary.tied else None
+    return read_primary_domain_outcome(company, primary, store), tie
 
 
 def _with_canonical_email(contribution: LeadContribution) -> LeadContribution:
-    """A copy keyed ``person.email`` instead of the bare ``email`` (a CRM path)."""
-    if _BARE_EMAIL not in contribution.values or _EMAIL in contribution.values:
+    """A copy keyed ``person.email`` instead of the bare ``email`` (a CRM path).
+
+    A ``person.email`` that is only a request echo (what the source was asked about)
+    does not count as the source's own: it is dropped so the source's observed bare
+    ``email`` takes its place, and an echo never stands in for an observation.
+    """
+    if _BARE_EMAIL not in contribution.values:
+        return contribution
+    echoed = {
+        p.canonical_path
+        for p in contribution.provenance
+        if p.canonical_path == _EMAIL
+        and p.raw_field_path.startswith(REQUEST_ECHO_PREFIX)
+    }
+    if _EMAIL in contribution.values and not echoed:
         return contribution
     values = {
         (_EMAIL if path == _BARE_EMAIL else path): value
         for path, value in contribution.values.items()
+        if path not in echoed
     }
     provenance = tuple(
         p.model_copy(update={"canonical_path": _EMAIL})
         if p.canonical_path == _BARE_EMAIL
         else p
         for p in contribution.provenance
+        if p.canonical_path not in echoed
     )
     absences = tuple(
         a.model_copy(update={"canonical_path": _EMAIL})

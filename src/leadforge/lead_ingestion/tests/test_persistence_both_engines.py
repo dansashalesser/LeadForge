@@ -716,9 +716,11 @@ async def test_instants_are_equal_in_utc_whatever_the_offset_written(
 ) -> None:
     writer = StoreWriter(backend.engine)
     run_id = await writer.begin_run(status="running")
-    for offset in (timedelta(hours=14), timedelta(hours=-12), timedelta(0)):
+    offsets = (timedelta(hours=14), timedelta(hours=-12), timedelta(0))
+    for index, offset in enumerate(offsets):
         fetched = datetime(2026, 10, 5, 23, 30, tzinfo=timezone(offset))
-        ing = await _ingest(writer, run_id, {"a": 1}, fetched_at=fetched)
+        # A distinct observation each time: the same one is stored once (0006).
+        ing = await _ingest(writer, run_id, {"a": index}, fetched_at=fetched)
 
         def read(s: Session, ing: Ingested = ing) -> tuple[Any, Any]:
             return (

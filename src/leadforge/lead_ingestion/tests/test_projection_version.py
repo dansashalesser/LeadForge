@@ -94,9 +94,10 @@ def over_merged_pool() -> list[LeadContribution]:
 def test_the_rules_revision_is_bumped_for_the_rule_changes_since_16_5() -> None:
     # 1 = the 16.5 rules; 2 = one-sided email (8.3), request-echo fields counted only
     # when no other source has the field, LinkedIn cannot-link, the confidence table
-    # changes and the primary domain read from the stored tie resolution (16.11).
-    assert PROJECTION_RULES_REVISION == 2
-    assert ProjectionBasis.of(NONE, RANKS).rules_revision == 2
+    # changes and the primary domain read from the stored tie resolution (16.11);
+    # 3 = an echoed person.email no longer hides a CRM source's own bare email.
+    assert PROJECTION_RULES_REVISION == 3
+    assert ProjectionBasis.of(NONE, RANKS).rules_revision == 3
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13

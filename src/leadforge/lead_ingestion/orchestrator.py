@@ -134,7 +134,8 @@ Opt-outs follow strong identity links (user decision 2026-10-06, ADR-0006 amende
   (``DisqualifiedAddresses``) finds shared (a role address such as ``info@``).
   Components come from clustering's union-find, so the result is order-free and
   near-linear. The direct match (an identity a flagged record names, any email
-  status) is unchanged.
+  status) is unchanged. A value the run's Identity Exclusions bar (8.13) is no Match
+  Key, so it links no one here either (``identity_exclusions``, from the runner).
 
 A second, free pass (user decision 2026-10-06, ADR-0006 amended):
 
@@ -217,6 +218,7 @@ from leadforge.lead_ingestion.errors import (
 )
 from leadforge.lead_ingestion.match_keys import (
     DisqualifiedAddresses,
+    IdentityExclusions,
     MatchKeyKind,
     extract_match_keys,
 )
@@ -502,6 +504,8 @@ def enrichment_work_list(
 def prune_flagged(
     work_list: tuple[LeadContribution, ...],
     reports: tuple[LeadContribution, ...] = (),
+    *,
+    exclusions: IdentityExclusions | None = None,
 ) -> tuple[LeadContribution, ...]:
     """The work list without any lead marked suppressed or opted out (6.10).
 
@@ -510,11 +514,12 @@ def prune_flagged(
     work-list contribution is dropped when it is flagged or strongly linked to a
     flagged one, transitively (user decision 2026-10-06): the strong links are the
     LinkedIn URL and verified-email Match Keys, never name+domain and never an address
-    8.14 finds shared. Order is kept; a report naming no known lead removes nothing.
+    8.14 finds shared, nor a value ``exclusions`` bars (8.13). Order is kept; a report
+    naming no known lead removes nothing.
     """
     everything = (*work_list, *reports)
     blocked = blocked_identities(everything)
-    person = _strong_person_labels(everything)
+    person = _strong_person_labels(everything, exclusions)
     flagged = {
         person[index]
         for index, c in enumerate(everything)
@@ -526,7 +531,10 @@ def prune_flagged(
 _STRONG_KINDS = frozenset({MatchKeyKind.LINKEDIN_URL, MatchKeyKind.VERIFIED_EMAIL})
 
 
-def _strong_person_labels(contributions: tuple[LeadContribution, ...]) -> list[int]:
+def _strong_person_labels(
+    contributions: tuple[LeadContribution, ...],
+    exclusions: IdentityExclusions | None = None,
+) -> list[int]:
     """Each record's person under the strong Match Keys alone, transitively.
 
     Keys come from ``extract_match_keys`` with 8.14's shared-address pass over the same
@@ -542,7 +550,7 @@ def _strong_person_labels(contributions: tuple[LeadContribution, ...]) -> list[i
         [
             [
                 key
-                for key in extract_match_keys(c, disqualified=shared).keys
+                for key in extract_match_keys(c, exclusions, shared).keys
                 if key.kind in _STRONG_KINDS
             ]
             if ok
@@ -641,6 +649,7 @@ class IngestionOrchestrator:
         retry_policy: RetryPolicy | None = None,
         run_recorder: RunRecorder | None = None,
         live_rate_limits: Mapping[str, Mapping[str, RateBucket]] | None = None,
+        identity_exclusions: IdentityExclusions | None = None,
     ) -> None:
         if (
             not isinstance(max_concurrent_sources, int)
@@ -666,6 +675,7 @@ class IngestionOrchestrator:
         self._retry_policy = retry_policy
         self._run_recorder = run_recorder
         self._live_rate_limits = dict(live_rate_limits or {})
+        self._identity_exclusions = identity_exclusions
 
     async def run(self, request: SourceRequest) -> tuple[SourceResult, ...]:
         """Fetch from every enabled source, at most the bound in flight at once.
@@ -842,7 +852,8 @@ class IngestionOrchestrator:
                             for s in discovery
                             if (s.name, Phase.DISCOVERY) in finished
                         )
-                    )
+                    ),
+                    exclusions=self._identity_exclusions,
                 )
                 # Every report so far, so a person pruned by an earlier tier is pruned
                 # again when a later tier's record re-adds them (ADR-0006).
@@ -866,7 +877,11 @@ class IngestionOrchestrator:
                         )
                     )
                     reports = (*reports, *added)
-                    work_list = prune_flagged((*work_list, *added), reports)
+                    work_list = prune_flagged(
+                        (*work_list, *added),
+                        reports,
+                        exclusions=self._identity_exclusions,
+                    )
                     if tier[0].cost_class is CostClass.FREE:
                         # What it was handed or answered itself is not new to it.
                         free_tiers.append((tier, _identities_of((*tier_list, *added))))

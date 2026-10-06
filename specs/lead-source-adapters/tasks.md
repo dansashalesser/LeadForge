@@ -483,7 +483,7 @@ task = one commit.
   - Blocked on 16.2 and 16.4
   - _Requirements: 8.12_
 
-- [ ] 16.6 Apply Identity Exclusions as the only Over-merge repair
+- [x] 16.6 Apply Identity Exclusions as the only Over-merge repair
   - Read from configuration a set of Identity Exclusions — specific values barred from acting as a Match Key — and skip them during key extraction
   - Bump the projection version whenever that set changes, making the rule change observable rather than silent
   - Prove that adding a value to the exclusion set and recomputing separates a previously Over-merged cluster with no contribution record mutated or deleted
@@ -515,7 +515,7 @@ task = one commit.
   - Blocked on 16.9
   - _Requirements: 8.17_
 
-- [ ] 16.11 Persist the constrained primary-domain tie resolution
+- [x] 16.11 Persist the constrained primary-domain tie resolution
   - On an exact tie, allow escalation to a language model constrained to choose among the candidate domains already in the set, so it can never return a domain outside that set
   - Persist the resolution as a record carrying the chosen domain, the candidate set, the model, the prompt version, and a timestamp, and have the projection read that stored record rather than calling the model, so recompute stays a pure function and byte-identical
   - Never call the model in synthetic mode; resolve the tie to the lowest-sorted candidate and flag it on the run report

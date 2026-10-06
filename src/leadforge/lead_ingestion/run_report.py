@@ -10,8 +10,10 @@ Provisional decisions (see choices.md, task 18.3):
   unknown id, or an empty store, raises ``RunNotFoundError``.
 * A figure the store does not hold is ``None`` and renders ``not recorded``, never 0.
   Per-source counts are written only when a run completes, so a ``running`` or
-  ``aborted`` run has none. ``merged`` has no producer yet and renders ``not
-  recorded``; ``quota`` is ``not stated`` unless the provider stated one.
+  ``aborted`` run has none. The per-source ``merged`` has no producer (a merge spans
+  sources) and renders ``not recorded``; the run's ``leads: N merged, R retired``
+  line (0006) is the merge's own figure: active leads it wrote and leads it
+  retired. ``quota`` is ``not stated`` unless the provider stated one.
 * Follow-up (2026-10-06, 0005): ``fetched`` (records fetched), Credits, the
   ``calls: attempted= succeeded= failed=`` line and ``contributions_written`` are read
   from the ``source_run`` row; ``fetched`` and Credits stay ``not recorded`` for an
@@ -43,8 +45,8 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.run_record import RunRecordError, RunStatus
+from leadforge.lead_ingestion.store.merged_leads import stale_projections
 from leadforge.lead_ingestion.store.models import (
-    CanonicalLeadRow,
     ContributionField,
     IngestionRun,
     SourceContribution,
@@ -124,6 +126,9 @@ class RunReport:
     projection_version: int | None = None
     primary_domain_ties_flagged: int | None = None
     stale_projections: int | None = None
+    # Active leads the merge wrote and leads it retired (0006); None: not recorded.
+    leads_merged: int | None = None
+    leads_retired: int | None = None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -172,17 +177,10 @@ def _web_evidence(session: Session, run_id: uuid.UUID) -> dict[str, tuple[int, i
 
 
 def _stale(session: Session, version: int | None) -> int | None:
-    """Stored canonical leads projected under another version than the run's."""
+    """Active canonical leads projected under another version than the run's."""
     if version is None:
         return None
-    return (
-        session.scalar(
-            sa.select(sa.func.count(CanonicalLeadRow.id)).where(
-                CanonicalLeadRow.projection_version != version
-            )
-        )
-        or 0
-    )
+    return len(stale_projections(session, current_version=version))
 
 
 def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunReport:
@@ -219,6 +217,8 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
         projection_version=run.projection_version,
         primary_domain_ties_flagged=run.primary_domain_ties_flagged,
         stale_projections=_stale(session, run.projection_version),
+        leads_merged=run.leads_merged,
+        leads_retired=run.leads_retired,
         sources=tuple(
             SourceReport(
                 source_name=r.source_name,
@@ -335,6 +335,14 @@ def render_run_report(report: RunReport) -> str:
     )
     lines.append(f"projection version: {_figure(report.projection_version)}")
     lines.append(f"stale projections: {_figure(report.stale_projections)}")
+    lines.append(
+        "leads: "
+        + (
+            NOT_RECORDED
+            if report.leads_merged is None or report.leads_retired is None
+            else f"{report.leads_merged} merged, {report.leads_retired} retired"
+        )
+    )
     lines.append(
         "match-key digests: "
         + _MATCH_KEY_DIGEST_LINES.get(report.match_key_digests or "", NOT_RECORDED)

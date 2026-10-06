@@ -61,6 +61,7 @@ from leadforge.lead_ingestion.orchestrator import SourceStatus
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.run_exit import RunExit
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.store.contributions import contribution_sha
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -161,8 +162,9 @@ async def test_an_empty_environment_runs_every_registered_source_and_persists_a_
         assert result.outcome.status is SourceStatus.OK, result.source_name
     assert canonical_leads(clean_environment) >= 1
     assert outcome.stored.canonical_leads >= 1
-    assert outcome.stored.contributions == sum(
-        len(r.contributions or ()) for r in outcome.results
+    # The same observation (identical content) is stored once (0006).
+    assert outcome.stored.contributions == len(
+        {contribution_sha(c) for r in outcome.results for c in r.contributions or ()}
     )
 
 

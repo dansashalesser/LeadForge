@@ -5,9 +5,12 @@ Column types are the engine-portable set only: ``Uuid``, ``String``, ``Integer``
 dialect type, no dialect-conditional branch, no ``server_default`` and no raw SQL
 here; the schema reaches a database through migrations (task 6.2).
 
-``SourceContribution`` and ``ContributionField`` are append-only (8.12). Every
-ORM-level update or delete of either, per-object or bulk, raises
+``SourceContribution``, ``ContributionField`` and ``ContributionAbsence`` are
+append-only (8.12), as are the tie resolutions and the lead succession log. Every
+ORM-level update or delete of them, per-object or bulk, raises
 ``AppendOnlyViolationError``; the guard is registered when this module is imported.
+Which Lead a contribution belongs to is DERIVED (``ContributionLead``, 0006): every
+merge rebuilds it, so a cluster that splits or joins never relinks a contribution.
 """
 
 import uuid
@@ -42,10 +45,13 @@ __all__ = [
     "CanonicalFieldProvenance",
     "CanonicalLeadRow",
     "ColumnValueError",
+    "ContributionAbsence",
     "ContributionField",
+    "ContributionLead",
     "IdentityKey",
     "IngestionRun",
     "LeadIdentity",
+    "LeadSuccession",
     "PrimaryDomainTieResolution",
     "RawResponse",
     "SourceContribution",
@@ -103,6 +109,9 @@ class IngestionRun(Base):
     primary_domain_ties_flagged: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )
+    # Active canonical leads the run's merge wrote, and leads it retired (0006).
+    leads_merged: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    leads_retired: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class SourceRun(Base):
@@ -156,13 +165,35 @@ class RawResponse(Base):
 
 
 class LeadIdentity(Base):
-    """Cluster root; a ``CanonicalLeadRow`` is a projection of it."""
+    """Cluster root; a ``CanonicalLeadRow`` is a projection of it.
+
+    ``retired_at`` is set when a merge no longer produces this lead (its cluster split
+    or was absorbed, 0006); ``LeadSuccession`` points at what replaced it. A retired
+    identity keeps its rows and is never active again.
+    """
 
     __tablename__ = "lead_identity"
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     created_at: Mapped[datetime] = _utc()
     primary_key_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    retired_at: Mapped[datetime | None] = _utc(nullable=True)
+
+
+class LeadSuccession(Base):
+    """Append-only: a retired lead and one lead that replaced it (0006)."""
+
+    __tablename__ = "lead_succession"
+    __table_args__ = (
+        UniqueConstraint(
+            "predecessor_id", "successor_id", name="uq_lead_succession_pair"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    predecessor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lead_identity.id"))
+    successor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lead_identity.id"))
+    recorded_at: Mapped[datetime] = _utc()
 
 
 class IdentityKey(Base):
@@ -180,11 +211,18 @@ class IdentityKey(Base):
 
 
 class SourceContribution(Base):
-    """Append-only: one source's view of one lead."""
+    """Append-only: one source's view of one lead.
+
+    ``lead_identity_id`` is the lead it was first merged into; the current lead is the
+    derived ``ContributionLead``. ``content_sha`` (0006) is the contribution's identity
+    (``store.contributions.contribution_sha``): the same observation is stored once.
+    NULL on rows written before 0006.
+    """
 
     __tablename__ = "source_contribution"
     __table_args__ = (
         Index("ix_source_contribution_lead_identity_id", "lead_identity_id"),
+        UniqueConstraint("content_sha", name="uq_source_contribution_content_sha"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -201,6 +239,7 @@ class SourceContribution(Base):
     data_mode: Mapped[str] = mapped_column(String(16))
     fetched_at: Mapped[datetime] = _utc()
     lead_scope: Mapped[str] = mapped_column(String(32))
+    content_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ContributionField(Base):
@@ -235,6 +274,46 @@ class ContributionField(Base):
     untrusted: Mapped[bool] = mapped_column(Boolean, default=False)
     truncated: Mapped[bool] = mapped_column(Boolean, default=False)
     original_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The rest of the field's provenance (0006), so a stored contribution reads back
+    # whole. NULL on rows written before 0006.
+    confidence_origin: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence_raw: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confidence_scale: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class ContributionAbsence(Base):
+    """Append-only: a source's explicit non-answer for one path (0006)."""
+
+    __tablename__ = "contribution_absence"
+    __table_args__ = (
+        Index("ix_contribution_absence_contribution_id", "contribution_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    contribution_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_contribution.id")
+    )
+    canonical_path: Mapped[str] = mapped_column(String(255))
+    kind: Mapped[str] = mapped_column(String(32))
+    raw_field_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
+class ContributionLead(Base):
+    """Derived: the lead a contribution belongs to now; rebuilt by every merge.
+
+    One row per contribution (it is the primary key), so a contribution is never in
+    two leads; only active leads are named.
+    """
+
+    __tablename__ = "contribution_lead"
+    __table_args__ = (
+        Index("ix_contribution_lead_lead_identity_id", "lead_identity_id"),
+    )
+
+    contribution_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_contribution.id"), primary_key=True
+    )
+    lead_identity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lead_identity.id"))
 
 
 class CanonicalLeadRow(Base):
@@ -258,6 +337,13 @@ class CanonicalLeadRow(Base):
     contributing_sources: Mapped[list[Any]] = mapped_column(JSON)
     computed_at: Mapped[datetime] = _utc()
     projection_version: Mapped[int] = mapped_column(Integer)
+    # The display primary domain and how it was decided (8.17, 8.18; 0006), and the
+    # keyed basis fingerprint the row was projected under (8.13). NULL before 0006.
+    primary_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    primary_domain_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    projection_fingerprint: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
 
 
 class CanonicalFieldProvenance(Base):
@@ -329,7 +415,13 @@ def _check_string_columns(mapper: Mapper[Any], connection: Any, target: Any) -> 
 event.listen(Base, "before_insert", _check_string_columns, propagate=True)
 event.listen(Base, "before_update", _check_string_columns, propagate=True)
 
-_APPEND_ONLY = (SourceContribution, ContributionField, PrimaryDomainTieResolution)
+_APPEND_ONLY = (
+    SourceContribution,
+    ContributionField,
+    ContributionAbsence,
+    PrimaryDomainTieResolution,
+    LeadSuccession,
+)
 _APPEND_ONLY_TABLES = frozenset(c.__tablename__ for c in _APPEND_ONLY)
 
 

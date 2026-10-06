@@ -577,9 +577,9 @@ async def test_end_to_end_an_opted_out_contact_joins_and_suppresses_the_person()
     assert lead.opt_out is True
     assert lead.suppressed is True
     assert "hubspot" in lead.compliance_sources
-    # crm alone: the echoed address adds nothing (and, as projection reads the bare
-    # CRM ``email`` only when ``person.email`` is absent, it also shadows HubSpot's).
-    assert dict(lead.agreement)["person.email"] == 1
+    # crm and HubSpot's own confirmed address: the echoed address adds nothing and
+    # no longer shadows HubSpot's observation (projection rules revision 3).
+    assert dict(lead.agreement)["person.email"] == 2
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#13.1
@@ -713,5 +713,6 @@ async def test_run_ingestion_joins_hubspot_contacts_to_the_asked_people(
     [lee] = holding(LEE)  # two contacts: ambiguous, nothing attached
     assert "hubspot" not in lee.contributing_sources
     hubspot_only = [lead for lead in leads if lead.contributing_sources == ["hubspot"]]
-    assert len(hubspot_only) == 2
+    # The two contacts give identical observations: stored once, one lead (0006).
+    assert len(hubspot_only) == 1
     assert {lead.email for lead in hubspot_only} == {LEE}

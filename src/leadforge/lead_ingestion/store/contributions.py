@@ -20,26 +20,55 @@ with no backend branch (the same approach as ``raw_responses``).
 
 `write_contribution` is synchronous, takes the session handed to a
 ``StoreWriter.write_batch`` callable, and returns a plain ``uuid.UUID``; it does not
-commit. Provenance beyond ``confidence`` (origin, raw confidence, scale, superseded)
-and absences have no columns in the 0001 schema and are not persisted here.
+commit. Since 0006 it also keeps each field's confidence origin, raw value and scale,
+the absences and the ``content_sha``, so ``load_lead_contributions`` rebuilds the
+``LeadContribution`` a re-merge needs (follow-up, user option A, 2026-10-06):
+
+* ``contribution_sha`` is the identity of an observation: the sha256 of
+  ``clustering.canonical_json`` with every ``fetched_at`` left out, so the same answer
+  fetched again is the same contribution and is stored once (UNIQUE ``content_sha``).
+* Read back, a datetime value is its ISO-8601 text and a tuple a list (as above); both
+  serialise to the same canonical JSON, so the identity and every merge comparison
+  are unchanged. Absences are a set: they read back sorted by path and kind, and the
+  identity sorts them.
+* A row written before 0006 has no origin: it reads back as ``none`` when it has no
+  confidence and ``heuristic`` when it has one (raw value and scale unknown), with no
+  absences. Lossy, and only for those rows.
 """
 
+import json
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from hashlib import sha256
 from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.base_source import LeadContribution
-from leadforge.lead_ingestion.models import DataMode, UntrustedText
-from leadforge.lead_ingestion.store.models import ContributionField, SourceContribution
+from leadforge.lead_ingestion.clustering import canonical_json, canonical_value_json
+from leadforge.lead_ingestion.models import (
+    AbsenceKind,
+    ConfidenceOrigin,
+    DataMode,
+    FieldProvenance,
+    SourceAbsence,
+    UntrustedText,
+)
+from leadforge.lead_ingestion.store.models import (
+    ContributionAbsence,
+    ContributionField,
+    SourceContribution,
+)
 
 __all__ = [
     "ContributionValueError",
     "StoredContribution",
     "StoredFieldError",
+    "contribution_sha",
+    "load_lead_contributions",
     "read_contribution",
     "write_contribution",
 ]
@@ -102,6 +131,16 @@ def _encode(value: object, path: str, depth: int = 0) -> Any:
     raise refuse(f"has type {type(value).__name__}, which JSON cannot round-trip")
 
 
+def contribution_sha(contribution: LeadContribution) -> str:
+    """The identity of an observation: its canonical JSON without fetch times."""
+    content = json.loads(canonical_json(contribution))
+    for record in content["provenance"]:
+        record.pop("fetched_at", None)
+    # Absences are a set (no column keeps their order): sort them.
+    content["absences"] = sorted(content["absences"], key=canonical_value_json)
+    return sha256(canonical_value_json(content).encode("utf-8")).hexdigest()
+
+
 def write_contribution(
     session: Session,
     contribution: LeadContribution,
@@ -148,9 +187,19 @@ def write_contribution(
         data_mode=data_mode.value,
         fetched_at=fetched,
         lead_scope=lead_scope,
+        content_sha=contribution_sha(contribution),
     )
     session.add(row)
     session.flush()
+    for absence in contribution.absences:
+        session.add(
+            ContributionAbsence(
+                contribution_id=row.id,
+                canonical_path=absence.canonical_path,
+                kind=absence.kind.value,
+                raw_field_path=absence.raw_field_path,
+            )
+        )
     for path, value in values.items():
         stored: Any
         classification: tuple[bool, bool, int | None]
@@ -167,6 +216,9 @@ def write_contribution(
                 value=stored,
                 raw_field_path=provenance[path].raw_field_path,
                 confidence=provenance[path].confidence,
+                confidence_origin=provenance[path].confidence_origin.value,
+                confidence_raw=provenance[path].confidence_raw,
+                confidence_scale=provenance[path].confidence_scale,
                 untrusted=classification[0],
                 truncated=classification[1],
                 original_length=classification[2],
@@ -211,12 +263,78 @@ def read_contribution(
         .where(ContributionField.contribution_id == contribution_id)
         .order_by(ContributionField.canonical_path)
     )
-    fetched = row.fetched_at
-    fetched = fetched.replace(tzinfo=UTC) if fetched.tzinfo is None else fetched
     return StoredContribution(
         source_name=row.source_name,
         data_mode=DataMode(row.data_mode),
-        fetched_at=fetched.astimezone(UTC),
+        fetched_at=_aware(row.fetched_at),
         values={f.canonical_path: _rebuild(f) for f in fields},
         raw_response_id=row.raw_response_id,
     )
+
+
+def _origin(field: ContributionField) -> ConfidenceOrigin:
+    if field.confidence_origin is not None:
+        return ConfidenceOrigin(field.confidence_origin)
+    # Written before 0006: only the number was kept.
+    if field.confidence is None:
+        return ConfidenceOrigin.NONE
+    return ConfidenceOrigin.HEURISTIC
+
+
+def _aware(value: datetime) -> datetime:
+    return (value.replace(tzinfo=UTC) if value.tzinfo is None else value).astimezone(
+        UTC
+    )
+
+
+def load_lead_contributions(session: Session) -> dict[uuid.UUID, LeadContribution]:
+    """Every stored contribution rebuilt as a ``LeadContribution``, by row id.
+
+    The input of a re-merge (8.12): the merge is a projection of the whole log.
+    """
+    fields: dict[uuid.UUID, list[ContributionField]] = defaultdict(list)
+    for field in session.scalars(
+        sa.select(ContributionField).order_by(ContributionField.canonical_path)
+    ):
+        fields[field.contribution_id].append(field)
+    absences: dict[uuid.UUID, list[ContributionAbsence]] = defaultdict(list)
+    for absence in session.scalars(
+        sa.select(ContributionAbsence).order_by(
+            ContributionAbsence.canonical_path, ContributionAbsence.kind
+        )
+    ):
+        absences[absence.contribution_id].append(absence)
+
+    out: dict[uuid.UUID, LeadContribution] = {}
+    for row in session.scalars(sa.select(SourceContribution)):
+        mode, fetched = DataMode(row.data_mode), _aware(row.fetched_at)
+        own = fields[row.id]
+        out[row.id] = LeadContribution(
+            source_name=row.source_name,
+            values={f.canonical_path: _rebuild(f) for f in own},
+            provenance=tuple(
+                FieldProvenance(
+                    canonical_path=f.canonical_path,
+                    source_name=row.source_name,
+                    data_mode=mode,
+                    fetched_at=fetched,
+                    raw_field_path=f.raw_field_path,
+                    confidence_origin=_origin(f),
+                    untrusted=f.untrusted,
+                    confidence=f.confidence,
+                    confidence_raw=f.confidence_raw,
+                    confidence_scale=f.confidence_scale,
+                )
+                for f in own
+            ),
+            absences=tuple(
+                SourceAbsence(
+                    canonical_path=a.canonical_path,
+                    source_name=row.source_name,
+                    kind=AbsenceKind(a.kind),
+                    raw_field_path=a.raw_field_path,
+                )
+                for a in absences[row.id]
+            ),
+        )
+    return out

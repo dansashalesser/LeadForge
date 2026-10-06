@@ -235,8 +235,10 @@ def _seed_contribution_with_raw(conn: sa.Connection, raw_id: uuid.UUID | None) -
             )
             s.add(raw)
             s.flush()
-        s.add(
-            m.SourceContribution(
+        # Core, like the run rows: 0006 added a contribution column.
+        s.execute(
+            sa.insert(m.SourceContribution).values(
+                id=uuid.uuid4(),
                 source_run_id=source_run_id,
                 raw_response_id=raw_id,
                 source_name="x",

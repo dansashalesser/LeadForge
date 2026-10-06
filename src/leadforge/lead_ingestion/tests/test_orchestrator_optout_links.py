@@ -13,6 +13,7 @@ import pytest
 
 from leadforge.lead_ingestion import clustering
 from leadforge.lead_ingestion.base_source import LeadContribution
+from leadforge.lead_ingestion.match_keys import IdentityExclusions
 from leadforge.lead_ingestion.orchestrator import prune_flagged
 from leadforge.lead_ingestion.tests.test_orchestrator_enrichment_order import (
     contribution,
@@ -298,3 +299,21 @@ def test_pruning_is_near_linear_in_the_work_list(
 
     assert prune_flagged(chain, (flagged,)) == ()
     assert calls["n"] <= 12 * len(chain)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.13
+# Verifies: specs/lead-source-adapters/requirements.md#6.10
+def test_an_identity_exclusion_links_no_one_when_pruning() -> None:
+    # The opted-out address is linked to a LinkedIn URL that an Identity Exclusion
+    # bars (8.13: it is no Match Key), so a stranger holding that URL is kept.
+    linking = record(
+        "finder",
+        person__email=P_EMAIL,
+        person__email_status="verified",
+        person__linkedin_url=P_LINKEDIN,
+    )
+    stranger = record("search", person__linkedin_url=P_LINKEDIN)
+    bar = IdentityExclusions.from_values(linkedin_urls=[P_LINKEDIN])
+
+    assert prune_flagged((stranger, linking), (OPT_OUT,)) == ()
+    assert prune_flagged((stranger, linking), (OPT_OUT,), exclusions=bar) == (stranger,)

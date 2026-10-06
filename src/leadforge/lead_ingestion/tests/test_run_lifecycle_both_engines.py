@@ -24,8 +24,9 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
-from leadforge.lead_ingestion import ingest_runner
+from leadforge.lead_ingestion import ingest_runner, orchestrator, remerge
 from leadforge.lead_ingestion.match_key_digest import MATCH_KEY_SECRET_ENV
+from leadforge.lead_ingestion.match_keys import IdentityExclusions
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.run_record import (
@@ -242,9 +243,12 @@ def test_0005_walks_up_and_down_keeping_run_rows(blank: Backend) -> None:
             )
         )
     _alembic(blank, "upgrade", "0005")
-    with Session(blank.engine) as s:
-        run = s.get_one(m.IngestionRun, run_id)
-        assert run.failure_reason is None
+    with blank.engine.connect() as conn:
+        # Only the column under test: a later revision (0006) adds more run columns.
+        reason = conn.execute(
+            sa.select(m.IngestionRun.failure_reason).where(m.IngestionRun.id == run_id)
+        ).scalar_one()
+        assert reason is None
     _alembic(blank, "downgrade", "0004")
     with blank.engine.connect() as conn:
         assert conn.execute(sa.text("SELECT count(*) FROM ingestion_run")).scalar() == 1
@@ -384,13 +388,39 @@ async def test_the_projection_version_is_stamped_and_bumped_on_each_engine(
     assert fingerprints[0] == fingerprints[1]
     assert len(fingerprints[0] or "") == 64
     assert runs[bumped.run_id].projection_fingerprint != fingerprints[0]
-    assert versions == {1, 2}
+    # The bumped run re-merged the whole stored log (option A): every canonical lead
+    # is now projected under version 2, so none is stale.
+    assert versions == {2}
     assert runs[first.run_id].primary_domain_ties_flagged == 0
     lines = bumped.report_text.splitlines()
     assert "projection version: 2" in lines
     assert f"stale projections: {stale_rows}" in lines
-    assert (stale_rows or 0) > 0
+    assert stale_rows == 0
     assert "primary-domain tie fallbacks: 0 flagged" in lines
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.13
+# Verifies: specs/lead-source-adapters/requirements.md#6.10
+async def test_the_runs_identity_exclusions_reach_suppression_pruning(
+    composed: Backend, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    seen: list[IdentityExclusions | None] = []
+    pruning = orchestrator.prune_flagged
+
+    def spy(*args: Any, exclusions: IdentityExclusions | None = None) -> Any:
+        seen.append(exclusions)
+        return pruning(*args, exclusions=exclusions)
+
+    monkeypatch.setattr(orchestrator, "prune_flagged", spy)
+    monkeypatch.setenv(MATCH_KEY_SECRET_ENV, "lifecycle-stable-secret-" + "s" * 32)
+    exclusions = tmp_path / "exclusions.yaml"
+    exclusions.write_text("emails:\n  - nobody@example.org\n", encoding="utf-8")
+    await ingest_runner.run_ingestion(
+        target_profile_path=PROFILE, exclusions_path=exclusions
+    )
+
+    assert seen
+    assert set(seen) == {IdentityExclusions.from_values(emails=["nobody@example.org"])}
 
 
 # ------------------------------------------- a failure at each write step (self-review)
@@ -444,7 +474,7 @@ async def test_a_merge_failure_before_the_write_is_aborted_as_merge(
     def fail(*_: Any, **__: Any) -> Any:
         raise _MergeBrokeError(SENTINEL_EMAIL)
 
-    monkeypatch.setattr(ingest_runner, "cluster_contributions", fail)
+    monkeypatch.setattr(remerge, "cluster_contributions", fail)
 
     with pytest.raises(_MergeBrokeError):
         await ingest_runner.run_ingestion(target_profile_path=PROFILE)
@@ -467,7 +497,7 @@ async def test_a_failing_abort_marker_never_hides_the_original_error(
             raise sa.exc.OperationalError("UPDATE", {}, Exception("store gone"))
         real_finish(self, *args, **kwargs)
 
-    monkeypatch.setattr(ingest_runner, "cluster_contributions", fail_merge)
+    monkeypatch.setattr(remerge, "cluster_contributions", fail_merge)
     monkeypatch.setattr(RunRecordRepository, "finish", no_abort)
 
     with pytest.raises(_MergeBrokeError) as caught:

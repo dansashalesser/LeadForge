@@ -190,8 +190,11 @@ class RunRecordRepository:
         version: int,
         fingerprint: str,
         ties_flagged: int,
+        leads_merged: int | None = None,
+        leads_retired: int | None = None,
     ) -> None:
-        """Store the projection stamp the run wrote under, and its flagged ties."""
+        """Store the projection stamp the run wrote under, its flagged ties, and the
+        leads its merge wrote and retired (0006; ``None``: not recorded)."""
         self._session.execute(
             sa.update(IngestionRun)
             .where(IngestionRun.id == run_id)
@@ -199,6 +202,8 @@ class RunRecordRepository:
                 projection_version=version,
                 projection_fingerprint=fingerprint,
                 primary_domain_ties_flagged=ties_flagged,
+                leads_merged=leads_merged,
+                leads_retired=leads_retired,
             )
             .execution_options(synchronize_session="fetch")
         )
