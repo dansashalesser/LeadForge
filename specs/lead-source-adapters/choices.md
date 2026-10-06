@@ -2852,3 +2852,32 @@ Gaps:
 - Verification: pytest 3929 passed, 1 skipped; ruff clean on touched files; mypy clean (186).
 
 - **Open (needs-follow-up):** an echoed email hides HubSpot own observed address from the agreement count (person.email agreement 1 instead of 2); fix belongs in `projection._with_canonical_email`; scheduled with the next projection change.
+
+## Follow-up — opt-outs follow strong identity links; second HubSpot pass (user decisions 2026-10-06)
+
+- **Reproduced first (RED):** new e2e `tests/adapters/test_optout_links_second_pass_end_to_end.py` run against HEAD: Apollo's paid match was asked `linkedin_url=http://www.linkedin.com/in/pat-example` (Pat opted out in HubSpot; Hunter's finder linked his address to that URL). Unit RED: 31 of 32 in `test_orchestrator_optout_links.py` failed (e.g. 40 kept vs 34 expected); 5 of 7 in `test_orchestrator_second_free_pass.py` failed (no second call).
+- **Decision 1 (orchestrator.py `prune_flagged`):** a flagged component is now pruned whole. Components are built with clustering's `_UnionFind` (already shared with companies.py) over `extract_match_keys` LINKEDIN_URL + VERIFIED_EMAIL keys only. 8.14's `DisqualifiedAddresses` is computed over the same set, so role/shared addresses never link. Name+domain never links. The direct match is unchanged (any identity a flagged record names, any status). A record whose identity values are not text links no one, so pruning still never raises (test_compliance). The hand-rolled union-find in `_person_labels` is replaced by a shared `_components` helper.
+- **Decision 2 (orchestrator.py `_execute`):** after the tier loop, each FREE tier runs once more on the pruned work-list records naming an email or LinkedIn identity the tier was neither handed nor answered itself. No orchestrator code names HubSpot (2.4). The result is a second ENRICHMENT SourceResult appended last, on the same ledger, so run_exit, run_record and run_report count it under hubspot with no change to them. SourceError is isolated; a deadline records it TIMED_OUT.
+- **E2E proof (real adapters, shipped fixtures, run_ingestion):** Apollo match calls are exactly {Ada id, Grace id, email info@}, with no call for Pat. Quinn (who shares info@) is enriched and not opted out. HubSpot contact searches are exactly [pat, info@, ada, grace] plus 3 deal searches. Ada's lead carries crm.lifecycle_stage=lead. Grace's lead is opt_out and suppressed. The report shows hubspot attempted=2. Mutation checks: dropping `disqualified=` fails the e2e (Quinn pruned), and dropping the own-output exclusion fails the unit test.
+- **Superseded tests updated:** test_orchestrator_tier_feed (the free tier is now called twice), test_tier_feed_end_to_end (HubSpot also asks ada@ in pass 2; its not-found record is a lead of its own), test_zero_credential gap_c (renamed: HubSpot pass 2 asks Apollo's address from the shipped fixtures).
+- **ADR-0006:** amendment section appended (no rewrite).
+- **Gaps:** (a) the pruning components ignore Identity Exclusions (8.13), so they may over-join. This fails closed (it prunes more). (b) A CRM opt-out on an address only a paid tier found is still applied at merge, not before that tier spends. (c) Pass 2 picks records by identity, so a record with an already-asked email plus a new LinkedIn URL is re-handed. HubSpot's cache stops a repeat call but re-emits the cached lookup, which can mean duplicate HubSpot records. (d) The spec-refactor-agent and validate-production-agent were not spawned: no Agent tool in this harness.
+- **Verify:** HEAD plus only these changes (scratch worktree): 3971 passed, 1 skipped. Main tree: mypy clean. ruff shows 19 errors, all in the other agent's remerge tests. pytest has 10 failures, all in the other agent's in-flight store/projection work (content_sha UNIQUE, schema, migrations, echo agreement); every one passes on HEAD plus my changes.
+
+### Self-review findings
+
+- **(a) Reuse and linking:** confirmed. Pruning uses `extract_match_keys`, `DisqualifiedAddresses` and clustering's `_UnionFind`. The old hand-rolled union-find in `_person_labels` now goes through the shared `_components`. Unverified emails never link (a test covers this). Fields are single-valued, and 8.14 also excludes an address seen with two LinkedIn URLs, so a component never holds two LinkedIn identities. A near-linear test is present.
+- **(b) Over-pruning:** no defect. Pruning already applies the merge's 8.14 exclusion (an address seen under 2+ names or with 2+ LinkedIn URLs). Added `test_a_personal_mailbox_two_people_share_carries_no_opt_out_as_in_the_merge`, which checks pruning against `cluster_contributions` for a shared mailbox that is not a role address. Also added an exhaustive order test over all 720 permutations. Both pass. Gap (a) is still open: 8.13 Identity Exclusions are not applied, because wiring them needs ingest_runner.py, which the other agent owns. Skipped and flagged. The gap fails closed.
+- **(c) Second pass:** confirmed.
+  - It runs once per free tier and is handed only identities that tier was never handed and never answered.
+  - A failure in it is isolated, and a deadline records it TIMED_OUT.
+  - Counts come from the latest cumulative ledger result (run_exit and run_record read the latest), so attempted is not counted twice.
+  - No paid tier runs after it.
+  - Gap (c) is still open: HubSpot looks up by email only, so a record re-handed for a new LinkedIn URL alone re-emits a cached lookup. The ADR now states this.
+- **(d) ADR-0006:**
+  - Changed "within the work list" to "across the work list and every report so far".
+  - Named both 8.14 triggers.
+  - Disclosed the 8.13 gap and the repeat-record gap.
+- **(e) Logs:** no new log lines, so no PII added.
+- **(f) Mutation checks (worktree, orchestrator.py):** all 10 mutants were killed. The mutants were no-disqualified, all-kinds, no-seen-filter, no-own-output, paid-too, no-timeout-record, direct-only, no-readable-guard, empty-pass and empty-seen. The file was restored and its sha256 matches the main tree.
+- **Verify:** on HEAD plus this change (worktree), 3974 passed and 1 was skipped. ruff and mypy are clean. The worktree is removed.

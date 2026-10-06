@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T12:30:27+00:00
+- Written: 2026-10-06T13:05:33+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,18 +10,16 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the harness memory files. The source changes stay uncommitted on purpose:
-- **Run lifecycle:** in self-review.
-- **Tasks 16.6 and 16.11:** already reviewed, and they get committed together with the run-lifecycle change.
-- **HubSpot echo:** still being built.
+The only uncommitted files are two harness memory files: `handoff/latest.md` and `trace.log`. Last time the safety check blocked a commit of just these files, so I'm not retrying it. They'll go in with the next code commit, because `finish.sh` stages `.claude/memory`.
+
+Two pieces of work are running in the background, each followed by its own self-review:
+- **Orchestrator:** opt-outs following strong identity links, plus the second HubSpot pass.
+- **Lead store:** the record-to-lead mapping (option A).
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "Fully empty\|out of searches\|run out\|_EXHAUST\|def 
-- $ grep -n "_FULLY_EMPTY\|_BALANCE_MARKER" adapters/search_backends/serpapi.py; grep -n "_FULLY_EMPTY" -B12 -A8 adapters/
-- $ sed -n 140,168p adapters/search_backends/serpapi.py; grep -n "def test" tests/adapters/test_google_search_empty_result
 - $ sed -n 1,74p tests/adapters/test_google_search_empty_results.py | grep -n "def \|^[A-Z_]* =\|import" ; sed -n 100,135p
 - $ python3 - <<'EOF'
 p='tests/adapters/test_google_search_empty_results.py'
@@ -54,3 +52,6 @@ Co-Authored-By: Cla
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Task 14.2 ticked w
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -rn "def prune_flagged\|def _reapply\|suppress" --include
 - $ cd /home/user/LeadForge && git add .claude/memory .claude/behaviors 2>/dev/null; git diff --cached --quiet && echo NOT
+- $ ls -la src/leadforge/lead_ingestion/.claude/memory 2>&1 | head; git status --short src/leadforge/lead_ingestion/.claud
+- $ cat src/leadforge/lead_ingestion/.claude/memory/trace.log && rm -r src/leadforge/lead_ingestion/.claude && git status 
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **16.6/16.11 left un

@@ -67,3 +67,29 @@ Apollo, Google Search.
   names the address with no verification status and no name, so the merge (8.2: only
   verified addresses are keys) keeps it as a separate Lead, as it did before this
   change.
+
+## Amendment (2026-10-06): opt-outs follow strong links; a second, free HubSpot pass
+
+Two user decisions (2026-10-06) change two consequences above. Nothing else changes.
+
+- **Opt-outs follow strong identity links.** This replaces "The block is not
+  transitive". Pruning also drops a person's other records linked by LinkedIn URL or
+  verified email (the Match Key normalizers), transitively across the work list and
+  every report so far. It never follows name+domain, and never follows an address
+  that 8.14's structural pass finds shared (seen under two names or with two LinkedIn
+  URLs, such as `info@`), as the merge does. Identity Exclusions (8.13) are not
+  applied (the orchestrator is not given them), so pruning can join more than the
+  merge; that only prunes more. Components come from clustering's union-find, so the
+  result does not depend on order and the cost is near-linear.
+- **A second, free pass.** This narrows known gap (1). After the forward pass, each
+  free tier (HubSpot today) runs exactly once more. It gets only the work-list records
+  that name an identity it was neither handed nor answered itself, meaning ones
+  Hunter or Apollo found. No paid tier runs after it, so it moves no spend. The
+  adapter's per-run cache stops any repeat lookup, though a record re-handed for a new
+  LinkedIn URL alone re-emits HubSpot's cached email lookup as a repeat record. Its CRM fields and opt-outs reach
+  the leads through the request echo. A failure in this pass is isolated, and its
+  calls count under HubSpot in the run report. A CRM opt-out on an address only a
+  paid tier found is still applied at merge, not before that paid tier spends.
+- **Considered and rejected:** running every tier again until nothing changes (see
+  above), and running the free tier again for every record (it would repeat lookups
+  its cache already answered and add duplicate records).

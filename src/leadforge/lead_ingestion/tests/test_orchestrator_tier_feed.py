@@ -105,10 +105,12 @@ async def test_the_feed_is_one_forward_pass_with_no_tier_called_twice() -> None:
 
     results = await orchestrator_run(classes, probe)
 
-    assert enrich_starts(probe, "free") == 1
+    # The paid tier runs once. The free tier runs once more (user decision
+    # 2026-10-06), after every paid tier and only for what a later tier found:
+    # test_orchestrator_second_free_pass.py.
+    assert enrich_starts(probe, "free") == 2
     assert enrich_starts(probe, "paid") == 1
-    # Nothing a later tier found is fed back to an earlier one.
-    assert emails(probe, "free") == ["a@a.io"]
+    assert emails(probe, "free") == ["late@c.io"]  # the last request: the second pass
     assert emails(probe, "paid") == ["a@a.io", "b@b.io"]
     # Results keep each source's own contributions only (the feed copies nothing in).
     paid = next(

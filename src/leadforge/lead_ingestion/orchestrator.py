@@ -116,8 +116,7 @@ decision: sources enhance each other). Provisional decisions (choices.md, follow
   evidence-only source). Results are untouched: each still holds only its own source's
   contributions.
 * One forward pass: every tier is called at most once and nothing found later is fed
-  back to an earlier tier. A person only a later tier finds is therefore never asked of
-  the free tier (known gap, recorded in ADR-0006).
+  back to an earlier tier, with one exception below (the second, free pass).
 * Pruning uses every report so far, not only the last tier's, so a person suppressed
   by an earlier tier and re-added by a later tier's record leaves the list again before
   the next tier. ``enrichment_work_list`` (Discovery only) is unchanged.
@@ -125,6 +124,29 @@ decision: sources enhance each other). Provisional decisions (choices.md, follow
   match asks once per person across the records naming them); per-company dedupe
   still runs on the fed list (``per_company_work_list``), a fed record joining the
   person it names.
+
+Opt-outs follow strong identity links (user decision 2026-10-06, ADR-0006 amended):
+
+* ``prune_flagged`` also drops every record strongly linked to a flagged one,
+  transitively over the work list and the reports: the strong links are the LinkedIn
+  URL and verified-email Match Keys (``extract_match_keys``, the same normalizers),
+  never name+domain, and never an address 8.14's structural pass
+  (``DisqualifiedAddresses``) finds shared (a role address such as ``info@``).
+  Components come from clustering's union-find, so the result is order-free and
+  near-linear. The direct match (an identity a flagged record names, any email
+  status) is unchanged.
+
+A second, free pass (user decision 2026-10-06, ADR-0006 amended):
+
+* After the forward pass, each free tier (``cost_class: free``) is called once more,
+  with only the pruned work-list records naming an email or LinkedIn identity that
+  tier was neither handed nor answered itself. Nothing new: no call, no result. No
+  paid tier runs after it, so it moves no spend; the adapters' per-run caches stop a
+  repeat lookup.
+* Its result is a second ``ENRICHMENT`` result of the same source, after every other
+  result, on the same ledger (counts stay per source); its contributions, opt-outs
+  included, reach the merge like any other. A ``SourceError`` in it is recorded and
+  isolated like any call; a deadline that cuts it short records it ``TIMED_OUT``.
 
 Per-company calls (task 11.7, Requirement 6.11; ADR-0002). Provisional decisions
 (choices.md, 11.7):
@@ -155,7 +177,7 @@ import asyncio
 import dataclasses
 import math
 import uuid
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Hashable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
@@ -166,6 +188,7 @@ from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
     Capability,
     ChargeUnit,
+    CostClass,
     EnrichmentRequest,
     LeadContribution,
     LiveAccess,
@@ -174,8 +197,10 @@ from leadforge.lead_ingestion.base_source import (
     SourceRequest,
     enrichment_tiers,
 )
+from leadforge.lead_ingestion.clustering import _UnionFind
 from leadforge.lead_ingestion.companies import company_domains, domain_components
 from leadforge.lead_ingestion.compliance import (
+    Identity,
     blocked_identities,
     flags_set,
     identities,
@@ -189,6 +214,11 @@ from leadforge.lead_ingestion.errors import (
     SourceTimedOut,
     SourceTransient,
     SourceUnauthorized,
+)
+from leadforge.lead_ingestion.match_keys import (
+    DisqualifiedAddresses,
+    MatchKeyKind,
+    extract_match_keys,
 )
 from leadforge.lead_ingestion.mode_resolution import ModeResolution
 from leadforge.lead_ingestion.models import DataMode
@@ -475,19 +505,89 @@ def prune_flagged(
 ) -> tuple[LeadContribution, ...]:
     """The work list without any lead marked suppressed or opted out (6.10).
 
-    A work-list contribution is dropped when it carries a flag itself, or shares an
-    ``email`` or ``linkedin_url`` with a flagged contribution in ``reports`` or in the
-    list. Order is kept; a report naming no known lead removes nothing.
+    A contribution is flagged when it carries a flag itself, or shares an ``email`` or
+    ``linkedin_url`` with a flagged contribution in ``reports`` or in the list. A
+    work-list contribution is dropped when it is flagged or strongly linked to a
+    flagged one, transitively (user decision 2026-10-06): the strong links are the
+    LinkedIn URL and verified-email Match Keys, never name+domain and never an address
+    8.14 finds shared. Order is kept; a report naming no known lead removes nothing.
     """
-    blocked = blocked_identities((*work_list, *reports))
-    return tuple(
-        c
-        for c in work_list
-        if not flags_set(c) and blocked.keys().isdisjoint(identities(c))
+    everything = (*work_list, *reports)
+    blocked = blocked_identities(everything)
+    person = _strong_person_labels(everything)
+    flagged = {
+        person[index]
+        for index, c in enumerate(everything)
+        if flags_set(c) or not blocked.keys().isdisjoint(identities(c))
+    }
+    return tuple(c for index, c in enumerate(work_list) if person[index] not in flagged)
+
+
+_STRONG_KINDS = frozenset({MatchKeyKind.LINKEDIN_URL, MatchKeyKind.VERIFIED_EMAIL})
+
+
+def _strong_person_labels(contributions: tuple[LeadContribution, ...]) -> list[int]:
+    """Each record's person under the strong Match Keys alone, transitively.
+
+    Keys come from ``extract_match_keys`` with 8.14's shared-address pass over the same
+    set, so a role address (or one seen with two LinkedIn URLs) links no one; with it,
+    no label holds two LinkedIn identities. A record the key reading refuses (a
+    non-text identity value) links no one: pruning never raises (``compliance``).
+    """
+    readable = [_keys_readable(c) for c in contributions]
+    shared = DisqualifiedAddresses.from_contributions(
+        c for c, ok in zip(contributions, readable, strict=True) if ok
+    )
+    return _components(
+        [
+            [
+                key
+                for key in extract_match_keys(c, disqualified=shared).keys
+                if key.kind in _STRONG_KINDS
+            ]
+            if ok
+            else []
+            for c, ok in zip(contributions, readable, strict=True)
+        ]
     )
 
 
+def _components(held: Sequence[Iterable[Hashable]]) -> list[int]:
+    """Each item's component label: items holding a common key are one, transitively.
+
+    One union per key held (clustering's union-find), so near-linear and order-free.
+    """
+    forest = _UnionFind(len(held))
+    holder: dict[Hashable, int] = {}
+    for index, keys in enumerate(held):
+        for key in keys:
+            forest.union(holder.setdefault(key, index), index)
+    return [forest.find(index) for index in range(len(held))]
+
+
+def _keys_readable(contribution: LeadContribution) -> bool:
+    try:
+        DisqualifiedAddresses.from_contributions((contribution,))
+        extract_match_keys(contribution)
+    except TypeError:
+        return False
+    return True
+
+
 _COMPANY_DOMAIN_PATH = "company.domain"
+
+
+def _tier_work_list(
+    tier: list[BaseLeadSource], work_list: tuple[LeadContribution, ...]
+) -> tuple[LeadContribution, ...]:
+    """What a tier is handed; a tier shares one charge unit (part of its key)."""
+    if tier[0].charge_unit is ChargeUnit.PER_COMPANY:
+        return per_company_work_list(work_list)
+    return work_list
+
+
+def _identities_of(work_list: tuple[LeadContribution, ...]) -> frozenset[Identity]:
+    return frozenset(identity for c in work_list for identity in identities(c))
 
 
 def per_company_work_list(
@@ -524,23 +624,9 @@ def per_company_work_list(
 
 
 def _person_labels(work_list: tuple[LeadContribution, ...]) -> list[int]:
-    """Each record's person: the lowest index sharing an address or LinkedIn identity
-    with it, transitively (ADR-0006: a fed record is that person, not a new Lead)."""
-    parent = list(range(len(work_list)))
-
-    def root(index: int) -> int:
-        while parent[index] != index:
-            parent[index] = parent[parent[index]]
-            index = parent[index]
-        return index
-
-    holder: dict[tuple[str, str], int] = {}
-    for index, contribution in enumerate(work_list):
-        for identity in identities(contribution):
-            a, b = root(holder.setdefault(identity, index)), root(index)
-            if a != b:
-                parent[max(a, b)] = min(a, b)
-    return [root(index) for index in range(len(work_list))]
+    """Each record's person: its set of records sharing an address or LinkedIn
+    identity, transitively (ADR-0006: a fed record is that person, not a new Lead)."""
+    return _components([identities(c) for c in work_list])
 
 
 class IngestionOrchestrator:
@@ -692,7 +778,10 @@ class IngestionOrchestrator:
             )
 
         async def run_one(
-            source: BaseLeadSource, phase: Phase, phase_request: SourceRequest
+            source: BaseLeadSource,
+            phase: Phase,
+            phase_request: SourceRequest,
+            sink: dict[tuple[str, Phase], SourceResult],
         ) -> None:
             ledger = ledgers[source.name]
 
@@ -711,7 +800,7 @@ class IngestionOrchestrator:
             async with slots:
                 attempt = await ledger.call(fetch_and_normalize)
             fetched = attempt.value
-            finished[(source.name, phase)] = (
+            sink[(source.name, phase)] = (
                 result_of(source, phase, None, None)
                 if fetched is None
                 else dataclasses.replace(
@@ -722,11 +811,14 @@ class IngestionOrchestrator:
             )
 
         async def run_phase(
-            members: list[BaseLeadSource], phase: Phase, phase_request: SourceRequest
+            members: list[BaseLeadSource],
+            phase: Phase,
+            phase_request: SourceRequest,
+            sink: dict[tuple[str, Phase], SourceResult] = finished,
         ) -> None:
             async with asyncio.TaskGroup() as group:
                 tasks = [
-                    group.create_task(run_one(source, phase, phase_request))
+                    group.create_task(run_one(source, phase, phase_request, sink))
                     for source in members
                 ]
             for task in tasks:
@@ -735,6 +827,11 @@ class IngestionOrchestrator:
         discovery = [s for s in sources if Capability.SEARCH in s.capabilities]
         enrichment = [s for s in sources if Capability.ENRICH in s.capabilities]
         timed_out = False
+        # The second, free pass (user decision 2026-10-06): each free tier with the
+        # identities its first call was handed, and the results of its second call.
+        free_tiers: list[tuple[list[BaseLeadSource], frozenset[Identity]]] = []
+        second_pass: list[BaseLeadSource] = []
+        second: dict[tuple[str, Phase], SourceResult] = {}
         try:
             async with asyncio.timeout(self._run_timeout_s) as deadline:
                 await run_phase(discovery, Phase.DISCOVERY, request)
@@ -753,12 +850,7 @@ class IngestionOrchestrator:
                 for tier in enrichment_tiers(enrichment):
                     if not work_list:
                         break
-                    # A tier shares one charge unit (it is part of the tier key).
-                    tier_list = (
-                        per_company_work_list(work_list)
-                        if tier[0].charge_unit is ChargeUnit.PER_COMPANY
-                        else work_list
-                    )
+                    tier_list = _tier_work_list(tier, work_list)
                     await run_phase(
                         tier,
                         Phase.ENRICHMENT,
@@ -775,6 +867,24 @@ class IngestionOrchestrator:
                     )
                     reports = (*reports, *added)
                     work_list = prune_flagged((*work_list, *added), reports)
+                    if tier[0].cost_class is CostClass.FREE:
+                        # What it was handed or answered itself is not new to it.
+                        free_tiers.append((tier, _identities_of((*tier_list, *added))))
+                # Then each free tier once more, only for what it was never handed: it
+                # costs nothing and no paid tier runs after it, so no spend moves.
+                for tier, seen in free_tiers:
+                    fresh = tuple(c for c in work_list if not identities(c) <= seen)
+                    if not fresh:
+                        continue
+                    second_pass.extend(tier)
+                    await run_phase(
+                        tier,
+                        Phase.ENRICHMENT,
+                        EnrichmentRequest(
+                            kind="enrich", work_list=_tier_work_list(tier, fresh)
+                        ),
+                        second,
+                    )
         except TimeoutError:
             # Only the deadline's own expiry is a record; any other TimeoutError
             # (there is no such path today) must not be mistaken for it.
@@ -792,4 +902,10 @@ class IngestionOrchestrator:
                     ledgers[source.name].time_out(self._run_timeout_s)
                     finished[key] = result_of(source, phase, None, None)
                 results.append(finished[key])
+        for source in second_pass:
+            key = (source.name, Phase.ENRICHMENT)
+            if key not in second:  # cut short by the deadline
+                ledgers[source.name].time_out(self._run_timeout_s)
+                second[key] = result_of(source, Phase.ENRICHMENT, None, None)
+            results.append(second[key])
         return tuple(results)

@@ -5,8 +5,10 @@ run PRODUCES from the real adapters over their hand-made fixtures, including wha
 cannot yet:
 
 * GAP (c): no real Discovery adapter yields an email, and HubSpot and Hunter look a
-  lead up by email (or company domain). So in a real run both are invoked and succeed,
-  make no provider call and contribute nothing. Pinned below by ``..._gap_c``; the tests
+  lead up by email (or company domain). So in a real run both tiers are invoked and
+  succeed, make no provider call and contribute nothing. HubSpot's second, free pass
+  (user decision 2026-10-06) then asks the address Apollo's match found. Pinned below
+  by ``..._gap_c``; the tests
   that show their fixtures flowing through the merge use a scripted Discovery STAND-IN
   and say so in their names.
 * HubSpot's ``datetime`` and Hunter's ``tuple`` are stored as ISO-8601 UTC text and a
@@ -155,17 +157,29 @@ async def test_the_real_adapters_run_in_both_phases_and_a_real_lead_is_persisted
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#6.9
-async def test_hubspot_and_hunter_are_invoked_but_idle_in_a_real_run_gap_c(
+# Verifies: specs/lead-source-adapters/requirements.md#6.10
+async def test_hunter_is_idle_and_hubspot_asks_only_what_apollo_found_gap_c(
     clean_environment: Path, guard: SocketGuard, served: list[str]
 ) -> None:
     outcome = await run_ingestion(target_profile_path=PROFILE)
 
-    for name in ("hubspot", "hunter"):
-        results = [r for r in outcome.results if r.source_name == name]
-        assert [r.phase for r in results] == [Phase.ENRICHMENT]
-        assert results[0].outcome.succeeded == 1
-        assert results[0].contributions == ()
-    assert not [s for s in served if s.startswith(("hubspot:", "hunter:"))]
+    [hunter] = [r for r in outcome.results if r.source_name == "hunter"]
+    assert hunter.phase is Phase.ENRICHMENT
+    assert hunter.outcome.succeeded == 1
+    assert hunter.contributions == ()
+    assert not [s for s in served if s.startswith("hunter:")]
+    # HubSpot's own tier is idle (gap c); its second, free pass (user decision
+    # 2026-10-06) asks the one address Apollo's match found, from its fixtures.
+    first, second = [r for r in outcome.results if r.source_name == "hubspot"]
+    assert (first.phase, second.phase) == (Phase.ENRICHMENT, Phase.ENRICHMENT)
+    assert first.contributions == ()
+    assert second.contributions
+    assert second.outcome.succeeded == 2
+    endpoints = DISCOVERED.source_class("hubspot").endpoints
+    assert [s for s in served if s.startswith("hubspot:")] == [
+        f"hubspot:{endpoints['contact_search'].path}",
+        f"hubspot:{endpoints['deal_search'].path}",
+    ]
 
 
 class StandInDiscovery(BaseLeadSource):

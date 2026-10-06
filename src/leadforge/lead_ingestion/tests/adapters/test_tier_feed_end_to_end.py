@@ -60,6 +60,7 @@ FIXTURES = FixtureTransport("apollo", {}).fixtures_root
 # Ada: found by Apollo's search; only Apollo's match names her company's domain.
 ADA_ID = "apollo-person-1"
 ADA_COMPANY = "example.com"  # fixtures/apollo/match.json organization.primary_domain
+ADA_EMAIL = "ada@example.com"  # fixtures/apollo/match.json person.email
 GRACE_ID = "apollo-person-2"
 # Hana: the person HubSpot knows (by address).
 HANA = "hana@example.net"
@@ -323,11 +324,17 @@ async def test_each_tier_feeds_the_next_through_a_real_run(
         for c in ({"id": ADA_ID}, {"id": GRACE_ID}, {"linkedin_url": HANA_LINKEDIN})
     )
     assert SAM not in json.dumps(matches)
-    # Hunter verifies each address once; HubSpot asks each address, and deals once.
+    # Hunter verifies each address once; HubSpot asks each address, and deals once,
+    # then (second, free pass, user decision 2026-10-06) only the address Apollo's
+    # match found for Ada, which it does not know.
     assert sorted(str(c["email"]) for c in calls("hunter")) == [HANA, SAM]
-    assert len(calls("hubspot", "contact_search")) == 2
+    assert [
+        f["value"]
+        for c in calls("hubspot", "contact_search")
+        for f in c["filterGroups"][0]["filters"]  # type: ignore[index]
+    ] == [HANA, SAM, ADA_EMAIL]
     assert len(calls("hubspot", "deal_search")) == 1
-    assert len(Served.calls) == 1 + 3 + 2 + 3 + 2
+    assert len(Served.calls) == 1 + 3 + 2 + 3 + 2 + 1
 
     engine = create_store_engine(f"sqlite:///{database}")
     try:
@@ -372,8 +379,10 @@ async def test_each_tier_feeds_the_next_through_a_real_run(
     # not hers, so it carries no request echo (option B, 2026-10-06; a confirmed
     # contact joins: test_hubspot_request_echo.py), and its unverified address is no
     # Match Key (8.2).
+    # The second pass's answer for Ada's address (unknown to HubSpot) is the question
+    # itself, so it gets no echo and is a lead of its own too.
     hubspot_only = [lead for lead in leads if lead.contributing_sources == ["hubspot"]]
-    assert {lead.email for lead in hubspot_only} == {HANA, SAM}
+    assert {lead.email for lead in hubspot_only} == {HANA, SAM, ADA_EMAIL}
     # Every lead holding Sam's address is suppressed; Apollo contributed to none.
     sams = [lead for lead in leads if lead.email == SAM]
     assert sams
