@@ -71,9 +71,12 @@ __all__ = [
     "ContributionValueError",
     "StoredContribution",
     "StoredFieldError",
+    "aware_utc",
     "contribution_sha",
     "load_lead_contributions",
     "read_contribution",
+    "stored_provenance",
+    "stored_value",
     "write_contribution",
 ]
 
@@ -230,7 +233,9 @@ def write_contribution(
     return row.id
 
 
-def _rebuild(field: ContributionField) -> Any:
+def stored_value(field: ContributionField) -> Any:
+    """A stored field's value; an untrusted one returns as ``UntrustedText``."""
+
     def corrupt(why: str) -> StoredFieldError:
         return StoredFieldError(f"stored field {field.canonical_path!r}: {why}")
 
@@ -268,8 +273,8 @@ def read_contribution(
     return StoredContribution(
         source_name=row.source_name,
         data_mode=DataMode(row.data_mode),
-        fetched_at=_aware(row.fetched_at),
-        values={f.canonical_path: _rebuild(f) for f in fields},
+        fetched_at=aware_utc(row.fetched_at),
+        values={f.canonical_path: stored_value(f) for f in fields},
         raw_response_id=row.raw_response_id,
     )
 
@@ -283,9 +288,28 @@ def _origin(field: ContributionField) -> ConfidenceOrigin:
     return ConfidenceOrigin.HEURISTIC
 
 
-def _aware(value: datetime) -> datetime:
+def aware_utc(value: datetime) -> datetime:
+    """A stored instant re-tagged UTC (SQLite returns it naive)."""
     return (value.replace(tzinfo=UTC) if value.tzinfo is None else value).astimezone(
         UTC
+    )
+
+
+def stored_provenance(
+    field: ContributionField, contribution: SourceContribution
+) -> FieldProvenance:
+    """The provenance of one stored field of ``contribution``."""
+    return FieldProvenance(
+        canonical_path=field.canonical_path,
+        source_name=contribution.source_name,
+        data_mode=DataMode(contribution.data_mode),
+        fetched_at=aware_utc(contribution.fetched_at),
+        raw_field_path=field.raw_field_path,
+        confidence_origin=_origin(field),
+        untrusted=field.untrusted,
+        confidence=field.confidence,
+        confidence_raw=field.confidence_raw,
+        confidence_scale=field.confidence_scale,
     )
 
 
@@ -309,26 +333,11 @@ def load_lead_contributions(session: Session) -> dict[uuid.UUID, LeadContributio
 
     out: dict[uuid.UUID, LeadContribution] = {}
     for row in session.scalars(sa.select(SourceContribution)):
-        mode, fetched = DataMode(row.data_mode), _aware(row.fetched_at)
         own = fields[row.id]
         out[row.id] = LeadContribution(
             source_name=row.source_name,
-            values={f.canonical_path: _rebuild(f) for f in own},
-            provenance=tuple(
-                FieldProvenance(
-                    canonical_path=f.canonical_path,
-                    source_name=row.source_name,
-                    data_mode=mode,
-                    fetched_at=fetched,
-                    raw_field_path=f.raw_field_path,
-                    confidence_origin=_origin(f),
-                    untrusted=f.untrusted,
-                    confidence=f.confidence,
-                    confidence_raw=f.confidence_raw,
-                    confidence_scale=f.confidence_scale,
-                )
-                for f in own
-            ),
+            values={f.canonical_path: stored_value(f) for f in own},
+            provenance=tuple(stored_provenance(f, row) for f in own),
             absences=tuple(
                 SourceAbsence(
                     canonical_path=a.canonical_path,

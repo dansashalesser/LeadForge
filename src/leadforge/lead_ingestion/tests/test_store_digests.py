@@ -40,6 +40,7 @@ from leadforge.lead_ingestion.store.contributions import (
     contribution_sha,
     load_lead_contributions,
 )
+from leadforge.lead_ingestion.store.store_key import KEY_NAME
 from leadforge.lead_ingestion.tests.store_run_support import (
     Script,
     active_leads,
@@ -186,7 +187,9 @@ def _keyed(key: bytes, text: str) -> str:
 
 def _store_key(engine: sa.Engine) -> bytes:
     with engine.connect() as conn:
-        value = conn.execute(sa.select(m.StoreSecret.value)).scalar_one()
+        value = conn.execute(
+            sa.select(m.StoreSecret.value).where(m.StoreSecret.name == KEY_NAME)
+        ).scalar_one()
     return bytes.fromhex(value)
 
 

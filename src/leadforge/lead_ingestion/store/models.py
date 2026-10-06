@@ -62,6 +62,7 @@ __all__ = [
     "IdentityKey",
     "IngestionRun",
     "LeadIdentity",
+    "LeadMatchKey",
     "LeadSuccession",
     "MilliCredits",
     "PrimaryDomainTieResolution",
@@ -410,6 +411,28 @@ class CanonicalFieldProvenance(Base):
     )
     agreeing_source_count: Mapped[int] = mapped_column(Integer)
     superseded_field_ids: Mapped[list[Any]] = mapped_column(JSON)
+    # The agreeing candidates' field ids, in projection order (0011): with the winner
+    # and the superseded losers, every source behind the path. NULL: before 0011.
+    agreeing_field_ids: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+
+
+class LeadMatchKey(Base):
+    """Derived: an active lead's own Match Keys as keyed digests (0011), so a lead is
+    looked up by key without a scan. Never a plain value (``store.match_key_index``);
+    rewritten by every merge, so it names active leads only."""
+
+    __tablename__ = "lead_match_key"
+    __table_args__ = (
+        UniqueConstraint(
+            "lead_identity_id", "kind", name="uq_lead_match_key_lead_kind"
+        ),
+        Index("ix_lead_match_key_kind_digest", "kind", "digest"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    lead_identity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lead_identity.id"))
+    kind: Mapped[str] = mapped_column(String(32))
+    digest: Mapped[str] = mapped_column(String(64))
 
 
 class PrimaryDomainTieResolution(Base):

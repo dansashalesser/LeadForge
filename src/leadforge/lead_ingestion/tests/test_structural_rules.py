@@ -12,6 +12,7 @@ per rule over synthetic source (never the real files), plus a non-vacuity check 
 scan walks real modules.
 """
 
+import ast
 import os
 import pkgutil
 import subprocess
@@ -173,9 +174,46 @@ def test_init_reexport_scan_allows_a_plain_init(tmp_path: Path) -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.1
 def test_canonical_lead_builders_allowlist_is_documented() -> None:
-    assert set(CANONICAL_LEAD_BUILDERS) == {"projection.py", "models.py"}
+    # The store's read path rehydrates a saved projection (follow-up 2026-10-06).
+    assert set(CANONICAL_LEAD_BUILDERS) == {
+        "projection.py",
+        "models.py",
+        "store/lead_reader.py",
+    }
     assert all(len(a.reason) > 20 for a in CANONICAL_LEAD_BUILDERS.values())
     assert all(a.functions for a in CANONICAL_LEAD_BUILDERS.values())
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#1.1
+def test_the_store_reader_rehydrates_and_never_projects() -> None:
+    """The reader's exemption covers rehydrating stored values only: it imports no
+    Merge Engine module, so it cannot re-project, re-resolve or re-cluster a lead."""
+    tree = ast.parse((SLICE_ROOT / "store" / "lead_reader.py").read_text())
+    imported = {
+        node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+    } | {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    merge_engine = {
+        f"leadforge.lead_ingestion.{name}"
+        for name in (
+            "projection",
+            "conflicts",
+            "clustering",
+            "superseded",
+            "remerge",
+            "over_merge",
+            "primary_domain",
+        )
+    }
+    assert not imported & merge_engine
+    (allowance,) = (
+        a for path, a in CANONICAL_LEAD_BUILDERS.items() if path.startswith("store/")
+    )
+    assert allowance.functions == {"_rehydrate"}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#1.1
@@ -183,7 +221,7 @@ def test_construction_allowance_is_exactly_the_real_builder_functions() -> None:
     """A stale or over-wide entry fails: each allowed function holds a real site."""
     hits = find_canonical_lead_constructions(SLICE_ROOT, allowed={})
 
-    assert {(h.path.name, h.scope) for h in hits} == {
+    assert {(h.path.relative_to(SLICE_ROOT).as_posix(), h.scope) for h in hits} == {
         (module, fn)
         for module, a in CANONICAL_LEAD_BUILDERS.items()
         for fn in a.functions

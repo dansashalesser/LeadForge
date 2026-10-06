@@ -2,8 +2,9 @@
 
 ``CanonicalLead.email_is_role_address`` and ``role_contact_emails`` (user decision
 2026-10-06: a role address is never discarded) are stored on ``canonical_lead``
-(migration 0009), read back, and part of the lead's content: a change in either is an
-update of the same lead (never a second lead) that the run logs, and an unchanged
+(migration 0009), loaded back through ``store.lead_reader`` (follow-up 2026-10-06:
+the read path, not the raw row), and part of the lead's content: a change in either
+is an update of the same lead (never a second lead) that the run logs, and an unchanged
 re-run writes nothing. ``role_contact_emails`` holds email addresses: personal data,
 never in a log line or the run report text.
 """
@@ -26,6 +27,7 @@ from leadforge.lead_ingestion.clustering import IdentityCluster
 from leadforge.lead_ingestion.ingest_runner import IngestionOutcome, run_ingestion
 from leadforge.lead_ingestion.projection import project_lead
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.store.lead_reader import StoredLead, list_leads
 from leadforge.lead_ingestion.store.merged_leads import MergeStored, persist_merge
 from leadforge.lead_ingestion.store.raw_responses import RetentionPolicy
 from leadforge.lead_ingestion.tests.store_run_support import (
@@ -67,11 +69,21 @@ GRACE_ONLY_ROLE = person("info@navy.mil", "Grace Hopper", company__domain="navy.
 ROLE_ADDRESSES = ("info@acme.com", "sales@acme.com", "info@navy.mil")
 
 
+def _leads(backend: Backend) -> dict[str, StoredLead]:
+    """Every active lead, loaded through the read path, by name."""
+    with Session(backend.engine) as s:
+        leads = list_leads(s, limit=1000)
+    by_name = {str(x.lead.full_name): x for x in leads}
+    assert len(by_name) == len(leads)  # one lead per person: none duplicated
+    return by_name
+
+
 def _rows(backend: Backend) -> dict[str, m.CanonicalLeadRow]:
+    """The raw rows: only for what a migration leaves in the column itself."""
     with Session(backend.engine) as s:
         rows = s.scalars(sa.select(m.CanonicalLeadRow)).all()
     by_name = {str(r.full_name): r for r in rows}
-    assert len(by_name) == len(rows)  # one lead per person: none duplicated
+    assert len(by_name) == len(rows)
     return by_name
 
 
@@ -98,25 +110,26 @@ async def test_role_fields_round_trip_and_a_changed_contact_updates_the_same_lea
 
     with capture_logs() as first_logs:
         first = await run_ingestion(registry=sources(ADA_INFO))
-    rows = _rows(composed)
-    ada, grace = rows["Ada Lovelace"], rows["Grace Hopper"]
+    leads = _leads(composed)
+    ada, grace = leads["Ada Lovelace"].lead, leads["Grace Hopper"].lead
     assert (ada.email, ada.email_is_role_address) == ("ada@acme.com", False)
-    assert ada.role_contact_emails == ["info@acme.com"]
+    assert ada.role_contact_emails == ("info@acme.com",)
     assert (grace.email, grace.email_is_role_address) == ("info@navy.mil", True)
-    assert grace.role_contact_emails == []
+    assert grace.role_contact_emails == ()
     _assert_no_role_address(first_logs, first.report_text)
 
     # Beta now reports another role contact: the same lead is updated and logged.
     with capture_logs() as second_logs:
         second = await run_ingestion(registry=sources(ADA_SALES))
-    after = _rows(composed)
-    assert after.keys() == rows.keys()  # no duplicated lead
-    assert after["Ada Lovelace"].lead_identity_id == ada.lead_identity_id
-    assert after["Ada Lovelace"].role_contact_emails == [
+    after = _leads(composed)
+    assert after.keys() == leads.keys()  # no duplicated lead
+    assert after["Ada Lovelace"].lead_id == leads["Ada Lovelace"].lead_id
+    assert after["Ada Lovelace"].lead.role_contact_emails == (
         "info@acme.com",
         "sales@acme.com",
-    ]
-    assert after["Grace Hopper"].computed_at == grace.computed_at  # untouched
+    )
+    untouched = leads["Grace Hopper"].computed_at
+    assert after["Grace Hopper"].computed_at == untouched
     assert _merge_lines(second_logs) == 1
     _assert_no_role_address(second_logs, second.report_text)
 
@@ -125,8 +138,8 @@ async def test_role_fields_round_trip_and_a_changed_contact_updates_the_same_lea
         third = await run_ingestion(registry=sources(ADA_SALES))
     assert third.stored.canonical_leads == 0
     assert _merge_lines(third_logs) == 0
-    assert {n: r.computed_at for n, r in _rows(composed).items()} == {
-        n: r.computed_at for n, r in after.items()
+    assert {n: x.computed_at for n, x in _leads(composed).items()} == {
+        n: x.computed_at for n, x in after.items()
     }
 
 
@@ -160,9 +173,9 @@ def test_the_ingest_command_never_prints_a_role_address(
     result = CliRunner().invoke(cli.app, ["ingest"])
 
     assert result.exit_code == 0, result.output
-    rows = _rows(composed)
-    assert rows["Ada Lovelace"].role_contact_emails == [SENTINEL_ROLES[0]]
-    grace = rows["Grace Hopper"]
+    leads = _leads(composed)
+    assert leads["Ada Lovelace"].lead.role_contact_emails == (SENTINEL_ROLES[0],)
+    grace = leads["Grace Hopper"].lead
     assert (grace.email, grace.email_is_role_address) == (SENTINEL_ROLES[1], True)
     assert "lead_merge" in result.stderr  # the log chain ran and logged the leads
     for text in (result.stdout, result.stderr):
@@ -202,15 +215,15 @@ def test_a_change_in_only_a_role_field_is_an_update_and_the_same_is_not(
     assert _persist_ada(backend).changed == ()
     contacts = ("info@acme.com", "hello@acme.com")
     assert _persist_ada(backend, role_contact_emails=contacts).changed == (0,)
-    (row,) = _rows(backend).values()
-    assert row.role_contact_emails == ["hello@acme.com", "info@acme.com"]  # sorted
+    (loaded,) = _leads(backend).values()
+    assert loaded.lead.role_contact_emails == ("hello@acme.com", "info@acme.com")
     assert _persist_ada(backend, role_contact_emails=contacts).changed == ()
     flagged = _persist_ada(
         backend, role_contact_emails=contacts, email_is_role_address=True
     )
     assert flagged.changed == (0,)
-    (row,) = _rows(backend).values()
-    assert row.email_is_role_address is True
+    (loaded,) = _leads(backend).values()
+    assert loaded.lead.email_is_role_address is True
     with Session(backend.engine) as s:
         assert s.scalar(sa.select(sa.func.count()).select_from(m.LeadIdentity)) == 1
 
@@ -227,6 +240,8 @@ def test_a_row_from_before_0009_with_no_role_contact_is_not_a_change(
     assert _persist_ada(backend).changed == ()
     (row,) = _rows(backend).values()
     assert row.role_contact_emails == []
+    (loaded,) = _leads(backend).values()
+    assert loaded.lead.role_contact_emails == ()
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#9.5

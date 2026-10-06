@@ -25,6 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from leadforge.lead_ingestion.orchestrator import SourceResult, SourceStatus
+from leadforge.lead_ingestion.run_report import printable
 
 __all__ = ["EXIT_ALL_FAILED", "EXIT_OK", "RunExit", "map_run_exit"]
 
@@ -38,13 +39,6 @@ class RunExit:
     summary: str
 
 
-def _printable(text: str) -> str:
-    """Escape control characters so a source name cannot add or overwrite lines."""
-    return "".join(
-        c if c.isprintable() else c.encode("unicode_escape").decode() for c in text
-    )
-
-
 def map_run_exit(results: tuple[SourceResult, ...]) -> RunExit:
     if not results:
         return RunExit(EXIT_ALL_FAILED, "no enabled sources ran; nothing succeeded")
@@ -55,7 +49,7 @@ def map_run_exit(results: tuple[SourceResult, ...]) -> RunExit:
     latest = {result.outcome.source_name: result for result in results}
     for result in latest.values():
         outcome = result.outcome
-        name = _printable(outcome.source_name)
+        name = printable(outcome.source_name)
         counts = (
             f"attempted={outcome.attempted} "
             f"succeeded={outcome.succeeded} failed={outcome.failed}"

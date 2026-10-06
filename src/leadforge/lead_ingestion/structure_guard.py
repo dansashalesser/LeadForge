@@ -429,6 +429,13 @@ CANONICAL_LEAD_BUILDERS = {
         "returns copies of projected leads with one shared CompanySignal per "
         "company; the class definition itself is not a construction",
     ),
+    "store/lead_reader.py": BuilderAllowance(
+        frozenset({"_rehydrate"}),
+        "rehydrates a lead the Merge Engine projected and the store saved, by "
+        "validating the stored values; the module imports no Merge Engine module "
+        "and a round-trip property test proves the lead equal to the projection "
+        "(follow-up, user request 2026-10-06)",
+    ),
 }
 """Only these functions may build or copy a `CanonicalLead`; the allowance is per
 function, so a new construction elsewhere in the same module is still a violation."""

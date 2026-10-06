@@ -60,6 +60,7 @@ __all__ = [
     "RunReport",
     "SourceReport",
     "build_run_report",
+    "printable",
     "render_run_report",
 ]
 
@@ -264,15 +265,16 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
     )
 
 
-def _printable(text: str) -> str:
-    """Escape control characters so stored text cannot add or overwrite lines."""
+def printable(text: str) -> str:
+    """Escape control characters so stored text cannot add or overwrite lines, or
+    send a terminal an escape sequence."""
     return "".join(
         c if c.isprintable() else c.encode("unicode_escape").decode() for c in text
     )
 
 
 def _cut(text: str) -> str:
-    safe = _printable(text)
+    safe = printable(text)
     if len(safe) <= MAX_WARNING_CHARS:
         return safe
     return safe[: MAX_WARNING_CHARS - 1] + "…"
@@ -288,7 +290,7 @@ def _instant(value: datetime | None) -> str:
 
 def _failure(report: RunReport, source: SourceReport) -> str:
     if source.failure_class is not None:
-        return _printable(source.failure_class)
+        return printable(source.failure_class)
     if report.status == RunStatus.COMPLETED.value:
         activity = (
             source.leads_normalized,
@@ -308,7 +310,7 @@ def _quota(source: SourceReport) -> str:
     if not source.quota_remaining:
         return "not stated"
     return ",".join(
-        f"{_printable(str(k))}:{_printable(str(v))}"
+        f"{printable(str(k))}:{printable(str(v))}"
         for k, v in sorted(source.quota_remaining.items())
     )
 
@@ -317,7 +319,7 @@ def render_run_report(report: RunReport) -> str:
     """Deterministic text: one line per fact, sources by name."""
     lines = [
         f"run {report.run_id}",
-        f"status: {_printable(report.status)}",
+        f"status: {printable(report.status)}",
         f"started: {_instant(report.started_at)}",
         f"finished: {_instant(report.finished_at)}",
         f"exit code: {_figure(report.exit_code)}",
@@ -336,7 +338,7 @@ def render_run_report(report: RunReport) -> str:
         ("classification not recorded", unknown),
     ):
         if group:
-            names = ", ".join(_printable(s.source_name) for s in group)
+            names = ", ".join(printable(s.source_name) for s in group)
             lines.append(f"{label}: {names}")
     lines.append(
         "leads_normalized counts contributions across phases, not distinct leads"
@@ -368,10 +370,10 @@ def render_run_report(report: RunReport) -> str:
     )
     lines.append(f"sources: {len(report.sources)}")
     for s in report.sources:
-        name = _printable(s.source_name)
+        name = printable(s.source_name)
         lines.append(
-            f"{name}: mode={_printable(s.mode)} reason={_printable(s.reason)} "
-            f"live_access={_printable(s.live_access or NOT_RECORDED)}"
+            f"{name}: mode={printable(s.mode)} reason={printable(s.reason)} "
+            f"live_access={printable(s.live_access or NOT_RECORDED)}"
         )
         lines.append(
             f"  failure={_failure(report, s)} fetched={_figure(s.records_fetched)} "

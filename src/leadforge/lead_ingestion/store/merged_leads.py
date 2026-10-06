@@ -21,10 +21,13 @@ and ``batches`` are only what the run fetched. In the caller's one transaction i
   split or a join relinks nothing in the append-only log;
 * upserts one ``canonical_lead`` per cluster that names a person, keyed by its lead
   identity, with its primary-domain decision and projection stamp, and rewrites its
-  ``canonical_field_provenance`` rows (the winning field, its agreeing-source count
-  and the superseded losers' field ids). A domainless company is stored as the
-  lead's own (``companies.lead_company_id``); ``MergeStored.changed`` lists the leads
-  created or changed in content, the only ones the run logs.
+  ``canonical_field_provenance`` rows (the winning field, its agreeing-source count,
+  the agreeing and the superseded losers' field ids, so the lead loads back with the
+  projection's whole provenance). A domainless company is stored as the lead's own
+  (``lead_owned_employments``); ``MergeStored.changed`` lists the leads created or
+  changed in content, the only ones the run logs;
+* rewrites the match-key index (``match_key_index.reindex``) of every lead it wrote
+  or retired, so the index follows the mapping and never names a retired lead.
 
 ``merged`` may be any set of clusters that covers every lead it touches: the run
 hands only the clusters ``remerge.reproject`` selected (incremental re-projection).
@@ -54,7 +57,14 @@ Provisional decisions (see choices.md, task 20 and the follow-up):
 
 import uuid
 from collections import defaultdict
-from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Collection,
+    Hashable,
+    Iterable,
+    Mapping,
+    Sequence,
+)
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -65,13 +75,19 @@ from sqlalchemy.orm import Session
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster
 from leadforge.lead_ingestion.companies import lead_company_id
-from leadforge.lead_ingestion.models import CanonicalLead, DataMode, FieldProvenance
+from leadforge.lead_ingestion.models import (
+    CanonicalLead,
+    DataMode,
+    Employment,
+    FieldProvenance,
+)
 from leadforge.lead_ingestion.projection import ProjectionResult
 from leadforge.lead_ingestion.store.contributions import (
     contribution_sha,
     load_lead_contributions,
     write_contribution,
 )
+from leadforge.lead_ingestion.store.match_key_index import reindex
 from leadforge.lead_ingestion.store.models import (
     CanonicalFieldProvenance,
     CanonicalLeadRow,
@@ -95,6 +111,7 @@ __all__ = [
     "SourceBatch",
     "assign_leads",
     "current_leads",
+    "lead_owned_employments",
     "persist_merge",
     "persist_observations",
     "stale_projections",
@@ -364,6 +381,13 @@ def persist_merge(
             changed.append(index)
         canonical_leads += 1
         created += plan.kept[index] is None
+    reindex(
+        session,
+        {
+            **dict.fromkeys(plan.retired),
+            **{lead_ids[i]: result.lead for i, (_, result) in enumerate(merged)},
+        },
+    )
     return MergeStored(
         identities=len(lead_ids),
         contributions=observed.contributions,
@@ -575,7 +599,8 @@ def _write_canonical(
     row.linkedin_url = None if lead.linkedin_url is None else str(lead.linkedin_url)
     row.full_name = lead.full_name
     row.employments = [
-        _lead_owned(e.model_dump(mode="json"), identity_id) for e in lead.employments
+        e.model_dump(mode="json")
+        for e in lead_owned_employments(lead.employments, identity_id)
     ]
     row.tech_signals = [s.model_dump(mode="json") for s in lead.tech_signals]
     row.intent_signals = [s.model_dump(mode="json") for s in lead.intent_signals]
@@ -594,13 +619,17 @@ def _write_canonical(
     session.flush()
     agreeing = dict(result.agreement)
     winners: dict[str, uuid.UUID] = {}
-    losers: dict[str, list[str]] = {}
+    agreeing_ids: dict[str, list[str]] = defaultdict(list)
+    losers: dict[str, list[str]] = defaultdict(list)
     for record in result.provenance:  # per path: winner, agreeing, then superseded
         path = record.canonical_path
+        field_id = _field_id(index, record)
         if record.superseded:
-            losers.setdefault(path, []).append(str(_field_id(index, record)))
-        elif path not in winners:
-            winners[path] = _field_id(index, record)
+            losers[path].append(str(field_id))
+        elif path in winners:
+            agreeing_ids[path].append(str(field_id))
+        else:
+            winners[path] = field_id
     for path, winner in winners.items():
         session.add(
             CanonicalFieldProvenance(
@@ -608,20 +637,34 @@ def _write_canonical(
                 canonical_path=path,
                 winning_field_id=winner,
                 agreeing_source_count=agreeing[path],
-                superseded_field_ids=losers.get(path, []),
+                agreeing_field_ids=agreeing_ids[path],
+                superseded_field_ids=losers[path],
             )
         )
     session.flush()
     return before is None or before != _content(session, row)
 
 
-def _lead_owned(employment: dict[str, Any], identity_id: uuid.UUID) -> dict[str, Any]:
-    """A domainless company is the Lead's own: its id is the lead's persisted uuid,
-    never the projection's in-memory pseudonym (a hash of a contribution)."""
-    company = employment.get("company")
-    if isinstance(company, dict) and not company.get("domains"):
-        employment["company"] = {**company, "company_id": lead_company_id(identity_id)}
-    return employment
+def lead_owned_employments(
+    employments: Iterable[Employment], identity_id: uuid.UUID
+) -> tuple[Employment, ...]:
+    """The employments as stored: a domainless company is the Lead's own, its id the
+    lead's persisted uuid (``companies.lead_company_id``), never the projection's
+    in-memory pseudonym (a hash of a contribution, unknown to the store and changed
+    by a re-merge). The one place the swap is made: the store writes these and the
+    reader returns them."""
+    return tuple(
+        e
+        if e.company.domains
+        else e.model_copy(
+            update={
+                "company": e.company.model_copy(
+                    update={"company_id": lead_company_id(identity_id)}
+                )
+            }
+        )
+        for e in employments
+    )
 
 
 def _content(session: Session, row: CanonicalLeadRow) -> tuple[Any, ...]:
@@ -631,6 +674,7 @@ def _content(session: Session, row: CanonicalLeadRow) -> tuple[Any, ...]:
             p.canonical_path,
             str(p.winning_field_id),
             p.agreeing_source_count,
+            tuple(p.agreeing_field_ids or ()),  # NULL (before 0011) reads as none
             tuple(p.superseded_field_ids),
         )
         for p in session.scalars(

@@ -3162,3 +3162,57 @@ Independent review (spec-refactor) in a throwaway worktree (HEAD + this change's
 - (d) The failing source's contributions are discarded (Attempt not ok -> batch/contributions None) and its credits are NULL. This matches a normalization failure. Plain SourceError is not in DEFAULT_RETRYABLE, so nothing is re-fetched or spent twice.
 - (e) Mutation check: 8/8 killed (bool, finite, negative, ceiling >=, ceiling 2**32, milli exponent, trailing zeros, orchestrator bypass), each file restored and sha256-verified.
 - Verify: worktree (HEAD + this change) full suite 4261 passed, 1 skipped. ruff format/check and mypy clean on touched files. Worktree removed.
+
+## Follow-up — load a lead back from the store (user request 2026-10-06)
+
+- Baseline: ruff/mypy clean; pytest 4283 passed, 1 skipped (scratchpad/fu5-baseline.txt).
+- RED: new tests/test_lead_reader.py and the updated test_role_fields_persistence.py both failed at collection, `ModuleNotFoundError: leadforge.lead_ingestion.store.lead_reader` (fu5-red.txt).
+- GREEN: new store/lead_reader.py: `load_lead(session, lead_id, *, follow_successor=False, current_version=None) -> StoredLead | None`, `list_leads(session, *, include_retired=False, company_id=None, limit=50, after=None, current_version=None)`, `find_lead(session, *, email=None, linkedin_url=None) -> tuple[StoredLead, ...]`, `SuccessionError`, `WebEvidence`. CLI `leads show <id> [--reveal]` and `leads list [--limit --after --include-retired --company-id --reveal]` in cli.py.
+- Reuse, not copies: contributions.py now exposes `stored_provenance` (pulled out of `load_lead_contributions`, which uses it), `stored_value` (renamed `_rebuild`) and `aware_utc` (renamed `_aware`). Uses match_keys `normalize_email`/`normalize_linkedin_url`, `companies.company_domains`/`lead_company_id`, `TieOutcome.flagged`, `RunRecordRepository.latest_projection_stamp`, `log_redaction.MASK`, `adapters.web_evidence.Attachment`.
+- Verify: ruff check src 0; mypy 0 (216 files); pytest 4333 passed, 1 skipped (fu5-full.txt). test_lead_reader: 50 passed, 25 of them on Postgres, none skipped.
+- Mutation check: 5 mutants in lead_reader (dropped role contacts, email status, superseded provenance, `>=` cursor, opt_out). Every one was caught.
+
+### Decisions
+- Return type: `StoredLead` (frozen dataclass). `.lead` is the domain `CanonicalLead` itself, plus lead_id, provenance, agreement, contributing_sources, primary_domain(+source, `primary_domain_flagged`), projection_version/fingerprint, computed_at, stale, retired_at/`retired`, successor_ids and web_evidence. Personal data is kept out of repr. `CanonicalLead` is extra=forbid and frozen, so it cannot carry store metadata itself.
+- Requirement 1.1 guard: `structure_guard.CANONICAL_LEAD_BUILDERS` gains `store/lead_reader.py: {_rehydrate}`, with a reason (rehydration with no merge logic, proven equal by the round-trip test). test_structural_rules now expects that third module and compares module paths relative to the slice root. Before this it compared bare file names, which cannot represent `store/...`.
+- Round trip: the loaded lead equals the projected one, except that a domainless company carries the persisted `lead_company_id(lead_id)`. That swap is by design (merged_leads `_lead_owned`) and the test applies it explicitly.
+- Provenance: the store keeps, per path, the winner and the superseded losers, plus an agreeing count. Those are returned with path-sorted ordering and the projection's canonical path (a CRM bare `email` comes back as `person.email`).
+- stale is `None` when the current version is unknown (neither passed in nor recorded by a completed run). A retired lead is never stale, matching `stale_projections`.
+- follow_successor: walks one query per generation and keeps a visited set, so it is cycle-safe. It returns the single active successor. A split (several successors) or a dead end/cycle raises `SuccessionError(lead_ids)`, which carries ids only and no PII.
+- find_lead: the store holds email/linkedin in plaintext (canonical_lead). There is no hashed key column, and IdentityKey is unused. Lookup therefore normalizes both sides with the match_keys normalizers and never queries a digest. Active leads only; when both criteria are given, both must match. It returns every match sorted by id, because a role address can be several people's email.
+- list_leads: ordered by lead id. Keyset cursor `after`. The UUID order agrees between SQLite hex and PG uuid, and the test asserts the same order on both. The company_id filter is a CAST(JSON AS TEXT) contains pre-filter, confirmed on the rebuilt lead, and the page is refilled if a false positive is dropped.
+- Web evidence is attached at read time: a stored `company.web_evidence.*` contribution with attachment other than `unattached` whose `company.domain` shares a registrable domain with the lead's company. Title and snippet stay `UntrustedText`.
+- CLI PII decision: by default it masks contact identifiers. Emails (lead and role contacts) print as `j***@acme.com` and LinkedIn as `host/***`. `--reveal` prints them whole. Names, company and domains are printed, because they are how an operator recognises a lead. The model has no phone field. Nothing about a lead is logged either way; the test checks stderr and captured logs with --reveal. Exit 1 means unknown lead, 2 means config error or malformed id. The engine is disposed after each command.
+- Query bound: load_lead ≤ 6 queries. list_leads takes the same count for 2 and 12 leads (≤ 6). find_lead ≤ 7. All are asserted with a `before_cursor_execute` counter.
+
+### Gaps
+- find_lead scans (id, email, linkedin_url) of every active lead in one query. That is O(N) rows: an indexed lookup needs a normalized-key column (a migration), which is out of scope.
+- Web evidence: one query over every stored contribution that has an attachment field. It is filtered in Python, because the JSON `value` cannot be compared portably in SQL.
+- Agreeing sources other than the winner are not recoverable (only the count was ever stored).
+- `follow_successor` query count grows with succession depth (one per generation), not with lead size.
+- Risk-gate tools (serena find_referencing_symbols, gitnexus impact) and ctx_* tools were not available in this agent. Blast radius was checked by grep instead: `_rebuild`/`_aware` were used only inside contributions.py, and CANONICAL_LEAD_BUILDERS is used only by structure_guard and test_structural_rules. The spec-refactor-agent self-review was not spawned (no Agent tool).
+- Not committed; specs/tasks.md untouched.
+
+### Self-review findings
+- Reviewer: spec-refactor (independent, skeptical). The tests were changed before the code. RED was a collection ImportError for `lead_owned_employments` (fu5-review-red.txt). GREEN: ruff 0, mypy 0 (218 files), pytest 4346 passed and 1 skipped, the same skip as the baseline (fu5-review-full.txt). test_lead_reader: 62 tests, 31 on Postgres, none skipped.
+- (a) Guard. The rule is Req 1.1: only listed functions may build or copy a CanonicalLead. The exemption was already as narrow as it can be: one function, `_rehydrate`, which only `model_validate`s stored values. It is now stricter: a new structural test checks that lead_reader imports no Merge Engine module (projection, conflicts, clustering, superseded, remerge, over_merge, primary_domain) and that the store/ allowance is exactly {_rehydrate}. The reason text was updated.
+- (b) Provenance is persisted, not derived. Migration 0011 adds `canonical_field_provenance.agreeing_field_ids`. `_write_canonical` writes it in projection order, and it is part of `_content` (NULL counts as none). The reader returns the winner, then the agreeing records, then the superseded ones, and the round-trip property test now asserts `loaded.provenance == result.provenance` in full.
+  - Why persisted: deriving it would re-run the agreement logic in the reader under the read-time trust ranking, not the projection's, and the guard would have to allow projection imports.
+  - Rows from before 0011 stay NULL until they are re-projected; their count is unchanged.
+  - The path sort moved from SQL to Python, because a PG collation can order paths differently from the projection.
+- (c) Index. New table `lead_match_key`: kind plus a 16-hex HMAC digest, mapped to a lead id, with unique (lead, kind) and an index on (kind, digest). New module `store/match_key_index.py`.
+  - Key: a new store secret `match_key_index` written by 0011, used through `MatchKeyDigester`. Rejected: the env secret, which is random per run when unset.
+  - Normalization: the same match_keys normalizers clustering uses.
+  - Writes: one path, `reindex`, which persist_merge calls for every lead it writes or retires. The 0011 backfill covers active leads only and reuses `index_rows`.
+  - find_lead runs one index query and the load, then confirms each hit on the loaded lead, because digests are truncated. It takes at most 8 queries, the same for 2 and 12 leads, and reads canonical_lead only by id (asserted).
+  - Bug fixed: an unusable criterion was silently dropped; it now raises ValueError.
+  - `store_key` now takes a key name. test_store_digests selects the content key by name.
+- (d) The persisted id is the single source of truth. The projection runs before a lead id exists, and its pseudonym is a contribution hash that 0007 removed from the store. `merged_leads.lead_owned_employments` (it replaces `_lead_owned`) is the one function: the persist path writes its output and the test's as_stored calls it, so the test no longer has its own copy of the swap.
+- (e) CLI.
+  - Bug fixed (terminal injection): provider text went to the terminal unescaped. Plain output now goes through `run_report.printable`, which is now the only copy; the duplicate in run_exit is gone.
+  - `--json` added to show and list, with the same masking.
+  - Masked: emails, role contacts, LinkedIn. Names, companies and domains stay visible, as before. The model has no phone field.
+  - --reveal logs nothing (tested).
+- (f) No N+1 (asserted). Order is deterministic. Succession is cycle-safe (seen set, tested).
+- (g) Mutation check: 12/12 mutants killed. Each file was restored and sha256-verified (fu5-review-mutants.txt).
+- Left as is: web evidence still reads every attached evidence row on each load. The legacy `identity_key` table stays unused, because its UNIQUE dedupe does not fit shared role addresses.

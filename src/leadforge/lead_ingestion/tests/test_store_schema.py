@@ -35,6 +35,7 @@ EXPECTED_TABLES = {
     "canonical_field_provenance",
     "run_lock",  # 0007
     "store_secret",  # 0007
+    "lead_match_key",  # 0011
 }
 PORTABLE_TYPES = (
     sa.Uuid,

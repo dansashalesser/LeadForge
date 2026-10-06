@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T15:17:35+00:00
+- Written: 2026-10-06T16:04:08+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,18 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The uncommitted files belong to two pieces of work that aren't finished yet:
-- **Credit-boundary fix:** in self-review.
-- **Saving the new lead fields (migration 0009):** still being built.
-
-Each one gets committed after it passes review.
+The uncommitted files are the load-lead-from-database change, which is still in self-review. I'll commit it once that review passes.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ grep -n "14\.2" specs/lead-source-adapters/tasks.md | head -5; grep -n "## Task 14.2" -A30 specs/lead-source-adapters/
-- $ git status --short | grep -v '^.. \.claude'
 - $ uv run ruff check src | tail -1 && uv run mypy | tail -1 && uv run pytest -q 2>&1 | tail -1; grep -n "^- \[.\] 16.12" 
 - $ git status --short | grep -v '^.. \.claude' | grep -iv "apollo\|clustering\|env_example\|\.env\|ingest_runner\|merge_l
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Supersedes (user-v
@@ -47,3 +41,5 @@ Co-Authored-By: Cla
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; cat $S/ledger-fu2-persistence.md
 - $ git status --short | grep -v '^.. \.claude' | head -3; git status --short | grep -c '^.. \.claude'
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; cat $S/ledger-fu3-email.md $S/le
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; cat $S/ledger-fu4-rolefields.md 
+- $ curl -sS "$HTTPS_PROXY/__agentproxy/status" | head -30; curl -sS -o /dev/null -w "%{http_code}\n" https://docs.apollo.
