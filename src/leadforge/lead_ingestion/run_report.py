@@ -19,6 +19,10 @@ Provisional decisions (see choices.md, task 18.3):
   never ran and renders ``none recorded``.
 * ``leads_normalized`` sums contributions across phases, so it is labelled as not
   distinct leads.
+* Web evidence (task 14.2 completion): per source, the stored contributions whose
+  ``company.web_evidence.attachment`` is ``unattached`` and those attached by
+  agreement (``own_domain``, ``third_party_mention``). A source that stored none shows
+  no such line. Counts only.
 * Control characters are escaped in every stored string, long warnings are cut, and the
   only instants shown are the recorded ones. Counts, names and classes only: no PII.
 """
@@ -35,7 +39,12 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.run_record import RunRecordError, RunStatus
-from leadforge.lead_ingestion.store.models import IngestionRun, SourceRun
+from leadforge.lead_ingestion.store.models import (
+    ContributionField,
+    IngestionRun,
+    SourceContribution,
+    SourceRun,
+)
 
 __all__ = [
     "RunNotFoundError",
@@ -57,6 +66,8 @@ _MATCH_KEY_DIGEST_LINES = {
     ),
 }
 MAX_WARNING_CHARS = 200
+_ATTACHMENT_PATH = "company.web_evidence.attachment"
+_ATTACHED = frozenset({"own_domain", "third_party_mention"})
 
 
 class RunNotFoundError(RunRecordError):
@@ -78,6 +89,8 @@ class SourceReport:
     credits_consumed: int | None
     quota_remaining: Mapping[str, int] | None
     warnings: tuple[str, ...]
+    # Task 14.2 completion: (attached, unattached) web evidence; None: none stored.
+    web_evidence: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -114,6 +127,30 @@ def _match_key_digests(snapshot: Mapping[str, Any] | None) -> str | None:
     return stated if stated in _MATCH_KEY_DIGEST_LINES else None
 
 
+def _web_evidence(session: Session, run_id: uuid.UUID) -> dict[str, tuple[int, int]]:
+    """Per source: (attached, unattached) web evidence stored in this run."""
+    rows = session.execute(
+        sa.select(SourceRun.source_name, ContributionField.value)
+        .join(SourceContribution, SourceContribution.source_run_id == SourceRun.id)
+        .join(
+            ContributionField,
+            ContributionField.contribution_id == SourceContribution.id,
+        )
+        .where(
+            SourceRun.run_id == run_id,
+            ContributionField.canonical_path == _ATTACHMENT_PATH,
+        )
+    ).all()
+    counts: dict[str, tuple[int, int]] = {}
+    for source_name, value in rows:
+        attached, unattached = counts.get(source_name, (0, 0))
+        counts[source_name] = (
+            attached + (value in _ATTACHED),
+            unattached + (value == "unattached"),
+        )
+    return counts
+
+
 def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunReport:
     """Query one run's report. Raises ``RunNotFoundError`` when there is no such run."""
     if run_id is None:
@@ -135,6 +172,7 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
     ).all()
     # Counts exist only once the run completed (they are written with the finish).
     recorded = run.status == RunStatus.COMPLETED.value
+    web_evidence = _web_evidence(session, run.id)
     return RunReport(
         run_id=run.id,
         status=run.status,
@@ -158,6 +196,7 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
                 credits_consumed=r.credits_consumed,
                 quota_remaining=r.quota_remaining or None,
                 warnings=tuple(str(w) for w in (r.warnings or ())),
+                web_evidence=web_evidence.get(r.source_name),
             )
             for r in rows
         ),
@@ -263,5 +302,8 @@ def render_run_report(report: RunReport) -> str:
             f"http_429={_figure(s.http_429_count)} "
             f"credits={_figure(s.credits_consumed)} quota={_quota(s)}"
         )
+        if s.web_evidence is not None:
+            attached, unattached = s.web_evidence
+            lines.append(f"  web_evidence: attached={attached} unattached={unattached}")
         lines.extend(f"  warning: {_cut(w)}" for w in s.warnings)
     return "\n".join(lines)

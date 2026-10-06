@@ -39,7 +39,8 @@ Provisional decisions (see choices.md, task 14.2):
   URL, our own query and the date are plain text.
 * Raw paths are relative to a wrapper ``{query, block, retrieved_on, result}`` built
   per result, so the matched query and retrieval date get provenance like any field.
-* No Signal Strength, ``company.name`` or ``company.domain`` is contributed: strength
+* An unanchored search contributes no Signal Strength, ``company.name`` or
+  ``company.domain`` (an anchored one adds strength and domain, below): strength
   and the tech-versus-intent kind are not in a search result, and a result's host is
   not necessarily the company's. No answerable surface is declared, so no Negative
   Evidence is ever emitted.
@@ -54,6 +55,28 @@ Follow-up decisions (2026-10-06, provider facts checked against live-doc extract
   permanent ``SourceError``, cause ``search_failed``.
 * Pacing for a live run comes from ``run_rate_limit``: the backend's bucket sized from
   its plan setting (``SERPAPI_HOURLY_LIMIT``), listed in ``optional_env``.
+
+Completion of 14.2 (2026-10-06, user decision "option C"; see ``web_evidence``):
+
+* The adapter also runs in Enrichment. Its run-time queries are anchored: one per
+  company of the work list (clustered on registrable domains, other sources only) and
+  per Target Profile term, ``"<company domain>" <first phrase of the term>``, company
+  order then term order, at most ``MAX_QUERIES``; the rest are counted in the payload
+  (``unasked_queries``). ``from_run`` no longer turns phrases into unanchored
+  Discovery queries, so a run spends nothing on evidence it could not attach. No term
+  or no company with a usable domain: no call.
+* The anchor (company domains, term, corroborating source count) is kept in the raw
+  search, so ``normalize`` reads attachment from the batch alone. Within one anchored
+  search a result repeated (``dedupe_key``) is emitted and counted once.
+* An attached record adds ``company.domain`` (the anchor's domain, never the result
+  host) and ``company.web_evidence.{attachment, agreeing_hosts,
+  corroborating_sources, signal_strength, signal_kind, signal_label}``. The kind is
+  ``tech`` because every profile term is a technology or competitor product; the
+  label is the term. An unattached record adds only ``attachment = unattached``.
+  These have provenance through an ``attribution`` block in the per-result wrapper.
+* One ``google_search_web_evidence`` log line per normalize with anchored searches:
+  attached, unattached, duplicate and unasked counts only.
+* Constructor ``queries`` (unanchored) still work for direct use, unchanged.
 """
 
 import math
@@ -62,6 +85,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+import structlog
 from pydantic import BaseModel, StrictStr
 
 from leadforge.lead_ingestion.adapters.search_backends import (
@@ -69,6 +93,15 @@ from leadforge.lead_ingestion.adapters.search_backends import (
     SearchBackend,
     ThrottleCause,
     select_backend,
+)
+from leadforge.lead_ingestion.adapters.web_evidence import (
+    Attachment,
+    CompanyAnchor,
+    agreeing_host,
+    attachment_of,
+    company_anchors,
+    dedupe_key,
+    signal_strength,
 )
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
@@ -115,6 +148,16 @@ MAX_QUERIES = 100
 _EVIDENCE = "company.web_evidence."
 # A record is evidence only if the provider supplied at least one of these.
 _EVIDENCE_PATHS = (_EVIDENCE + "url", _EVIDENCE + "title", _EVIDENCE + "snippet")
+# Every profile term is a technology or a competitor product (target_profile).
+_SIGNAL_KIND = "tech"
+# Per block: where the URL, title and snippet of a result are.
+_TEXT_KEYS = {
+    "organic_results": ("link", "title", "snippet"),
+    "answer_box": ("link", "title", "snippet"),
+    "knowledge_graph": ("website", "title", "description"),
+}
+
+_log = structlog.get_logger(__name__)
 
 
 class _Organic(BaseModel):
@@ -161,7 +204,9 @@ def _unmapped(source: str, raw_field_path: str) -> NormalizationError:
 
 class GoogleSearchSource(BaseLeadSource):
     name: ClassVar[str] = "google_search"
-    capabilities: ClassVar[frozenset[Capability]] = frozenset({Capability.SEARCH})
+    capabilities: ClassVar[frozenset[Capability]] = frozenset(
+        {Capability.SEARCH, Capability.ENRICH}
+    )
     rate_limit: ClassVar[Mapping[str, RateBucket]] = {
         _DEFAULT_BACKEND.rate_bucket.name: _DEFAULT_BACKEND.rate_bucket
     }
@@ -195,6 +240,18 @@ class GoogleSearchSource(BaseLeadSource):
         FieldRule(_EVIDENCE + "title", "result.title", untrusted=True),
         FieldRule(_EVIDENCE + "snippet", "result.description", untrusted=True),
     )
+    # Attachment computed from the anchored search (``web_evidence``), not the text.
+    ATTRIBUTION_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        FieldRule("company.domain", "attribution.domain"),
+        FieldRule(_EVIDENCE + "attachment", "attribution.attachment"),
+        FieldRule(_EVIDENCE + "agreeing_hosts", "attribution.agreeing_hosts"),
+        FieldRule(
+            _EVIDENCE + "corroborating_sources", "attribution.corroborating_sources"
+        ),
+        FieldRule(_EVIDENCE + "signal_strength", "attribution.signal_strength"),
+        FieldRule(_EVIDENCE + "signal_kind", "attribution.signal_kind"),
+        FieldRule(_EVIDENCE + "signal_label", "attribution.signal_label"),
+    )
     # Fields of a result that are neither contributed nor needed (rank and display only;
     # a result's own publication date is not the retrieval date).
     IGNORED: ClassVar[frozenset[str]] = frozenset(
@@ -220,6 +277,7 @@ class GoogleSearchSource(BaseLeadSource):
         *,
         transport: Transport,
         queries: Sequence[str] = (),
+        terms: Mapping[str, str] | None = None,
         results_per_query: int = DEFAULT_RESULTS_PER_QUERY,
         backend: SearchBackend | None = None,
         environ: Mapping[str, str] | None = None,
@@ -232,6 +290,12 @@ class GoogleSearchSource(BaseLeadSource):
             raise ValueError(f"at most {MAX_QUERIES} queries per run")
         if any(not q.strip() for q in queries):
             raise ValueError("every query must be non-blank")
+        term_phrases = dict(terms or {})
+        if not all(
+            isinstance(t, str) and isinstance(p, str) and t.strip() and p.strip()
+            for t, p in term_phrases.items()
+        ):
+            raise ValueError("every term and its phrase must be non-blank text")
         if results_per_query < 1:
             raise ValueError(
                 f"results_per_query must be at least 1, got {results_per_query}"
@@ -252,6 +316,8 @@ class GoogleSearchSource(BaseLeadSource):
                 detail="backend endpoint, host or credentials differ from the adapter",
             )
         self._queries = tuple(queries)
+        # Profile term -> the phrase an anchored query asks with (completion of 14.2).
+        self._terms: Mapping[str, str] = term_phrases
         self._results_per_query = results_per_query
         self._environ = environ
         # Pages already paid for this run: a retried fetch must not buy them again.
@@ -313,13 +379,16 @@ class GoogleSearchSource(BaseLeadSource):
         pacing: "SourcePacing | None",
         vocabulary: Mapping[str, object] | None,
     ) -> Self:
-        """Queries are the Target Profile's phrases for this source (task 20).
+        """Terms are the Target Profile's phrases for this source (task 20, 14.2).
 
-        Phrases (a text, or a list of texts, per term) are asked in profile order, each
-        once, up to ``MAX_QUERIES``. With no profile there are none, and a fetch makes
-        no call (14.1). ``keyword_templates`` are not expanded here.
+        A term's vocabulary is a phrase or a list of phrases; its first phrase is what
+        an anchored query asks with, and a phrase an earlier term already took is not
+        asked again. No unanchored query is built: a run's queries are issued per
+        discovered company (``fetch_raw`` on an ``EnrichmentRequest``). With no profile
+        there are no terms, and a fetch makes no call. ``keyword_templates`` are not
+        expanded here.
         """
-        phrases: dict[str, None] = {}
+        terms: dict[str, str] = {}
         for term, value in (vocabulary or {}).items():
             items = [value] if isinstance(value, str) else value
             if not isinstance(items, list | tuple) or not all(
@@ -329,39 +398,71 @@ class GoogleSearchSource(BaseLeadSource):
                     f"google_search vocabulary for term {term!r} must be a phrase "
                     "or a list of phrases"
                 )
-            phrases.update(dict.fromkeys(items))
-        return cls(
-            mode,
-            transport=transport,
-            pacing=pacing,
-            queries=tuple(phrases)[:MAX_QUERIES],
-        )
+            if items and items[0] not in terms.values():
+                terms[term] = items[0]
+        return cls(mode, transport=transport, pacing=pacing, terms=terms)
 
     @property
     def backend(self) -> SearchBackend:
         return self._backend
 
     async def fetch_raw(self, request: SourceRequest) -> RawBatch:
-        if isinstance(request, EnrichmentRequest):
-            raise SourceError(
-                self.name, "google_search answers discovery only, not enrichment"
-            )
+        """Discovery asks the constructor's queries; Enrichment asks anchored ones."""
         credentials: Mapping[str, str] = (
             {}
             if self.data_mode is DataMode.SYNTHETIC
             else resolve_credentials(self, self._environ)
         )
-        max_pages = math.ceil(self._results_per_query / self._backend.page_size)
-        searches: list[Mapping[str, Any]] = []
-        for query in self._queries:
-            pages: list[Mapping[str, Any]] = []
-            for index in range(max_pages):
-                page = await self._page(query, index, credentials)
-                pages.append(page)
-                if not self._backend.has_next_page(page):
-                    break
-            searches.append({"query": query, "pages": pages})
+        if isinstance(request, EnrichmentRequest):
+            return await self._fetch_anchored(request, credentials)
+        searches: list[Mapping[str, Any]] = [
+            {"query": query, "pages": await self._pages_of(query, credentials)}
+            for query in self._queries
+        ]
         return RawBatch(source_name=self.name, payload={"searches": searches})
+
+    async def _fetch_anchored(
+        self, request: EnrichmentRequest, credentials: Mapping[str, str]
+    ) -> RawBatch:
+        """One query per (company, term), company order then term order (14.2)."""
+        planned = [
+            (anchor, term, phrase)
+            for anchor in company_anchors(request.work_list, exclude_source=self.name)
+            for term, phrase in self._terms.items()
+        ]
+        searches: list[Mapping[str, Any]] = []
+        for anchor, term, phrase in planned[:MAX_QUERIES]:
+            query = f'"{anchor.query_domain}" {phrase}'
+            searches.append(
+                {
+                    "query": query,
+                    "anchor": {
+                        "domains": list(anchor.domains),
+                        "term": term,
+                        "corroborating_sources": anchor.corroborating_sources,
+                    },
+                    "pages": await self._pages_of(query, credentials),
+                }
+            )
+        return RawBatch(
+            source_name=self.name,
+            payload={
+                "searches": searches,
+                "unasked_queries": max(0, len(planned) - MAX_QUERIES),
+            },
+        )
+
+    async def _pages_of(
+        self, query: str, credentials: Mapping[str, str]
+    ) -> list[Mapping[str, Any]]:
+        max_pages = math.ceil(self._results_per_query / self._backend.page_size)
+        pages: list[Mapping[str, Any]] = []
+        for index in range(max_pages):
+            page = await self._page(query, index, credentials)
+            pages.append(page)
+            if not self._backend.has_next_page(page):
+                break
+        return pages
 
     async def _page(
         self, query: str, index: int, credentials: Mapping[str, str]
@@ -398,18 +499,125 @@ class GoogleSearchSource(BaseLeadSource):
             answerable_surfaces=self.answerable_surfaces,
         )
         contributions: list[LeadContribution] = []
+        counts = {"attached": 0, "unattached": 0, "duplicates": 0}
+        anchored = False
         for search in searches:
             query = search.get("query") if isinstance(search, Mapping) else None
             pages = search.get("pages") if isinstance(search, Mapping) else None
             if not isinstance(query, str) or not isinstance(pages, list):
                 raise _unmapped(self.name, "searches")
+            if not all(isinstance(page, Mapping) for page in pages):
+                raise _unmapped(self.name, "searches")
+            if "anchor" in search:
+                anchored = True
+                anchor, term = self._anchor_of(search["anchor"])
+                contributions.extend(
+                    self._anchored_evidence(
+                        pages, query, (anchor, term), retrieved.date(), context, counts
+                    )
+                )
+                continue
             for page in pages:
-                if not isinstance(page, Mapping):
-                    raise _unmapped(self.name, "searches")
                 contributions.extend(
                     self._page_evidence(page, query, retrieved.date(), context)
                 )
+        if anchored:
+            unasked = payload.get("unasked_queries", 0)
+            if not isinstance(unasked, int) or isinstance(unasked, bool):
+                raise _unmapped(self.name, "unasked_queries")
+            _log.info("google_search_web_evidence", **counts, unasked_queries=unasked)
         return contributions
+
+    def _anchor_of(self, raw: object) -> tuple[CompanyAnchor, str]:
+        """The anchor kept in an anchored search; a wrong shape raises."""
+        if not isinstance(raw, Mapping):
+            raise _unmapped(self.name, "searches.anchor")
+        domains, term = raw.get("domains"), raw.get("term")
+        corroborating = raw.get("corroborating_sources")
+        if (
+            not isinstance(domains, list)
+            or not domains
+            or not all(isinstance(d, str) and d for d in domains)
+            or not isinstance(term, str)
+            or not term
+            or not isinstance(corroborating, int)
+            or isinstance(corroborating, bool)
+            or corroborating < 0
+        ):
+            raise _unmapped(self.name, "searches.anchor")
+        return CompanyAnchor(tuple(domains), corroborating), term
+
+    def _anchored_evidence(
+        self,
+        pages: list[Mapping[str, Any]],
+        query: str,
+        anchored_to: tuple[CompanyAnchor, str],
+        retrieved_on: date,
+        context: NormalizationContext,
+        counts: dict[str, int],
+    ) -> list[LeadContribution]:
+        """Evidence of one anchored search, attached by agreement (``web_evidence``).
+
+        Results are read in page then block order; a repeated URL is dropped and
+        counted. Strength is from the agreeing hosts (the company's own domains
+        together are one) and corroboration, never text.
+        """
+        anchor, term = anchored_to
+        seen: set[str] = set()
+        kept: list[tuple[Mapping[str, object], tuple[FieldRule, ...], Attachment]] = []
+        hosts: set[str] = set()
+        for page in pages:
+            for block, result, model, rules in self._blocks_of(page):
+                checked = self._checked(
+                    block, result, model, rules, query, retrieved_on
+                )
+                url_key, title_key, snippet_key = _TEXT_KEYS[block]
+                url = result.get(url_key)
+                if url is not None:
+                    if dedupe_key(url) in seen:
+                        counts["duplicates"] += 1
+                        continue
+                    seen.add(dedupe_key(url))
+                texts = [
+                    t for t in (result.get(title_key), result.get(snippet_key)) if t
+                ]
+                how = attachment_of(url, texts, anchor.domains)
+                host = agreeing_host(url, how)
+                if host is not None:
+                    hosts.add(host)
+                kept.append((checked, rules, how))
+        strength = signal_strength(
+            hosts=len(hosts),
+            own_domain=any(how is Attachment.OWN_DOMAIN for _, _, how in kept),
+            corroborating_sources=anchor.corroborating_sources,
+        )
+        normalizer = Normalizer()
+        found: list[LeadContribution] = []
+        for checked, rules, how in kept:
+            attribution: dict[str, object] = {"attachment": how.value}
+            if how is not Attachment.UNATTACHED:
+                attribution |= {
+                    "domain": anchor.query_domain,
+                    "agreeing_hosts": len(hosts),
+                    "corroborating_sources": anchor.corroborating_sources,
+                    "signal_strength": strength,
+                    "signal_kind": _SIGNAL_KIND,
+                    "signal_label": term,
+                }
+            present = tuple(
+                r
+                for r in self.ATTRIBUTION_RULES
+                if r.raw_field_path.removeprefix("attribution.") in attribution
+            )
+            contribution = normalizer.apply(
+                {**checked, "attribution": attribution}, (*rules, *present), context
+            )
+            if any(path in contribution.values for path in _EVIDENCE_PATHS):
+                found.append(contribution)
+                counts[
+                    "unattached" if how is Attachment.UNATTACHED else "attached"
+                ] += 1
+        return found
 
     @classmethod
     def _blocks_of(

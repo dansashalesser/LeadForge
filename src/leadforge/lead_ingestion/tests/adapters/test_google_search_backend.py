@@ -128,7 +128,10 @@ def live(
 # Verifies: specs/lead-source-adapters/requirements.md#14.1
 def test_declares_a_read_only_search_adapter_over_serpapi() -> None:
     assert GoogleSearchSource.name == "google_search"
-    assert GoogleSearchSource.capabilities == frozenset({Capability.SEARCH})
+    # ENRICH since the 14.2 completion: anchored queries per discovered company.
+    assert GoogleSearchSource.capabilities == frozenset(
+        {Capability.SEARCH, Capability.ENRICH}
+    )
     assert GoogleSearchSource.required_env == ("SERPAPI_API_KEY",)
     assert GoogleSearchSource.base_url == "https://serpapi.com"
     endpoint = GoogleSearchSource.endpoints["search"]
@@ -396,12 +399,16 @@ async def test_a_non_object_answer_is_a_normalization_error() -> None:
         await live(transport).fetch_raw(REQUEST)
 
 
-# Verifies: specs/lead-source-adapters/requirements.md#14.1
-async def test_it_answers_discovery_only() -> None:
+# Verifies: specs/lead-source-adapters/requirements.md#14.5
+async def test_enrichment_with_no_discovered_company_makes_no_call() -> None:
+    """Superseded 'discovery only' (14.2 completion, option C): Enrichment asks
+    anchored queries only, never the constructor's unanchored ones."""
     transport = Scripted(lambda _: ok())
-    with pytest.raises(SourceError):
-        await live(transport).fetch_raw(EnrichmentRequest(kind="enrich", work_list=()))
+    raw = await live(transport).fetch_raw(
+        EnrichmentRequest(kind="enrich", work_list=())
+    )
     assert transport.calls == []
+    assert raw.payload == {"searches": [], "unasked_queries": 0}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.1

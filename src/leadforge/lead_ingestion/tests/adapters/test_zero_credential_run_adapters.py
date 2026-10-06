@@ -13,6 +13,11 @@ cannot yet:
   JSON array (the store once refused both; pinned below, through the STAND-IN).
 * Apollo's enrichment fixture yields a person with an email and a LinkedIn URL, so the
   real run persists at least one canonical Lead without any stand-in.
+* GAP (d), since the 14.2 completion (option C): Google asks only queries anchored to
+  a discovered company's domain. No shipped Discovery adapter yields a domain, so in a
+  real run Google is invoked in both phases, makes no call and contributes nothing.
+  Attachment through a real run is shown with a stand-in in
+  ``test_google_search_web_evidence_run.py``.
 """
 
 from collections.abc import Iterator, Mapping
@@ -108,16 +113,16 @@ async def test_the_real_adapters_run_in_both_phases_and_a_real_lead_is_persisted
         ("apollo", Phase.DISCOVERY),
         ("apollo", Phase.ENRICHMENT),
         ("google_search", Phase.DISCOVERY),
+        ("google_search", Phase.ENRICHMENT),
         ("hubspot", Phase.ENRICHMENT),
         ("hunter", Phase.ENRICHMENT),
     }
     assert all(r.outcome.status is SourceStatus.OK for r in outcome.results)
-    # Apollo (search and match) and Google (queries from the Target Profile) answered
-    # from their fixtures.
+    # Apollo (search and match) answered from its fixtures. Google had no company
+    # domain to anchor a query to (gap d), so it asked nothing.
     assert {s for s in served if s.startswith(("apollo:", "google_search:"))} == {
         "apollo:/api/v1/mixed_people/api_search",
         "apollo:/api/v1/people/match",
-        "google_search:/search",
     }
     engine = engine_of(clean_environment)
     try:
@@ -142,7 +147,7 @@ async def test_the_real_adapters_run_in_both_phases_and_a_real_lead_is_persisted
     assert len(leads) == len(enriched)
     assert "apollo" in enriched[0].contributing_sources
     assert by_source["apollo"] >= 1
-    assert by_source["google_search"] >= 1  # web evidence: stored, forms no Lead
+    assert "google_search" not in by_source  # gap d: no anchor, no call
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#6.9
@@ -260,7 +265,12 @@ async def test_a_lead_that_reaches_this_adapter_persists_its_datetime_and_tuple(
 async def test_every_source_that_runs_failing_exits_non_zero_naming_each_class(
     clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    statuses = {"apollo": 401, "google_search": 500}
+    # Google is left out: with no discovered company domain it makes no call (gap d),
+    # so it cannot fail and would make the run partial rather than all-failed.
+    statuses = {"apollo": 401}
+    registry = SourceRegistry(
+        [DISCOVERED.source_class(n) for n in DISCOVERED.names() if n != "google_search"]
+    )
 
     async def send(self: FixtureTransport, endpoint: Endpoint, **kwargs: Any) -> Any:
         return TransportResponse(
@@ -269,13 +279,12 @@ async def test_every_source_that_runs_failing_exits_non_zero_naming_each_class(
 
     monkeypatch.setattr(FixtureTransport, "send", send)
 
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(registry=registry, target_profile_path=PROFILE)
 
     assert outcome.exit.exit_code != 0
     lines = outcome.exit.summary.splitlines()
     assert lines[0] == "all enabled sources failed"
     assert any(line.startswith("apollo: unauthorized ") for line in lines)
-    assert any(line.startswith("google_search: transient ") for line in lines)
     # Enrichment-only sources had no work list, so they never ran: not failures.
     assert not any(line.startswith(("hubspot", "hunter")) for line in lines)
     engine = engine_of(clean_environment)
@@ -288,4 +297,3 @@ async def test_every_source_that_runs_failing_exits_non_zero_naming_each_class(
     assert run.exit_code == outcome.exit.exit_code
     assert leads == []
     assert "failure=unauthorized" in outcome.report_text
-    assert "failure=transient" in outcome.report_text
