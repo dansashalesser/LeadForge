@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T10:57:39+00:00
+- Written: 2026-10-06T11:07:28+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,9 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The working tree holds only the two reviewed changes. Committing them together and ticking 16.12:
+I've committed and pushed the harness memory files. Two code changes stay uncommitted until each passes its self-review:
+- web evidence attached to companies by agreement (option C);
+- name + domain joining two records when only one has an email (rule 8.3).
 
 ## In-flight todos
 _(none captured)_
