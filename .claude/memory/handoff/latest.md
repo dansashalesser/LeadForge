@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T12:24:33+00:00
+- Written: 2026-10-06T12:30:27+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,10 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the harness memory files. Three code changes are still uncommitted because they're in progress:
-
-- **Run lifecycle:** still being built.
-- **Tasks 16.6 and 16.11:** reviewed, but they need the run-lifecycle wiring before they can be committed.
-- **HubSpot results joining the right lead:** still being built.
-
-Each one gets committed once it passes its self-review.
+I committed and pushed the harness memory files. The source changes stay uncommitted on purpose:
+- **Run lifecycle:** in self-review.
+- **Tasks 16.6 and 16.11:** already reviewed, and they get committed together with the run-lifecycle change.
+- **HubSpot echo:** still being built.
 
 ## In-flight todos
 _(none captured)_
