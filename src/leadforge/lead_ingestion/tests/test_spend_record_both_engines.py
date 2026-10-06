@@ -24,6 +24,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.base_source import BaseLeadSource
+from leadforge.lead_ingestion.credits import MAX_MILLI, CreditValueError
 from leadforge.lead_ingestion.ingest_runner import run_ingestion
 from leadforge.lead_ingestion.orchestrator import Phase
 from leadforge.lead_ingestion.run_record import build_source_counts
@@ -93,8 +94,12 @@ def test_credits_sum_exactly_over_phases() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#21.2
-@pytest.mark.parametrize("bad", [0.5, Decimal("0.0005")])
-async def test_a_credit_figure_that_is_not_exact_to_a_milli_credit_is_refused(
+# The store applies the one credit contract (``credits.exact_credits``): a float, a
+# figure finer than a milli-Credit, or a negative figure is refused, never stored.
+@pytest.mark.parametrize(
+    "bad", [0.5, Decimal("0.0005"), Decimal("-1.5"), -1, Decimal("NaN"), True]
+)
+async def test_a_credit_figure_outside_the_contract_is_refused_by_the_store(
     backend: Backend, bad: Any
 ) -> None:
     run_id = uuid.uuid4()
@@ -111,7 +116,7 @@ async def test_a_credit_figure_that_is_not_exact_to_a_milli_credit_is_refused(
             .where(m.SourceRun.run_id == run_id)
             .values(credits_consumed=bad)
         )
-    assert isinstance(refused.value.orig, (TypeError, ValueError))
+    assert isinstance(refused.value.orig, CreditValueError)
 
 
 # ------------------------------------------------------------ migration 0008, both ways
@@ -203,6 +208,81 @@ def test_migration_0008_keeps_every_credit_figure_both_ways(blank: Backend) -> N
         assert {
             r.source_name: r.credits_consumed for r in s.scalars(sa.select(m.SourceRun))
         } == {"alpha": Decimal(3), "bravo": None, "charlie": Decimal(2)}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.2
+def test_a_total_past_32_bits_of_milli_credits_is_stored_and_reported_exactly(
+    backend: Backend,
+) -> None:
+    """Each figure is within the per-figure ceiling; their sum is not, and the
+    BIGINT column (0010) keeps it exact on both engines rather than overflowing."""
+    each = Decimal(MAX_MILLI) / 1000  # the largest one figure: 2147483.647
+    figures = [
+        dataclasses.replace(result("alpha", phase=p), credits_consumed=each)
+        for p in (Phase.DISCOVERY, Phase.ENRICHMENT)
+    ]
+    counts = build_source_counts(tuple(figures))
+    total = each * 2
+    assert counts[0].credits_consumed == total
+    assert total * 1000 > 2**31 - 1
+    run_id = uuid.uuid4()
+    with Session(backend.engine) as s, s.begin():
+        s.add(m.IngestionRun(id=run_id, started_at=sa.func.now(), status="running"))
+        s.add(m.SourceRun(run_id=run_id, source_name="alpha", resolved_mode="live"))
+        s.flush()
+        RunRecordRepository(s).record_source_counts(run_id, counts)
+    row = source_row(backend)
+    assert (type(row.credits_consumed), row.credits_consumed) == (Decimal, total)
+    with Session(backend.engine) as s:
+        assert f"credits={total} " in render_run_report(build_run_report(s, run_id))
+
+
+_MILLI_COLUMN = sa.table(
+    "source_run", sa.column("id", sa.Uuid), sa.column("credits_consumed_milli")
+)
+
+
+def _milli_column_type(blank: Backend) -> Any:
+    (column,) = (
+        c
+        for c in sa.inspect(blank.engine).get_columns("source_run")
+        if c["name"] == "credits_consumed_milli"
+    )
+    return column["type"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.2
+def test_migration_0010_widens_the_milli_credits_and_reverses(blank: Backend) -> None:
+    _alembic(blank, "upgrade", "0009")
+    run_id, source_id = uuid.uuid4(), uuid.uuid4()
+    with Session(blank.engine) as s, s.begin():
+        s.add(m.IngestionRun(id=run_id, started_at=sa.func.now(), status="running"))
+        s.add(
+            m.SourceRun(
+                id=source_id,
+                run_id=run_id,
+                source_name="alpha",
+                resolved_mode="live",
+                credits_consumed=Decimal("1.5"),
+            )
+        )
+    assert not isinstance(_milli_column_type(blank), sa.BigInteger)
+
+    _alembic(blank, "upgrade", "head")
+    assert isinstance(_milli_column_type(blank), sa.BigInteger)
+    assert source_row(blank).credits_consumed == Decimal("1.5")  # kept exactly
+    past_32_bits = Decimal(2**40) / 1000
+    with Session(blank.engine) as s, s.begin():
+        s.get_one(m.SourceRun, source_id).credits_consumed = past_32_bits
+    assert source_row(blank).credits_consumed == past_32_bits
+
+    with blank.engine.begin() as conn:  # down to 32 bits: a figure that fits
+        conn.execute(sa.update(_MILLI_COLUMN).values(credits_consumed_milli=1500))
+    _alembic(blank, "downgrade", "0009")
+    assert not isinstance(_milli_column_type(blank), sa.BigInteger)
+    assert source_row(blank).credits_consumed == Decimal("1.5")
+    _alembic(blank, "upgrade", "head")
+    assert isinstance(_milli_column_type(blank), sa.BigInteger)
 
 
 # --------------------------------------------------- the spend commits on its own first

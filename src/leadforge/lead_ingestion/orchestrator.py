@@ -207,6 +207,7 @@ from leadforge.lead_ingestion.compliance import (
     flags_set,
     identities,
 )
+from leadforge.lead_ingestion.credits import CreditValueError, exact_credits
 from leadforge.lead_ingestion.errors import (
     NormalizationError,
     SourceComplianceRestricted,
@@ -440,6 +441,21 @@ class SourceCallLedger:
             self._retries,
             self._error,
         )
+
+
+def _checked_credits(source_name: str, spent: object) -> Decimal:
+    """The Credits a source reported, held to the exact contract (21.2).
+
+    A figure outside it (float, bool, NaN/infinity, negative, finer than 0.001) is
+    THIS source's recorded failure, a ``SourceError`` naming the source and the
+    violation only, so it never reaches, and never breaks, the run's spend write.
+    """
+    try:
+        return exact_credits(spent)
+    except CreditValueError as violation:
+        raise SourceError(
+            source_name, f"credits_spent contract violation: {violation}"
+        ) from None
 
 
 @dataclass(frozen=True)
@@ -806,7 +822,7 @@ class IngestionOrchestrator:
                     batch,
                     contributions,
                     source.records_fetched(batch),
-                    None if spent is None else Decimal(spent),
+                    None if spent is None else _checked_credits(source.name, spent),
                 )
 
             async with slots:

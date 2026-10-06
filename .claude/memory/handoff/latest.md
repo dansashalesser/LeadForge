@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T14:41:05+00:00
+- Written: 2026-10-06T15:17:35+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,17 +10,16 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The uncommitted changes belong to two pieces of work that haven't finished review yet:
-- **Email-preference change:** under self-review, which also adds the role-prefix list.
-- **Credits and run-safety change:** still being built.
+The uncommitted files belong to two pieces of work that aren't finished yet:
+- **Credit-boundary fix:** in self-review.
+- **Saving the new lead fields (migration 0009):** still being built.
 
-Each gets committed once it passes its review.
+Each one gets committed after it passes review.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git status --short | grep -v '^.. \.claude' | head; git add .claude/memory .claude/behaviors 2>/dev/null; git diff --c
 - $ grep -n "14\.2" specs/lead-source-adapters/tasks.md | head -5; grep -n "## Task 14.2" -A30 specs/lead-source-adapters/
 - $ git status --short | grep -v '^.. \.claude'
 - $ uv run ruff check src | tail -1 && uv run mypy | tail -1 && uv run pytest -q 2>&1 | tail -1; grep -n "^- \[.\] 16.12" 
@@ -47,3 +46,4 @@ Co-Authored-By: Cla
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad && L=src/leadforge/lead_ingestion
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; cat $S/ledger-fu2-persistence.md
 - $ git status --short | grep -v '^.. \.claude' | head -3; git status --short | grep -c '^.. \.claude'
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; cat $S/ledger-fu3-email.md $S/le

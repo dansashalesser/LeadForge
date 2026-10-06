@@ -570,6 +570,8 @@ def _write_canonical(
         )
     row.email = None if lead.email is None else str(lead.email)
     row.email_status = None if lead.email is None else lead.email_status.value
+    row.email_is_role_address = lead.email_is_role_address
+    row.role_contact_emails = sorted(str(e) for e in lead.role_contact_emails)
     row.linkedin_url = None if lead.linkedin_url is None else str(lead.linkedin_url)
     row.full_name = lead.full_name
     row.employments = [
@@ -640,6 +642,8 @@ def _content(session: Session, row: CanonicalLeadRow) -> tuple[Any, ...]:
     return (
         row.email,
         row.email_status,
+        row.email_is_role_address,
+        row.role_contact_emails or [],  # NULL (projected before 0009) reads as none
         row.linkedin_url,
         row.full_name,
         row.employments,

@@ -2,7 +2,7 @@
 
 Column types are the engine-portable set only: ``Uuid``, ``String``, ``Integer``,
 ``Float``, ``Boolean``, ``JSON`` and ``DateTime(timezone=True)``, plus ``MilliCredits``
-(an ``Integer`` read and written as an exact ``Decimal``). There is no
+(a ``BigInteger`` read and written as an exact ``Decimal``). There is no
 dialect type, no dialect-conditional branch, no ``server_default`` and no raw SQL
 here; the schema reaches a database through migrations (task 6.2).
 
@@ -21,6 +21,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     Float,
@@ -42,6 +43,12 @@ from sqlalchemy.orm import (
     mapped_column,
 )
 from sqlalchemy.types import TypeDecorator
+
+from leadforge.lead_ingestion.credits import (
+    MAX_STORED_MILLI,
+    MILLI_PER_CREDIT,
+    exact_credits,
+)
 
 __all__ = [
     "AppendOnlyViolationError",
@@ -81,18 +88,17 @@ def _utc(**kw: Any) -> Mapped[datetime]:
     return mapped_column(DateTime(timezone=True), **kw)
 
 
-_MILLI = Decimal(1000)
-
-
 class MilliCredits(TypeDecorator[Decimal]):
-    """Credits as an exact ``Decimal``, stored as integer milli-Credits (0008).
+    """Credits as an exact ``Decimal``, stored as integer milli-Credits (0008), in a
+    64-bit column (0010: a per-source total may pass 32 bits of milli-Credits).
 
     An integer is exact and alike on every engine; SQLite has no exact decimal (its
     NUMERIC keeps a float), and a fraction such as half a Credit must not be rounded.
-    A float, or a figure finer than a milli-Credit, is refused rather than rounded.
+    A figure outside the one credit contract (``credits.exact_credits``: a float, a
+    negative, or one finer than a milli-Credit) is refused, never rounded or stored.
     """
 
-    impl = Integer
+    impl = BigInteger
     cache_ok = True
 
     def process_bind_param(
@@ -100,17 +106,12 @@ class MilliCredits(TypeDecorator[Decimal]):
     ) -> int | None:
         if value is None:
             return None
-        if isinstance(value, bool) or not isinstance(value, Decimal | int):
-            raise TypeError("Credits are a Decimal or an int, never a float")
-        milli = Decimal(value) * _MILLI
-        if not milli.is_finite() or milli != milli.to_integral_value():
-            raise ValueError("Credits are exact to a milli-Credit")
-        return int(milli)
+        return int(exact_credits(value, max_milli=MAX_STORED_MILLI) * MILLI_PER_CREDIT)
 
     def process_result_value(
         self, value: int | None, dialect: Dialect
     ) -> Decimal | None:
-        return None if value is None else Decimal(value) / _MILLI
+        return None if value is None else Decimal(value) / MILLI_PER_CREDIT
 
 
 def _uuid_pk() -> Mapped[uuid.UUID]:
@@ -380,6 +381,11 @@ class CanonicalLeadRow(Base):
     contributing_sources: Mapped[list[Any]] = mapped_column(JSON)
     computed_at: Mapped[datetime] = _utc()
     projection_version: Mapped[int] = mapped_column(Integer)
+    # The Lead's role-address fields (0009, user decision 2026-10-06): ``email`` is
+    # a role address, and the role addresses kept as company contacts (sorted; email
+    # addresses, so personal data: never logged). NULL contacts: a row before 0009.
+    email_is_role_address: Mapped[bool] = mapped_column(Boolean, default=False)
+    role_contact_emails: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
     # The display primary domain and how it was decided (8.17, 8.18; 0006), and the
     # keyed basis fingerprint the row was projected under (8.13). NULL before 0006.
     primary_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)

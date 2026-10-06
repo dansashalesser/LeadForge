@@ -29,6 +29,15 @@ CONTRIBUTION_0005 = sa.table(
     *(sa.column(c.name, c.type) for c in m.SourceContribution.__table__.columns),
     sa.column("lead_identity_id", sa.Uuid()),
 )
+# canonical_lead without the columns 0009 added (and their app-side defaults).
+CANONICAL_LEAD_BEFORE_0009 = sa.table(
+    "canonical_lead",
+    *(
+        sa.column(c.name, c.type)
+        for c in m.CanonicalLeadRow.__table__.columns
+        if c.name not in {"email_is_role_address", "role_contact_emails"}
+    ),
+)
 NEW_TABLES = {"contribution_lead", "lead_succession", "contribution_absence"}
 
 
@@ -70,7 +79,7 @@ def _seed_at_0005(engine: Engine) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
             )
         )
         conn.execute(
-            sa.insert(m.CanonicalLeadRow).values(
+            sa.insert(CANONICAL_LEAD_BEFORE_0009).values(
                 id=uuid.uuid4(),
                 lead_identity_id=identity,
                 email="ada@example.com",
