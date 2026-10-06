@@ -7,6 +7,8 @@ description: When a measurement probe (detector, metric calculator, linter, test
 When a probe fails, the outcome is unknown — not zero, not success. Reporting unknown as zero silently corrupts downstream scoring and decision-making. The correct response is to emit a suppress-scoring sentinel (e.g., a `[detector-down]` observation, an `undefined` metric value, or an explicit error status) so that missing data remains distinguishable from negative data.
 
 ## Evidence
+- **2026-10-06 [judge]**: Judge verdict reported delta=-2.0 (median of three runs: -2.0, -4.0, +3.0; spread=7.0). Drains cited "silent-failure (judge aggregation reported spread=0.0 over pass,error,error runs; detector-down timeout)." The detector timeout was again silently treated as completion, and runs with errors were aggregated as agreement. Direct recurrence of 2026-10-05 pattern on same mechanism.
+
 - **2026-10-05 [detector-down]**: Session signal detection timed out after 120s; no suppression sentinel was written. This silence cascaded: both the 2026-10-04 and 2026-10-05 [judge] observations reported "all agreed, spread=0.0" despite trace.log showing 2-3 runs with status=error. Errored probes defaulted to 0.0 and were counted as agreement.
 
 - **2026-10-05 [keep-rate]**: Cohort was empty (0 commits older than 7 days). Correct behavior: report `Keep Rate = undefined`. Incorrect would be: report `Keep Rate = 0%`, which would anchor the first real measurement low. The observations correctly chose `undefined`.

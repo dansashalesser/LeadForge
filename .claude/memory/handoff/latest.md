@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T09:34:29+00:00
+- Written: 2026-10-06T09:44:22+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,19 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The model changed, so my finish script's commit attribution needs updating.
+The Hunter change is in. Every person now reaches Hunter, and domain search still runs at most once per company domain per run. One side effect needs judging: Hunter now shares a tier with Apollo, so a Hunter compliance restriction (451) no longer stops Apollo's paid call for that person. I'm starting its self-review while the over-merge agent is still working.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ python3 - <<'PY'
-p="src/leadforge/lead_ingestion/transport.py"
-s=open(p).read()
-old='raise SourceTimedOut(self._provid
-- $ sed -i '112s/.*/            # Name the error type only: a library message may carry a URL or person data./' src/leadfo
-- $ sed -i '112s/.*/            # Name the error type only: a library message may carry a URL or data./' src/leadforge/lea
-- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; bash $S/finish.sh 12.3 "feat(lea
 - $ grep -rn "follow_redirects" src/leadforge/lead_ingestion --include=*.py | head
 - $ sed -n 1,60p src/leadforge/lead_ingestion/tests/test_transport.py | grep -n "BASE\|LOOKUP\|def make\|import\|headers" 
 - $ sed -n 176,195p src/leadforge/lead_ingestion/tests/test_transport.py
@@ -55,3 +48,9 @@ s=s.replace("    FieldProvenance,\n
 - $ git status --short | grep -v "\.claude/memory" | head -30; S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; git status --short | grep -v "\.
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; sed -i 's/Co-Authored-By: Claude
+- $ (which postgres pg_ctl initdb; ls /usr/lib/postgresql 2>/dev/null) | head; grep -n "skip\|PG\|postgres" src/leadforge/
+- $ sed -n 1,20p src/leadforge/lead_ingestion/tests/test_persistence_both_engines.py; sed -n 120,180p src/leadforge/lead_i
+- $ uv run pytest -q src/leadforge/lead_ingestion/tests/test_persistence_both_engines.py --collect-only -q 2>&1 | grep -c 
+- $ git add .claude/memory && git commit -q -m "chore: update session memory state
+
+Co-Authored-By: Claude Opus 5.5 <norep
