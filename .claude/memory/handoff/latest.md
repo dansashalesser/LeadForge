@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T11:57:01+00:00
+- Written: 2026-10-06T12:06:59+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,11 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The step-chaining review (item #6) found two real bugs and fixed both test-first. The full suite passes: 3827 tests, plus ruff and mypy. Committing now. Google is now called in a real-adapter run for the domain Apollo finds, so I'm also ticking 14.2:
+I've committed and pushed the harness memory files. The open-items work and tasks 16.6/16.11 are still being built, and I'll commit each once it passes its self-review.
+
+I still need your call on two things:
+1. **HubSpot's contact record:** should it carry the identity we asked about, so it joins the right lead? I recommend option B.
+2. **Opt-outs:** should an opt-out also apply to the person's records linked by LinkedIn or verified email, but not through shared addresses like `info@`?
 
 ## In-flight todos
 _(none captured)_
