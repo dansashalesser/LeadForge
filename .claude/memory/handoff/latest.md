@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T11:19:20+00:00
+- Written: 2026-10-06T11:45:48+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,7 +10,7 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-The web evidence fix is in: a company's own domains now count as one agreeing source. Committing it now. I'm leaving 14.2 unticked, because Google can't run in a real run until item #6 lands:
+I committed and pushed the harness memory files. The only uncommitted work now is item #6, where each enrichment step feeds the steps after it. It's still being built, and I'll commit it once it passes its self-review.
 
 ## In-flight todos
 _(none captured)_
