@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T11:08:18+00:00
+- Written: 2026-10-06T11:19:20+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,21 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the harness memory files. Two code changes stay uncommitted on purpose:
-- **Web evidence, option C:** still in self-review.
-- **Rule 8.3 (records with one email joining on name + domain):** still being built.
-
-Each gets committed once its review passes.
+The web evidence fix is in: a company's own domains now count as one agreeing source. Committing it now. I'm leaving 14.2 unticked, because Google can't run in a real run until item #6 lands:
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git add .claude/memory && git commit -q -m "chore: sync harness memory
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthr
-- $ git status --short | head -20
-- $ git status --short | grep '^.. \.claude' ; git add .claude/memory .claude/behaviors 2>/dev/null; git diff --cached --q
 - $ git add .claude/memory .claude/behaviors 2>/dev/null; git diff --cached --quiet && echo NOTHING || (git commit -q -m "
 - $ git status --short src .env.example | head -40
 - $ git diff --stat src/leadforge/lead_ingestion/tests/adapters/test_fixture_outcome_matrix.py src/leadforge/lead_ingestio
@@ -55,3 +46,8 @@ s=s.replace('''        ("hubspot",
 - $ uv run ruff check src | tail -1 && uv run mypy | tail -1 && uv run pytest -q 2>&1 | tail -1; grep -n "^- \[.\] 16.12" 
 - $ git status --short | grep -v '^.. \.claude' | grep -iv "apollo\|clustering\|env_example\|\.env\|ingest_runner\|merge_l
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Supersedes (user-v
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad && uv run ruff check src/leadforg
+- $ git commit -q -m "feat: name+domain joins records when only one has an email (8.3, user decision)
+
+Co-Authored-By: Cla
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Left unticked (par
