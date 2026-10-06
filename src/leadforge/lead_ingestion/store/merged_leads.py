@@ -58,7 +58,7 @@ from leadforge.lead_ingestion.store.raw_responses import (
     RetentionPolicy,
 )
 
-__all__ = ["MergeStored", "SourceBatch", "persist_merge"]
+__all__ = ["MergeStored", "SourceBatch", "persist_merge", "stale_projections"]
 
 _EMAIL = "person.email"
 _BARE_EMAIL = "email"
@@ -174,6 +174,25 @@ def persist_merge(
         canonical_leads=canonical_leads,
         raw_responses=len(batches),
     )
+
+
+def stale_projections(
+    session: Session, *, current_version: int
+) -> tuple[uuid.UUID, ...]:
+    """Identities whose stored canonical lead was projected under another version.
+
+    ``current_version`` is ``projection.stamp_projection(...).version``; versions only
+    increase, so any other stored version is out of date and must be recomputed (8.13).
+    Sorted, so the result does not depend on row order.
+    """
+    if current_version < 1:
+        raise ValueError("a projection version starts at 1")
+    rows = session.scalars(
+        sa.select(CanonicalLeadRow.lead_identity_id).where(
+            CanonicalLeadRow.projection_version != current_version
+        )
+    )
+    return tuple(sorted(rows, key=str))
 
 
 def _source_runs(session: Session, run_id: uuid.UUID) -> dict[str, uuid.UUID]:

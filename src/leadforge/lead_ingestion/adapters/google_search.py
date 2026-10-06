@@ -662,6 +662,24 @@ class GoogleSearchSource(BaseLeadSource):
         }
         return validate_raw_payload(cls.name, model, wrapped, rules)
 
+    def records_fetched(self, batch: RawBatch) -> int | None:
+        """Organic results on every page of every query (an empty page has none)."""
+        payload = batch.payload
+        searches = payload.get("searches") if isinstance(payload, Mapping) else None
+        if not isinstance(searches, list):
+            raise _unmapped(self.name, "searches")
+        fetched = 0
+        for search in searches:
+            pages = search.get("pages") if isinstance(search, Mapping) else None
+            if not isinstance(pages, list):
+                raise _unmapped(self.name, "searches")
+            for page in pages:
+                organic = (
+                    page.get("organic_results") if isinstance(page, Mapping) else None
+                )
+                fetched += len(organic) if isinstance(organic, list) else 0
+        return fetched
+
     @classmethod
     def validate_fixture(cls, endpoint: str, body: object) -> None:
         if endpoint != "search":

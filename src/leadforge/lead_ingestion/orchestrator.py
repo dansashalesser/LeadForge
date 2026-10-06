@@ -22,6 +22,10 @@ Provisional decisions (see choices.md, task 11.1):
   four lives in ``source_settings`` next to the key it belongs to.
 * Mode resolution and adapter construction are injected (``resolve_mode``,
   ``build_source``); this module does not read the environment or build transports.
+  Plan-dependent rate limits are injected too (``live_rate_limits``, follow-up
+  2026-10-06): the composition root reads them, for live sources only, before the run
+  record exists, so a bad plan value is a configuration error before any write. A live
+  source with no entry is paced on its declared ``rate_limit``.
 * Phases are a later task (11.5 to 11.7).
 
 Failure isolation (task 11.2, Requirements 6.1 to 6.3). Each source has a
@@ -148,6 +152,7 @@ Per-company calls (task 11.7, Requirement 6.11; ADR-0002). Provisional decisions
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import math
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
@@ -164,6 +169,7 @@ from leadforge.lead_ingestion.base_source import (
     EnrichmentRequest,
     LeadContribution,
     LiveAccess,
+    RateBucket,
     RawBatch,
     SourceRequest,
     enrichment_tiers,
@@ -403,6 +409,17 @@ class SourceCallLedger:
         )
 
 
+@dataclass(frozen=True)
+class _Fetched:
+    """One successful call: the batch, its contributions and what the adapter
+    reported of the batch (``None``: not reported)."""
+
+    batch: RawBatch
+    contributions: tuple[LeadContribution, ...]
+    records_fetched: int | None
+    credits_consumed: int | None
+
+
 class Phase(StrEnum):
     DISCOVERY = "discovery"
     ENRICHMENT = "enrichment"
@@ -429,6 +446,10 @@ class SourceResult:
     # Requests left per window as the provider itself last stated them (12.5); ``None``
     # when the adapter reports none. Never the local limiter's own tokens.
     allowances: Mapping[str, int] | None = None
+    # What the adapter reported of this result's batch (``records_fetched`` and
+    # ``credits_spent``); ``None`` when it reports none or there is no batch.
+    records_fetched: int | None = None
+    credits_consumed: int | None = None
 
 
 def enrichment_work_list(
@@ -533,6 +554,7 @@ class IngestionOrchestrator:
         run_timeout_s: float,
         retry_policy: RetryPolicy | None = None,
         run_recorder: RunRecorder | None = None,
+        live_rate_limits: Mapping[str, Mapping[str, RateBucket]] | None = None,
     ) -> None:
         if (
             not isinstance(max_concurrent_sources, int)
@@ -557,6 +579,7 @@ class IngestionOrchestrator:
         self._run_timeout_s = run_timeout_s
         self._retry_policy = retry_policy
         self._run_recorder = run_recorder
+        self._live_rate_limits = dict(live_rate_limits or {})
 
     async def run(self, request: SourceRequest) -> tuple[SourceResult, ...]:
         """Fetch from every enabled source, at most the bound in flight at once.
@@ -620,9 +643,10 @@ class IngestionOrchestrator:
 
         def build(source_class: type[BaseLeadSource]) -> BaseLeadSource:
             resolution = resolutions[source_class.name]
-            # Plan-dependent limits are read for a live source only (7.5).
+            # Plan-dependent limits were read by the caller, for live sources only
+            # (7.5); a live source handed none is paced on its declaration.
             rate_limit = (
-                source_class.run_rate_limit()
+                self._live_rate_limits.get(source_class.name, source_class.rate_limit)
                 if resolution.mode is DataMode.LIVE
                 else source_class.rate_limit
             )
@@ -672,20 +696,29 @@ class IngestionOrchestrator:
         ) -> None:
             ledger = ledgers[source.name]
 
-            async def fetch_and_normalize() -> tuple[
-                RawBatch, tuple[LeadContribution, ...]
-            ]:
+            async def fetch_and_normalize() -> _Fetched:
                 batch = await source.fetch_raw(phase_request)
-                return batch, tuple(source.normalize_checked(batch))
+                contributions = tuple(source.normalize_checked(batch))
+                # Inside the call, so a malformed batch the report hooks refuse is
+                # this source's recorded failure, like a normalization error.
+                return _Fetched(
+                    batch,
+                    contributions,
+                    source.records_fetched(batch),
+                    source.credits_spent(batch),
+                )
 
             async with slots:
                 attempt = await ledger.call(fetch_and_normalize)
             fetched = attempt.value
-            finished[(source.name, phase)] = result_of(
-                source,
-                phase,
-                None if fetched is None else fetched[0],
-                None if fetched is None else fetched[1],
+            finished[(source.name, phase)] = (
+                result_of(source, phase, None, None)
+                if fetched is None
+                else dataclasses.replace(
+                    result_of(source, phase, fetched.batch, fetched.contributions),
+                    records_fetched=fetched.records_fetched,
+                    credits_consumed=fetched.credits_consumed,
+                )
             )
 
         async def run_phase(

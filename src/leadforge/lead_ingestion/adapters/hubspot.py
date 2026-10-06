@@ -41,6 +41,32 @@ Provisional decisions (see choices.md, task 13.1):
 * ``fixtures/hubspot/*.json`` are hand-made STAND-INS, not captured responses.
 * At most 100 contacts are read per email; there is no paging.
 
+Request echo (follow-up, user decision 2026-10-06, option B): a HubSpot contact
+joins the person it was asked about, with no change to the merge rules.
+
+* Each contribution answering a lookup carries the requester's identity at ``asked.*``
+  (``REQUEST_ECHO_PREFIX``), as Hunter and Apollo do: the requester's LinkedIn URL
+  (its own text) and, when a requester record holds the asked address as ``verified``,
+  that address with ``email_status`` verified. Those are the Match Keys that put the
+  contribution on that person's Lead; an echo never corroborates
+  (``conflicts._observed_first``) and keeps origin ``none``. No name or domain is
+  echoed: HubSpot is asked by address only, so neither was asked. A requester with no
+  LinkedIn URL and no verified address gets no echo (nothing could join it).
+* The echo is decided when asking and kept in the raw batch (``lookups[].asked``), so a
+  replayed batch normalises the same way; a batch without it has no echo.
+* Not echoed (``hubspot_echo_withheld``, a reason and a count, never a value): one ask
+  made for two distinguishable people (two LinkedIn identities or two person names
+  across this run's asks, ``ambiguous_requester``); several contacts for one ask
+  (``multiple_contacts``); a contact whose own ``email`` property is another address
+  (``email_mismatch``) or absent (``email_unconfirmed``). Such records still carry
+  HubSpot's own fields, flags included, as before. The contact search therefore also
+  requests the ``email`` property.
+* An address unknown to HubSpot gets no echo: its record's ``email`` is the question
+  itself (raw path ``lookup``), not an address HubSpot holds, so joining it would let
+  the question count as agreement on the requester's address. It stays a record of its
+  own, as before. A confirmed contact's ``email`` equals the contact's own address, so
+  it is HubSpot's observation and does count.
+
 Provider facts checked on 2026-10-06 (HubSpot's public OpenAPI specs,
 https://github.com/HubSpot/HubSpot-public-api-spec-collection, latest date-versioned
 rollout, and the official ``@hubspot/api-client`` 14.0.1; the developer docs were
@@ -63,10 +89,12 @@ network-blocked):
 """
 
 import re
+from collections import Counter
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import structlog
 from pydantic import BaseModel, StrictInt, StrictStr
 
 from leadforge.lead_ingestion.base_source import (
@@ -91,8 +119,19 @@ from leadforge.lead_ingestion.errors import (
     SourceQuotaExhausted,
     SourceRateLimited,
 )
-from leadforge.lead_ingestion.models import DataMode
+from leadforge.lead_ingestion.match_keys import (
+    linkedin_identity,
+    normalize_email,
+    normalized_person_name,
+)
+from leadforge.lead_ingestion.models import (
+    DataMode,
+    EmailStatus,
+    UntrustedText,
+)
 from leadforge.lead_ingestion.normalizer import (
+    REQUEST_ECHO_KEY,
+    REQUEST_ECHO_RULES,
     FieldRule,
     NormalizationContext,
     Normalizer,
@@ -125,7 +164,10 @@ _DAILY_POLICIES = frozenset({"DAILY"})
 # TEN_SECONDLY_ROLLING is documented; SECONDLY is UNVERIFIED (see module doc).
 _SHORT_POLICIES = frozenset({"SECONDLY", "TEN_SECONDLY_ROLLING"})
 
+_log = structlog.get_logger()
+
 _CONTACT_PROPERTIES = (
+    "email",  # the contact's own address: an echo needs it to equal the one asked
     "lifecyclestage",
     "hubspot_owner_id",
     "notes_last_updated",
@@ -135,6 +177,7 @@ _OPT_OUT_RAW = "contact.properties.hs_email_optout"
 
 
 class _Properties(BaseModel):
+    email: StrictStr | None = None
     lifecyclestage: StrictStr | None = None
     hubspot_owner_id: StrictStr | None = None
     notes_last_updated: StrictStr | None = None
@@ -150,6 +193,7 @@ class _Record(BaseModel):
     lookup: StrictStr
     contact: _Contact | None = None
     open_deals_total: StrictInt | None = None
+    asked: dict[str, StrictStr] | None = None
 
 
 def _policy_of(body: object) -> str:
@@ -287,6 +331,8 @@ class HubSpotSource(BaseLeadSource):
         self._environ = environ
         # Lookups already made this run: a retried fetch must not repeat them.
         self._found: dict[str, list[Mapping[str, Any]]] = {}
+        # Who each address was asked for this run: LinkedIn identities and names.
+        self._asked_for: dict[str, tuple[set[str], set[str]]] = {}
 
     def _call_context(self) -> tuple[Mapping[str, str], Mapping[str, object]]:
         """Request headers and path parameters; synthetic mode needs neither."""
@@ -338,15 +384,67 @@ class HubSpotSource(BaseLeadSource):
             raise SourceError(
                 self.name, "hubspot answers an enrichment request only, not discovery"
             )
-        emails = _emails_of(request.work_list)
+        requesters = _requesters_of(request.work_list)
         lookups: list[Mapping[str, Any]] = []
-        if emails:
+        ambiguous = 0
+        if requesters:
             headers, params = self._call_context()
-            for email in emails:
+            for email, records in requesters.items():
                 if email not in self._found:
                     self._found[email] = await self._look_up(email, headers, params)
-                lookups.append({"lookup": email, "contacts": self._found[email]})
+                entry: dict[str, Any] = {
+                    "lookup": email,
+                    "contacts": self._found[email],
+                }
+                asked = self._echo_for(email, records)
+                if asked is None:
+                    ambiguous += 1
+                elif asked:
+                    entry[REQUEST_ECHO_KEY] = asked
+                lookups.append(entry)
+        if ambiguous:
+            _log.warning(
+                "hubspot_echo_withheld", reason="ambiguous_requester", lookups=ambiguous
+            )
         return RawBatch(source_name=self.name, payload={"lookups": lookups})
+
+    def _echo_for(
+        self, email: str, records: list[LeadContribution]
+    ) -> dict[str, str] | None:
+        """The requester identity to echo; None when the ask was for two people."""
+        identities, names = self._asked_for.setdefault(email, (set(), set()))
+        linkedin: str | None = None
+        verified: str | None = None
+        for record in records:
+            try:
+                identity = linkedin_identity(record.values)
+                name = normalized_person_name(record.values)
+            except TypeError:
+                raise NormalizationError(
+                    self.name, raw_field_path="<record>", canonical_path="<unmapped>"
+                ) from None
+            if identity is not None:
+                identities.add(identity)
+                linkedin = linkedin or _text_of(record.values["person.linkedin_url"])
+            if name is not None:
+                names.add(name)
+            address = _text_of(record.values.get("person.email"))
+            status = record.values.get("person.email_status")
+            if (
+                address is not None
+                and normalize_email(address) == email
+                and status == EmailStatus.VERIFIED
+            ):
+                verified = normalize_email(address)
+        if len(identities) > 1 or len(names) > 1:
+            return None
+        asked: dict[str, str] = {}
+        if linkedin is not None:
+            asked["linkedin_url"] = linkedin
+        if verified is not None:
+            asked["email"] = verified
+            asked["email_status"] = EmailStatus.VERIFIED.value
+        return asked
 
     async def _look_up(
         self, email: str, headers: Mapping[str, str], params: Mapping[str, object]
@@ -441,13 +539,33 @@ class HubSpotSource(BaseLeadSource):
         context_unknown = context_for(asked - {"crm.has_open_deal"})
         normalizer = Normalizer()
         contributions: list[LeadContribution] = []
-        for record in self._records(lookups):
-            checked = validate_raw_payload(self.name, _Record, record, self.RULES)
+        withheld: Counter[str] = Counter()
+        for record in self._records(lookups, withheld):
+            rules = self.RULES + tuple(
+                rule
+                for key, rule in _ECHO_RULES.items()
+                if key in record.get(REQUEST_ECHO_KEY, {})
+            )
+            checked = validate_raw_payload(self.name, _Record, record, rules)
             context = (
                 context_unknown if record.get("contact") is None else context_found
             )
-            contributions.append(normalizer.apply(checked, self.RULES, context))
+            contributions.append(normalizer.apply(checked, rules, context))
+        for reason, count in sorted(withheld.items()):
+            _log.info("hubspot_echo_withheld", reason=reason, lookups=count)
         return contributions
+
+    def records_fetched(self, batch: RawBatch) -> int | None:
+        """Contacts found across every lookup (an unknown email found none)."""
+        lookups = (
+            batch.payload.get("lookups") if isinstance(batch.payload, Mapping) else None
+        )
+        if not isinstance(lookups, list):
+            raise NormalizationError(
+                self.name, raw_field_path="lookups", canonical_path="<unmapped>"
+            )
+        self._records(lookups)  # the envelope checked, as normalize checks it
+        return sum(len(entry["contacts"]) for entry in lookups)
 
     @classmethod
     def validate_fixture(cls, endpoint: str, body: object) -> None:
@@ -486,26 +604,48 @@ class HubSpotSource(BaseLeadSource):
             )
         return super().unmapped_fixture_paths(endpoint, body)
 
-    def _records(self, lookups: list[object]) -> list[Mapping[str, object]]:
-        """One record per contact found, or one empty record for an unknown email."""
-        records: list[Mapping[str, object]] = []
+    def _records(
+        self, lookups: list[object], withheld: Counter[str] | None = None
+    ) -> list[Mapping[str, Any]]:
+        """One record per contact found, or one empty record for an unknown email.
+
+        A record carries the lookup's echo (``asked``) only when it answers the asked
+        person; each echo withheld is counted in ``withheld`` by reason.
+        """
+        records: list[Mapping[str, Any]] = []
         for entry in lookups:
             lookup = entry.get("lookup") if isinstance(entry, Mapping) else None
             contacts = entry.get("contacts") if isinstance(entry, Mapping) else None
-            if not isinstance(lookup, str) or not isinstance(contacts, list):
+            asked = (
+                entry.get(REQUEST_ECHO_KEY, {}) if isinstance(entry, Mapping) else None
+            )
+            if (
+                not isinstance(lookup, str)
+                or not isinstance(contacts, list)
+                or not isinstance(asked, Mapping)
+                or not set(asked) <= set(_ECHO_RULES)
+            ):
                 raise NormalizationError(
                     self.name, raw_field_path="lookups", canonical_path="<unmapped>"
                 )
             if not contacts:
                 records.append({"lookup": lookup, "contact": None})
-            for found in contacts:
-                if not isinstance(found, Mapping):
-                    raise NormalizationError(
-                        self.name,
-                        raw_field_path="contacts",
-                        canonical_path="<unmapped>",
-                    )
-                records.append({"lookup": lookup, **found})
+            if not all(isinstance(found, Mapping) for found in contacts):
+                raise NormalizationError(
+                    self.name, raw_field_path="contacts", canonical_path="<unmapped>"
+                )
+            reasons = [
+                _withheld_reason(lookup, found, len(contacts)) if asked else None
+                for found in contacts
+            ]
+            if withheld is not None:
+                # One count per lookup and reason, not per contact.
+                withheld.update({reason for reason in reasons if reason is not None})
+            for found, reason in zip(contacts, reasons, strict=True):
+                echo = (
+                    {REQUEST_ECHO_KEY: dict(asked)} if asked and reason is None else {}
+                )
+                records.append({"lookup": lookup, **found, **echo})
         return records
 
 
@@ -529,14 +669,44 @@ def _open_deal_total(provider: str, body: object) -> int:
     return total
 
 
-def _emails_of(work_list: tuple[LeadContribution, ...]) -> list[str]:
-    """Distinct work-list emails, trimmed and case-folded, in work-list order."""
-    emails: dict[str, None] = {}
+# The requester's identity a contribution echoes, at ``asked.<key>`` (option B).
+_ECHO_RULES: Mapping[str, FieldRule] = {
+    key: REQUEST_ECHO_RULES[key] for key in ("linkedin_url", "email", "email_status")
+}
+
+
+def _withheld_reason(
+    lookup: str, found: Mapping[str, Any], contacts: int
+) -> str | None:
+    """Why a found contact is not the asked person, or None when it is."""
+    if contacts > 1:
+        return "multiple_contacts"
+    contact = found.get("contact")
+    properties = contact.get("properties") if isinstance(contact, Mapping) else None
+    own = properties.get("email") if isinstance(properties, Mapping) else None
+    if not isinstance(own, str) or not own.strip():
+        return "email_unconfirmed"
+    if normalize_email(own) != lookup:
+        return "email_mismatch"
+    return None
+
+
+def _text_of(value: object) -> str | None:
+    text = value.value if isinstance(value, UntrustedText) else value
+    return text.strip() if isinstance(text, str) and text.strip() else None
+
+
+def _requesters_of(
+    work_list: tuple[LeadContribution, ...],
+) -> dict[str, list[LeadContribution]]:
+    """Distinct work-list emails (trimmed, lowercased, in order) and who holds each."""
+    requesters: dict[str, list[LeadContribution]] = {}
     for contribution in work_list:
         # Apollo and Hunter write ``person.email``; the bare ``email`` is HubSpot's own.
         value = contribution.values.get(
             "person.email", contribution.values.get("email")
         )
         if isinstance(value, str) and value.strip():
-            emails[value.strip().casefold()] = None
-    return list(emails)
+            # lower(), as the email Match Key folds (normalize_email), never casefold().
+            requesters.setdefault(value.strip().lower(), []).append(contribution)
+    return requesters

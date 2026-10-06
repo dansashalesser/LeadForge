@@ -36,3 +36,4 @@
 
 - 2026-10-06 [behavior-update]: revised probe-failure-reporting — Judge verdict shows detector-down timeout again silently converted to completion, runs with errors aggregated as agreement. Evidence: 2026-10-06 [judge] drain delta=-2.0 citing "silent-failure (judge aggregation reported spread=0.0 over pass,error,error runs; detector-down timeout)".
 - 2026-10-06 [friction]: tool rejected (verify_first) — "1. keyed HMAC 2. What are our options? if information is agreed between many sources then it should likely be ok 3. We n"
+- 2026-10-06 [friction]: tool rejected (tool_steering) — "<agent-message from="a25980a3c8ae3fdf1"> [Subagent hand-back] The text below is the final report of a subagent this sess"

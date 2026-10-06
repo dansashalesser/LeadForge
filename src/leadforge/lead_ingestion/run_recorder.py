@@ -86,20 +86,48 @@ class StoreRunRecorder:
         finish (Requirement 21.2): both commit or neither does. An aborted run has no
         results, so its source rows keep their start values (no counts, no class).
         """
-        finished_at = self._clock()
         if results is None:
-            status, exit_code = RunStatus.ABORTED, None
-            counts = None
-        else:
-            status, exit_code = RunStatus.COMPLETED, map_run_exit(results).exit_code
-            counts = build_source_counts(results)
+            await self.abort(run_id, reason=None)
+            return
+        await self._writer.write_batch(self.completion(run_id, results))
+
+    def completion(
+        self, run_id: uuid.UUID, results: tuple[SourceResult, ...]
+    ) -> Callable[[Session], None]:
+        """The completing write, to run inside the caller's transaction.
+
+        Finishes the record ``completed`` with the mapped exit code, writes every
+        source's counts and counts the contributions stored for the run. Run in the
+        same ``write_batch`` as the merge (follow-up 2026-10-06), a run is completed
+        only when its merge committed, and its ``contributions_written`` are the rows
+        that transaction stored.
+        """
+        finished_at = self._clock()
+        exit_code = map_run_exit(results).exit_code
+        counts = build_source_counts(results)
 
         def write(session: Session) -> None:
             repo = RunRecordRepository(session)
             repo.finish(
-                run_id, status=status, exit_code=exit_code, finished_at=finished_at
+                run_id,
+                status=RunStatus.COMPLETED,
+                exit_code=exit_code,
+                finished_at=finished_at,
             )
-            if counts is not None:
-                repo.record_source_counts(run_id, counts)
+            repo.record_source_counts(run_id, counts)
+            repo.record_contributions_written(run_id)
 
-        await self._writer.write_batch(write)
+        return write
+
+    async def abort(self, run_id: uuid.UUID, *, reason: str | None) -> None:
+        """Mark the run aborted; ``reason`` names a stage and an exception class."""
+        finished_at = self._clock()
+        await self._writer.write_batch(
+            lambda session: RunRecordRepository(session).finish(
+                run_id,
+                status=RunStatus.ABORTED,
+                exit_code=None,
+                finished_at=finished_at,
+                reason=reason,
+            )
+        )

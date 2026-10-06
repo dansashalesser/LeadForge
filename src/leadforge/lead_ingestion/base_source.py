@@ -415,6 +415,23 @@ class BaseLeadSource(ABC):
             raise ValueError(f"{cls.name} base_url must be https")
         return RestTransport(cls.name, cls.base_url, cls.endpoints)
 
+    def records_fetched(self, batch: RawBatch) -> int | None:
+        """The provider records ``batch`` carries, before normalization (21.2).
+
+        ``None`` (the default) means this adapter reports no such figure, which the run
+        record keeps as "not recorded", never 0. Called once per successful batch,
+        after ``normalize_checked``; a ``SourceError`` it raises is the source's
+        recorded failure.
+        """
+        return None
+
+    def credits_spent(self, batch: RawBatch) -> int | None:
+        """The Credits ``batch`` spent (21.2); ``None`` (the default): not reported.
+
+        Called like ``records_fetched``. A synthetic batch spends none.
+        """
+        return None
+
     @classmethod
     def run_rate_limit(
         cls, environ: Mapping[str, str] | None = None

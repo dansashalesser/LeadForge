@@ -68,7 +68,11 @@ from pydantic import HttpUrl, TypeAdapter, ValidationError
 
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.clustering import IdentityCluster
-from leadforge.lead_ingestion.companies import company_domains, company_id_for
+from leadforge.lead_ingestion.companies import (
+    CompanyCluster,
+    company_domains,
+    company_id_for,
+)
 from leadforge.lead_ingestion.compliance import (
     COMPLIANCE_FLAGS,
     Blocked,
@@ -81,7 +85,15 @@ from leadforge.lead_ingestion.conflicts import (
     FieldCandidate,
     resolve_conflicts,
 )
-from leadforge.lead_ingestion.match_keys import MatchKey, MatchKeyKind
+from leadforge.lead_ingestion.match_key_digest import (
+    MATCH_KEY_SECRET_ENV,
+    MatchKeyDigester,
+)
+from leadforge.lead_ingestion.match_keys import (
+    IdentityExclusions,
+    MatchKey,
+    MatchKeyKind,
+)
 from leadforge.lead_ingestion.models import (
     CanonicalLead,
     CompanySignal,
@@ -94,13 +106,35 @@ from leadforge.lead_ingestion.models import (
     TechSignal,
     UntrustedText,
 )
+from leadforge.lead_ingestion.primary_domain import elect_by_votes
 from leadforge.lead_ingestion.superseded import (
     agreeing_source_count,
     contributing_sources,
     provenance_records,
 )
+from leadforge.lead_ingestion.tie_resolution import (
+    TieOutcome,
+    TieResolutionReader,
+    TieSource,
+    read_primary_domain_outcome,
+)
 
-__all__ = ["ProjectionResult", "ResolvedConflict", "project_lead"]
+__all__ = [
+    "PROJECTION_RULES_REVISION",
+    "ProjectionBasis",
+    "ProjectionResult",
+    "ProjectionStamp",
+    "ResolvedConflict",
+    "project_lead",
+    "stamp_projection",
+]
+
+# The revision of the projection rules in this module and the ones it calls. Bump it in
+# the same change as any rule that can alter a projection. 1: the 16.5 rules. 2: the
+# one-sided email rule (8.3), request-echo fields counted only when no other source has
+# the field, LinkedIn cannot-link, the confidence table changes, and the display
+# primary domain read from the stored tie resolution (16.11).
+PROJECTION_RULES_REVISION = 2
 
 _BARE_EMAIL = "email"
 _EMAIL = "person.email"
@@ -153,6 +187,110 @@ class ProjectionResult:
     # Task 19.3 (11.4): sorted names of the sources that set ``opt_out`` or
     # ``suppressed`` on this Lead, in its own cluster or on a linked identity.
     compliance_sources: tuple[str, ...] = ()
+    # Task 16.11 (8.17, 8.18): the display-only primary domain of the Lead's company
+    # (personal data, never in ``repr``) and how it was decided; both ``None`` when the
+    # company has no usable domain.
+    primary_domain: str | None = field(default=None, repr=False)
+    primary_domain_source: TieSource | None = None
+
+    @property
+    def primary_domain_flagged(self) -> bool:
+        """True when a lowest-sorted fallback stands in for a tie resolution."""
+        source = self.primary_domain_source
+        return source is not None and TieOutcome(None, source).flagged
+
+
+@dataclass(frozen=True)
+class ProjectionBasis:
+    """What a projection is a function of besides its contributions (8.13).
+
+    The rules revision, the Identity Exclusions and the Source Trust Ranking. The
+    exclusions enter only as keyed HMAC digests (``match_key_digest``, user decision
+    2026-10-06), never as a plain hash of the values, which a dictionary would reverse;
+    so the fingerprint may be stored. Kept out of ``repr`` and never logged anyway.
+    """
+
+    rules_revision: int
+    exclusions_token: str = field(repr=False)
+    trust_ranks_token: str = field(repr=False)
+
+    @classmethod
+    def of(
+        cls,
+        exclusions: IdentityExclusions | None,
+        trust_ranks: Mapping[str, int],
+        *,
+        digester: MatchKeyDigester | None = None,
+        rules_revision: int = PROJECTION_RULES_REVISION,
+    ) -> "ProjectionBasis":
+        """``digester`` must be keyed from the configured secret when any exclusion
+        is set: a per-run random key would change the fingerprint on every run."""
+        ranks = "\x1e".join(
+            f"{name}\x1f{rank}" for name, rank in sorted(trust_ranks.items())
+        )
+        return cls(
+            rules_revision,
+            _exclusions_token(exclusions or IdentityExclusions(), digester),
+            sha256(ranks.encode("utf-8")).hexdigest(),
+        )
+
+    @property
+    def fingerprint(self) -> str:
+        """Equal bases agree; any change to any part differs."""
+        basis = "\x1e".join(
+            (str(self.rules_revision), self.exclusions_token, self.trust_ranks_token)
+        )
+        return sha256(basis.encode("utf-8")).hexdigest()
+
+
+def _exclusions_token(
+    exclusions: IdentityExclusions, digester: MatchKeyDigester | None
+) -> str:
+    """Sorted keyed digests of the barred keys, hashed; no value and no plain hash."""
+    keys = [MatchKey(MatchKeyKind.LINKEDIN_URL, u) for u in exclusions.linkedin_urls]
+    keys += [MatchKey(MatchKeyKind.VERIFIED_EMAIL, e) for e in exclusions.emails]
+    if keys and (digester is None or not digester.comparable_across_runs):
+        raise ValueError(
+            f"Identity Exclusions need {MATCH_KEY_SECRET_ENV} set so the projection "
+            "version is stable across runs"
+        )
+    digests = sorted(
+        f"{key.kind.name.lower()}\x1f{digester.digest(key)}"
+        for key in keys
+        if digester is not None
+    )
+    return sha256("\x1e".join(digests).encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class ProjectionStamp:
+    """The ``projection_version`` and the basis fingerprint it was stamped for."""
+
+    version: int
+    fingerprint: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if self.version < 1:
+            raise ValueError("a projection version starts at 1")
+
+    def is_stale_for(self, basis: ProjectionBasis) -> bool:
+        """True when a projection stamped so must be recomputed under ``basis``."""
+        return self.fingerprint != basis.fingerprint
+
+
+def stamp_projection(
+    previous: ProjectionStamp | None, basis: ProjectionBasis
+) -> ProjectionStamp:
+    """The version to stamp under ``basis``: kept if unchanged, else incremented.
+
+    Monotonic: reverting a change is another change, so a version never repeats for a
+    different basis and an older stored projection is always detectably older.
+    """
+    if previous is None:
+        return ProjectionStamp(1, basis.fingerprint)
+    if not previous.is_stale_for(basis):
+        return previous
+    return ProjectionStamp(previous.version + 1, basis.fingerprint)
 
 
 def project_lead(
@@ -160,13 +298,16 @@ def project_lead(
     trust_ranks: Mapping[str, int],
     *,
     blocked: Blocked | None = None,
+    tie_resolutions: TieResolutionReader | None = None,
 ) -> ProjectionResult:
     """Project ``cluster``; the result ignores contribution order.
 
     ``blocked`` (``compliance.blocked_identities`` over every contribution of the run)
     carries a flag a source set on an identity onto a Lead another source supplied
     (11.4): the report may sit in a cluster of its own, since an unverified address is
-    no Match Key.
+    no Match Key. ``tie_resolutions`` is read (never written, no model is called) for
+    the stored answer to an exact primary-domain tie (16.11); without it, or with
+    nothing stored, a tie is the lowest-sorted candidate, flagged.
     """
     members = tuple(_with_canonical_email(c) for c in cluster.contributions)
     resolution = _flagged_first(
@@ -178,6 +319,7 @@ def project_lead(
     reports = _compliance_reports(resolution, members, blocked or {})
     opt_out = any(flag == _OPT_OUT for flag, _ in reports)
     suppressed = any(flag == _SUPPRESSED for flag, _ in reports)
+    primary = _primary_domain(resolution, trust_ranks, tie_resolutions)
     return ProjectionResult(
         lead=_build_lead(resolution, cluster.cluster_id, opt_out, suppressed),
         contributing_sources=tuple(sources),
@@ -200,7 +342,36 @@ def project_lead(
             if f.decided_by is not None
         ),
         contribution_count=len(members),
+        primary_domain=None if primary is None else primary.domain,
+        primary_domain_source=None if primary is None else primary.source,
     )
+
+
+def _primary_domain(
+    resolution: ClusterResolution,
+    trust_ranks: Mapping[str, int],
+    store: TieResolutionReader | None,
+) -> TieOutcome | None:
+    """The display domain of the Employment's company, by trust-weighted vote.
+
+    The company is the winning ``company.domain`` value's registrable-domain set (as
+    ``_employments`` builds it). Every source holding a ``company.domain`` candidate
+    (winner, agreeing or superseded) votes for each of its domains in that set; a
+    domain outside it is another company and casts nothing. Signal Strength is never
+    read (24.4).
+    """
+    domains = tuple(sorted(company_domains(_winner_value(resolution, _COMPANY_DOMAIN))))
+    if not domains:
+        return None
+    votes = {
+        (candidate.source_name, domain)
+        for candidate in _candidates(resolution, _COMPANY_DOMAIN)
+        for domain in company_domains(candidate.value)
+        if domain in domains
+    }
+    primary = elect_by_votes(votes, trust_ranks)
+    company = CompanyCluster(company_id_for(domains), domains, ())
+    return read_primary_domain_outcome(company, primary, store)
 
 
 def _with_canonical_email(contribution: LeadContribution) -> LeadContribution:

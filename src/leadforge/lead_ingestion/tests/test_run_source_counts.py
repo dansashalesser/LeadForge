@@ -4,6 +4,7 @@ Pure builder, repository, and the real orchestrator against a real SQLite store.
 """
 
 import asyncio
+import dataclasses
 import uuid
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
@@ -118,6 +119,8 @@ def test_an_ok_source_has_no_failure_class_and_counts_its_leads() -> None:
         http_429_count=0,
         quota_remaining=None,
         warnings=None,
+        attempted=1,
+        succeeded=1,
     )
 
 
@@ -646,3 +649,58 @@ async def test_the_three_valued_live_access_is_kept_in_the_run_snapshot(
         "bravo": "gated",
         "charlie": "unavailable",
     }
+
+
+# -- follow-up 2026-10-06: call counts, records fetched and Credits -------------------
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.2
+def test_fetched_and_credits_sum_over_phases_and_stay_none_when_unreported() -> None:
+    discovery = dataclasses.replace(
+        result("alpha"), records_fetched=3, credits_consumed=None
+    )
+    enrichment = dataclasses.replace(
+        result("alpha", phase=Phase.ENRICHMENT), records_fetched=2, credits_consumed=5
+    )
+    alpha, bravo = build_source_counts((discovery, enrichment, result("bravo")))
+    assert (alpha.records_fetched, alpha.credits_consumed) == (5, 5)
+    assert (bravo.records_fetched, bravo.credits_consumed) == (None, None)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.2
+async def test_what_the_adapter_reports_of_its_batch_is_persisted(
+    engine: Engine,
+) -> None:
+    await make(
+        engine,
+        Plan(),
+        classes={
+            "alpha": {
+                "records_fetched": lambda _self, _batch: 4,
+                "credits_spent": lambda _self, _batch: 2,
+            }
+        },
+    ).run(REQUEST)
+    rows = source_rows(engine)
+    alpha, bravo = rows["alpha"], rows["bravo"]
+    assert (alpha.records_fetched, alpha.credits_consumed) == (4, 2)
+    assert (bravo.records_fetched, bravo.credits_consumed) == (None, None)
+    assert (alpha.attempted, alpha.succeeded, alpha.failed) == (1, 1, 0)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#6.1
+async def test_a_report_hook_failing_is_that_sources_failure_only(
+    engine: Engine,
+) -> None:
+    def malformed(self: BaseLeadSource, _batch: RawBatch) -> int:
+        raise NormalizationError(
+            self.name, raw_field_path="matches", canonical_path="<unmapped>"
+        )
+
+    await make(engine, Plan(), classes={"alpha": {"credits_spent": malformed}}).run(
+        REQUEST
+    )
+    rows = source_rows(engine)
+    assert rows["alpha"].failure_class == SourceStatus.NORMALIZATION_FAILED.value
+    assert (rows["alpha"].succeeded, rows["alpha"].failed) == (0, 1)
+    assert rows["bravo"].failure_class is None

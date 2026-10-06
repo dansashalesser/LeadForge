@@ -29,14 +29,14 @@ Provisional decisions (choices.md, 16.10):
 """
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from leadforge.lead_ingestion.companies import CompanyCluster, company_domains
 from leadforge.lead_ingestion.conflicts import validate_trust_ranks
 from leadforge.lead_ingestion.registry import LOWEST_TRUST_RANK
 
-__all__ = ["PrimaryDomain", "elect_primary_domain"]
+__all__ = ["PrimaryDomain", "elect_by_votes", "elect_primary_domain"]
 
 _UNDECLARED_VOTER = None  # the one voter for a Signal that names no source
 
@@ -65,9 +65,20 @@ def elect_primary_domain(
             _UNDECLARED_VOTER
         }
         votes.update((voter, domain) for voter in voters for domain in domains)
+    return elect_by_votes(votes, trust_ranks)
 
+
+def elect_by_votes(
+    votes: Iterable[tuple[str | None, str]], trust_ranks: Mapping[str, int]
+) -> PrimaryDomain:
+    """Elect from ``(voter, domain)`` votes; ``None`` is the undeclared voter.
+
+    A voter counts once per domain (the votes are a set), so the result is a function
+    of the set of votes and ignores their order.
+    """
+    validate_trust_ranks(trust_ranks)
     weights: dict[str, int] = defaultdict(int)
-    for voter, domain in votes:
+    for voter, domain in set(votes):
         rank = LOWEST_TRUST_RANK
         if voter is not _UNDECLARED_VOTER:
             rank = trust_ranks.get(voter, LOWEST_TRUST_RANK)

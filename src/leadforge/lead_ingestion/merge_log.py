@@ -47,6 +47,7 @@ import structlog
 
 from leadforge.lead_ingestion.match_key_digest import MatchKeyDigester
 from leadforge.lead_ingestion.projection import ProjectionResult, ResolvedConflict
+from leadforge.lead_ingestion.tie_resolution import TieSource
 
 __all__ = [
     "MAX_LOGGED_CONFLICTS",
@@ -79,6 +80,9 @@ class MergeLogEvent:
     # (kind, keyed digest), strongest kind first then by digest; capped.
     match_key_digests: tuple[tuple[str, str], ...] = ()
     match_key_digest_count: int = 0
+    # How an exact primary-domain tie was decided (``TieSource`` value: "stored" or a
+    # flagged fallback); ``None`` when there was no tie. Never the domain (16.11).
+    primary_domain_tie: str | None = None
 
     @property
     def match_key_digests_omitted(self) -> int:
@@ -111,6 +115,7 @@ class MergeLogEvent:
                 }
                 for c in self.conflicts
             ],
+            "primary_domain_tie": self.primary_domain_tie,
         }
 
 
@@ -149,6 +154,11 @@ def _event(result: ProjectionResult, digester: MatchKeyDigester) -> MergeLogEven
         conflicts=tuple(conflicts[:MAX_LOGGED_CONFLICTS]),
         match_key_digests=tuple(digests[:MAX_LOGGED_MATCH_KEYS]),
         match_key_digest_count=len(digests),
+        primary_domain_tie=(
+            None
+            if result.primary_domain_source in (None, TieSource.NOT_TIED)
+            else result.primary_domain_source.value
+        ),
     )
 
 

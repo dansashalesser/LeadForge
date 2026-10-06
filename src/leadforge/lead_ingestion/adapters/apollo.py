@@ -161,6 +161,8 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
 )
 from leadforge.lead_ingestion.normalizer import (
+    REQUEST_ECHO_KEY,
+    REQUEST_ECHO_RULES,
     FieldRule,
     NormalizationContext,
     Normalizer,
@@ -622,6 +624,30 @@ class ApolloSource(BaseLeadSource):
             for person in found
         ]
 
+    def records_fetched(self, batch: RawBatch) -> int | None:
+        """People a search page returned, or match answers an Enrichment received."""
+        payload = batch.payload
+        key = (
+            "matches"
+            if isinstance(payload, Mapping) and "matches" in payload
+            else "people"
+        )
+        records = payload.get(key) if isinstance(payload, Mapping) else None
+        if not isinstance(records, list):
+            raise NormalizationError(
+                self.name, raw_field_path=key, canonical_path="<unmapped>"
+            )
+        return len(records)
+
+    def credits_spent(self, batch: RawBatch) -> int | None:
+        """Search is free; a live match batch spends ``credits_in``; synthetic none."""
+        payload = batch.payload
+        if self.data_mode is not DataMode.LIVE or not (
+            isinstance(payload, Mapping) and "matches" in payload
+        ):
+            return 0
+        return credits_in(batch)
+
     @classmethod
     def validate_fixture(cls, endpoint: str, body: object) -> None:
         if endpoint == "match":
@@ -720,17 +746,16 @@ class ApolloSource(BaseLeadSource):
             _log.info("apollo_match_discarded", rung=entry.rung, reason=_MISMATCH)
             return None
         weak = entry.rung not in _STRONG_RUNGS or entry.anchor == _NAME_ANCHOR
-        echoed = {
-            rule.canonical_path for rule in _ASKED_RULES if rule.key in entry.asked
-        }
+        asked = [rule for key, rule in REQUEST_ECHO_RULES.items() if key in entry.asked]
+        echoed = {rule.canonical_path for rule in asked}
         rules = [
             rule
             for rule in self.MATCH_RULES
             if rule.canonical_path not in echoed
             and not (weak and rule.canonical_path in _IDENTITY_PATHS)
-        ] + [rule.rule for rule in _ASKED_RULES if rule.key in entry.asked]
+        ] + asked
         contribution = normalizer.apply(
-            {**response, _ECHO_KEY: dict(entry.asked)}, rules, context
+            {**response, REQUEST_ECHO_KEY: dict(entry.asked)}, rules, context
         )
         if entry.anchor == _NAME_ANCHOR and not _corroborated(
             self.name, contribution, entry.corroborate
@@ -817,7 +842,6 @@ _STRONG_RUNGS = frozenset({"id", "linkedin_url", "email"})
 _IDENTITY_PATHS = frozenset(
     {"person.linkedin_url", "person.email", "person.email_status", "company.domain"}
 )
-_ECHO_KEY = REQUEST_ECHO_PREFIX.rstrip(".")
 _OWN_ANCHOR = "own"
 _NAME_ANCHOR = "name"
 _ANCHORS = frozenset({_OWN_ANCHOR, "linkedin_url", "email", _NAME_ANCHOR})
@@ -829,30 +853,7 @@ _MAX_ADDRESS_LENGTH = 254
 _ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
-@dataclass(frozen=True)
-class _Asked:
-    """One echo field: the requester's value at ``asked.<key>``, never Apollo's."""
-
-    key: str
-    canonical_path: str
-    untrusted: bool = False
-
-    @property
-    def rule(self) -> FieldRule:
-        return FieldRule(
-            self.canonical_path, f"{REQUEST_ECHO_PREFIX}{self.key}", self.untrusted
-        )
-
-
-_ASKED_RULES = (
-    _Asked("linkedin_url", "person.linkedin_url"),
-    _Asked("email", "person.email"),
-    _Asked("email_status", "person.email_status"),
-    _Asked("first_name", "person.first_name", untrusted=True),
-    _Asked("last_name", "person.last_name", untrusted=True),
-    _Asked("domain", "company.domain"),
-)
-_ASKED_KEYS = frozenset(rule.key for rule in _ASKED_RULES)
+_ASKED_KEYS = frozenset(REQUEST_ECHO_RULES)  # the requester's values, never Apollo's
 
 
 @dataclass(frozen=True)

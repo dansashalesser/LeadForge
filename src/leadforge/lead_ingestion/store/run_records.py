@@ -9,7 +9,11 @@ completion, an unknown run, or a status and exit code that contradict each other
 ``record_source_counts`` (task 18.2) is the only other write: it sets each source's
 figures on its own ``source_run`` row, and refuses a source the run never listed. Call
 it in the same ``write_batch`` as ``finish`` so a run is never finished without its
-counts, nor counted without being finished.
+counts, nor counted without being finished. ``record_contributions_written``
+(follow-up 2026-10-06) sets each source's ``contributions_written`` from the
+contribution rows stored for the run; the composition root calls it in the merge's own
+transaction. ``finish`` of an aborted run may carry a ``reason`` (a stage and an
+exception class, never a value), stored in ``failure_reason``.
 Instants are normalised to aware UTC before binding and re-tagged UTC on read, as
 ``tie_resolutions`` does.
 """
@@ -29,9 +33,15 @@ from leadforge.lead_ingestion.run_record import (
     SourceMode,
     StoredRun,
 )
-from leadforge.lead_ingestion.store.models import IngestionRun, SourceRun
+from leadforge.lead_ingestion.store.models import (
+    IngestionRun,
+    SourceContribution,
+    SourceRun,
+)
 
 __all__ = ["RunRecordRepository"]
+
+_MAX_REASON = 255  # ingestion_run.failure_reason
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -79,14 +89,23 @@ class RunRecordRepository:
         status: RunStatus,
         exit_code: int | None,
         finished_at: datetime,
+        reason: str | None = None,
     ) -> None:
-        """Complete a running record once. Raises ``RunRecordError`` otherwise."""
+        """Complete a running record once. Raises ``RunRecordError`` otherwise.
+
+        ``reason`` is only for an aborted run: a stage and an exception class, never a
+        value (the caller builds it; it is cut to the column here).
+        """
         if status is RunStatus.RUNNING:
             raise RunRecordError("a run is finished as completed or aborted")
         if status is RunStatus.COMPLETED and exit_code is None:
             raise RunRecordError("a completed run has an exit code")
         if status is RunStatus.ABORTED and exit_code is not None:
             raise RunRecordError("an aborted run has no exit code")
+        if reason is not None and status is not RunStatus.ABORTED:
+            raise RunRecordError("only an aborted run carries a failure reason")
+        if reason is not None and len(reason) > _MAX_REASON:
+            reason = reason[: _MAX_REASON - 1] + "…"
         done_at = _aware_utc(finished_at, "finished_at")
         # One conditional UPDATE, not read-then-write: two finishers (two processes on
         # PostgreSQL) cannot both see ``running`` and both complete it.
@@ -96,7 +115,12 @@ class RunRecordRepository:
                 IngestionRun.id == run_id,
                 IngestionRun.status == RunStatus.RUNNING.value,
             )
-            .values(status=status.value, exit_code=exit_code, finished_at=done_at)
+            .values(
+                status=status.value,
+                exit_code=exit_code,
+                finished_at=done_at,
+                failure_reason=reason,
+            )
             .execution_options(synchronize_session="fetch")
         )
         if updated.rowcount == 1:  # type: ignore[attr-defined]
@@ -124,11 +148,78 @@ class RunRecordRepository:
                     http_429_count=c.http_429_count,
                     quota_remaining=c.quota_remaining,
                     warnings=c.warnings,
+                    attempted=c.attempted,
+                    succeeded=c.succeeded,
+                    failed=c.failed,
+                    records_fetched=c.records_fetched,
+                    credits_consumed=c.credits_consumed,
                 )
                 .execution_options(synchronize_session="fetch")
             )
             if updated.rowcount != 1:  # type: ignore[attr-defined]
                 raise RunRecordError("unknown source for this run")
+
+    def record_contributions_written(self, run_id: uuid.UUID) -> None:
+        """Set each source's ``contributions_written`` to the contributions stored for
+        it in this run, counted from the rows (so it can never disagree with them)."""
+        stored = dict(
+            self._session.execute(
+                sa.select(SourceRun.id, sa.func.count(SourceContribution.id))
+                .join(
+                    SourceContribution,
+                    SourceContribution.source_run_id == SourceRun.id,
+                )
+                .where(SourceRun.run_id == run_id)
+                .group_by(SourceRun.id)
+            ).all()
+        )
+        for source_run_id in self._session.scalars(
+            sa.select(SourceRun.id).where(SourceRun.run_id == run_id)
+        ).all():
+            self._session.execute(
+                sa.update(SourceRun)
+                .where(SourceRun.id == source_run_id)
+                .values(contributions_written=stored.get(source_run_id, 0))
+                .execution_options(synchronize_session="fetch")
+            )
+
+    def record_projection(
+        self,
+        run_id: uuid.UUID,
+        *,
+        version: int,
+        fingerprint: str,
+        ties_flagged: int,
+    ) -> None:
+        """Store the projection stamp the run wrote under, and its flagged ties."""
+        self._session.execute(
+            sa.update(IngestionRun)
+            .where(IngestionRun.id == run_id)
+            .values(
+                projection_version=version,
+                projection_fingerprint=fingerprint,
+                primary_domain_ties_flagged=ties_flagged,
+            )
+            .execution_options(synchronize_session="fetch")
+        )
+
+    def latest_projection_stamp(self) -> tuple[int, str] | None:
+        """The stamp of the newest completed run that recorded one, else ``None``."""
+        row = self._session.execute(
+            sa.select(
+                IngestionRun.projection_version, IngestionRun.projection_fingerprint
+            )
+            .where(
+                IngestionRun.status == RunStatus.COMPLETED.value,
+                IngestionRun.projection_version.is_not(None),
+                IngestionRun.projection_fingerprint.is_not(None),
+            )
+            .order_by(IngestionRun.started_at.desc(), IngestionRun.id.desc())
+            .limit(1)
+        ).first()
+        if row is None or row[0] is None or row[1] is None:
+            return None
+        return row[0], row[1]
 
     def get(self, run_id: uuid.UUID) -> StoredRun | None:
         run = self._session.get(IngestionRun, run_id)
@@ -156,4 +247,5 @@ class RunRecordRepository:
                 )
                 for r in rows
             ),
+            failure_reason=run.failure_reason,
         )

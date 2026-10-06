@@ -271,6 +271,8 @@ async def _run(transport: _Calls) -> dict[str, tuple[SourceStatus, int, int]]:
         max_concurrent_sources=2,
         run_timeout_s=30,
         retry_policy=RetryPolicy(max_attempts=3, base_delay_s=0.001, max_delay_s=0.002),
+        # The composition root reads the plan setting and hands the limits over.
+        live_rate_limits={"google_search": GoogleSearchSource.run_rate_limit()},
     )
     results = await orchestrator.run(SourceRequest(kind="discovery"))
     return {

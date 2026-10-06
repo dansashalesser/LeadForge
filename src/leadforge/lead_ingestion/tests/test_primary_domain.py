@@ -16,7 +16,6 @@ from leadforge.lead_ingestion import (
     match_keys,
     orchestrator,
     primary_domain,
-    projection,
 )
 from leadforge.lead_ingestion.companies import (
     CompanyCluster,
@@ -332,7 +331,10 @@ def test_ranks_change_the_election_but_no_cluster_key_id_or_dedupe_outcome() -> 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.17
 def test_no_match_rule_can_take_the_primary_domain() -> None:
-    modules = (clustering, companies, match_keys, orchestrator, projection)
+    # ``projection`` left this list in 16.11: 8.18 has the projection read the stored
+    # tie resolution for display. That it changes nothing but the two display fields
+    # is proven in test_projection_primary_domain.
+    modules = (clustering, companies, match_keys, orchestrator)
     for module in modules:
         tree = ast.parse(Path(inspect.getfile(module)).read_text(encoding="utf-8"))
         for node in ast.walk(tree):

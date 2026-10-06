@@ -51,11 +51,13 @@ __all__ = [
     "TIE_RESOLVER_TIMEOUT_SECONDS",
     "TieAnswerRejectedError",
     "TieOutcome",
+    "TieResolutionReader",
     "TieResolutionRecord",
     "TieResolutionStore",
     "TieResolver",
     "TieResolverError",
     "TieSource",
+    "read_primary_domain_outcome",
     "read_stored_primary_domain",
     "resolve_primary_domain",
     "tie_key",
@@ -112,6 +114,12 @@ class TieResolutionRecord:
             raise ValueError("resolved_at must carry a timezone")
 
 
+class TieResolutionReader(Protocol):
+    """The projection's view of the store: read only (it never writes or asks)."""
+
+    def get(self, key: str) -> TieResolutionRecord | None: ...
+
+
 class TieResolutionStore(Protocol):
     def get(self, key: str) -> TieResolutionRecord | None: ...
 
@@ -128,6 +136,8 @@ class TieSource(StrEnum):
     REJECTED_PROVISIONAL = "rejected_provisional"
     UNAVAILABLE_PROVISIONAL = "unavailable_provisional"
     NO_RESOLVER_PROVISIONAL = "no_resolver_provisional"
+    # The projection found a tie with no stored resolution (none asked for yet).
+    UNRESOLVED_PROVISIONAL = "unresolved_provisional"
 
 
 _PROVISIONAL = frozenset(
@@ -136,6 +146,7 @@ _PROVISIONAL = frozenset(
         TieSource.REJECTED_PROVISIONAL,
         TieSource.UNAVAILABLE_PROVISIONAL,
         TieSource.NO_RESOLVER_PROVISIONAL,
+        TieSource.UNRESOLVED_PROVISIONAL,
     }
 )
 
@@ -169,13 +180,34 @@ def validate_tie_answer(answer: object, candidates: tuple[str, ...]) -> str:
 
 
 def read_stored_primary_domain(
-    cluster: CompanyCluster, primary: PrimaryDomain, store: TieResolutionStore
+    cluster: CompanyCluster, primary: PrimaryDomain, store: TieResolutionReader
 ) -> str | None:
     """The projection's read: the stored resolution, else ``primary.domain``."""
+    return read_primary_domain_outcome(cluster, primary, store).domain
+
+
+def read_primary_domain_outcome(
+    cluster: CompanyCluster,
+    primary: PrimaryDomain,
+    store: TieResolutionReader | None,
+) -> TieOutcome:
+    """The projection's read, with how it was decided; pure apart from ``get``.
+
+    Never calls a model, never writes and never logs (the projection runs on every
+    recompute). A tie with nothing stored is the lowest-sorted candidate, flagged
+    ``UNRESOLVED_PROVISIONAL``. The key covers the domain set and the candidates, so a
+    stored answer is always one of today's candidates.
+    """
     if not primary.tied:
-        return primary.domain
-    stored = store.get(tie_key(cluster.domains, primary.tied_domains))
-    return stored.chosen_domain if stored is not None else primary.domain
+        return TieOutcome(primary.domain, TieSource.NOT_TIED)
+    stored = (
+        None
+        if store is None
+        else store.get(tie_key(cluster.domains, primary.tied_domains))
+    )
+    if stored is None:
+        return TieOutcome(primary.domain, TieSource.UNRESOLVED_PROVISIONAL)
+    return TieOutcome(stored.chosen_domain, TieSource.STORED)
 
 
 def _report(outcome: TieOutcome, candidates: int) -> TieOutcome:

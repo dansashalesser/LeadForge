@@ -10,9 +10,13 @@ Provisional decisions (see choices.md, task 18.3):
   unknown id, or an empty store, raises ``RunNotFoundError``.
 * A figure the store does not hold is ``None`` and renders ``not recorded``, never 0.
   Per-source counts are written only when a run completes, so a ``running`` or
-  ``aborted`` run has none. ``fetched``, ``merged`` and Credits have no producer yet
-  and render ``not recorded``; ``quota`` is ``not stated`` unless the provider stated
-  one.
+  ``aborted`` run has none. ``merged`` has no producer yet and renders ``not
+  recorded``; ``quota`` is ``not stated`` unless the provider stated one.
+* Follow-up (2026-10-06, 0005): ``fetched`` (records fetched), Credits, the
+  ``calls: attempted= succeeded= failed=`` line and ``contributions_written`` are read
+  from the ``source_run`` row; ``fetched`` and Credits stay ``not recorded`` for an
+  adapter that reports no such figure. An aborted run shows its ``abort reason`` (a
+  stage and an exception class) when one was stored.
 * ``failure_class`` NULL means ok or not run (an Enrichment source with no work). On a
   completed run a row with any recorded activity (leads, retries, throttle waits, 429s)
   certainly ran and renders ``ok``; an all-zero row cannot be told from a source that
@@ -40,6 +44,7 @@ from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.run_record import RunRecordError, RunStatus
 from leadforge.lead_ingestion.store.models import (
+    CanonicalLeadRow,
     ContributionField,
     IngestionRun,
     SourceContribution,
@@ -91,6 +96,13 @@ class SourceReport:
     warnings: tuple[str, ...]
     # Task 14.2 completion: (attached, unattached) web evidence; None: none stored.
     web_evidence: tuple[int, int] | None = None
+    # Follow-up (0005): call counts, records fetched and contributions stored; None:
+    # not recorded (a run that never completed, or a row written before 0005).
+    attempted: int | None = None
+    succeeded: int | None = None
+    failed: int | None = None
+    records_fetched: int | None = None
+    contributions_written: int | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +116,14 @@ class RunReport:
     sources: tuple[SourceReport, ...]
     # Task 16.12 completion: "keyed" / "per_run" from the snapshot; None: not recorded.
     match_key_digests: str | None = None
+    # Why an aborted run ended (stage and exception class); None: not recorded.
+    failure_reason: str | None = None
+    # The projection stamp the run wrote under, its flagged primary-domain tie
+    # fallbacks, and the stored canonical leads projected under another version
+    # (stale, 8.13); None: not recorded.
+    projection_version: int | None = None
+    primary_domain_ties_flagged: int | None = None
+    stale_projections: int | None = None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -151,6 +171,20 @@ def _web_evidence(session: Session, run_id: uuid.UUID) -> dict[str, tuple[int, i
     return counts
 
 
+def _stale(session: Session, version: int | None) -> int | None:
+    """Stored canonical leads projected under another version than the run's."""
+    if version is None:
+        return None
+    return (
+        session.scalar(
+            sa.select(sa.func.count(CanonicalLeadRow.id)).where(
+                CanonicalLeadRow.projection_version != version
+            )
+        )
+        or 0
+    )
+
+
 def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunReport:
     """Query one run's report. Raises ``RunNotFoundError`` when there is no such run."""
     if run_id is None:
@@ -181,6 +215,10 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
         exit_code=run.exit_code,
         pool_size=run.pool_size,
         match_key_digests=_match_key_digests(run.config_snapshot),
+        failure_reason=run.failure_reason,
+        projection_version=run.projection_version,
+        primary_domain_ties_flagged=run.primary_domain_ties_flagged,
+        stale_projections=_stale(session, run.projection_version),
         sources=tuple(
             SourceReport(
                 source_name=r.source_name,
@@ -197,6 +235,11 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
                 quota_remaining=r.quota_remaining or None,
                 warnings=tuple(str(w) for w in (r.warnings or ())),
                 web_evidence=web_evidence.get(r.source_name),
+                attempted=r.attempted if recorded else None,
+                succeeded=r.succeeded if recorded else None,
+                failed=r.failed if recorded else None,
+                records_fetched=r.records_fetched if recorded else None,
+                contributions_written=r.contributions_written if recorded else None,
             )
             for r in rows
         ),
@@ -264,6 +307,8 @@ def render_run_report(report: RunReport) -> str:
     ]
     if report.status == RunStatus.ABORTED.value:
         lines.append("aborted: no per-source counts recorded")
+        if report.failure_reason is not None:
+            lines.append(f"abort reason: {_cut(report.failure_reason)}")
     live = [s for s in report.sources if s.live_access in ("available", "gated")]
     synthetic_only = [s for s in report.sources if s.live_access == "unavailable"]
     unknown = [s for s in report.sources if s.live_access is None]
@@ -278,9 +323,18 @@ def render_run_report(report: RunReport) -> str:
     lines.append(
         "leads_normalized counts contributions across phases, not distinct leads"
     )
-    # Nothing persists these yet (8.15, 8.18): say so rather than imply none occurred.
+    # Over-merge suspects are not persisted yet (8.15): say so rather than imply none.
     lines.append("over-merge suspects: not recorded")
-    lines.append("primary-domain tie fallbacks: not recorded")
+    lines.append(
+        "primary-domain tie fallbacks: "
+        + (
+            NOT_RECORDED
+            if report.primary_domain_ties_flagged is None
+            else f"{report.primary_domain_ties_flagged} flagged"
+        )
+    )
+    lines.append(f"projection version: {_figure(report.projection_version)}")
+    lines.append(f"stale projections: {_figure(report.stale_projections)}")
     lines.append(
         "match-key digests: "
         + _MATCH_KEY_DIGEST_LINES.get(report.match_key_digests or "", NOT_RECORDED)
@@ -293,8 +347,14 @@ def render_run_report(report: RunReport) -> str:
             f"live_access={_printable(s.live_access or NOT_RECORDED)}"
         )
         lines.append(
-            f"  failure={_failure(report, s)} fetched={NOT_RECORDED} "
-            f"leads_normalized={_figure(s.leads_normalized)} merged={NOT_RECORDED}"
+            f"  failure={_failure(report, s)} fetched={_figure(s.records_fetched)} "
+            f"leads_normalized={_figure(s.leads_normalized)} "
+            f"contributions_written={_figure(s.contributions_written)} "
+            f"merged={NOT_RECORDED}"
+        )
+        lines.append(
+            f"  calls: attempted={_figure(s.attempted)} "
+            f"succeeded={_figure(s.succeeded)} failed={_figure(s.failed)}"
         )
         lines.append(
             f"  retries={_figure(s.retries)} "

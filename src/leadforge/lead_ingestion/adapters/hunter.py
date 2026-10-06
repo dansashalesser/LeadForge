@@ -138,7 +138,6 @@ from leadforge.lead_ingestion.errors import (
 )
 from leadforge.lead_ingestion.match_keys import linkedin_identity
 from leadforge.lead_ingestion.models import (
-    REQUEST_ECHO_PREFIX,
     ConfidenceOrigin,
     DataMode,
     EmailStatus,
@@ -146,6 +145,8 @@ from leadforge.lead_ingestion.models import (
     UntrustedText,
 )
 from leadforge.lead_ingestion.normalizer import (
+    REQUEST_ECHO_KEY,
+    REQUEST_ECHO_RULES,
     FieldRule,
     NormalizationContext,
     Normalizer,
@@ -196,6 +197,8 @@ _MAX_NAME_LENGTH = 100
 _MAX_ADDRESS_LENGTH = 254
 _ADDRESSES_PER_CREDIT = 10  # Domain Search: one Credit per 1-10 addresses returned
 _ADDRESS = re.compile(r"[^\s@?#/\\:]+@" + _HOSTNAME.pattern)
+# The finder question echoed back (``REQUEST_ECHO_RULES`` keys), in this order.
+_ASKED_KEYS = ("domain", "first_name", "last_name", "linkedin_url")
 _Score = Annotated[int, Field(strict=True, ge=0, le=100)]
 
 _STATUS_MAP: Mapping[str, EmailStatus] = {
@@ -364,15 +367,8 @@ class HunterSource(BaseLeadSource):
     # adapter adds beside the response's ``data``; the values are the finds entry's.
     # The prefix marks them request echoes: conflict resolution never lets them
     # corroborate, conflict with or outrank the requester's own values (models).
-    ASKED_RULES: ClassVar[tuple[FieldRule, ...]] = (
-        FieldRule("company.domain", f"{REQUEST_ECHO_PREFIX}domain"),
-        FieldRule(
-            "person.first_name", f"{REQUEST_ECHO_PREFIX}first_name", untrusted=True
-        ),
-        FieldRule(
-            "person.last_name", f"{REQUEST_ECHO_PREFIX}last_name", untrusted=True
-        ),
-        FieldRule("person.linkedin_url", f"{REQUEST_ECHO_PREFIX}linkedin_url"),
+    ASKED_RULES: ClassVar[tuple[FieldRule, ...]] = tuple(
+        REQUEST_ECHO_RULES[key] for key in _ASKED_KEYS
     )
     VERIFIER_RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule(_EMAIL_PATH, "email"),
@@ -633,6 +629,24 @@ class HunterSource(BaseLeadSource):
             _log.warning("hunter_verification_unfinished", reason=reason, polls=polls)
             return None  # no verdict: the address stays unknown, the batch goes on
 
+    def records_fetched(self, batch: RawBatch) -> int | None:
+        """Addresses Hunter returned: every domain-search address, and each finder
+        answer that found one. Verifications check an address already held."""
+        listed = sum(
+            len(_listed(self.name, response))
+            for response in _responses(self.name, batch, "searches", required=True)
+        )
+        found = sum(
+            1
+            for entry in _find_entries(self.name, batch)
+            if entry["response"]["data"].get("email") is not None
+        )
+        return listed + found
+
+    def credits_spent(self, batch: RawBatch) -> int | None:
+        """``credits_in``: Hunter's billing; the sandbox and synthetic spend none."""
+        return credits_in(batch)
+
     @classmethod
     def validate_fixture(cls, endpoint: str, body: object) -> None:
         checks: dict[str, tuple[type[BaseModel], tuple[FieldRule, ...]]] = {
@@ -727,7 +741,7 @@ class HunterSource(BaseLeadSource):
             if _is_refused(data["email"], refused):
                 continue
             contribution = normalizer.apply(
-                {**data, _ECHO_KEY: _asked_of(entry)},
+                {**data, REQUEST_ECHO_KEY: _asked_of(entry)},
                 self.FINDER_RULES + self.ASKED_RULES,
                 context,
             )
@@ -757,7 +771,7 @@ class HunterSource(BaseLeadSource):
         ):
             for entry in _restrictions(self.name, raw, key, fields):
                 flagged = (
-                    {_ECHO_KEY: _asked_of(entry)}
+                    {REQUEST_ECHO_KEY: _asked_of(entry)}
                     if key == "restricted_finds"
                     else dict(entry)
                 )
@@ -767,15 +781,9 @@ class HunterSource(BaseLeadSource):
         return contributions
 
 
-_ECHO_KEY = REQUEST_ECHO_PREFIX.rstrip(".")
-
-
 def _asked_of(entry: Mapping[str, Any]) -> dict[str, Any]:
     """The question a finds entry records: the identity echoed back, never Hunter's."""
-    return {
-        key: entry.get(key)
-        for key in ("domain", "first_name", "last_name", "linkedin_url")
-    }
+    return {key: entry.get(key) for key in _ASKED_KEYS}
 
 
 def _is_refused(address: object, refused: set[str]) -> bool:

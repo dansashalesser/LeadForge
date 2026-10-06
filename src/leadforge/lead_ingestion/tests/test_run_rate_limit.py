@@ -2,9 +2,12 @@
 
 A provider's limit can depend on the operator's plan, so an adapter may size its
 buckets from a non-secret environment setting when a live run starts
-(``run_rate_limit``). The orchestrator paces a live source on that answer and never
-asks for it in synthetic mode. Such settings are declared in ``optional_env`` and
-documented in the generated ``.env.example`` with their ``env_notes``.
+(``run_rate_limit``). The composition root asks for it, for live sources only, before
+the run record exists (follow-up 2026-10-06: a bad value is a configuration error
+before any write) and hands the answers to the orchestrator, which reads no
+environment and paces a live source on what it was handed. Such settings are declared
+in ``optional_env`` and documented in the generated ``.env.example`` with their
+``env_notes``.
 """
 
 from collections.abc import Mapping
@@ -26,6 +29,7 @@ from leadforge.lead_ingestion.base_source import (
     SourceRequest,
 )
 from leadforge.lead_ingestion.env_example import ManifestError, render_env_example
+from leadforge.lead_ingestion.ingest_runner import live_rate_limits
 from leadforge.lead_ingestion.mode_resolution import ModeResolution
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import IngestionOrchestrator
@@ -74,7 +78,11 @@ class Declared(Planned):
         return super(Planned, cls).run_rate_limit(environ)
 
 
-async def _run(mode: DataMode, source_class: type[BaseLeadSource]) -> SourcePacing:
+async def _run(
+    mode: DataMode,
+    source_class: type[BaseLeadSource],
+    live_rate_limits: Mapping[str, Mapping[str, RateBucket]] | None = None,
+) -> SourcePacing:
     seen: dict[str, SourcePacing | None] = {}
 
     def resolve(_: type[BaseLeadSource], __: SourceSettings) -> ModeResolution:
@@ -92,6 +100,7 @@ async def _run(mode: DataMode, source_class: type[BaseLeadSource]) -> SourcePaci
         build_source=build,
         max_concurrent_sources=1,
         run_timeout_s=30,
+        live_rate_limits=live_rate_limits,
     )
     await orchestrator.run(SourceRequest(kind="search"))
     return seen[source_class.name]  # type: ignore[return-value]
@@ -104,12 +113,38 @@ def test_the_default_run_rate_limit_is_the_declared_rate_limit() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#7.1
-async def test_a_live_source_is_paced_on_its_run_rate_limit() -> None:
+async def test_a_live_source_is_paced_on_the_limits_it_is_handed() -> None:
+    Planned.asked.clear()
+    pacing = await _run(DataMode.LIVE, Planned, {"planned": {"api": PLANNED}})
+    assert pacing is not None
+    assert Planned.asked == []  # the orchestrator reads no setting itself
+    assert pacing.throttle.bucket("api").available() == (7.0,)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#7.1
+async def test_a_live_source_handed_no_limits_is_paced_on_its_declaration() -> None:
     Planned.asked.clear()
     pacing = await _run(DataMode.LIVE, Planned)
     assert pacing is not None
-    assert Planned.asked == [None]  # the adapter reads the process environment
-    assert pacing.throttle.bucket("api").available() == (7.0,)
+    assert Planned.asked == []
+    assert pacing.throttle.bucket("api").available() == (1.0,)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#7.1
+# Verifies: specs/lead-source-adapters/requirements.md#7.5
+def test_the_root_reads_plan_limits_for_live_sources_only() -> None:
+    Planned.asked.clear()
+    registry = SourceRegistry([Planned, Declared])
+    modes = {"planned": DataMode.LIVE, "declared": DataMode.SYNTHETIC}
+
+    def resolve(cls: type[BaseLeadSource], _: SourceSettings) -> ModeResolution:
+        return ModeResolution(modes[cls.name], "test")
+
+    environ = {"PLAN": "x"}
+    limits = live_rate_limits(registry, resolve, environ)
+
+    assert limits == {"planned": {"api": PLANNED}}
+    assert Planned.asked == [environ]  # the environment it was handed, once
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#7.5

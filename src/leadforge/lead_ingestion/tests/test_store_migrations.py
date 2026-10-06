@@ -211,18 +211,23 @@ def test_head_makes_raw_response_link_nullable_with_set_null() -> None:
 
 def _seed_contribution_with_raw(conn: sa.Connection, raw_id: uuid.UUID | None) -> None:
     when = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
+    # Core inserts render only the columns given (and defaulted), so the run rows can
+    # be seeded at a revision older than the models (0005 added run columns).
+    run_id, source_run_id = uuid.uuid4(), uuid.uuid4()
+    conn.execute(
+        sa.insert(m.IngestionRun).values(id=run_id, started_at=when, status="running")
+    )
+    conn.execute(
+        sa.insert(m.SourceRun).values(
+            id=source_run_id, run_id=run_id, source_name="x", resolved_mode="live"
+        )
+    )
     with Session(bind=conn) as s:
-        run = m.IngestionRun(started_at=when, status="running")
-        s.add(run)
-        s.flush()
-        sr = m.SourceRun(run_id=run.id, source_name="x", resolved_mode="live")
-        s.add(sr)
-        s.flush()
         raw = None
         if raw_id is not None:
             raw = m.RawResponse(
                 id=raw_id,
-                source_run_id=sr.id,
+                source_run_id=source_run_id,
                 endpoint_key="e",
                 request_fingerprint="f",
                 payload={},
@@ -232,7 +237,7 @@ def _seed_contribution_with_raw(conn: sa.Connection, raw_id: uuid.UUID | None) -
             s.flush()
         s.add(
             m.SourceContribution(
-                source_run_id=sr.id,
+                source_run_id=source_run_id,
                 raw_response_id=raw_id,
                 source_name="x",
                 data_mode="live",

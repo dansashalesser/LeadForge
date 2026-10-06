@@ -15,6 +15,7 @@ import json
 import re
 import uuid
 from collections.abc import Callable, Iterator, Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar
 
@@ -51,7 +52,11 @@ from leadforge.lead_ingestion.errors import (
 )
 from leadforge.lead_ingestion.ingest_runner import IngestionOutcome, run_ingestion
 from leadforge.lead_ingestion.match_key_digest import MATCH_KEY_SECRET_ENV
-from leadforge.lead_ingestion.models import DataMode
+from leadforge.lead_ingestion.models import (
+    ConfidenceOrigin,
+    DataMode,
+    FieldProvenance,
+)
 from leadforge.lead_ingestion.orchestrator import SourceStatus
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.run_exit import RunExit
@@ -610,3 +615,139 @@ async def test_a_too_short_secret_fails_the_run_before_it_starts(
     assert MATCH_KEY_SECRET_ENV in str(caught.value)
     assert short not in repr(caught.value) + json.dumps(logs, default=repr)
     assert runs_recorded(clean_environment) == 0
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.2
+async def test_a_synthetic_run_records_fetched_per_source_and_spends_no_credit(
+    clean_environment: Path, guard: SocketGuard
+) -> None:
+    outcome = await run_ingestion(target_profile_path=PROFILE)
+
+    ran = {r.source_name for r in outcome.results if r.batch is not None}
+    engine = store(clean_environment)
+    try:
+        with Session(engine) as session:
+            rows = {
+                r.source_name: r
+                for r in session.scalars(
+                    sa.select(m.SourceRun).where(m.SourceRun.run_id == outcome.run_id)
+                )
+            }
+    finally:
+        engine.dispose()
+    assert ran == set(DISCOVERED.names())
+    for name in ran:
+        assert rows[name].records_fetched is not None, name
+        assert rows[name].credits_consumed in (0, None), name  # synthetic spends none
+    assert sum(r.records_fetched or 0 for r in rows.values()) > 0
+    assert {r.credits_consumed for r in rows.values()} >= {0}
+
+
+SENTINEL_EMAIL = "log-sentinel-7f3a@example.org"
+SENTINEL_SECRET = "log-secret-sentinel-" + "k" * 32
+
+
+class _Leaky(scripted("leaky")):  # type: ignore[misc]
+    """A source whose contribution carries a sentinel email, and which logs carelessly:
+    the credential in a message and its whole payload under a raw-payload key."""
+
+    async def fetch_raw(self, request: SourceRequest) -> RawBatch:
+        payload = {"people": [{"email": SENTINEL_EMAIL}]}
+        structlog.get_logger("leaky").warning(
+            "leaky_source_logged",
+            detail=f"called with key {SENTINEL_SECRET}",
+            raw_payload=payload,
+        )
+        return RawBatch(source_name=self.name, payload=payload)
+
+    def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+        return [
+            LeadContribution(
+                source_name=self.name,
+                values={"person.email": SENTINEL_EMAIL},
+                provenance=(
+                    FieldProvenance(
+                        canonical_path="person.email",
+                        source_name=self.name,
+                        data_mode=DataMode.SYNTHETIC,
+                        fetched_at=datetime(2026, 10, 6, tzinfo=UTC),
+                        raw_field_path="people[0].email",
+                        confidence_origin=ConfidenceOrigin.NONE,
+                        confidence=None,
+                        untrusted=False,
+                    ),
+                ),
+            )
+        ]
+
+
+@pytest.fixture
+def restore_structlog() -> Iterator[None]:
+    yield
+    structlog.reset_defaults()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#21.3
+# Verifies: specs/lead-source-adapters/requirements.md#10.5
+def test_the_ingest_command_redacts_its_logs(
+    clean_environment: Path,
+    guard: SocketGuard,
+    monkeypatch: pytest.MonkeyPatch,
+    restore_structlog: None,
+) -> None:
+    monkeypatch.setenv(MATCH_KEY_SECRET_ENV, SENTINEL_SECRET)
+    registry = SourceRegistry(
+        [_Leaky], {"leaky": SourceSettings(mode=DataMode.SYNTHETIC)}
+    )
+
+    async def with_registry() -> IngestionOutcome:
+        return await run_ingestion(registry=registry)
+
+    monkeypatch.setattr(cli, "run_ingestion", with_registry)
+
+    result = CliRunner().invoke(cli.app, ["ingest"])
+
+    assert result.exit_code == 0, result.output
+    # The configured chain ran: JSON lines on stderr, the careless line among them.
+    lines = [json.loads(ln) for ln in result.stderr.splitlines() if ln.startswith("{")]
+    leaky = [ln for ln in lines if ln["event"] == "leaky_source_logged"]
+    assert len(leaky) == 1
+    assert "omitted" in str(leaky[0]["raw_payload"])
+    assert canonical_leads(clean_environment) == 1  # the email really flowed
+    for text in (result.stdout, result.stderr):
+        assert SENTINEL_SECRET not in text
+        assert SENTINEL_EMAIL not in text
+
+
+EXCLUDED_EMAIL = "excluded-sentinel-91c2@example.org"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.13
+# Verifies: specs/lead-source-adapters/requirements.md#21.1
+async def test_exclusions_without_a_stable_secret_fail_before_the_run_starts(
+    clean_environment: Path, guard: SocketGuard
+) -> None:
+    exclusions = clean_environment.parent / "exclusions.yaml"
+    exclusions.write_text(f"emails:\n  - {EXCLUDED_EMAIL}\n", encoding="utf-8")
+    with (
+        structlog.testing.capture_logs() as logs,
+        pytest.raises(ConfigurationError) as caught,
+    ):
+        await run_ingestion(target_profile_path=PROFILE, exclusions_path=exclusions)
+    assert MATCH_KEY_SECRET_ENV in str(caught.value)
+    shown = repr(caught.value) + str(caught.value) + json.dumps(logs, default=repr)
+    assert EXCLUDED_EMAIL not in shown
+    assert runs_recorded(clean_environment) == 0
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.13
+async def test_exclusions_with_a_stable_secret_run(
+    clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(MATCH_KEY_SECRET_ENV, MATCH_SENTINEL)
+    exclusions = clean_environment.parent / "exclusions.yaml"
+    exclusions.write_text(f"emails:\n  - {EXCLUDED_EMAIL}\n", encoding="utf-8")
+    outcome = await run_ingestion(
+        target_profile_path=PROFILE, exclusions_path=exclusions
+    )
+    assert outcome.exit.exit_code == 0

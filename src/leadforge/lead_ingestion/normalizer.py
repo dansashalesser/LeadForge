@@ -8,6 +8,7 @@ true by construction rather than something each adapter author must remember.
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from types import MappingProxyType
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -15,6 +16,7 @@ from pydantic import BaseModel, ValidationError
 from leadforge.lead_ingestion.base_source import LeadContribution
 from leadforge.lead_ingestion.errors import NormalizationError
 from leadforge.lead_ingestion.models import (
+    REQUEST_ECHO_PREFIX,
     AbsenceKind,
     ConfidenceOrigin,
     DataMode,
@@ -25,6 +27,8 @@ from leadforge.lead_ingestion.models import (
 
 __all__ = [
     "DEFAULT_UNTRUSTED_MAX_LENGTH",
+    "REQUEST_ECHO_KEY",
+    "REQUEST_ECHO_RULES",
     "FieldRule",
     "NormalizationContext",
     "Normalizer",
@@ -50,6 +54,26 @@ class FieldRule:
             value = getattr(self, field)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"FieldRule.{field} must be a non-blank str")
+
+
+# Request echoes (follow-up 2026-10-06): an enrichment answer carries the identity it
+# was asked for under ``REQUEST_ECHO_KEY`` beside the provider's own fields, and these
+# rules read the requester's value at ``asked.<key>``. Every enrichment adapter that
+# echoes uses a subset of this one table; an echo never corroborates (conflicts).
+REQUEST_ECHO_KEY = REQUEST_ECHO_PREFIX.rstrip(".")
+REQUEST_ECHO_RULES: Mapping[str, FieldRule] = MappingProxyType(
+    {
+        key: FieldRule(canonical_path, f"{REQUEST_ECHO_PREFIX}{key}", untrusted)
+        for key, canonical_path, untrusted in (
+            ("linkedin_url", "person.linkedin_url", False),
+            ("email", "person.email", False),
+            ("email_status", "person.email_status", False),
+            ("first_name", "person.first_name", True),
+            ("last_name", "person.last_name", True),
+            ("domain", "company.domain", False),
+        )
+    }
+)
 
 
 @dataclass(frozen=True)

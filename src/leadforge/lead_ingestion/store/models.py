@@ -91,6 +91,18 @@ class IngestionRun(Base):
     exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pool_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Why an aborted run ended (0005): a stage and an exception class, never a value.
+    failure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # The projection stamp the run wrote its canonical leads under (0005, 8.13): the
+    # version and the keyed basis fingerprint (64 hex), and how many primary-domain
+    # ties fell back to the flagged lowest-sorted candidate (8.18). NULL: not recorded.
+    projection_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    projection_fingerprint: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    primary_domain_ties_flagged: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
 
 
 class SourceRun(Base):
@@ -115,6 +127,12 @@ class SourceRun(Base):
     credits_consumed: Mapped[int | None] = mapped_column(Integer, nullable=True)
     quota_remaining: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     warnings: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    # Calls and records of the source (0005); NULL: not recorded (a run before 0005,
+    # or one that never completed), never 0.
+    attempted: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    succeeded: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    failed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    records_fetched: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class RawResponse(Base):

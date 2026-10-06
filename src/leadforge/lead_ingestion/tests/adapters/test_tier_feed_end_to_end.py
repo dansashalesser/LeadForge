@@ -368,9 +368,10 @@ async def test_each_tier_feeds_the_next_through_a_real_run(
     [hana] = with_apollo
     assert {"crm_import", "hunter", "apollo"} <= set(hana.contributing_sources)
     assert hana.linkedin_url is not None  # appended by Apollo's match
-    # KNOWN GAP (merge, not the feed): HubSpot's record names her address with no
-    # verification status and no name, so no Match Key joins it (8.2 keys verified
-    # addresses only). It stays a lead of its own, as before this change.
+    # HubSpot's record stays a lead of its own: the shipped contact's own address is
+    # not hers, so it carries no request echo (option B, 2026-10-06; a confirmed
+    # contact joins: test_hubspot_request_echo.py), and its unverified address is no
+    # Match Key (8.2).
     hubspot_only = [lead for lead in leads if lead.contributing_sources == ["hubspot"]]
     assert {lead.email for lead in hubspot_only} == {HANA, SAM}
     # Every lead holding Sam's address is suppressed; Apollo contributed to none.

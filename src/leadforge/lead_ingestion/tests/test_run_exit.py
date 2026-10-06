@@ -195,3 +195,23 @@ def test_an_empty_result_does_not_claim_sources_were_never_enabled() -> None:
 
     assert run.exit_code == 1
     assert "no enabled sources ran" in run.summary
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#6.5
+def test_a_source_that_succeeded_then_failed_still_names_its_failure_class() -> None:
+    discovery = _result("alpha", SourceStatus.OK, attempted=1, succeeded=1)
+    enrichment = _result(
+        "alpha",
+        SourceStatus.TRANSIENT,
+        phase=Phase.ENRICHMENT,
+        attempted=2,
+        succeeded=1,
+        failed=1,
+    )
+
+    run_exit = map_run_exit((discovery, enrichment))
+
+    assert run_exit.exit_code == 0  # one successful call still counts as succeeded
+    assert run_exit.summary.splitlines() == [
+        "alpha: transient attempted=2 succeeded=1 failed=1"
+    ]

@@ -11,7 +11,10 @@ Provisional decisions (see choices.md, task 18.1):
   and an exit code was mapped, whatever its value: a run whose every source failed is
   completed with exit code 1) or ``aborted`` (``run`` ended by an exception or by
   cancellation, so there is no exit code). A record still ``running`` after its process
-  is gone is a crash; nothing else is ever left ambiguous.
+  is gone is a crash; nothing else is ever left ambiguous. Follow-up 2026-10-06: a run
+  composed by ``ingest_runner`` is ``completed`` only in the transaction that stores
+  its merge; a failure after the sources ran makes it ``aborted`` with a
+  ``failure_reason`` of ``<stage>: <exception class>``.
 * The configuration snapshot holds the pool bound, the run timeout, the global mode
   override and, per enabled source, its trust rank and its mode and live-access
   overrides. It is built from typed settings only: no environment value, path or
@@ -42,7 +45,13 @@ Per-source counts (task 18.2; Requirement 21.2). Provisional decisions (choices.
   ``quota_remaining`` is only what the provider itself stated (per-window response
   headers, 12.5; last response) and ``NULL`` when none was: the local limiter's tokens
   are never reported as a quota. Only an adapter exposing ``allowances`` reports any.
-  ``credits_consumed`` stays ``NULL``: no adapter reports Credits to the run.
+  ``credits_consumed`` is the sum of what the adapter reported per batch
+  (``BaseLeadSource.credits_spent``) and ``NULL`` when it reported none.
+* Follow-up (2026-10-06, migration 0005): ``attempted``, ``succeeded`` and ``failed``
+  are the ledger's cumulative call counts (the latest result's, like ``retries``);
+  ``records_fetched`` is the sum of ``BaseLeadSource.records_fetched`` over the
+  source's batches, ``NULL`` when the adapter reports none. ``contributions_written``
+  is counted from the stored rows by the store, in the completing transaction.
 * ``warnings`` holds the source's PII-safe outcome message when it has one, nothing
   else; a person named by an error never reaches it (``SourceOutcome.error``).
 """
@@ -119,6 +128,8 @@ class StoredRun:
     pool_size: int | None
     config_snapshot: dict[str, Any] | None
     sources: tuple[SourceMode, ...]
+    # Why an aborted run ended: a stage and an exception class (follow-up, 0005).
+    failure_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -133,6 +144,19 @@ class SourceCounts:
     http_429_count: int
     quota_remaining: dict[str, int] | None
     warnings: list[str] | None
+    # Follow-up (0005): the ledger's call counts, and what the adapter reported of its
+    # batches (``None``: the adapter reports no such figure).
+    attempted: int = 0
+    succeeded: int = 0
+    failed: int = 0
+    records_fetched: int | None = None
+    credits_consumed: int | None = None
+
+
+def _total(figures: list[int | None]) -> int | None:
+    """The sum of the figures reported; ``None`` when no batch reported one."""
+    reported = [f for f in figures if f is not None]
+    return sum(reported) if reported else None
 
 
 def build_source_counts(results: tuple[SourceResult, ...]) -> tuple[SourceCounts, ...]:
@@ -144,11 +168,14 @@ def build_source_counts(results: tuple[SourceResult, ...]) -> tuple[SourceCounts
     """
     latest: dict[str, SourceResult] = {}
     leads: dict[str, int] = {}
+    fetched: dict[str, list[int | None]] = {}
+    credits: dict[str, list[int | None]] = {}
     for r in results:
-        latest[r.outcome.source_name] = r
-        leads[r.outcome.source_name] = leads.get(r.outcome.source_name, 0) + len(
-            r.contributions or ()
-        )
+        name = r.outcome.source_name
+        latest[name] = r
+        leads[name] = leads.get(name, 0) + len(r.contributions or ())
+        fetched.setdefault(name, []).append(r.records_fetched)
+        credits.setdefault(name, []).append(r.credits_consumed)
     counts = []
     for name in sorted(latest):
         r = latest[name]
@@ -165,6 +192,11 @@ def build_source_counts(results: tuple[SourceResult, ...]) -> tuple[SourceCounts
                 ),
                 quota_remaining=dict(r.allowances) if r.allowances else None,
                 warnings=None if r.outcome.error is None else [r.outcome.error],
+                attempted=r.outcome.attempted,
+                succeeded=r.outcome.succeeded,
+                failed=r.outcome.failed,
+                records_fetched=_total(fetched[name]),
+                credits_consumed=_total(credits[name]),
             )
         )
     return tuple(counts)

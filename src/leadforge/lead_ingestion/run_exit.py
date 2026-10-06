@@ -6,7 +6,10 @@ Requirements 6.4 and 6.5. A pure function over the ``SourceResult`` records of
 Provisional decisions (see choices.md, task 11.3):
 
 * A source succeeded when at least one of its calls succeeded; otherwise it failed
-  (this covers a halted source, whose skipped calls are never successes).
+  (this covers a halted source, whose skipped calls are never successes). A source
+  that succeeded and then failed (e.g. Discovery ok, Enrichment transient) still shows
+  its failure class before its counts (follow-up 2026-10-06), so a partial failure is
+  not hidden by the earlier success.
 * Exit 0 requires at least one succeeded source (6.5). Everything else exits 1: every
   enabled source failed (6.4), or none was enabled (nothing succeeded).
 * A source that ran in both phases (task 11.5) is listed once, from its later result.
@@ -59,7 +62,14 @@ def map_run_exit(results: tuple[SourceResult, ...]) -> RunExit:
         )
         if outcome.succeeded > 0:
             any_succeeded = True
-            lines.append(f"{name}: {counts}")
+            # A later failure is still named (follow-up 2026-10-06); the source
+            # counts as succeeded all the same.
+            failed_later = (
+                f"{outcome.status.value} "
+                if outcome.status is not SourceStatus.OK
+                else ""
+            )
+            lines.append(f"{name}: {failed_later}{counts}")
         else:
             # OK with no successful call is not a failure class.
             failure = (

@@ -2733,3 +2733,122 @@ So the address is not customer-entered first-party data. It echoes our question,
 
 - **Task 14.2 ticked with this change (parent):** the real-adapter run in `test_tier_feed_end_to_end.py` shows Google called for the company domain Apollo enrichment found, with evidence attached (Discovery there is a stand-in, since no shipped Discovery source returns emails).
 - **Open for the user (needs-user):** (1) suppression pruning is not transitive: a LinkedIn-only record of a person HubSpot opted out still reaches Apollo paid match even after Hunter output links the two records; (2) HubSpot contact record stays a separate lead (its email repeats the looked-up address with no verification status, so it is not a Match Key): options keep separate / echo requester identity under `asked.*` (recommended) / change 8.2.
+
+## Follow-up — open items: run lifecycle, early config, persisted counts, logging, single-adapter failure (2026-10-06)
+
+**Red seen (test-first) before each change:**
+- Merge-write failure: `test_a_merge_write_failure_marks_the_run_aborted_on_each_engine[sqlite|postgres]` failed with `('completed', 0) == ('aborted', None)`. This was the real bug.
+- Storage: finish(reason=) TypeError, SourceCounts(attempted=) TypeError, no record_contributions_written, no revision 0005, contributions_written was 0 against 12 stored.
+- Hooks: records_fetched/credits_spent rows were None, and a hook NormalizationError was not isolated. The adapter hook tests got None.
+- Early config: bad APOLLO_PLAN / SERPAPI_HOURLY_LIMIT left `runs_recorded == 1` (expected 0). The CLI also recorded a run.
+- Orchestrator: `live_rate_limits` import error / kwarg missing.
+- Logging: the CLI's stderr had no JSON log lines (structlog was not configured).
+- Summary: `alpha: attempted=2 succeeded=1 failed=1` was missing the `transient` class.
+- Coordinator scope: exclusions without a secret did not raise ConfigurationError, and IngestionRun had no projection_version.
+
+**Decisions (provisional):**
+1. Lifecycle. The composition root defers the orchestrator's completion (`_DeferredCompletion`). Merge write and completion (status, exit code, counts, contributions_written, projection stamp) now commit in one `write_batch`. A failure after the sources ran rolls back and marks the run `aborted` with `failure_reason` `merge: X` or `merge_write: X` (exception class only). I kept the existing vocabulary: no new `failed` status. The orchestrator-level abort still stores no reason.
+2. Early config. `ingest_runner.live_rate_limits` reads `run_rate_limit(os.environ)` for LIVE sources only, before the engine exists. The orchestrator takes `live_rate_limits=`, reads no environment, and falls back to the declared `rate_limit`. The docstrings were updated. Vendor-named tests moved to tests/adapters/test_plan_settings_early.py because vendor-neutrality requires it.
+3. Migration 0005 (engine-neutral add_column, batch drop on downgrade, tested on both engines). source_run gets attempted, succeeded, failed and records_fetched. ingestion_run gets failure_reason, projection_version, projection_fingerprint and primary_domain_ties_flagged. contributions_written is counted from the stored rows. I added the BaseLeadSource hooks `records_fetched` and `credits_spent` (default None). Apollo: search counts people, match counts matches, and credits = credits_in for live matches, else 0. Hunter: search addresses plus found finds, credits = credits_in. HubSpot: contacts found. Google: organic results. The report reads `fetched=`, `contributions_written=`, a `calls:` line and `abort reason:`.
+4. The CLI loads `.env` (it never overrides) and then calls `configure_logging(os.environ)` before the run.
+5. Real-adapter failure: I used Google Search with a transport that returns HTTP 500. HubSpot makes no provider call in a zero-credential run (gap c), so a HubSpot 500 would never be seen. Other sources come back OK. The run is `completed` with exit 0, and the row/report show `transient` plus the call counts. run_exit now names the failure class even for a source that had an earlier success.
+6. Coordinator scope. `ProjectionBasis.of` is built at config time, and its ValueError becomes `ConfigurationError(LEADFORGE_MATCH_KEY_SECRET)` before any record (exclusions come from the exclusions file; there is no store-held exclusion set). The stamp is `stamp_projection(latest completed run's stored stamp, basis)`, written to canonical rows and to the run. Projection reads `TieResolutionRepository`. The report shows `primary-domain tie fallbacks: N flagged`, `projection version:` and `stale projections:`. Removed `PROJECTION_VERSION`.
+
+**Gaps (needs-follow-up):**
+- canonical_lead.primary_domain / primary_domain_source columns were not added: persist_merge (merged_leads.py, other agent's file) would have to write them.
+- No live `resolve_primary_domain` (model) call is wired, so a tie with nothing stored is always the flagged fallback.
+- Two concurrent runs can stamp the same version. The relink decision (Option A/B) is still open.
+- `merged` still has no producer.
+- The orchestrator-level abort has no reason.
+- run_report `_failure` still ignores `attempted` when deciding "none recorded".
+- Hunter's verifications are not counted as fetched.
+- spec-refactor-agent and validate-production-agent were not spawned (no Agent tool in this context).
+
+**Verification (this run):** ruff check src clean; mypy clean (185 files); pytest 3895 passed, 1 skipped (test_env_file root file modes). The Postgres leg ran: 41 postgres-param tests passed.
+
+### Self-review findings
+- (a) Transaction boundary: no defect found. Added tests in tests/test_run_lifecycle_both_engines.py, both engines: a failure after each completing write (record_projection, finish, record_source_counts, record_contributions_written) rolls back every row (no canonical leads, no contributions, counts NULL, no stamp). The run ends `aborted` with `merge_write: RuntimeError`, and the sentinel text is never stored. A failure before the write gives `merge: <Class>`. If the abort marker itself fails, the original error still propagates, with a note, and the record is left `running` (a crash per run_record.py). The abort is its own shielded write_batch on a fresh connection, so it does not depend on the failed session. Residual: if the store is gone, the abort cannot be persisted either (expected).
+- Mutation check (4 mutants: completion split into its own txn, reason with exception text, wrong stage, unguarded abort): all killed. ingest_runner.py restored (sha256 OK).
+- (b) 0005: up/down on both engines with a pre-existing row (NULL defaults) is covered by test_0005_walks_up_and_down. The autogenerate compare tests pass on both engines. Types are Integer/String only.
+- (c) attempted counts retries, so the invariant is attempted >= succeeded + failed, not equality. The rows equal the ledger outcome. contributions_written is counted from the stored rows.
+- (e) Decision: a bad plan value of a disabled or synthetic source does not fail the run. Only enabled LIVE sources are read (7.5).
+- (g) The skip `os.geteuid()==0` (root ignores file modes) is legitimate and pre-existing.
+- Not fixed: the redaction test has no sentinel for a vendor API key (only for MATCH_KEY secret and email). Stray untracked dir src/leadforge/lead_ingestion/.claude/memory (dated Oct 5, not this change). HubSpot lifecycle hook is intact. The first full run had 1 failure in the concurrent agent's WIP test_hubspot_request_echo; it passed on rerun.
+- Verification: ruff clean, mypy clean (186 files), pytest 3924 passed / 1 skipped, Postgres params ran.
+
+## Tasks 16.6 and 16.11 (completion) (2026-10-06)
+Evidence: test-first. tests/test_projection_version.py red = collection ImportError (PROJECTION_RULES_REVISION missing); tests/test_projection_primary_domain.py red = 12 failed (TypeError: unexpected kwarg tie_resolutions), then 1 red (KeyError primary_domain_tie) before the merge-log field. Green: 24 new tests. Mutations caught (ignore store; winner-only votes; stamp without fingerprint; fingerprint without trust ranks). Full suite: 3863 passed, 2 failed, both other-agent (test_run_source_counts, test_store_migrations 0005). ruff/mypy errors only in test_run_lifecycle_both_engines.py and ingest_runner.py (other agent).
+### Decisions (16.6)
+- Version lives in projection.py: PROJECTION_RULES_REVISION = 2 (1 = 16.5 rules; 2 = one-sided email 8.3, request-echo fields only when no other source has the field, LinkedIn cannot-link, confidence table changes, primary domain from stored tie resolution). ProjectionBasis.of(exclusions, trust_ranks) = (rules revision, exclusions version_token, trust-ranks digest); fingerprint = sha256 of the three.
+- stamp_projection(previous, basis): None -> 1; same fingerprint -> unchanged; any change -> +1 (monotonic: reverting is another bump). Trust-ranking change also bumps (design.md line 850). Digests kept out of repr.
+- store/merged_leads.stale_projections(session, current_version) flags identities whose canonical_lead.projection_version differs (sorted). Proven on SQLite: stored v1, exclusion added -> v2, row flagged, re-merge from the same contributions separates the over-merge, contribution rows byte-identical.
+### Decisions (16.11)
+- project_lead(..., tie_resolutions: TieResolutionReader | None) reads only (get); no model, no write, no log. Vote: each source holding a company.domain candidate (winner/agreeing/superseded) votes for its domains inside the Employment's domain set (primary_domain.elect_by_votes, extracted from elect_primary_domain). Tie with nothing stored -> lowest-sorted, TieSource.UNRESOLVED_PROVISIONAL (flagged).
+- ProjectionResult.primary_domain (repr=False), primary_domain_source, primary_domain_flagged; merge log line gains primary_domain_tie (source value, never the domain). Display only: the result is otherwise equal whatever the stored answer.
+- test_primary_domain guard: projection removed from the "no match rule imports primary_domain" list (8.18 requires the read); clustering/companies/match_keys/orchestrator still guarded.
+### Gaps (other agent / migrations)
+- ingest_runner still writes PROJECTION_VERSION = 1: should pass stamp_projection(previous, ProjectionBasis.of(exclusions, ranks)).version and project_lead(..., tie_resolutions=TieResolutionRepository(session)); call resolve_primary_domain before projection in live mode.
+- Persistence needs a migration: the previous basis fingerprint (column canonical_lead.projection_basis String(64) or a one-row projection_state table) so the next run can compute the stamp; a canonical_lead.primary_domain column to store the display domain.
+- In-store recompute after an exclusion change is blocked by design: source_contribution.lead_identity_id is append-only, so a split cluster cannot be relinked; needs a decision (new identities + identity supersede map).
+- Flagged-tie count on the run report (run_report.py, other agent / 18.x).
+### Status
+- 16.6: domain layer DONE; NOT fully done (fingerprint persistence + runner wiring + store recompute pending).
+- 16.11: projection read wiring DONE; NOT fully done (run-report flag, primary_domain column, runner wiring pending).
+
+### Self-review findings
+Task text checked: 16.11 is the PRIMARY-DOMAIN tie (8.18: "constrained to choose among the candidate domains", "projection read that stored record"), not a conflict-order tie. The implementer's reading is correct.
+**Fixed (test-first, seen red, 7 failing before the code change):**
+- DEFECT (a), PII: the version fingerprint carried `IdentityExclusions.version_token`, a plain unsalted sha256 over the sorted exclusion emails/LinkedIn URLs. `fingerprint = sha256(rev, token, ranks digest)` with rev and ranks known is still dictionary-reversible, and the fingerprint is meant to be STORED. Now `ProjectionBasis.of(..., digester=MatchKeyDigester)` hashes the sorted keyed HMAC digests (`match_key_digest`, same scheme as the merge log). Provisional: with any exclusion set, a missing or per-run random digester (`comparable_across_runs=False`) raises ValueError naming LEADFORGE_MATCH_KEY_SECRET and never the value, because a per-run key would change the fingerprint on every run and mark every Lead stale every run without saying so. An empty set needs no secret.
+- Added test (c): an AST guard. projection.py cannot name resolve_primary_domain, TieResolver or choose. Import scan: projection pulls in only domain modules plus `requests`, which comes from tldextract and is configured offline (suffix_list_urls=()). No model or transport module is loaded.
+- Added test: a domain outside the Employment's set never becomes the primary domain. The mutation "drop the `domain in domains` filter" survived before this test.
+**Verified correct:** fingerprint is canonical (sorted ranks, sorted digests, fixed separators) and holds no run ids or timestamps. Tie fallback is the lowest-sorted candidate, flagged UNRESOLVED_PROVISIONAL (`primary_domain_flagged`), never silently final. The merge log `primary_domain_tie` is the TieSource value only, never the domain. stale_projections: projection_version is NOT NULL, so `!=` misses no row.
+**Mutation checks (12, all caught; files restored, sha256 verified):** plain token, accept per-run key, import escalation, drop ranks, no bump, stale inverted, log drops tie, ignore store, unflagged fallback, highest-sorted, vote outside set (after the new test).
+**Gap (e), reproduced on SQLite (scratchpad/repro/repro_relink.py):** after an exclusion splits a stored cluster, relinking contribution `c` to a new lead_identity raises AppendOnlyViolationError. Both the ORM `before_update` listener and the `do_orm_execute` bulk guard on source_contribution do this. The cause is the 8.12 append-only guard on `source_contribution.lead_identity_id`. It is not a database constraint or foreign key: the FK permits any identity, migrations have no trigger, and canonical_lead.lead_identity_id UNIQUE is satisfied by new identities. Calling persist_merge again re-INSERTs the contributions (2 -> 4 rows), which duplicates the log.
+  - Option A: move identity membership out of source_contribution into a derived, rewritable `contribution_identity(contribution_id, lead_identity_id, projection_version)` mapping, which a recompute replaces. Then source_contribution.lead_identity_id is either unused (left NULL) or treated as the first-seen identity.
+  - Option B: keep the column and add an append-only `identity_supersede(old_identity_id, new_identity_id, contribution_id, projection_version)` log. A split writes new identities plus supersede rows, and readers resolve the current identity through that log.
+  - Recommendation: A. Cluster membership is a projection, and 8.13 makes projections recomputable, so it belongs on the derived side. B makes every reader follow a supersede chain and grows with each exclusion change. Either one needs a migration and a user decision.
+**Wiring checklist for the other agent (not done here):**
+- [ ] ingest_runner: build `ProjectionBasis.of(exclusions, ranks, digester=<run's MatchKeyDigester>)`, turn its ValueError into ConfigurationError (exclusions set without the secret), and stamp with `stamp_projection(previous_stamp, basis).version` instead of the constant PROJECTION_VERSION = 1.
+- [ ] ingest_runner: `project_lead(..., tie_resolutions=TieResolutionRepository(session))`. In live mode only, call resolve_primary_domain before projection; synthetic mode never calls it.
+- [ ] Migration: persist the previous basis fingerprint (64-hex, keyed) as canonical_lead.projection_basis or a one-row projection_state table, plus canonical_lead.primary_domain (display) and optionally primary_domain_source.
+- [ ] run_report: a count of flagged primary-domain ties (`ProjectionResult.primary_domain_flagged`), plus the list from stale_projections.
+- [ ] The relink decision above (Option A or B) is needed before an in-store recompute.
+**Left for follow-up (outside these files):** match_keys.IdentityExclusions.version_token is still a plain sha256 and no longer has a src caller. Its docstrings, and the one in exclusion_settings.py, still call it "the seam". Remove it, or key it the same way.
+**Full suite:** 3883 passed, 5 failed, all in other agents' areas: test_google_search_throttle x4 (adapters/google_search.py being edited concurrently) and test_vendor_neutrality ('apollo' in ingest_runner.py and test_end_to_end_zero_credential.py). mypy reports 4 errors, only in test_store_migrations.py and test_run_lifecycle_both_engines.py. ruff is clean on the touched files.
+
+- **16.6/16.11 left unticked (parent):** remaining: canonical-lead primary-domain columns and fingerprint persistence in `store/merged_leads.py`, the run calling the stored tie answer, a `merged` count in the report; done together with the derived record-to-lead mapping (user option A).
+
+## Follow-up — HubSpot contact joins the asked person via request echo (user option B, 2026-10-06)
+
+Files: src/leadforge/lead_ingestion/adapters/hubspot.py; tests/adapters/test_hubspot_request_echo.py (new, 17 tests); tests/adapters/test_tier_feed_end_to_end.py (stale KNOWN GAP comment only).
+
+RED: 13 failed / 4 passed (no asked.* echo; 'email' not in contact-search properties; no hubspot_echo_withheld logs; KeyError 'asked'; run_ingestion lead split). GREEN: 17 passed. ruff clean; mypy clean (186 files); full pytest 3924 passed, 1 skipped.
+
+Decisions:
+- Echo = requester's LinkedIn URL (own text) and, when a requester record holds the asked address as verified, that address + email_status verified, at asked.linkedin_url / asked.email / asked.email_status. No name/domain echo: HubSpot asks by address only.
+- Echo decided at fetch, persisted in lookups[].asked; batches without it normalise with no echo.
+- Withheld (log hubspot_echo_withheld, reason + count, no values): ambiguous_requester (2+ LinkedIn identities or 2+ person names for one address, accumulated across fetches this run); multiple_contacts; email_mismatch (contact's own email property differs); email_unconfirmed (absent). Contact search now requests the 'email' property.
+- Not-found (Negative Evidence) records get NO echo: their 'email' is the question (raw path 'lookup'); joining would let the question count as agreement.
+- HubSpot's own fields (crm.*, opt_out, suppressed, bare email) unchanged; opt-out now lands on the joined lead (cluster OR), not only via blocked identity.
+
+Proven: adapter unit tests; real orchestrator + clustering + projection (LinkedIn person Apollo knows -> one lead with crm.* from HubSpot; verified-address person opted out -> joined + suppressed, compliance_sources has hubspot; mismatched/two-contact answers stay separate); run_ingestion with real HubSpot + Apollo adapters (shipped fixtures rewritten per person) + test-only Discovery -> store rows confirm.
+
+Gaps:
+- A requester with only an unverified address (no LinkedIn) gets no echo: HubSpot record stays separate. HubSpot runs in the first tier (ADR-0006 one forward pass), so a verified address/LinkedIn only Hunter/Apollo learn later never reaches HubSpot's echo.
+- Projection reads the bare CRM 'email' only when person.email is absent, so an email echo shadows HubSpot's own confirmed address: agreement on person.email is 1 lower than with a LinkedIn-only echo (conservative under-count). Not changed (projection.py is off-limits).
+- HubSpot's 'email' rule still reads raw path 'lookup' (the question); for a confirmed contact it equals the contact's own address, so it counts as agreement. Mapping it from contact.properties.email would be more honest provenance — not done (behaviour change outside the decision).
+- Shipped hubspot fixtures' contact email (ada@example.com) does not match other people asked, so tier-feed test still shows HubSpot records unattached (now for the email_mismatch reason).
+- spec-refactor-agent / validate-production-agent not spawned (no Agent tool in this harness). GitNexus/serena not available here; blast radius checked by grep: hubspot internals referenced only by its own tests.
+
+### Self-review findings
+
+- Diff separation: run-lifecycle's records_fetched/credits_spent in hubspot/hunter/apollo intact; echo diff intact; neither clobbered.
+- FIXED (c), test-first: HubSpot keyed lookups and compared addresses with casefold(); the email Match Key (normalize_email) uses lower(). "straße@" and "strasse@" are 2 mailboxes, but HubSpot asked the wrong one and echoed onto a contact with a different mailbox. Now keyed with strip().lower(), compared via normalize_email. 2 RED->GREEN tests.
+- FIXED (a), test-first: echo rules hand-built in hunter (ASKED_RULES), apollo (_Asked/_ASKED_RULES/_ECHO_KEY), hubspot (_ECHO_RULES, "asked" literals). Now one normalizer.REQUEST_ECHO_RULES + REQUEST_ECHO_KEY, used by all three; order and untrusted flags unchanged. Identity test added.
+- (b) OK: opt-out joins via echo and still prunes via blocked email identity (test_suppression_end_to_end, test_hubspot_suppression_paths pass).
+- (d) OK: withheld logs carry reason + count only.
+- (e) REPRODUCED, a real correctness defect (under-count, never over-count): crm verified ada@ + HubSpot confirmed contact gives agreement[person.email]=1; with a LinkedIn-only echo HubSpot counts. projection._with_canonical_email skips renaming the bare `email` whenever person.email exists, even if that value is only an asked.* echo, so HubSpot's own observation is lost from candidates and agreement. Minimal fix (projection.py, NOT edited): treat a person.email whose provenance raw_field_path starts with REQUEST_ECHO_PREFIX as absent. Drop that echo value and provenance, then rename bare email -> person.email. Clustering runs before this, so joins are unaffected.
+- (f) 12 mutations of hubspot echo logic were all killed; restore checked with sha256 OK.
+- Verification: pytest 3929 passed, 1 skipped; ruff clean on touched files; mypy clean (186).
+
+- **Open (needs-follow-up):** an echoed email hides HubSpot own observed address from the agreement count (person.email agreement 1 instead of 2); fix belongs in `projection._with_canonical_email`; scheduled with the next projection change.
