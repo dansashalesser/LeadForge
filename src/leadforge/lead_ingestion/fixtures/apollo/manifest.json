@@ -11,7 +11,7 @@
       "schema_verified_on": null,
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in shaped from the documented response; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+      "note": "Hand-made stand-in; not a capture. Field names total_entries, people[], last_name_obfuscated and has_email matched the docs on 2026-10-06; the obfuscation form (Lo***) is UNVERIFIED, so the file stays unverified. Evidence: search-engine extract of the official page (site network-blocked)."
     },
     {
       "file": "match.json",
@@ -23,7 +23,7 @@
       "schema_verified_on": null,
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in shaped from the documented response; not a capture. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+      "note": "Hand-made stand-in; not a capture. POST /api/v1/people/match and the match_confidence values matched the docs on 2026-10-06; the person object shape was not checked, so the file stays unverified. Evidence: search-engine extract of the official page (site network-blocked)."
     },
     {
       "file": "supported_technologies.csv",
@@ -35,19 +35,19 @@
       "schema_verified_on": null,
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made four-row stand-in for the supported-technologies CSV; real column layout unverified; replace with a dated snapshot. Shape taken from research.md (2026-10-04), not re-checked against the documentation page by this repository."
+      "note": "Hand-made four-row stand-in for the supported-technologies CSV; columns uid,name,category and both UIDs UNVERIFIED on 2026-10-06 (CSV link on a blocked docs page); replace with a dated snapshot."
     },
     {
       "file": "no_match/search.json",
       "endpoint": "search",
       "origin": "hand_made",
       "recorded_on": "2026-10-05",
-      "doc_url": "https://docs.apollo.io/reference/people-api-search",
-      "schema_status": "unverified",
-      "schema_verified_on": null,
+      "doc_url": "https://docs.apollo.io/docs/find-people-using-filters",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in for a search that matched no person for the technology filter; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+      "note": "Hand-made stand-in for a search that matched no person (task 17.3 outcome variant); not a capture. Its only fields, total_entries and people[], matched the docs on 2026-10-06. Evidence: search-engine extract of the official page (site network-blocked)."
     },
     {
       "file": "no_match/match.json",
@@ -59,7 +59,7 @@
       "schema_verified_on": null,
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in for a match call with match_confidence none; the shape of a no-match answer is itself unverified; not a capture (task 17.3 outcome variant). Shape taken from the adapter's raw schema and research.md (2026-10-04), not re-checked against the documentation page by this repository."
+      "note": "Hand-made stand-in for a match call with match_confidence none; not a capture (task 17.3 outcome variant). The shape of a no-match answer is UNVERIFIED: no readable source showed it on 2026-10-06. Replace with a capture."
     }
   ]
 }

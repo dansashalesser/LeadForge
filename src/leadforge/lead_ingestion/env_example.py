@@ -1,10 +1,12 @@
 """Credential example file generated from the registry (task 8.3, requirement 10).
 
-``.env.example`` is the union of every registered adapter's ``required_env`` plus the
-database URL and the LLM provider and model settings, so a reviewer sees every variable
-live mode reads and no real value. The committed file is checked byte for byte against
-``render_env_example`` (10.4), so an adapter reading an undocumented variable fails the
-suite; regenerate with ``REGENERATE_COMMAND``.
+``.env.example`` is the union of every registered adapter's ``required_env`` and
+``optional_env`` (non-secret plan settings), each with the adapter's ``env_notes`` line
+when it declares one, plus the database URL and the LLM provider and model settings,
+so a reviewer sees every variable live mode reads and no real value. The committed
+file is checked byte for byte against ``render_env_example`` (10.4), so an adapter
+reading an undocumented variable fails the suite; regenerate with
+``REGENERATE_COMMAND``.
 
 Provisional decisions (see choices.md, task 8.3):
 
@@ -118,6 +120,21 @@ def _doc_url(source_class: type, owner: str) -> str:
     return url
 
 
+def _notes(
+    source_class: type, owner: str, variables: tuple[str, ...]
+) -> dict[str, str]:
+    """The adapter's ``env_notes``: one printable line per variable it declares."""
+    declared = getattr(source_class, "env_notes", {})
+    notes: dict[str, str] = {}
+    for variable, note in declared.items():
+        if variable not in variables:
+            raise ManifestError(f"{owner}: note for undeclared variable {variable!r}")
+        if not isinstance(note, str):
+            raise ManifestError(f"{owner}: note for {variable} must be a str")
+        notes[variable] = _safe_text(note, f"{owner}: note for {variable}")
+    return notes
+
+
 def render_env_example(registry: SourceRegistry) -> str:
     """The example file text for ``registry``: sorted, LF-only, one final newline."""
     # variable -> (note, {(owner, url)})
@@ -129,15 +146,23 @@ def render_env_example(registry: SourceRegistry) -> str:
     for name in registry.names():
         source_class = registry.source_class(name)
         owner = _safe_text(name, "source name")
-        if not source_class.required_env:
+        variables = (*source_class.required_env, *source_class.optional_env)
+        notes = _notes(source_class, owner, variables)
+        if not variables:
             continue
         url = _doc_url(source_class, owner)
-        for variable in source_class.required_env:
+        for variable in variables:
             _env_name(variable, owner)
             if variable not in entries:
                 entries[variable] = ("", set())
                 adapter_vars.add(variable)
-            entries[variable][1].add((owner, url))
+            note, providers = entries[variable]
+            mine = notes.get(variable, "")
+            if mine and note and mine != note:
+                raise ManifestError(
+                    f"{owner}: note for {variable} differs from another declaration"
+                )
+            entries[variable] = (note or mine, providers | {(owner, url)})
     order += sorted(adapter_vars)
 
     out = [_HEADER]

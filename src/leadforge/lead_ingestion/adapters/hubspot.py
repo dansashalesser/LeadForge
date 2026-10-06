@@ -40,6 +40,26 @@ Provisional decisions (see choices.md, task 13.1):
   documented defaults and were not checked against a live portal.
 * ``fixtures/hubspot/*.json`` are hand-made STAND-INS, not captured responses.
 * At most 100 contacts are read per email; there is no paging.
+
+Provider facts checked on 2026-10-06 (HubSpot's public OpenAPI specs,
+https://github.com/HubSpot/HubSpot-public-api-spec-collection, latest date-versioned
+rollout, and the official ``@hubspot/api-client`` 14.0.1; the developer docs were
+network-blocked):
+
+* Required private-app scopes: ``crm.objects.contacts.read`` for the contact search and
+  ``crm.objects.deals.read`` for the deal search (each spec's ``security`` block).
+  Without the deals scope the deal search answers 403. Both are named next to
+  ``HUBSPOT_ACCESS_TOKEN`` in ``.env.example`` (``env_notes``).
+* Verified: the search paths and host, the ``YYYY-MM`` version, the request body
+  (``filterGroups``/``filters``/``EQ``), the response envelope (``total``, ``results[]``
+  with ``id``, ``properties`` as nullable strings, ``createdAt``, ``updatedAt``,
+  ``archived``), Bearer auth, the five-per-second search limit (per account, shared
+  with other integrations), and the ``DAILY`` and ``TEN_SECONDLY_ROLLING`` policy names.
+* UNVERIFIED: the ``hs_is_closed`` deal property (only ``hs_is_closed_won`` and
+  ``hs_is_closed_lost`` were seen; confirm with the Properties API on a live portal),
+  and the ``SECONDLY`` policy name, which no source showed; the official SDK spots the
+  search throttle by its message instead. Behaviour does not depend on ``SECONDLY``:
+  any 429 is still ``SourceRateLimited``.
 """
 
 import re
@@ -102,6 +122,7 @@ _DEAL_SEARCH = Endpoint(
 )
 
 _DAILY_POLICIES = frozenset({"DAILY"})
+# TEN_SECONDLY_ROLLING is documented; SECONDLY is UNVERIFIED (see module doc).
 _SHORT_POLICIES = frozenset({"SECONDLY", "TEN_SECONDLY_ROLLING"})
 
 _CONTACT_PROPERTIES = (
@@ -210,6 +231,12 @@ class HubSpotSource(BaseLeadSource):
         "deal_search": _DEAL_SEARCH,
     }
     required_env: ClassVar[tuple[str, ...]] = (_TOKEN_ENV, _VERSION_ENV)
+    env_notes: ClassVar[Mapping[str, str]] = {
+        _TOKEN_ENV: (
+            "private app access token with scopes crm.objects.contacts.read and "
+            "crm.objects.deals.read"
+        )
+    }
     docs_url: ClassVar[str] = _DOCS
     base_url: ClassVar[str] = "https://api.hubapi.com"
 
@@ -373,6 +400,7 @@ class HubSpotSource(BaseLeadSource):
                                 "operator": "EQ",
                                 "value": contact_id,
                             },
+                            # UNVERIFIED property name (see module doc).
                             {
                                 "propertyName": "hs_is_closed",
                                 "operator": "EQ",

@@ -2300,3 +2300,161 @@ Evidence: wrote tests first in tests/adapters/test_hunter_source.py (5 new tests
 - HIGH, pre-existing, needs-user: this is general, not twin-specific. FINDER_RULES ignore `domain` and `linkedin_url`, so a finder contribution has only the address + name. It has no name+domain key, and `_link_name_domain` skips holders of a verified email anyway, so a found address never clusters with the Lead that was asked (single person, any title, valid or unknown status: always a separate cluster). With PER_LEAD every person now pays a finder Credit for an address the merge cannot attach. Fix needs a merge/adapter design decision (and match_keys/clustering are under parallel edit).
 - Full suite 3563 passed, 1 skipped; ruff check clean; mypy clean (after replacing an enrichment_tiers-on-classes call that mypy rejected).
 - Probe scripts left in scratchpad/probe/ (session scratch, not the repo; deleting them was denied).
+
+## Follow-up — Hunter finder attaches to its person; credit accounting (2026-10-06)
+
+**Defect 1 (HIGH): a finder result became its own lead.** Fixed in `adapters/hunter.py`. A found address now carries:
+- `company.domain`
+- the first and last name that were asked for (not Hunter's echo)
+- the requester's own `person.linkedin_url`, when the request had one
+
+These sit at raw paths `asked.*`. Hunter's `first_name`, `last_name` and `domain` echo are now in FINDER_IGNORED. Hunter's own `linkedin_url` is never used.
+
+- **RED:** 13 failing tests (identity fields, end to end, ambiguity, credits).
+- **GREEN:** the real orchestrator, then `cluster_contributions` and `project_lead`, gives ONE lead that holds Hunter's address. Its contributing sources are discovery and hunter. This holds in two cases:
+  - The requester has LinkedIn (verified address).
+  - The requester has no LinkedIn, the address is not verified, and an employer is shared (name+domain).
+
+**Ambiguity (provisional decision).** One name at one domain can be asked on behalf of two distinguishable people. "Distinguishable" means distinct normalised LinkedIn identities; a record with no LinkedIn counts as one more identity. In that case Hunter is NOT asked:
+- no call and no Credit
+- no contribution
+- one warning, `hunter_finder_ambiguous`, which logs only a count
+
+This is tracked per run, so a cached answer is never reused for a second identity in a later fetch. Records with no LinkedIn cannot be told apart, so they share the one answer.
+
+**Defect 2: credits.** `credits_in` now follows https://help.hunter.io/en/articles/1911617-how-do-credits-work-in-hunter:
+- Domain search: ceil(addresses returned / 10), and 0 when none are returned.
+- Finder: 1, only when `data.email` is non-null.
+- Verifier: 1.
+
+A malformed `data` or `emails` raises NormalizationError. Each rule has a test.
+
+**Scope addition (user decision 2026-10-06).** This REVERSES the earlier recorded choice "Hunter shares Apollo's paid per-lead tier". `HunterSource.yields_suppression = True`.
+- **Ordering:** Hunter now sorts into a paid tier ahead of Apollo. Suppression outranks charge unit, so Hunter also moves ahead of Google Search. That second move changes no pruning, because Google Search prunes nothing.
+- **Restricted finds now carry LinkedIn:** a restricted finder entry carries the requester's `linkedin_url`. The work list is pruned by address or LinkedIn, so without it the 451 flag could not prune a person on the finder route.
+- **Pinned tests updated on purpose:**
+  - `test_declares_paid_per_lead_enrichment_that_yields_suppression`
+  - `test_hunter_runs_in_a_paid_tier_of_its_own_before_apollo`
+- **New tests through the real orchestrator** (`tests/adapters/test_suppression_end_to_end.py`):
+  - A 451 on P, on both the verifier and finder routes: Apollo matched only Bob.
+  - The finder finds nothing: Apollo is still asked about P.
+  - Hunter returns 404 or 429, or the transport times out: Apollo is still asked about P.
+- **Fixture matrix** (`test_fixture_outcome_matrix.py`): the flag now requires both a suppression positive and a negative.
+  - Negative: the label is added to `email_verifier.json`, which asserts no flag and nothing pruned.
+  - Positive: exempted by name in `NOT_FIXTURE_SHAPED`. A 451 is a status code and FixtureTransport serves only 200s, so the scripted 451 tests prove it instead. A guard test keeps the negative required.
+
+**Files touched outside the assigned scope (both required):**
+- `tests/adapters/test_suppression_end_to_end.py`: the `Run.discovery` hook and the new tests.
+- `tests/adapters/test_fixture_outcome_matrix.py`: the exemption and the negative label.
+
+**Known gaps:**
+- **Verified answer, no LinkedIn: still TWO leads.** Clustering (8.3/ADR-0003) lets only key-less records join on name+domain, and a verified address is a key. Fixing this needs a clustering decision, not an adapter change. I did not change it.
+- **Verifier price depends on the plan.** Data plans charge 1 verification credit; All-in-one plans charge 0.5. It is kept at 1 as the conservative value. A 202 give-up and an `unknown` verdict also count 1, although Hunter may not charge for them.
+- **Ambiguity uses LinkedIn only.** Other differences, such as different titles, do not count. An answer attached in an earlier batch is not recalled when a conflicting identity appears later.
+- **A name-only person with no LinkedIn cannot be pruned by a Hunter 451 before Apollo.** There is no address or LinkedIn identity to match on. A cached restriction re-emits the first requester's LinkedIn, which over-suppresses (the safe direction).
+- **A finder 404 is still a permanent error.** Whether Hunter uses 404 for "not found" is UNVERIFIED in the docs (U12); not changed here.
+- **Verifier answers have the same shape.** They carry only the address and its status. That may be a similar defect for a requester whose address is unverified. Not investigated.
+
+### Self-review findings
+
+- **(a) Echoed identity self-corroborated and conflicted: CONFIRMED, FIXED.** Reproduced via the real orchestrator, `cluster_contributions` and `project_lead`. With a LinkedIn requester, agreement was 2 on `company.domain` and `person.linkedin_url` (Hunter agreeing with the request it echoed), and first/last name showed TRUST_RANK conflicts (UntrustedText vs plain text). With a messy requester (padded name, `WWW.` domain, trailing slash) all four echoed paths conflicted; a Hunter trust rank above the requester's would have overwritten the requester's own value.
+  - Fix: `models.REQUEST_ECHO_PREFIX = "asked."`. `conflicts.resolve_conflicts` (`_observed_first`) lets a candidate whose raw path is under that prefix compete only when no observed candidate holds the path. Match keys still read the values, so the join is unchanged.
+  - The marker is the raw field path, which IS persisted (`contribution_field.raw_field_path`), so a recompute from the store keeps the rule. A new FieldProvenance flag would not survive: provenance beyond confidence is not persisted.
+  - Hunter's ASKED_RULES now build on the constant; `RESTRICTED_FIND_RULES` reuses them, so a finder-route 451 flag's echoed identity is a request echo too.
+  - Tests: `test_the_echoed_identity_neither_corroborates_nor_conflicts[ranked_below|ranked_above]` (RED before: agreement 2), `test_an_echoed_identity_alone_still_names_the_lead` (echo-only fallback).
+  - Files outside the listed four: `models.py`, `conflicts.py`. Only caller of `resolve_conflicts` is projection (grep; Serena/GitNexus not available here, so blast radius is grep-based).
+- **(b) LinkedIn vs. no-LinkedIn same-name rule: KEPT.** It matches clustering 8.3/ADR-0003, which deliberately under-merges a keyed and a bare record of one name; they are two Leads anyway, so one answer has no single owner. Cost: one real person seen once with and once without LinkedIn gets no finder answer (and pays nothing). No contradiction with the per-person 451 decision: Hunter does not ask, so no 451, so Apollo is asked about both.
+- **(c) Verified answer, no LinkedIn = two Leads: REPRODUCED, RECORDED, not fixed.** Root cause: a `verified` status gives Hunter's contribution a verified-email Match Key, and 8.3 admits to name+domain only contributions with NO LinkedIn and NO verified-email key, so the keyed Hunter record cannot join the key-less requester (the one-sided case). Even unverified, name+domain also needs `corroborates` (shared title or employer). Needs a clustering decision (e.g. a request-echo join), not an adapter change.
+- **(d) Credits: OK.** A failed attempt yields no batch; cached answers appear once in the successful batch (orchestrator retry test: 7 calls, 6 credits). A 0-result search charges 0. Residual: `credits_in` is per batch; summing two successful fetches of one instance would double-count cached answers. Today one fetch per run, and nothing outside tests calls `credits_in`.
+- **(e) Ordering: OK, one gap closed.** The three orchestrator tests exist and use the real `IngestionOrchestrator`, but Bob was at a different company, so "per person, not per company" was untested. Added `test_a_hunter_451_prunes_one_person_not_their_colleagues` (Ada 451; Cy at the same domain still matched by Apollo). Google Search moved only because suppression outranks charge unit in `enrichment_sort_key`; it prunes nothing, so harmless.
+- **(f) PII: OK.** `hunter_finder_ambiguous` logs a count only (asserted); restricted identities stay in the raw batch.
+- **(g) Mutations, all restored, sha256 verified:** yields_suppression off; ambiguity guard off; restricted-find LinkedIn None; finds LinkedIn None; flat search credit; finder credit when nothing found; echo rule removed; echo fallback removed. Each was killed by at least one test.
+
+## Follow-up — provider facts verified against live docs (2026-10-06)
+
+Source: scratchpad/live-docs-findings.md. Non-Hunter items only (Hunter was being edited by another agent and was not touched).
+
+**Evidence grades.** The provider documentation sites (docs.apollo.io, developers.hubspot.com, serpapi.com and others) were network-blocked. Evidence came from (A) official machine-readable repos: the HubSpot public OpenAPI spec collection, the `@hubspot/api-client` 14.0.1 SDK, the Apollo CLI and the SerpApi Python SDK; and (B) search-engine extracts of the official pages, which are strong but not definitive. Anything neither grade confirmed is marked UNVERIFIED.
+
+**Hook added (base_source / orchestrator / env_example).**
+- `BaseLeadSource.run_rate_limit(environ=None)` returns `rate_limit` by default. The orchestrator calls it only for a LIVE source, so a synthetic run reads no setting.
+- `optional_env` lists non-secret plan settings. `env_notes` holds one-line `.env.example` comments.
+- Both feed the generated `.env.example`, which was regenerated.
+- Config follows the HUBSPOT_API_VERSION precedent: an adapter reads its own env. A bad value raises `ConfigurationError("environment", key_path=VAR)` and does not echo the value.
+
+1. **SerpApi pacing.** `SERPAPI_HOURLY_LIMIT` is a positive integer.
+   - **Default 50**: the Free plan, the lowest documented figure, so it is safe on every plan.
+   - Plan figures (Free 50, Starter 200, Developer 1000, Production 3000, Big Data 6000 per hour) come from serpapi.com/pricing [B].
+   - The bucket is an hourly window AND an even spacing of 3600/limit seconds. It is `documented=True`, with the pricing page as doc_url. This replaces 1 req/s (3600/h).
+   - Orchestrated throttle tests set 36000/h through monkeypatch, because the default spacing is 72 s.
+2. **Apollo.** `APOLLO_PLAN` takes free, basic, professional or organization. **Default free.**
+   - Search and match now use separate `search` and `match` buckets. Each has ANDed minute, hour and day windows.
+   - Figures are from docs.apollo.io/reference/rate-limits [B]. Search: Free 50/200/600, paid plans 200/6000/50000. General endpoints (used for match): Free 50/200/600, Basic and Professional 200/400/2000, Organization 200/600/6000.
+   - `documented=True`. This replaces the undocumented single 600/h bucket.
+3. **SerpApi empty page.**
+   - The fixture is now `{search_metadata.status: Success, search_information.organic_results_state: "Fully empty", error: "...no results..."}` [B: api-status-and-error-codes, search-errors].
+   - ENVELOPE_IGNORED gains `error` and `search_information.organic_results_state`.
+   - The backend's `failed_search(body)` reads structured fields only. A 2xx raises if its status is Error, or if it carries `error` and is not the Fully-empty Success shape.
+   - Out-of-searches gives SourceQuotaExhausted. Any other failure gives a permanent SourceError (cause=search_failed).
+   - A 429 with the balance message still gives SourceQuotaExhausted.
+4. **HubSpot.**
+   - `env_notes[HUBSPOT_ACCESS_TOKEN]` names the scopes crm.objects.contacts.read and crm.objects.deals.read [A: the spec security blocks]. These scopes now appear in `.env.example`.
+   - The module doc lists the verified facts.
+   - `hs_is_closed` and `SECONDLY` are marked UNVERIFIED in the module doc, in a code comment and in both deal-fixture manifest notes. Behaviour is unchanged.
+5. **Manifests.**
+   - Set to verified on 2026-10-06, because every field in them matched:
+     - hubspot not_found/contact_search and no_open_deals/deal_search (envelope [A])
+     - apollo no_match/search (total_entries and people [B]; doc_url find-people-using-filters)
+     - google_search no_results/search (doc_url api-status-and-error-codes; total_results dropped)
+   - The rest stay unverified. Their notes say what matched and what did not:
+     - Apollo: the obfuscation form, the no-match match shape and the tech CSV are UNVERIFIED.
+     - HubSpot: property names were not checked.
+     - SerpApi: the Google field-list page was blocked.
+   - The HubSpot spec repo URL is not used as doc_url, and is named only in shortened form in notes, because the fixture secret regex trips on any token of 32 or more characters.
+   - The invariant tests in test_fixture_metadata and test_fixture_outcome_matrix were relaxed to "verified only with date 2026-10-06". The exact verified set is pinned in tests/adapters/test_provider_plan_limits.py, because vendor names are banned outside adapters.
+
+**TDD.**
+- RED: 27 failed and 1 collection ImportError across the new tests. The fixture guard went red after the fixture change.
+- GREEN: ruff format clean; mypy clean; pytest 3678 passed, 1 skipped.
+- `ruff check src` still reports errors, but only in hunter.py, conflicts.py and models.py, which other concurrent agents own. The files I changed pass ruff check.
+
+**Not done.**
+- The SerpApi Account API (`account_rate_limit_per_hour`) is not used.
+- Apollo `x-rate-limit-*` header seeding is not done.
+- HubSpot `errorType` labelling is not done.
+- Nothing was committed, and specs/tasks.md was not touched.
+- The spec-refactor-agent self-review was not run, because this session has no Agent tool.
+
+### Self-review findings
+
+Independent spec-refactor review, 2026-10-06. Hunter, conflicts and models were not touched.
+
+**What was checked and confirmed**
+- (a) The numbers match the findings report exactly.
+  - Apollo, from A16 (rate-limits page): search is Free 50/200/600 and paid 200/6000/50000. General endpoints are Free 50/200/600, Basic and Professional 200/400/2000, and Organization 200/600/6000.
+  - SerpApi, from S8 (pricing page): 50, 200, 1000, 3000 and 6000 per hour.
+  - Each figure cites its URL in the module doc and in doc_url.
+  - Bad values raise `ConfigurationError("environment", key=VAR)` without echoing the value. This covers an unknown plan, "0", negatives, non-digits, non-ASCII digits and values over 9 digits.
+- (b) The env settings are listed and render through `env_example`. A drift test covers this, and its mutants are killed.
+- (c) Empty versus failed SerpApi pages:
+  - Only status Success, `organic_results_state` "Fully empty" and a present `error` count as empty. The message text is ignored.
+  - "Google hasn't returned any results" with a different state, or with `search_information` missing, raises `SourceError` with cause search_failed.
+  - Google Search declares no answerable surfaces, so it can never produce Negative Evidence.
+  - A 401 or 429 never reaches `failed_search`.
+- (d) The throttle tests were added to test_provider_plan_limits.
+  - Apollo Free search: 50 calls go through immediately, the 51st waits 1.2 s (the minute window binds), and later waits are 18 s (the hour window binds).
+  - SerpApi: calls are spaced 72 s apart, with no burst.
+  - Synthetic mode still skips pacing; the orchestrator mutant is killed.
+- (e) The four verified fixtures contain only fields the report confirmed (H5, A6, S7).
+- (f) The orchestrator now calls `run_rate_limit()` only for LIVE sources. Other sources are unchanged, because the default returns `rate_limit`.
+- (g) Mutation check: 16 mutants were run and 15 were killed at first. The survivor was the `status==Success` conjunct in `failed_search`. I added 3 cases (status Processing, empty metadata and missing metadata), and the mutant is now killed. Every source file was restored, confirmed by sha256.
+
+**Skipped (design decisions)**
+- The orchestrator now reads the environment, against its own doc line ("does not read the environment"). A bad plan value raises after `recorder.start`, so the run record is aborted, not rejected before any write. Fixing this needs a design decision: inject the setting or validate it early.
+- A Success / "Fully empty" page that carries "run out of searches" would be read as empty. No documented response has that shape.
+- `no_open_deals` is marked verified, but it answers an UNVERIFIED `hs_is_closed` filter.
+
+Gates: pytest 3683 passed and 1 skipped; ruff check src is clean; mypy is clean.
+
+- **Fixed after review (parent, test-first, red seen):** a SerpApi 200 shaped as a fully empty page whose `error` says the account ran out of searches now raises balance exhaustion, never reads as an empty page (an exhausted account must not record "no web presence"). `no_open_deals/deal_search.json` is back to unverified: its envelope matched, but its outcome is produced by the UNVERIFIED `hs_is_closed` filter, and a fixture is verified only when everything it stands for was confirmed.
+- **Known gap (needs-follow-up, open item 8):** `orchestrator.py` now reads the plan/limit env vars itself, against its docstring; a bad value aborts after the run record has started. Validate config before the run starts, together with marking a run failed when a step fails after start.

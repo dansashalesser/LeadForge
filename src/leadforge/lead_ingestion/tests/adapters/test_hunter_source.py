@@ -32,6 +32,7 @@ from leadforge.lead_ingestion.base_source import (
     SourceRequest,
     enrichment_sort_key,
 )
+from leadforge.lead_ingestion.clustering import cluster_contributions
 from leadforge.lead_ingestion.errors import (
     MissingCredentialError,
     NormalizationError,
@@ -59,6 +60,7 @@ from leadforge.lead_ingestion.orchestrator import (
     SourceStatus,
 )
 from leadforge.lead_ingestion.pacing import SourcePacing
+from leadforge.lead_ingestion.projection import project_lead
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.retry import RetryPolicy
 from leadforge.lead_ingestion.throttle import SourceThrottle
@@ -279,14 +281,16 @@ async def test_a_domain_search_takes_capacity_from_the_finder_bucket_only() -> N
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.5
-def test_declares_paid_per_lead_enrichment_without_suppression() -> None:
+def test_declares_paid_per_lead_enrichment_that_yields_suppression() -> None:
     # Leads are per person (user decision, 2026-10-06): the finder and verifier are
     # per-person calls, so the orchestrator must hand Hunter every lead, not one per
     # company. Domain search stays once per company through the per-run domain cache.
+    # A 451 flags the person suppressed (16.6), so Hunter yields Suppression (user
+    # decision, 2026-10-06): that puts it in a paid tier ahead of Apollo's.
     assert HunterSource.cost_class is CostClass.PAID
     assert HunterSource.charge_unit is ChargeUnit.PER_LEAD
-    assert HunterSource.yields_suppression is False
-    assert enrichment_sort_key(HunterSource) == (True, True, 2, "hunter")
+    assert HunterSource.yields_suppression is True
+    assert enrichment_sort_key(HunterSource) == (True, False, 2, "hunter")
 
 
 # --- batching by domain (16.5 via ADR-0002, 6.11) ----------------------------------
@@ -2154,13 +2158,311 @@ async def test_end_to_end_an_orchestrator_retry_repays_only_the_failed_question(
     assert credits_in(hunter.batch) == 6
 
 
-def test_hunter_now_shares_the_paid_per_lead_tier_with_apollo() -> None:
-    # Recorded consequence of PER_LEAD (2026-10-06): Hunter no longer runs in a tier of
-    # its own before Apollo, so a Hunter 451 cannot prune a Lead before Apollo's paid
-    # match. Changing that is a declaration decision (yields_suppression), not silent.
+def test_hunter_runs_in_a_paid_tier_of_its_own_before_apollo() -> None:
+    # Reverses the earlier pin "Hunter shares Apollo's tier" (user decision,
+    # 2026-10-06): Hunter declares yields_suppression, so a Hunter 451 prunes that
+    # person from the work list before Apollo's paid match is asked about them.
     def tier(source: type[BaseLeadSource]) -> tuple[bool, bool, int]:
         cost, no_suppression, unit, _ = enrichment_sort_key(source)
         return cost, no_suppression, unit
 
-    assert tier(HubSpotSource) < tier(GoogleSearchSource) < tier(HunterSource)
-    assert tier(HunterSource) == tier(ApolloSource)  # one tier, run concurrently
+    # Suppression outranks charge unit within the paid tier, so Hunter also moves
+    # ahead of Google Search (which prunes nothing, so it asks Hunter nothing less).
+    assert tier(HubSpotSource) < tier(HunterSource) < tier(GoogleSearchSource)
+    assert tier(HunterSource) < tier(ApolloSource)  # an earlier tier, not shared
+
+
+# --- the finder attaches to the person it was asked for (follow-up 2026-10-06) ------
+#
+# Review finding (HIGH): a found address carried only Hunter's answer, so the merge
+# made it a Lead of its own. It must carry the identity it was asked for (the domain,
+# the name asked, and the LinkedIn URL when the request had one) so the normal Match
+# Keys join it to that person, and never to two distinguishable people at once.
+
+ADA_LINKEDIN = "https://www.linkedin.com/in/ada-lovelace"
+OTHER_LINKEDIN = "https://www.linkedin.com/in/ada-lovelace-2"
+ADA_AT_ACME = "ada.lovelace@acme.com"
+RANKS = {"discovery": 2, "hunter": 1, "per_company_probe": 3}
+
+
+def requester(
+    *,
+    first: object = "Ada",
+    last: str = "Lovelace",
+    domain: str = ACME,
+    linkedin: str | None = None,
+    employer: str | None = None,
+) -> LeadContribution:
+    """A person another source found: a name and a company, no address."""
+    values: dict[str, object] = {
+        "person.first_name": first,
+        "person.last_name": last,
+        "company.domain": domain,
+    }
+    if linkedin is not None:
+        values["person.linkedin_url"] = linkedin
+    if employer is not None:
+        values["company.name"] = employer
+    return LeadContribution(
+        source_name="discovery",
+        values=values,
+        provenance=tuple(
+            FieldProvenance(
+                canonical_path=path,
+                source_name="discovery",
+                data_mode=DataMode.LIVE,
+                fetched_at=datetime.now(UTC),
+                raw_field_path=path,
+                confidence_origin=ConfidenceOrigin.NONE,
+                untrusted=isinstance(value, UntrustedText),
+            )
+            for path, value in values.items()
+        ),
+    )
+
+
+def ada_found(status: str = "valid", **more: object) -> Responder:
+    """Hunter's finder answer for Ada, spelled its own way, with a verdict."""
+    return lambda _: found_one(
+        ADA_AT_ACME,
+        first_name="ADA",
+        last_name="LOVELACE",
+        domain="hunter-echo.example",
+        linkedin_url="https://www.linkedin.com/in/someone-hunter-thinks",
+        verification={"date": None, "status": status},
+        **more,
+    )
+
+
+def merged(out: dict[str, list[LeadContribution]]) -> list[Any]:
+    """The real merge: clustering, then projection, over every contribution."""
+    contributions = [c for name in ("discovery", "hunter") for c in out[name]]
+    return [
+        project_lead(cluster, RANKS) for cluster in cluster_contributions(contributions)
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+async def test_a_found_address_carries_the_identity_it_was_asked_for() -> None:
+    source = live(acme_routed(finder=ada_found()))
+    asked = requester(
+        first=UntrustedText(value="Ada", truncated=False, original_length=3),
+        linkedin=ADA_LINKEDIN,
+    )
+    [contribution] = source.normalize_checked(await source.fetch_raw(enrich(asked)))
+    values = contribution.values
+    assert values["person.email"] == ADA_AT_ACME
+    assert values["company.domain"] == ACME  # the domain asked, not Hunter's echo
+    assert values["person.first_name"] == UntrustedText(
+        value="Ada", truncated=False, original_length=3
+    )
+    assert values["person.last_name"].value == "Lovelace"
+    assert values["person.linkedin_url"] == ADA_LINKEDIN  # the request's, not Hunter's
+    records = {p.canonical_path: p for p in contribution.provenance}
+    for path, raw in (
+        ("company.domain", "asked.domain"),
+        ("person.first_name", "asked.first_name"),
+        ("person.last_name", "asked.last_name"),
+        ("person.linkedin_url", "asked.linkedin_url"),
+    ):
+        assert records[path].raw_field_path == raw
+        assert records[path].source_name == "hunter"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+async def test_a_request_without_linkedin_gets_no_linkedin_from_hunter() -> None:
+    source = live(acme_routed(finder=ada_found()))
+    [contribution] = source.normalize_checked(
+        await source.fetch_raw(enrich(requester()))
+    )
+    assert "person.linkedin_url" not in contribution.values
+    assert contribution.values["company.domain"] == ACME
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+async def test_end_to_end_the_found_address_lands_on_the_person_by_linkedin() -> None:
+    out = await run_people(
+        acme_routed(finder=ada_found("valid")), (requester(linkedin=ADA_LINKEDIN),)
+    )
+    [result] = merged(out)
+    assert result.lead is not None
+    assert result.lead.email == ADA_AT_ACME
+    assert result.lead.email_status is EmailStatus.VERIFIED
+    assert str(result.lead.linkedin_url).rstrip("/") == ADA_LINKEDIN
+    assert result.contributing_sources == ("discovery", "hunter")
+
+
+ECHOED = ("company.domain", "person.first_name", "person.last_name")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+@pytest.mark.parametrize("hunter_rank", [1, 5], ids=["ranked_below", "ranked_above"])
+async def test_the_echoed_identity_neither_corroborates_nor_conflicts(
+    hunter_rank: int,
+) -> None:
+    # The name, domain and LinkedIn URL Hunter's contribution carries are the
+    # request, not something Hunter observed: they join the address to the person
+    # but must not count as a second source agreeing, nor compete (and win) against
+    # the requester's own spelling.
+    asked = requester(first=" Ada ", domain="WWW.Acme.com", linkedin=ADA_LINKEDIN + "/")
+    out = await run_people(acme_routed(finder=ada_found("valid")), (asked,))
+    contributions = [c for name in ("discovery", "hunter") for c in out[name]]
+    [cluster] = cluster_contributions(contributions)
+    result = project_lead(cluster, {**RANKS, "hunter": hunter_rank})
+    agreement = dict(result.agreement)
+    for path in (*ECHOED, "person.linkedin_url"):
+        assert agreement[path] == 1, path
+    assert [c.canonical_path for c in result.conflicts] == []
+    assert result.lead is not None
+    assert result.lead.email == ADA_AT_ACME
+    for record in result.provenance:  # the requester's own spelling stands alone
+        if record.canonical_path in (*ECHOED, "person.linkedin_url"):
+            assert (record.source_name, record.superseded) == ("discovery", False)
+    assert result.contributing_sources == ("discovery", "hunter")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+async def test_an_echoed_identity_alone_still_names_the_lead() -> None:
+    # With no other candidate for a path (the requester's record clustered apart),
+    # the echo is all there is and still fills the field.
+    source = live(acme_routed(finder=ada_found()))
+    [found] = source.normalize_checked(
+        await source.fetch_raw(enrich(requester(linkedin=ADA_LINKEDIN)))
+    )
+    [cluster] = cluster_contributions([found])
+    result = project_lead(cluster, RANKS)
+    assert result.lead is not None
+    assert result.lead.full_name == "Ada Lovelace"
+    assert str(result.lead.linkedin_url).rstrip("/") == ADA_LINKEDIN
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+async def test_end_to_end_without_linkedin_the_address_joins_by_name_and_domain() -> (
+    None
+):
+    # A non-verified address is no Match Key, so name+domain (with the shared
+    # employer as corroboration) is the link; the name is the one asked for.
+    out = await run_people(
+        acme_routed(finder=ada_found("accept_all", company="Acme Corp")),
+        (requester(employer="Acme Corp"),),
+    )
+    [result] = merged(out)
+    assert result.lead is not None
+    assert result.lead.email == ADA_AT_ACME
+    assert result.contributing_sources == ("discovery", "hunter")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [(ADA_LINKEDIN, OTHER_LINKEDIN), (ADA_LINKEDIN, None)],
+    ids=["two_linkedin_urls", "linkedin_and_bare"],
+)
+async def test_one_name_for_two_distinguishable_people_is_not_asked_or_attached(
+    first: str, second: str | None
+) -> None:
+    transport = acme_routed(finder=ada_found())
+    source = live(transport)
+    twins = (requester(linkedin=first), requester(linkedin=second))
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(enrich(*twins))
+    assert calls_to(transport, FINDER_PATH) == []  # no Credit for an unusable answer
+    assert batch.payload["finds"] == []
+    assert credits_in(batch) == 0
+    assert source.normalize_checked(batch) == []
+    [warning] = [e for e in logs if e["event"] == "hunter_finder_ambiguous"]
+    assert warning["log_level"] == "warning"
+    for secret in ("Ada", "Lovelace", ACME, "ada-lovelace"):
+        assert secret not in str(logs)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_end_to_end_two_people_with_one_name_never_share_one_found_address() -> (
+    None
+):
+    twins = (requester(linkedin=ADA_LINKEDIN), requester(linkedin=OTHER_LINKEDIN))
+    out = await run_people(acme_routed(finder=ada_found()), twins)
+    results = merged(out)
+    assert len(results) == 2
+    assert all(r.lead is not None and r.lead.email is None for r in results)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_indistinguishable_records_of_one_name_share_one_finder_answer() -> None:
+    transport = acme_routed(finder=ada_found())
+    source = live(transport)
+    batch = await source.fetch_raw(enrich(requester(), requester(first="ada")))
+    assert len(calls_to(transport, FINDER_PATH)) == 1
+    [contribution] = source.normalize_checked(batch)
+    assert contribution.values["person.email"] == ADA_AT_ACME
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_a_cached_answer_is_not_reused_for_a_second_distinguishable_person() -> (
+    None
+):
+    transport = acme_routed(finder=ada_found())
+    source = live(transport)
+    first = await source.fetch_raw(enrich(requester(linkedin=ADA_LINKEDIN)))
+    retried = await source.fetch_raw(enrich(requester(linkedin=ADA_LINKEDIN)))
+    other = await source.fetch_raw(enrich(requester(linkedin=OTHER_LINKEDIN)))
+    assert len(calls_to(transport, FINDER_PATH)) == 1
+    assert len(first.payload["finds"]) == len(retried.payload["finds"]) == 1
+    assert other.payload["finds"] == []
+    assert source.normalize_checked(other) == []
+
+
+# --- credits follow Hunter's documented billing (follow-up 2026-10-06) --------------
+#
+# help.hunter.io "How do credits work": Domain Search costs 1 credit per 1-10 addresses
+# returned (none when none); Email Finder costs 1 only when an address is found; Email
+# Verifier costs 1 (Data plans; 0.5 on All-in-one plans, kept at 1 as conservative).
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+@pytest.mark.parametrize(
+    ("returned", "credits"), [(0, 0), (1, 1), (10, 1), (11, 2), (25, 3), (100, 10)]
+)
+async def test_a_domain_search_costs_one_credit_per_ten_addresses_returned(
+    returned: int, credits: int
+) -> None:
+    listed = [email(f"p{i}@example.com") for i in range(returned)]
+    transport = Scripted(lambda _: found(emails=listed))
+    batch = await live(transport).fetch_raw(enrich(lead("example.com")))
+    assert credits_in(batch) == credits
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+@pytest.mark.parametrize(
+    ("address", "credits"), [("ada@example.com", 1), (None, 0)], ids=["found", "none"]
+)
+async def test_a_finder_costs_one_credit_only_when_it_finds_an_address(
+    address: str | None, credits: int
+) -> None:
+    transport = Routed(finder=lambda _: found_one(address))
+    batch = await live(transport).fetch_raw(enrich(person(first="Ada", last="L")))
+    assert len(calls_to(transport, FINDER_PATH)) == 1
+    assert credits_in(batch) == credits
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+@pytest.mark.parametrize("status", ["valid", "invalid", "accept_all", "unknown"])
+async def test_a_verification_costs_one_credit_whatever_the_verdict(
+    status: str,
+) -> None:
+    transport = Routed(verifier=lambda _: verdict(status))
+    batch = await live(transport).fetch_raw(enrich(person(email="a@example.com")))
+    assert credits_in(batch) == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+def test_a_search_whose_addresses_are_not_a_list_cannot_be_priced() -> None:
+    batch = RawBatch(
+        source_name="hunter",
+        payload={
+            "searches": [{"domain": "example.com", "response": {"data": {}}}],
+            "credits_billable": True,
+        },
+    )
+    with pytest.raises(NormalizationError):
+        credits_in(batch)

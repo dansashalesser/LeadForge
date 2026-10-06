@@ -449,18 +449,21 @@ def test_no_fixture_or_manifest_carries_a_secret_or_a_real_address() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#5.6
 def test_shipped_records_claim_no_verification_nobody_made() -> None:
-    # Every shipped fixture is a hand-made stand-in whose shape was taken from
-    # research.md and never re-checked against a documentation page by this
-    # repository (choices.md ledger). Replace a record's
-    # status with ``verified`` only together with a real check.
+    # Every shipped fixture is a hand-made stand-in. The one documentation check made
+    # so far is the provider-facts review of 2026-10-06 (official OpenAPI/SDK
+    # repositories and search extracts of network-blocked pages); a record may claim
+    # ``verified`` only with that date. Which records it covers is pinned per provider
+    # in adapters/test_provider_plan_limits.py.
     registry = SourceRegistry.discover()
     declared = {
         name: registry.source_class(name).endpoints for name in registry.names()
     }
     for manifest in validate_fixture_tree(FIXTURES_ROOT, declared).values():
         for rec in manifest.fixtures:
-            assert rec.schema_status is SchemaStatus.UNVERIFIED
-            assert rec.schema_verified_on is None
+            if rec.schema_status is SchemaStatus.VERIFIED:
+                assert rec.schema_verified_on == date(2026, 10, 6)
+            else:
+                assert rec.schema_verified_on is None
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#5.5

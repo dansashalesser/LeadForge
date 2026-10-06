@@ -72,6 +72,15 @@ class SearchBackend(ABC):
     docs_url: ClassVar[str]
     # Results one request returns at most; never assumed larger (14.7).
     page_size: ClassVar[int]
+    # Non-secret settings ``rate_bucket_for`` reads, with their ``.env.example`` notes.
+    optional_env: ClassVar[tuple[str, ...]] = ()
+    env_notes: ClassVar[Mapping[str, str]] = {}
+
+    @classmethod
+    def rate_bucket_for(cls, environ: Mapping[str, str]) -> RateBucket:
+        """The bucket a live run is paced on, sized from ``environ`` when the limit
+        depends on the operator's plan; ``rate_bucket`` (the default) otherwise."""
+        return cls.rate_bucket
 
     @abstractmethod
     def build_call(
@@ -94,6 +103,13 @@ class SearchBackend(ABC):
         type, once. A backend that cannot tell leaves the default, ``UNRECOGNIZED``.
         """
         return ThrottleCause.UNRECOGNIZED
+
+    def failed_search(self, body: object) -> bool:
+        """Whether a 2xx answer reports a failed search rather than results; never
+        raises. Read from structured fields only; the adapter raises the error. An
+        empty result is not a failure. A backend that cannot tell leaves the default.
+        """
+        return False
 
 
 def select_backend(name: str) -> type[SearchBackend]:

@@ -339,11 +339,14 @@ def hunter_finder_not_found(run: Run) -> None:
     assert run.contributions == []
 
 
-def verdict(expected: EmailStatus) -> Expect:
+def verdict(expected: EmailStatus, *, unflagged: bool = False) -> Expect:
     def check(run: Run) -> None:
         (found,) = run.contributions
         assert found.values["person.email"] == "ada.lovelace@example.com"
         assert found.values["person.email_status"] is expected
+        if unflagged:  # an answered verification is no restriction: nothing pruned
+            assert "suppressed" not in found.values
+            assert prune_flagged(run.work, (found,)) == run.work
 
     return check
 
@@ -419,8 +422,8 @@ CASES: tuple[Case, ...] = (
     Case(
         "hunter",
         "email_verifier.json",
-        {"email_verifier": P, "email_status": P},
-        verdict(EmailStatus.VERIFIED),
+        {"email_verifier": P, "email_status": P, "suppression": N},
+        verdict(EmailStatus.VERIFIED, unflagged=True),
     ),
     Case(
         "hunter",
@@ -460,6 +463,14 @@ def required_labels(source: type[BaseLeadSource]) -> set[str]:
     return labels
 
 
+# Outcomes no fixture can show, each with where it is proved instead. Hunter's
+# Suppression positive is an HTTP 451 (16.6), and ``FixtureTransport`` serves every
+# fixture as a 200, so no fixture file can carry it. It is proved over scripted 451s in
+# test_hunter_source.py (the 451 tests) and test_suppression_end_to_end.py (a 451
+# prunes the person before Apollo). Added 2026-10-06 when Hunter declared Suppression.
+NOT_FIXTURE_SHAPED: frozenset[str] = frozenset({"hunter:suppression:positive"})
+
+
 def missing_outcomes(
     cases: tuple[Case, ...], sources: Mapping[str, type[BaseLeadSource]]
 ) -> list[str]:
@@ -469,6 +480,8 @@ def missing_outcomes(
         mine = [c for c in cases if c.provider == provider]
         for label in sorted(required_labels(sources[provider])):
             for outcome in Outcome:
+                if f"{provider}:{label}:{outcome}" in NOT_FIXTURE_SHAPED:
+                    continue
                 if not any(c.outcomes.get(label) is outcome for c in mine):
                     missing.append(f"{provider}:{label}:{outcome}")
     return missing
@@ -538,8 +551,12 @@ def test_every_outcome_variant_is_a_flagged_hand_made_stand_in() -> None:
     assert variants
     for provider, record in variants:
         assert record.origin.value == "hand_made", (provider, record.file)
-        assert record.schema_status.value == "unverified", (provider, record.file)
-        assert record.schema_verified_on is None
+        # Only the provider-facts check of 2026-10-06 may mark a variant verified
+        # (pinned per file in test_provider_plan_limits.py).
+        if record.schema_status.value == "verified":
+            assert str(record.schema_verified_on) == "2026-10-06", record.file
+        else:
+            assert record.schema_verified_on is None, (provider, record.file)
         assert record.redaction is None
         assert "not a capture" in record.note
 
@@ -605,3 +622,16 @@ def test_a_source_without_a_term_vocabulary_reports_not_applicable_not_no_match(
             not_applicable += 1
     assert applicable
     assert not_applicable
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#5.5
+def test_hunters_suppression_still_needs_a_fixture_negative() -> None:
+    # Only the 451 positive is exempt (NOT_FIXTURE_SHAPED); the negative is a fixture.
+    without = tuple(
+        c for c in CASES if not (c.provider == "hunter" and "suppression" in c.outcomes)
+    )
+    missing = missing_outcomes(without, {"hunter": SOURCES["hunter"]})
+    assert [m for m in missing if ":suppression:" in m] == [
+        "hunter:suppression:negative"
+    ]
+    assert {"hunter:suppression:positive"} == NOT_FIXTURE_SHAPED

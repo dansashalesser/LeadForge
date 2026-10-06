@@ -6,10 +6,19 @@ reached with ``start`` (14.7); ``num`` is never sent. A next page exists when
 ``serpapi_pagination.next`` is present. Throttling-versus-balance exhaustion on a 429
 is read by ``throttle_cause`` (14.3); the adapter turns it into an error.
 
-Provisional decisions (see choices.md, task 14.1):
+Provisional decisions (see choices.md, task 14.1; revised 2026-10-06):
 
-* The bucket is one request per second, self-imposed and undocumented: SerpApi's
-  hourly throughput depends on the plan, and no figure is quoted for it.
+* The bucket is SerpApi's hourly throughput, which depends on the plan: Free 50,
+  Starter 200, Developer 1,000, Production 3,000, Big Data 6,000 searches per hour
+  (https://serpapi.com/pricing, read 2026-10-06 through a search-engine extract; the
+  page itself was network-blocked). The former self-imposed one request per second
+  (3,600 an hour) was above every plan but Big Data.
+* The figure is ``SERPAPI_HOURLY_LIMIT``, a non-secret setting read when a live run
+  starts. Unset or blank means ``DEFAULT_HOURLY_LIMIT``, 50: the Free plan, the lowest
+  documented figure, so the default is safe on every plan. Anything but a positive
+  whole number is a ``ConfigurationError`` naming the variable, never the value.
+* Pacing is derived from the figure: one request every ``3600 / limit`` seconds, ANDed
+  with the hourly window itself, so a cold bucket never bursts and no hour exceeds it.
 
 Provisional decisions (see choices.md, task 14.3):
 
@@ -18,6 +27,17 @@ Provisional decisions (see choices.md, task 14.3):
   out of searches."); the throughput wording is not, so it is matched by the word
   "throughput" (an assumption). Matching is case-insensitive on a top-level string
   ``error``; anything else is ``UNRECOGNIZED``, which the adapter retries with backoff.
+
+Empty page versus failed search (follow-up, 2026-10-06):
+
+* SerpApi puts a top-level ``error`` on an empty page too. The documented empty page
+  keeps ``search_metadata.status`` ``Success`` and has
+  ``search_information.organic_results_state`` ``Fully empty``
+  (https://serpapi.com/api-status-and-error-codes, https://serpapi.com/search-errors,
+  read 2026-10-06 through search-engine extracts). That page is no results. A 2xx page
+  whose status is ``Error``, or which carries ``error`` without being that empty page,
+  is a failed search (``failed_search``). Only structured fields decide; the message
+  wording is never read for it.
 """
 
 from collections.abc import Mapping
@@ -29,13 +49,60 @@ from leadforge.lead_ingestion.adapters.search_backends import (
     ThrottleCause,
 )
 from leadforge.lead_ingestion.base_source import Endpoint, RateBucket, RateWindow
+from leadforge.lead_ingestion.errors import ConfigurationError
 
-__all__ = ["SerpApiBackend"]
+__all__ = [
+    "DEFAULT_HOURLY_LIMIT",
+    "HOURLY_LIMIT_ENV",
+    "SerpApiBackend",
+    "hourly_bucket",
+]
 
 _KEY_ENV = "SERPAPI_API_KEY"
 _DOCS = "https://serpapi.com/search-api"
+_PRICING = "https://serpapi.com/pricing"
 _BALANCE_MARKER = "run out of searches"
 _THROUGHPUT_MARKER = "throughput"
+_STATUS_ERROR = "Error"
+_STATUS_SUCCESS = "Success"
+_FULLY_EMPTY = "Fully empty"
+
+HOURLY_LIMIT_ENV = "SERPAPI_HOURLY_LIMIT"
+DEFAULT_HOURLY_LIMIT = 50  # Free plan: the lowest documented hourly throughput
+_MAX_LIMIT_DIGITS = 9
+_HOUR_S = 3600.0
+
+
+def hourly_bucket(searches_per_hour: int) -> RateBucket:
+    """The ``default`` bucket for a plan's hourly throughput, evenly spaced."""
+    return RateBucket(
+        name="default",
+        windows=(
+            RateWindow(requests=searches_per_hour, per_seconds=_HOUR_S),
+            RateWindow(requests=1, per_seconds=_HOUR_S / searches_per_hour),
+        ),
+        documented=True,
+        doc_url=_PRICING,
+    )
+
+
+def _hourly_limit(environ: Mapping[str, str]) -> int:
+    text = environ.get(HOURLY_LIMIT_ENV, "").strip()
+    if not text:
+        return DEFAULT_HOURLY_LIMIT
+    if (
+        not text.isascii()
+        or not text.isdigit()
+        or len(text) > _MAX_LIMIT_DIGITS
+        or int(text) < 1
+    ):
+        # The value is not echoed, as for every configuration error.
+        raise ConfigurationError(
+            "environment",
+            key_path=HOURLY_LIMIT_ENV,
+            detail="must be a positive whole number of searches per hour",
+        )
+    return int(text)
 
 
 class SerpApiBackend(SearchBackend):
@@ -43,16 +110,23 @@ class SerpApiBackend(SearchBackend):
     endpoint: ClassVar[Endpoint] = Endpoint(
         method="GET", path="/search", bucket="default"
     )
-    rate_bucket: ClassVar[RateBucket] = RateBucket(
-        name="default",
-        windows=(RateWindow(requests=1, per_seconds=1.0),),
-        documented=False,
-        doc_url=_DOCS,
-    )
+    rate_bucket: ClassVar[RateBucket] = hourly_bucket(DEFAULT_HOURLY_LIMIT)
     required_env: ClassVar[tuple[str, ...]] = (_KEY_ENV,)
+    optional_env: ClassVar[tuple[str, ...]] = (HOURLY_LIMIT_ENV,)
+    env_notes: ClassVar[Mapping[str, str]] = {
+        HOURLY_LIMIT_ENV: (
+            "optional: searches per hour on your SerpApi plan (Free 50, Starter 200, "
+            f"Developer 1000, Production 3000, Big Data 6000; {_PRICING}); "
+            f"unset means {DEFAULT_HOURLY_LIMIT}"
+        )
+    }
     base_url: ClassVar[str] = "https://serpapi.com"
     docs_url: ClassVar[str] = _DOCS
     page_size: ClassVar[int] = 10
+
+    @classmethod
+    def rate_bucket_for(cls, environ: Mapping[str, str]) -> RateBucket:
+        return hourly_bucket(_hourly_limit(environ))
 
     def build_call(
         self, query: str, page_index: int, credentials: Mapping[str, str]
@@ -81,3 +155,24 @@ class SerpApiBackend(SearchBackend):
         if _THROUGHPUT_MARKER in lowered:
             return ThrottleCause.THROUGHPUT
         return ThrottleCause.UNRECOGNIZED
+
+    def failed_search(self, body: object) -> bool:
+        if not isinstance(body, Mapping):
+            return False
+        metadata = body.get("search_metadata")
+        if metadata is not None and not isinstance(metadata, Mapping):
+            return True
+        status = metadata.get("status") if isinstance(metadata, Mapping) else None
+        if status == _STATUS_ERROR:
+            return True
+        if "error" not in body:
+            return False
+        if self.throttle_cause(body) is ThrottleCause.BALANCE:
+            return True  # an exhausted account is never an empty page
+        information = body.get("search_information")
+        state = (
+            information.get("organic_results_state")
+            if isinstance(information, Mapping)
+            else None
+        )
+        return not (status == _STATUS_SUCCESS and state == _FULLY_EMPTY)

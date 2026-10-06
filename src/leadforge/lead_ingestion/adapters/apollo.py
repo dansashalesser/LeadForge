@@ -49,10 +49,26 @@ Provisional decisions (see choices.md, task 12.1):
 * ``fixtures/apollo/supported_technologies.csv`` is a hand-made four-row STAND-IN, not
   Apollo's published list; the snapshot date below is the stand-in's date.
 * Warnings go to the structured log; there is no run-record warning channel yet.
+
+Rate limits (follow-up, 2026-10-06; supersedes the single 600-per-hour bucket):
+
+* Apollo's limits depend on the plan and are per minute, per hour and per day, ANDed
+  in one bucket. Search and match are paced on separate buckets, because Apollo
+  publishes a separate table for search endpoints. Figures (``_PLAN_LIMITS``) are from
+  https://docs.apollo.io/reference/rate-limits, read through a search-engine extract
+  on 2026-10-06 (the page was network-blocked): search, Free 50/min 200/h 600/day and
+  paid plans 200/min 6,000/h 50,000/day; other endpoints, Free 50/min 200/h 600/day,
+  Basic and Professional 200/min 400/h 2,000/day, Organization 200/min 600/h
+  6,000/day.
+* The plan is ``APOLLO_PLAN`` (free, basic, professional, organization), a non-secret
+  setting read when a live run starts. Unset or blank means free, the lowest figures,
+  so the default is safe on every plan. Any other value is a ``ConfigurationError``
+  naming the variable, never the value.
 """
 
 import csv
 import io
+import os
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -79,6 +95,7 @@ from leadforge.lead_ingestion.base_source import (
     retry_after_seconds,
 )
 from leadforge.lead_ingestion.errors import (
+    ConfigurationError,
     NormalizationError,
     SourceError,
     SourceRateLimited,
@@ -97,7 +114,15 @@ from leadforge.lead_ingestion.transport import Transport, TransportResponse
 if TYPE_CHECKING:
     from leadforge.lead_ingestion.pacing import SourcePacing
 
-__all__ = ["MAX_PAGE", "MAX_PER_PAGE", "ApolloSource", "credits_in"]
+__all__ = [
+    "DEFAULT_PLAN",
+    "MAX_PAGE",
+    "MAX_PER_PAGE",
+    "PLAN_ENV",
+    "ApolloSource",
+    "credits_in",
+    "plan_rate_limit",
+]
 
 MAX_PER_PAGE = 100
 MAX_PAGE = 500  # Apollo's documented display ceiling: 100 x 500 = 50,000 records
@@ -113,11 +138,51 @@ _KEY_HEADER = "x-api-key"
 _KEY_ENV = "APOLLO_API_KEY"
 _DOCS = "https://docs.apollo.io/reference/people-api-search"
 
+_RATE_LIMITS_DOCS = "https://docs.apollo.io/reference/rate-limits"
+PLAN_ENV = "APOLLO_PLAN"
+DEFAULT_PLAN = "free"  # the lowest documented limits, safe on every plan
+
 _SEARCH = Endpoint(
-    method="POST", path="/api/v1/mixed_people/api_search", bucket="default"
+    method="POST", path="/api/v1/mixed_people/api_search", bucket="search"
 )
 
-_MATCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="default")
+_MATCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="match")
+
+# Plan -> ((search per minute, hour, day), (match per minute, hour, day)). From
+# https://docs.apollo.io/reference/rate-limits, read 2026-10-06 through a search-engine
+# extract (the page itself was network-blocked): search endpoints have their own
+# table; people/match falls under the general-endpoint table.
+_Windows = tuple[int, int, int]
+_PLAN_LIMITS: Mapping[str, tuple[_Windows, _Windows]] = {
+    "free": ((50, 200, 600), (50, 200, 600)),
+    "basic": ((200, 6000, 50_000), (200, 400, 2000)),
+    "professional": ((200, 6000, 50_000), (200, 400, 2000)),
+    "organization": ((200, 6000, 50_000), (200, 600, 6000)),
+}
+
+
+def _bucket(name: str, windows: _Windows) -> RateBucket:
+    per_minute, per_hour, per_day = windows
+    return RateBucket(
+        name=name,
+        windows=(
+            RateWindow(requests=per_minute, per_seconds=60.0),
+            RateWindow(requests=per_hour, per_seconds=3600.0),
+            RateWindow(requests=per_day, per_seconds=86_400.0),
+        ),
+        documented=True,
+        doc_url=_RATE_LIMITS_DOCS,
+    )
+
+
+def plan_rate_limit(plan: str) -> Mapping[str, RateBucket]:
+    """The ``search`` and ``match`` buckets of one documented Apollo plan."""
+    search, match = _PLAN_LIMITS[plan]
+    return {
+        _SEARCH.bucket: _bucket(_SEARCH.bucket, search),
+        _MATCH.bucket: _bucket(_MATCH.bucket, match),
+    }
+
 
 _ID_PATH = "person.provider_id"
 _NO_MATCH = "none"
@@ -175,14 +240,8 @@ class ApolloSource(BaseLeadSource):
     capabilities: ClassVar[frozenset[Capability]] = frozenset(
         {Capability.SEARCH, Capability.ENRICH}
     )
-    rate_limit: ClassVar[Mapping[str, RateBucket]] = {
-        "default": RateBucket(
-            name="default",
-            windows=(RateWindow(requests=600, per_seconds=3600.0),),
-            documented=False,  # plan-dependent figure from the design, not a quote
-            doc_url=_DOCS,
-        )
-    }
+    # The conservative default; a live run is paced on ``run_rate_limit``.
+    rate_limit: ClassVar[Mapping[str, RateBucket]] = plan_rate_limit(DEFAULT_PLAN)
     answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {
         "person.title": frozenset({"title"}),
         "person.linkedin_url": frozenset({"linkedin_url"}),
@@ -205,8 +264,31 @@ class ApolloSource(BaseLeadSource):
         "match": _MATCH,
     }
     required_env: ClassVar[tuple[str, ...]] = (_KEY_ENV,)
+    optional_env: ClassVar[tuple[str, ...]] = (PLAN_ENV,)
+    env_notes: ClassVar[Mapping[str, str]] = {
+        PLAN_ENV: (
+            f"optional: your Apollo plan, one of {', '.join(_PLAN_LIMITS)}; sizes the "
+            f"rate limits ({_RATE_LIMITS_DOCS}); unset means {DEFAULT_PLAN}"
+        )
+    }
     docs_url: ClassVar[str] = _DOCS
     base_url: ClassVar[str] = "https://api.apollo.io"
+
+    @classmethod
+    def run_rate_limit(
+        cls, environ: Mapping[str, str] | None = None
+    ) -> Mapping[str, RateBucket]:
+        """The documented windows of the plan named by ``APOLLO_PLAN`` (7.1)."""
+        env = os.environ if environ is None else environ
+        plan = env.get(PLAN_ENV, "").strip().casefold() or DEFAULT_PLAN
+        if plan not in _PLAN_LIMITS:
+            # The value is not echoed, as for every configuration error.
+            raise ConfigurationError(
+                "environment",
+                key_path=PLAN_ENV,
+                detail=f"must be one of {', '.join(_PLAN_LIMITS)}",
+            )
+        return plan_rate_limit(plan)
 
     RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule("person.provider_id", "id"),

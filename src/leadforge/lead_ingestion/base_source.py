@@ -231,6 +231,7 @@ _FROZEN_MAPPINGS = (
     "answerable_surfaces",
     "target_vocabulary",
     "endpoints",
+    "env_notes",
 )
 
 _DECLARATIONS = (
@@ -284,6 +285,14 @@ class BaseLeadSource(ABC):
     # back to the first rate bucket's doc_url and fails if an adapter with credentials
     # has neither.
     docs_url: ClassVar[str] = ""
+    # Non-secret settings the adapter may read, such as the operator's plan, which
+    # sizes plan-dependent buckets in ``run_rate_limit``. Unset means the adapter's
+    # conservative default, so they are not ``required_env``; ``.env.example`` lists
+    # them all the same (10.4).
+    optional_env: ClassVar[tuple[str, ...]] = ()
+    # Variable name -> one-line comment for ``.env.example`` (a required scope, what
+    # an optional setting means and its default). Never a value.
+    env_notes: ClassVar[Mapping[str, str]] = {}
     # Provider host for live mode (``https://api.example.com``); blank for a source
     # that never goes live over REST. Read by ``build_transport`` only.
     base_url: ClassVar[str] = ""
@@ -398,6 +407,20 @@ class BaseLeadSource(ABC):
         return RestTransport(cls.name, cls.base_url, cls.endpoints)
 
     @classmethod
+    def run_rate_limit(
+        cls, environ: Mapping[str, str] | None = None
+    ) -> Mapping[str, RateBucket]:
+        """The buckets a live run is paced on: the declared ``rate_limit`` by default.
+
+        An adapter whose provider limits depend on the operator's plan overrides this
+        to read its ``optional_env`` setting from ``environ`` (the process environment
+        when ``None``). Bucket names must stay those of ``rate_limit``, which remains
+        the conservative default and what the descriptors report. Called only for a
+        live source, so a synthetic run reads no setting.
+        """
+        return cls.rate_limit
+
+    @classmethod
     def from_run(
         cls,
         mode: DataMode,
@@ -507,6 +530,17 @@ class BaseLeadSource(ABC):
             )
         if len(set(names)) != len(names):
             raise TypeError(f"{cls}.required_env must not repeat a name")
+        optional = self.optional_env
+        if not isinstance(optional, tuple) or not all(
+            _is_env_name(n) for n in optional
+        ):
+            raise TypeError(
+                f"{cls}.optional_env must be a tuple of environment variable names"
+            )
+        if len(set(optional)) != len(optional) or set(optional) & set(names):
+            raise TypeError(
+                f"{cls}.optional_env must not repeat a name or a required_env name"
+            )
 
     @property
     def data_mode(self) -> DataMode:

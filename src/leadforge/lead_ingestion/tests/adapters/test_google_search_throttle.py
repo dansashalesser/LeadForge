@@ -19,7 +19,10 @@ from leadforge.lead_ingestion.adapters.search_backends import (
     SearchCall,
     ThrottleCause,
 )
-from leadforge.lead_ingestion.adapters.search_backends.serpapi import SerpApiBackend
+from leadforge.lead_ingestion.adapters.search_backends.serpapi import (
+    HOURLY_LIMIT_ENV,
+    SerpApiBackend,
+)
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
     Capability,
@@ -59,6 +62,13 @@ def _no_sockets(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(socket.socket, "connect", refuse)
     monkeypatch.setattr(socket, "getaddrinfo", refuse)
+
+
+@pytest.fixture(autouse=True)
+def _fast_plan(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Orchestrated live runs pace on SERPAPI_HOURLY_LIMIT; the Free-plan default
+    # spaces calls 72 s apart. 36,000 an hour spaces them 0.1 s apart.
+    monkeypatch.setenv(HOURLY_LIMIT_ENV, "36000")
 
 
 class Scripted:

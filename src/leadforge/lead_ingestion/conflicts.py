@@ -27,6 +27,11 @@ mutated. Provisional decisions (choices.md, 16.3):
   component of the order on which the two differ (task 16.12, Requirement 21.4). It is
   derived from the same order key, so it cannot disagree with the winner; ``None`` when
   nobody lost. Names a rule, never a value.
+* A request echo (raw path under ``REQUEST_ECHO_PREFIX``: the identity an enrichment
+  source was asked about, not something it observed) competes for a path only when no
+  observed candidate holds it. Otherwise it is left out, so it never counts as an
+  agreeing source, never creates a conflict and never outranks the requester's own
+  value; alone, it still fills the field.
 * Values and sources are personal data: errors name types and source names only.
 """
 
@@ -42,6 +47,7 @@ from leadforge.lead_ingestion.clustering import (
     canonical_value_json,
 )
 from leadforge.lead_ingestion.models import (
+    REQUEST_ECHO_PREFIX,
     AbsenceKind,
     ConfidenceOrigin,
     FieldProvenance,
@@ -155,7 +161,7 @@ def resolve_conflicts(
             )
 
     fields = tuple(
-        _resolve_path(path, sorted(entries, key=lambda entry: entry[0]))
+        _resolve_path(path, sorted(_observed_first(entries), key=lambda e: e[0]))
         for path, entries in sorted(by_path.items())
     )
     ordered = sorted(
@@ -167,6 +173,18 @@ def resolve_conflicts(
         tuple(a for a in ordered if a.kind is AbsenceKind.NEGATIVE_EVIDENCE),
         tuple(a for a in ordered if a.kind is AbsenceKind.NOT_APPLICABLE),
     )
+
+
+def _observed_first(
+    entries: list[tuple[tuple[Any, ...], str, FieldCandidate]],
+) -> list[tuple[tuple[Any, ...], str, FieldCandidate]]:
+    """The observed candidates of a path; its request echoes only if there are none."""
+    observed = [
+        entry
+        for entry in entries
+        if not entry[2].provenance.raw_field_path.startswith(REQUEST_ECHO_PREFIX)
+    ]
+    return observed or entries
 
 
 def _without_strength(value: object) -> object:

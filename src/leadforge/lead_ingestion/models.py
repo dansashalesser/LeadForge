@@ -26,6 +26,7 @@ from pydantic import (
 from leadforge.lead_ingestion.errors import ConflictingCompanySignalError
 
 __all__ = [
+    "REQUEST_ECHO_PREFIX",
     "AbsenceKind",
     "CanonicalLead",
     "CompanySignal",
@@ -117,6 +118,15 @@ class UntrustedText(_Entity):
             f"UntrustedText(<{len(self.value)} chars withheld>, "
             f"truncated={self.truncated}, original_length={self.original_length})"
         )
+
+
+# A raw field path under this prefix is a request echo: the identity an enrichment
+# source was ASKED about (e.g. the name and domain sent to a finder), carried so the
+# Match Keys join the answer to that person. It is not something the source observed,
+# so conflict resolution counts it only when no other candidate holds the path: it
+# never corroborates, conflicts with or outranks an observed value. The raw path is
+# persisted with the contribution, so the rule survives a recompute from the store.
+REQUEST_ECHO_PREFIX = "asked."
 
 
 class FieldProvenance(_Entity):

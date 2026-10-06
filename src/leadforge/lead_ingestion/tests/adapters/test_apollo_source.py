@@ -773,13 +773,18 @@ def test_normalizing_a_payload_of_neither_shape_is_a_normalization_error() -> No
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#7.1
-async def test_search_and_match_both_take_capacity_from_the_declared_bucket() -> None:
+async def test_search_and_match_each_take_capacity_from_their_own_bucket() -> None:
     throttle = SourceThrottle("apollo", ApolloSource.rate_limit)
     pacing = SourcePacing(throttle=throttle, retry=RetryPolicy())
-    seen: list[float] = []
+    seen: list[tuple[float, float]] = []
 
     def respond(params: Mapping[str, object]) -> TransportResponse:
-        seen.append(throttle.bucket("default").available()[0])
+        seen.append(
+            (
+                throttle.bucket("search").available()[0],
+                throttle.bucket("match").available()[0],
+            )
+        )
         return page(0, 0) if "page" in params else matched()
 
     source = ApolloSource(
@@ -791,9 +796,10 @@ async def test_search_and_match_both_take_capacity_from_the_declared_bucket() ->
     )
     await source.fetch_raw(REQUEST)
     await source.fetch_raw(enrich(lead("p1")))
-    # Each call had already taken its token when the transport saw it.
-    assert seen[0] == pytest.approx(599, abs=0.1)
-    assert seen[1] == pytest.approx(598, abs=0.1)
+    # Each call had already taken its token, from its own bucket only (free plan:
+    # 50 per minute each), when the transport saw it.
+    assert seen[0] == pytest.approx((49, 50), abs=0.1)
+    assert seen[1] == pytest.approx((49, 49), abs=0.1)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#7.5

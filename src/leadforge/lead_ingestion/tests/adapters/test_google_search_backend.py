@@ -148,13 +148,16 @@ def test_declares_a_balance_bearing_per_call_cost() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.1
-def test_the_rate_bucket_is_self_imposed_not_documented() -> None:
+def test_the_rate_bucket_is_the_documented_free_plan_throughput() -> None:
     bucket = GoogleSearchSource.rate_limit[
         GoogleSearchSource.endpoints["search"].bucket
     ]
     assert isinstance(bucket, RateBucket)
-    assert bucket.documented is False
-    assert bucket.windows == (RateWindow(requests=1, per_seconds=1.0),)
+    assert bucket.documented is True
+    assert bucket.windows == (
+        RateWindow(requests=50, per_seconds=3600.0),
+        RateWindow(requests=1, per_seconds=72.0),
+    )
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.1
@@ -353,15 +356,17 @@ async def test_every_call_takes_capacity_from_the_declared_bucket() -> None:
     throttle = SourceThrottle("google_search", GoogleSearchSource.rate_limit)
     pacing = SourcePacing(throttle=throttle, retry=RetryPolicy())
     bucket = throttle.bucket("default")
-    seen: list[float] = []
+    seen: list[tuple[float, ...]] = []
 
     def respond(_: Mapping[str, object]) -> TransportResponse:
-        seen.append(bucket.available()[0])
+        seen.append(bucket.available())
         return ok()
 
     await live(Scripted(respond), pacing=pacing).fetch_raw(REQUEST)
     assert seen
-    assert seen[0] < 1.0
+    hourly, spacing = seen[0]
+    assert hourly == pytest.approx(49, abs=0.1)
+    assert spacing < 1.0
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.1

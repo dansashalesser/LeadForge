@@ -23,6 +23,7 @@ from leadforge.lead_ingestion.base_source import (
 )
 from leadforge.lead_ingestion.clustering import cluster_contributions
 from leadforge.lead_ingestion.compliance import blocked_identities
+from leadforge.lead_ingestion.errors import SourceTimedOut
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import (
     IngestionOrchestrator,
@@ -110,6 +111,8 @@ def hubspot_answers(opted_out: str | None) -> hubspot_t.Scripted:
 
 
 class Run:
+    discovery: ClassVar[type[Source]] = Discovery
+
     def __init__(
         self,
         hubspot: hubspot_t.Scripted,
@@ -144,7 +147,12 @@ class Run:
             assert issubclass(source_class, Source)
             return source_class(mode, probe)
 
-        classes: list[type] = [Discovery, HubSpotSource, HunterSource, ApolloSource]
+        classes: list[type] = [
+            self.discovery,
+            HubSpotSource,
+            HunterSource,
+            ApolloSource,
+        ]
         with capture_logs() as logs:
             self.results = await IngestionOrchestrator(
                 SourceRegistry(classes),
@@ -361,3 +369,178 @@ async def test_the_compliance_path_never_puts_an_address_in_a_log_or_an_error() 
         for text in texts:
             for secret in (ADA, BOB, "Lovelace", hubspot_t.TOKEN, hunter_t.KEY):
                 assert secret not in text
+
+
+# --- Hunter runs before Apollo (user decision, 2026-10-06) -------------------------
+#
+# Hunter declares yields_suppression, so it runs in a paid tier ahead of Apollo: a
+# Hunter 451 on a person prunes them from the work list before Apollo's paid match is
+# asked about them. Anything short of a 451 (nothing found, an error, a timeout) must
+# leave the person on the list, so Apollo is still asked.
+
+ADA_LINKEDIN = "https://www.linkedin.com/in/ada-lovelace"
+
+
+class NamedDiscovery(Discovery):
+    """Ada with a name and a LinkedIn URL but no address (the finder route)."""
+
+    name: ClassVar[str] = "discovery"
+
+    def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+        bob = super().normalize(raw)[1]
+        ada = contribution(
+            "apollo",
+            {
+                "person.provider_id": "p-ada",
+                "person.first_name": "Ada",
+                "person.last_name": "Lovelace",
+                "person.linkedin_url": ADA_LINKEDIN,
+                "company.domain": "example.com",
+            },
+        )
+        return [ada, bob]
+
+
+class ApolloMatches(ApolloTransport):
+    """Also records which person each paid match asked about."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.ids: list[str] = []
+
+    async def send(
+        self,
+        endpoint: Endpoint,
+        *,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str],
+    ) -> TransportResponse:
+        if endpoint.path == apollo_t.MATCH_PATH:
+            self.ids.append(str((params or {}).get("id")))
+        return await super().send(
+            endpoint, params=params, json_body=json_body, headers=headers
+        )
+
+
+class NamedRun(Run):
+    discovery: ClassVar[type[Source]] = NamedDiscovery
+
+
+def ada_only(answer: TransportResponse) -> Any:
+    """A Hunter responder: ``answer`` for Ada, an ordinary verdict for anyone else."""
+
+    def respond(params: Mapping[str, object]) -> TransportResponse:
+        if params.get("email") == ADA or params.get("first_name") == "Ada":
+            return answer
+        return hunter_t.verdict(address=str(params.get("email", BOB)))
+
+    return respond
+
+
+def outcome_of(run: Run, name: str) -> SourceStatus:
+    return next(r.outcome.status for r in run.results if r.source_name == name)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+@pytest.mark.parametrize("run_class", [Run, NamedRun], ids=["verifier", "finder"])
+async def test_a_hunter_451_prunes_that_person_before_apollos_paid_match(
+    run_class: type[Run],
+) -> None:
+    refuse = ada_only(hunter_t.restricted())
+    apollo = ApolloMatches()
+    run = run_class(
+        hubspot_answers("false"),
+        hunter_routed(verifier=refuse, finder=refuse),
+        apollo,
+    )
+    await run.go()
+    assert outcome_of(run, "hunter") is SourceStatus.OK
+    assert apollo.ids == ["p-bob"]  # never asked about the restricted person
+
+
+class ColleagueDiscovery(Discovery):
+    """Ada and a colleague at the SAME company, both on the finder route."""
+
+    name: ClassVar[str] = "discovery"
+
+    def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+        return [
+            contribution(
+                "apollo",
+                {
+                    "person.provider_id": pid,
+                    "person.first_name": first,
+                    "person.last_name": last,
+                    "person.linkedin_url": f"https://www.linkedin.com/in/{slug}",
+                    "company.domain": "example.com",
+                },
+            )
+            for pid, first, last, slug in (
+                ("p-ada", "Ada", "Lovelace", "ada-lovelace"),
+                ("p-cy", "Cy", "Babbage", "cy-babbage"),
+            )
+        ]
+
+
+class ColleagueRun(Run):
+    discovery: ClassVar[type[Source]] = ColleagueDiscovery
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_hunter_451_prunes_one_person_not_their_colleagues() -> None:
+    def respond(params: Mapping[str, object]) -> TransportResponse:
+        if params.get("first_name") == "Ada":
+            return hunter_t.restricted()
+        return hunter_t.found_one(None)
+
+    apollo = ApolloMatches()
+    run = ColleagueRun(hubspot_answers("false"), hunter_routed(finder=respond), apollo)
+    await run.go()
+    assert outcome_of(run, "hunter") is SourceStatus.OK
+    assert apollo.ids == ["p-cy"]  # the same company, a different person: still asked
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+async def test_a_finder_that_finds_nothing_leaves_the_person_for_apollo() -> None:
+    apollo = ApolloMatches()
+    nothing = ada_only(hunter_t.found_one(None))
+    run = NamedRun(hubspot_answers("false"), hunter_routed(finder=nothing), apollo)
+    await run.go()
+    assert outcome_of(run, "hunter") is SourceStatus.OK
+    assert sorted(apollo.ids) == ["p-ada", "p-bob"]
+
+
+class TimingOut(hunter_t.Routed):
+    """Every Hunter call times out at the transport, as ``RestTransport`` reports."""
+
+    async def send(
+        self,
+        endpoint: Endpoint,
+        *,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str],
+    ) -> TransportResponse:
+        raise SourceTimedOut("hunter", f"{endpoint.path}: ReadTimeout")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.6
+@pytest.mark.parametrize(
+    ("run_class", "hunter"),
+    [
+        (Run, hunter_t.answering(404)),
+        (NamedRun, hunter_t.answering(404)),
+        (NamedRun, hunter_t.answering(429)),
+        (NamedRun, TimingOut()),
+    ],
+    ids=["verifier_404", "finder_404", "finder_429", "finder_timeout"],
+)
+async def test_a_hunter_failure_never_prunes_a_person_from_apollo(
+    run_class: type[Run], hunter: hunter_t.Routed
+) -> None:
+    apollo = ApolloMatches()
+    run = run_class(hubspot_answers("false"), hunter, apollo)
+    await run.go()
+    assert outcome_of(run, "hunter") is not SourceStatus.OK
+    assert sorted(apollo.ids) == ["p-ada", "p-bob"]

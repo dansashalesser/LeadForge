@@ -25,11 +25,26 @@ Provisional decisions (see choices.md, task 15.1):
   a control character or ``*`` (Apollo obfuscates last names, and a masked name would
   spend a Credit on a guess). A Lead with a name but no domain makes no call.
 * The raw batch is ``{"searches": [{"domain", "response"}], "finds": [{"domain",
-  "first_name", "last_name", "response"}], "verifications": [{"email", "response"}],
-  "credits_billable"}``, each response verbatim (``None`` for a verifier 202).
-  ``credits_in(batch)`` counts one Credit per live call of a real key and zero for the
-  sandbox key or synthetic mode (16.8). Hunter's actual per-call billing was not
-  verified; one per call is an assumption, not a quote.
+  "first_name", "last_name", "linkedin_url", "response"}], "verifications": [{"email",
+  "response"}], "credits_billable"}``, each response verbatim (``None`` for a verifier
+  202). ``credits_in(batch)`` follows Hunter's billing (help.hunter.io, "How do credits
+  work", checked 2026-10-06) for a real key's live batch, zero for the sandbox key or
+  synthetic mode (16.8): a domain search costs ``ceil(addresses returned / 10)`` (none
+  for none); a finder 1 only when it found an address; a verification 1. KNOWN GAP: the
+  verifier price is plan-dependent (1 verification credit on Data plans, 0.5 credit on
+  All-in-one plans); 1 is kept as the conservative figure. A verification Hunter could
+  not finish (202 give-up) or answered ``unknown`` is still counted 1, also
+  conservative; Hunter's "no credit if it can't verify" may make it 0.
+* A found address carries the person it was asked for (follow-up, 2026-10-06): the
+  domain and the name asked (not Hunter's echo) and the requester's own LinkedIn URL
+  when it had one (never Hunter's ``linkedin_url``), at raw paths ``asked.*``, so the
+  normal Match Keys join it to that person. One name question at one domain asked on
+  behalf of two distinguishable people (distinct normalised LinkedIn identities, a
+  LinkedIn-less record counting as one more) is not asked at all
+  (``hunter_finder_ambiguous`` with a count only, no Credit): one answer cannot belong
+  to both. That holds across fetches of one run; an answer already attached in an
+  earlier batch is not recalled. Records with no LinkedIn are indistinguishable and
+  share the one answer.
 * The sandbox is live mode whose key equals ``test-api-key``; there is no third data
   mode. The batch records it as not billable. The key value is compared only to price
   the batch (16.8 names the key); the data mode never comes from the credential.
@@ -73,9 +88,13 @@ Provisional decisions (see choices.md, task 15.1):
 * A 451 from the finder or verifier (16.6) is ISOLATED to that question: the call is
   caught in ``fetch_raw`` (that error type only), recorded in the batch under
   ``restricted_verifications`` (``{"email"}``) or ``restricted_finds`` (``{"domain",
-  "first_name", "last_name"}``), and the rest of the batch goes on. Each becomes one
-  contribution carrying ``suppressed`` = True and the identity the Lead was asked by
-  (the address; or the name and domain), and no verdict, confidence or source. The
+  "first_name", "last_name", "linkedin_url"}``), and the rest of the batch goes on.
+  Each becomes one contribution carrying ``suppressed`` = True and the identity the
+  Lead was asked by (the address; or the name, domain and the requester's LinkedIn URL
+  when it had one), and no verdict, confidence or source. ``yields_suppression`` is
+  True, so Hunter runs in a paid tier ahead of Apollo and a 451 prunes the person (by
+  address or LinkedIn identity) before Apollo's paid match (user decision,
+  2026-10-06). A name-only person with no LinkedIn cannot be pruned that way. The
   restriction is cached like a verdict, so a retried fetch does not ask again. A 451
   from a domain search names no person, so it is not isolated: it fails the fetch as
   ``SourceComplianceRestricted``. A 451 is assumed not to be billed.
@@ -117,7 +136,9 @@ from leadforge.lead_ingestion.errors import (
     SourceQuotaExhausted,
     SourceRateLimited,
 )
+from leadforge.lead_ingestion.match_keys import linkedin_identity
 from leadforge.lead_ingestion.models import (
+    REQUEST_ECHO_PREFIX,
     ConfidenceOrigin,
     DataMode,
     EmailStatus,
@@ -173,6 +194,7 @@ _HOSTNAME = re.compile(rf"{_LABEL}(?:\.{_LABEL})+")
 _MAX_DOMAIN_LENGTH = 253
 _MAX_NAME_LENGTH = 100
 _MAX_ADDRESS_LENGTH = 254
+_ADDRESSES_PER_CREDIT = 10  # Domain Search: one Credit per 1-10 addresses returned
 _ADDRESS = re.compile(r"[^\s@?#/\\:]+@" + _HOSTNAME.pattern)
 _Score = Annotated[int, Field(strict=True, ge=0, le=100)]
 
@@ -287,7 +309,10 @@ class HunterSource(BaseLeadSource):
     # orchestrator must not collapse a company's people to one (11.7). The per-company
     # domain search is still paid once per domain by the per-run cache in fetch_raw.
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_LEAD
-    yields_suppression: ClassVar[bool] = False
+    # A 451 flags the person suppressed (16.6). Declaring it puts Hunter in a paid tier
+    # ahead of Apollo, so the flag prunes that person before Apollo's paid match (user
+    # decision, 2026-10-06; reverses the earlier "one tier with Apollo").
+    yields_suppression: ClassVar[bool] = True
     target_vocabulary: ClassVar[Mapping[str, object]] = {}
     endpoints: ClassVar[Mapping[str, Endpoint]] = {
         "domain_search": _SEARCH,
@@ -313,8 +338,6 @@ class HunterSource(BaseLeadSource):
     FINDER_RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule("company.name", "company", untrusted=True),
         FieldRule(_EMAIL_PATH, "email"),
-        FieldRule("person.first_name", "first_name", untrusted=True),
-        FieldRule("person.last_name", "last_name", untrusted=True),
         FieldRule("person.title", "position", untrusted=True),
         FieldRule(
             "person.email_status", "verification.status", transform=_email_status
@@ -324,6 +347,9 @@ class HunterSource(BaseLeadSource):
     FINDER_IGNORED: ClassVar[frozenset[str]] = frozenset(
         {
             "score",  # read by the adapter into the email's provenance
+            # The identity comes from the question asked (ASKED_RULES), not the echo.
+            "first_name",
+            "last_name",
             "domain",
             "accept_all",
             "twitter",
@@ -331,6 +357,22 @@ class HunterSource(BaseLeadSource):
             "phone_number",
             "verification.date",
         }
+    )
+    # The person a found address was asked for (follow-up 2026-10-06): the domain and
+    # name asked, and the requester's LinkedIn URL when it had one, so the normal Match
+    # Keys join the address to that person. Paths are under the ``asked`` wrapper the
+    # adapter adds beside the response's ``data``; the values are the finds entry's.
+    # The prefix marks them request echoes: conflict resolution never lets them
+    # corroborate, conflict with or outrank the requester's own values (models).
+    ASKED_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        FieldRule("company.domain", f"{REQUEST_ECHO_PREFIX}domain"),
+        FieldRule(
+            "person.first_name", f"{REQUEST_ECHO_PREFIX}first_name", untrusted=True
+        ),
+        FieldRule(
+            "person.last_name", f"{REQUEST_ECHO_PREFIX}last_name", untrusted=True
+        ),
+        FieldRule("person.linkedin_url", f"{REQUEST_ECHO_PREFIX}linkedin_url"),
     )
     VERIFIER_RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule(_EMAIL_PATH, "email"),
@@ -341,10 +383,9 @@ class HunterSource(BaseLeadSource):
         FieldRule(_EMAIL_PATH, "email"),
         FieldRule("suppressed", "restricted"),
     )
+    # The identity is the request echoed, like ASKED_RULES; only the flag is Hunter's.
     RESTRICTED_FIND_RULES: ClassVar[tuple[FieldRule, ...]] = (
-        FieldRule("company.domain", "domain"),
-        FieldRule("person.first_name", "first_name", untrusted=True),
-        FieldRule("person.last_name", "last_name", untrusted=True),
+        *ASKED_RULES,
         FieldRule("suppressed", "restricted"),
     )
     VERIFIER_IGNORED: ClassVar[frozenset[str]] = frozenset({"score"})
@@ -413,6 +454,9 @@ class HunterSource(BaseLeadSource):
         # Calls already paid for this run: a retried fetch must not buy them again.
         self._searched: dict[str, Mapping[str, Any]] = {}
         self._found: dict[tuple[str, str, str], Mapping[str, Any]] = {}
+        # Who each name question was asked for this run (normalised LinkedIn identity,
+        # None for a record without one): one answer never serves two of them.
+        self._asked_for: dict[tuple[str, str, str], set[str | None]] = {}
         self._verified: dict[str, Mapping[str, Any] | None] = {}
         # Questions Hunter refused with a 451 (16.6): asked once, never again.
         self._restricted_names: dict[tuple[str, str, str], Mapping[str, Any]] = {}
@@ -462,10 +506,16 @@ class HunterSource(BaseLeadSource):
                 self._searched[domain] = await self._search(domain, headers)
             searches.append({"domain": domain, "response": self._searched[domain]})
         finds: list[Mapping[str, Any]] = []
-        for name in plan.names:
-            domain, first, last = name
+        ambiguous = 0
+        for ask in plan.names:
+            domain, first, last = ask.domain, ask.first, ask.last
             asked = (domain, first.casefold(), last.casefold())
             if asked in self._restricted_names:
+                continue
+            identities = self._asked_for.setdefault(asked, set())
+            identities |= ask.identities
+            if len(identities) > 1:
+                ambiguous += 1  # distinguishable people share the name: no answer fits
                 continue
             if asked not in self._found:
                 try:
@@ -475,6 +525,9 @@ class HunterSource(BaseLeadSource):
                         "domain": domain,
                         "first_name": first,
                         "last_name": last,
+                        # The work list is pruned by address or LinkedIn identity, so
+                        # the flag must name the requester's to reach them.
+                        "linkedin_url": ask.linkedin_url,
                     }
                     continue
             finds.append(
@@ -482,9 +535,12 @@ class HunterSource(BaseLeadSource):
                     "domain": domain,
                     "first_name": first,
                     "last_name": last,
+                    "linkedin_url": ask.linkedin_url,
                     "response": self._found[asked],
                 }
             )
+        if ambiguous:
+            _log.warning("hunter_finder_ambiguous", questions=ambiguous)
         verifications: list[Mapping[str, Any]] = []
         for address in plan.addresses:
             if address in self._restricted_addresses:
@@ -505,10 +561,9 @@ class HunterSource(BaseLeadSource):
                 "finds": finds,
                 "verifications": verifications,
                 "restricted_finds": [
-                    self._restricted_names[(domain, first.casefold(), last.casefold())]
-                    for domain, first, last in plan.names
-                    if (domain, first.casefold(), last.casefold())
-                    in self._restricted_names
+                    self._restricted_names[ask.key]
+                    for ask in plan.names
+                    if ask.key in self._restricted_names
                 ],
                 "restricted_verifications": [
                     {"email": address}
@@ -663,15 +718,19 @@ class HunterSource(BaseLeadSource):
                 contributions.append(
                     _with_stated_confidence(contribution, item.get("confidence"))
                 )
-        for response in _responses(self.name, raw, "finds"):
-            assert response is not None
+        for entry in _find_entries(self.name, raw):
+            response = entry["response"]
             validate_raw_payload(self.name, _FoundResponse, response, self.FINDER_RULES)
             data = response["data"]
             if data.get("email") is None:
                 continue  # nothing found: no contribution, and no field question asked
             if _is_refused(data["email"], refused):
                 continue
-            contribution = normalizer.apply(data, self.FINDER_RULES, context)
+            contribution = normalizer.apply(
+                {**data, _ECHO_KEY: _asked_of(entry)},
+                self.FINDER_RULES + self.ASKED_RULES,
+                context,
+            )
             contributions.append(
                 _with_stated_confidence(contribution, data.get("score"))
             )
@@ -697,10 +756,26 @@ class HunterSource(BaseLeadSource):
             ("restricted_verifications", ("email",), self.RESTRICTED_VERIFY_RULES),
         ):
             for entry in _restrictions(self.name, raw, key, fields):
+                flagged = (
+                    {_ECHO_KEY: _asked_of(entry)}
+                    if key == "restricted_finds"
+                    else dict(entry)
+                )
                 contributions.append(
-                    normalizer.apply({**entry, "restricted": True}, rules, context)
+                    normalizer.apply({**flagged, "restricted": True}, rules, context)
                 )
         return contributions
+
+
+_ECHO_KEY = REQUEST_ECHO_PREFIX.rstrip(".")
+
+
+def _asked_of(entry: Mapping[str, Any]) -> dict[str, Any]:
+    """The question a finds entry records: the identity echoed back, never Hunter's."""
+    return {
+        key: entry.get(key)
+        for key in ("domain", "first_name", "last_name", "linkedin_url")
+    }
 
 
 def _is_refused(address: object, refused: set[str]) -> bool:
@@ -746,7 +821,12 @@ def _total_of(body: Mapping[str, Any]) -> int | None:
 
 
 def credits_in(batch: RawBatch) -> int:
-    """Credits spent: one per live call of a real key, none otherwise (16.8)."""
+    """Credits a real key's live batch spent, by Hunter's billing rules (16.8).
+
+    A domain search costs one per 1-10 addresses returned (none for none); a finder
+    one only when it found an address; a verification one (conservative: some plans
+    charge 0.5). The sandbox key and synthetic mode spend none.
+    """
     payload = batch.payload
     billable = payload.get("credits_billable") if isinstance(payload, Mapping) else None
     if not isinstance(billable, bool):
@@ -757,10 +837,54 @@ def credits_in(batch: RawBatch) -> int:
         )
     if not billable:
         return 0
-    return sum(
-        len(_responses(batch.source_name, batch, key, required=key == "searches"))
-        for key in ("searches", "finds", "verifications")
+    provider = batch.source_name
+    searched = sum(
+        math.ceil(len(_listed(provider, response)) / _ADDRESSES_PER_CREDIT)
+        for response in _responses(provider, batch, "searches", required=True)
     )
+    found = sum(
+        1
+        for response in _responses(provider, batch, "finds")
+        if _data_of(provider, response, "finds").get("email") is not None
+    )
+    return searched + found + len(_responses(provider, batch, "verifications"))
+
+
+def _data_of(
+    provider: str, response: Mapping[str, Any] | None, key: str
+) -> Mapping[str, Any]:
+    data = response.get("data") if isinstance(response, Mapping) else None
+    if not isinstance(data, Mapping):
+        raise NormalizationError(
+            provider, raw_field_path=f"{key}.data", canonical_path="<unmapped>"
+        )
+    return data
+
+
+def _listed(provider: str, response: Mapping[str, Any] | None) -> list[Any]:
+    emails = _data_of(provider, response, "searches").get("emails")
+    if not isinstance(emails, list):
+        raise NormalizationError(
+            provider, raw_field_path="searches.data.emails", canonical_path="<unmapped>"
+        )
+    return emails
+
+
+def _find_entries(provider: str, batch: RawBatch) -> list[Mapping[str, Any]]:
+    """Each finds entry: the question asked (text) and Hunter's answer (checked)."""
+    if not _responses(provider, batch, "finds"):  # checks the list and each response
+        return []
+    entries: list[Mapping[str, Any]] = batch.payload["finds"]
+    for entry in entries:
+        linkedin = entry.get("linkedin_url")
+        if not all(
+            isinstance(entry.get(field), str)
+            for field in ("domain", "first_name", "last_name")
+        ) or not (linkedin is None or isinstance(linkedin, str)):
+            raise NormalizationError(
+                provider, raw_field_path="finds", canonical_path="<unmapped>"
+            )
+    return entries
 
 
 def _responses(
@@ -806,6 +930,7 @@ def _restrictions(
     if not isinstance(entries, list) or not all(
         isinstance(entry, Mapping)
         and all(isinstance(entry.get(field), str) for field in fields)
+        and isinstance(entry.get("linkedin_url"), str | None)
         for entry in entries
     ):
         raise NormalizationError(
@@ -815,11 +940,26 @@ def _restrictions(
 
 
 @dataclass(frozen=True)
+class _Ask:
+    """One finder question and who asked it: their LinkedIn identities (None: none)."""
+
+    domain: str
+    first: str
+    last: str
+    linkedin_url: str | None  # the request's own text, when one identity had one
+    identities: frozenset[str | None]
+
+    @property
+    def key(self) -> tuple[str, str, str]:
+        return (self.domain, self.first.casefold(), self.last.casefold())
+
+
+@dataclass(frozen=True)
 class _Plan:
     """What one work list asks Hunter, each question once, in work-list order."""
 
     domains: list[str]
-    names: list[tuple[str, str, str]]
+    names: list["_Ask"]
     addresses: list[str]
 
 
@@ -827,6 +967,7 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
     """Send each Lead to the cheapest endpoint that answers it (16.3)."""
     domains: dict[str, None] = {}
     names: dict[tuple[str, str, str], tuple[str, str, str]] = {}
+    askers: dict[tuple[str, str, str], dict[str | None, str | None]] = {}
     addresses: dict[str, None] = {}
     for contribution in work_list:
         company = _domains_of(provider, contribution)
@@ -840,9 +981,40 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
             if company:
                 folded = (company[0], first.casefold(), last.casefold())
                 names.setdefault(folded, (company[0], first, last))
+                identity, url = _linkedin_of(provider, contribution)
+                askers.setdefault(folded, {}).setdefault(identity, url)
             continue  # a person we cannot ask about is not a company-level question
         domains.update(dict.fromkeys(company))
-    return _Plan(list(domains), list(names.values()), list(addresses))
+    asks = [
+        _Ask(
+            *names[folded],
+            linkedin_url=next(iter(askers[folded].values()))
+            if len(askers[folded]) == 1
+            else None,
+            identities=frozenset(askers[folded]),
+        )
+        for folded in names
+    ]
+    return _Plan(list(domains), asks, list(addresses))
+
+
+def _linkedin_of(
+    provider: str, contribution: LeadContribution
+) -> tuple[str | None, str | None]:
+    """The requester's normalised LinkedIn identity and its own text, or Nones."""
+    try:
+        identity = linkedin_identity(contribution.values)
+    except TypeError:
+        raise NormalizationError(
+            provider,
+            raw_field_path="person.linkedin_url",
+            canonical_path="person.linkedin_url",
+        ) from None
+    if identity is None:
+        return None, None
+    value = contribution.values["person.linkedin_url"]
+    text = value.value if isinstance(value, UntrustedText) else value
+    return identity, str(text).strip()
 
 
 def _address_of(provider: str, contribution: LeadContribution) -> str | None:

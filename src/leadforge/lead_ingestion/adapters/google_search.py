@@ -44,9 +44,20 @@ Provisional decisions (see choices.md, task 14.2):
   not necessarily the company's. No answerable surface is declared, so no Negative
   Evidence is ever emitted.
 * An absent or null block is no evidence; one of the wrong shape raises.
+
+Follow-up decisions (2026-10-06, provider facts checked against live-doc extracts):
+
+* SerpApi's documented empty page (status ``Success``, ``organic_results_state``
+  ``Fully empty``, a top-level ``error`` message) is no results: no evidence and no
+  error. A 2xx page the backend reports as a failed search (``failed_search``) is
+  raised before it is cached: ``SourceQuotaExhausted`` for a spent balance, else a
+  permanent ``SourceError``, cause ``search_failed``.
+* Pacing for a live run comes from ``run_rate_limit``: the backend's bucket sized from
+  its plan setting (``SERPAPI_HOURLY_LIMIT``), listed in ``optional_env``.
 """
 
 import math
+import os
 from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Self
@@ -161,6 +172,8 @@ class GoogleSearchSource(BaseLeadSource):
     target_vocabulary: ClassVar[Mapping[str, object]] = {}
     endpoints: ClassVar[Mapping[str, Endpoint]] = {"search": _DEFAULT_BACKEND.endpoint}
     required_env: ClassVar[tuple[str, ...]] = _DEFAULT_BACKEND.required_env
+    optional_env: ClassVar[tuple[str, ...]] = _DEFAULT_BACKEND.optional_env
+    env_notes: ClassVar[Mapping[str, str]] = _DEFAULT_BACKEND.env_notes
     docs_url: ClassVar[str] = _DEFAULT_BACKEND.docs_url
     base_url: ClassVar[str] = _DEFAULT_BACKEND.base_url
 
@@ -188,10 +201,17 @@ class GoogleSearchSource(BaseLeadSource):
         {"result.position", "result.displayed_link", "result.source", "result.date"}
     )
 
-    # Page-level fields beside the result blocks: the engine's own status and counts.
-    # Leaves are named, not subtrees, so a field added there still fails the guard.
+    # Page-level fields beside the result blocks: the engine's own status and counts,
+    # and the message and state of an empty page (read by ``failed_search`` in the
+    # backend, never contributed). Leaves are named, not subtrees, so a field added
+    # there still fails the guard.
     ENVELOPE_IGNORED: ClassVar[frozenset[str]] = frozenset(
-        {"search_metadata.status", "search_information.total_results"}
+        {
+            "search_metadata.status",
+            "search_information.total_results",
+            "search_information.organic_results_state",
+            "error",
+        }
     )
 
     def __init__(
@@ -263,6 +283,26 @@ class GoogleSearchSource(BaseLeadSource):
             ),
             retry_after_s=retry_after_seconds(response.headers),
         )
+
+    @classmethod
+    def run_rate_limit(
+        cls, environ: Mapping[str, str] | None = None
+    ) -> Mapping[str, RateBucket]:
+        """The default backend's bucket, sized from its plan setting (7.1)."""
+        bucket = _DEFAULT_BACKEND.rate_bucket_for(
+            os.environ if environ is None else environ
+        )
+        return {bucket.name: bucket}
+
+    def _failed_search_error(self, body: object) -> SourceError:
+        """A 2xx page reporting a failed search: never read as zero results.
+
+        A spent balance is still ``SourceQuotaExhausted``; any other failure is a
+        permanent ``SourceError`` (one attempt). Text names the cause, never the body.
+        """
+        if self._backend.throttle_cause(body) is ThrottleCause.BALANCE:
+            return SourceQuotaExhausted(self.name, "cause=search_balance_exhausted")
+        return SourceError(self.name, "cause=search_failed")
 
     @classmethod
     def from_run(
@@ -340,6 +380,8 @@ class GoogleSearchSource(BaseLeadSource):
                 raise NormalizationError(
                     self.name, raw_field_path="<response>", canonical_path="<unmapped>"
                 )
+            if self._backend.failed_search(body):
+                raise self._failed_search_error(body)
             self._pages[key] = body
         return self._pages[key]
 

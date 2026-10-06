@@ -562,11 +562,14 @@ class IngestionOrchestrator:
 
         def build(source_class: type[BaseLeadSource]) -> BaseLeadSource:
             resolution = resolutions[source_class.name]
+            # Plan-dependent limits are read for a live source only (7.5).
+            rate_limit = (
+                source_class.run_rate_limit()
+                if resolution.mode is DataMode.LIVE
+                else source_class.rate_limit
+            )
             pacing = build_pacing(
-                source_class.name,
-                source_class.rate_limit,
-                resolution.mode,
-                self._retry_policy,
+                source_class.name, rate_limit, resolution.mode, self._retry_policy
             )
             pacings[source_class.name] = pacing
             return self._build_source(source_class, resolution.mode, pacing)
