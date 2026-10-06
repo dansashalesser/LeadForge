@@ -56,9 +56,16 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   LinkedIn URLs (``linkedin_identity``: raw, so a URL barred by an Identity Exclusion
   still counts). Such a value is evidently shared or wrong. For an address, a bare
   holder would otherwise bridge two people by transitive closure. A name+domain
-  candidate cannot bridge (only LinkedIn-less, email-less records use it); barring it
-  is a deliberate under-merge: two people demonstrably share that name+domain, so it
+  candidate cannot bridge (only LinkedIn-less records use it); barring it is a
+  deliberate under-merge: two people demonstrably share that name+domain, so it
   cannot tell bare records apart. Barred like 8.14 addresses.
+* One-sided name+domain (follow-up, user decision 2026-10-06): a record stating an
+  email may join an email-less one on name+domain, never one stating a different
+  address. ``stated_email`` is that address (``person.email``, else the CRM ``email``
+  path; any status; raw, so barring it changes nothing). A candidate value stated by
+  LinkedIn-less records with two or more distinct addresses is disqualified (added to
+  ``name_domains``), so a bare record cannot bridge them. Addresses of LinkedIn
+  holders do not count, since those never join by name+domain.
 * Values are read at the paths the adapters write (``person.*``, ``company.*``).
 """
 
@@ -88,10 +95,12 @@ __all__ = [
     "normalize_linkedin_url",
     "normalized_person_name",
     "registrable_domains",
+    "stated_email",
 ]
 
 _LINKEDIN = "person.linkedin_url"
 _EMAIL = "person.email"
+_BARE_EMAIL = "email"  # a CRM path; projection reads it as person.email
 _EMAIL_STATUS = "person.email_status"
 _FULL_NAME = "person.full_name"
 _FIRST_NAME = "person.first_name"
@@ -184,7 +193,8 @@ class DisqualifiedAddresses:
 
     ``addresses``: reported against two or more distinct names (8.14) or together with
     two or more distinct normalised LinkedIn URLs. ``name_domains``: name+domain
-    candidate values reported together with two or more distinct LinkedIn URLs.
+    candidate values reported together with two or more distinct LinkedIn URLs, or by
+    LinkedIn-less records stating two or more distinct addresses (8.3 follow-up).
     """
 
     addresses: frozenset[str] = field(default=frozenset(), repr=False)
@@ -198,6 +208,7 @@ class DisqualifiedAddresses:
         names: dict[str, set[str]] = {}
         address_urls: dict[str, set[str]] = {}
         candidate_urls: dict[str, set[str]] = {}
+        candidate_emails: dict[str, set[str]] = {}
         for contribution in contributions:
             values = contribution.values
             address = normalize_email(_text(values, _EMAIL))
@@ -210,7 +221,15 @@ class DisqualifiedAddresses:
                     address_urls.setdefault(address, set()).add(url)
                 for candidate in _name_domain_values(values):
                     candidate_urls.setdefault(candidate, set()).add(url)
-        return cls(_shared(names) | _shared(address_urls), _shared(candidate_urls))
+            elif stated := stated_email(values):
+                # 8.3 follow-up: only LinkedIn-less records join by name+domain, so
+                # only their addresses can make a candidate ambiguous.
+                for candidate in _name_domain_values(values):
+                    candidate_emails.setdefault(candidate, set()).add(stated)
+        return cls(
+            _shared(names) | _shared(address_urls),
+            _shared(candidate_urls) | _shared(candidate_emails),
+        )
 
 
 def _shared(found: Mapping[str, set[str]]) -> frozenset[str]:
@@ -327,6 +346,16 @@ def normalize_linkedin_url(url: str | None) -> str | None:
 def linkedin_identity(values: Mapping[str, object]) -> str | None:
     """The normalised LinkedIn URL a contribution names, barred or not."""
     return normalize_linkedin_url(_text(values, _LINKEDIN))
+
+
+def stated_email(values: Mapping[str, object]) -> str | None:
+    """The normalised address a contribution states, of any ``email_status``.
+
+    ``person.email``, else the bare CRM ``email`` path (as projection reads it). This
+    is evidence for the 8.3 one-sided rule, never a Match Key itself.
+    """
+    path = _EMAIL if values.get(_EMAIL) is not None else _BARE_EMAIL
+    return normalize_email(_text(values, path))
 
 
 def normalize_email(address: str | None) -> str | None:

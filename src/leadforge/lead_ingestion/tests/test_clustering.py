@@ -463,7 +463,11 @@ def test_large_input_uses_near_linear_union_operations(
     real_union, real_find = clustering._UnionFind.union, clustering._UnionFind.find
 
     def counting_union(
-        self: Any, a: int, b: int, kind: MatchKeyKind, value: str | None = None
+        self: Any,
+        a: int,
+        b: int,
+        kind: MatchKeyKind | None = None,
+        value: str | None = None,
     ) -> None:
         calls["union"] += 1
         real_union(self, a, b, kind, value)

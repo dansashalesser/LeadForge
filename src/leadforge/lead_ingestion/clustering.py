@@ -13,12 +13,17 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
   LinkedIn URLs is disqualified (``match_keys``), so that holder can no longer bridge
   two LinkedIn identities, and a cannot-link guard in the union-find refuses any union
   of two distinct LinkedIn URLs as a final invariant. Name+domain (8.3): only a
-  contribution with NO LinkedIn key and NO verified-email key takes part, and two merge
-  only when they share a name+domain key AND ``corroborates`` (a shared title or a
-  shared employer). Rejected: letting a keyed contribution join through the weak key;
-  one bare record could bridge two people a stronger key keeps apart, and the
-  over-merge direction has no unmerge (ADR-0003). This under-merges the one-sided case
-  (a keyed record and a bare record of the same person), the cheap direction.
+  contribution with NO LinkedIn key (present or barred) takes part, and two merge only
+  when they share a name+domain key AND ``corroborates`` (a shared title or a shared
+  employer). Follow-up (user decision 2026-10-06, supersedes "no verified-email key
+  either"): a stated email (``stated_email``, any status) no longer excludes a record,
+  so a record with an email joins an email-less one; two DIFFERENT addresses never
+  join. No bridge: a candidate value stated with two distinct addresses is disqualified
+  (``match_keys``), and name+domain edges are applied per component of the
+  name+domain graph, a component stating two or more distinct addresses linking
+  nobody. Rejected: a pairwise email cannot-link in the union-find, which is greedy
+  (the bare record joins whichever side sorts first) and refuses legitimate unions of
+  sets that already hold a second address through a LinkedIn merge.
 * Linear time. Corroboration is evaluated per shared title / employer bucket inside a
   key group, never over pairs; every bucket costs one union per member.
 * Contribution identity is its canonical JSON (sorted keys, sorted sets), the one
@@ -35,11 +40,12 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
 * Identity Exclusions (16.6, 8.13) are a parameter: ``match_keys.IdentityExclusions``
   values are skipped at key extraction, so clusters stay a pure function of the
   contributions and the exclusions (order-independent). A barred key still counts as
-  PRESENT for the LinkedIn-absent test of 8.2 and the stronger-key test of 8.3, so an
-  exclusion only ever splits clusters, never merges (barring a LinkedIn URL must not
-  turn its holder into an email bridge). Rejected: exclusions naming cluster ids
-  (pseudonyms that change) or pairs of identities with a split rule (the requirement
-  bars values, and the over-merge rule stays global and order-free).
+  PRESENT for the LinkedIn-absent test of 8.2 and 8.3, so an exclusion only ever
+  splits clusters, never merges (barring a LinkedIn URL must not turn its holder into
+  an email bridge). The one-sided rule reads the stated address raw, so barring an
+  address never changes who may join by name+domain. Rejected: exclusions naming
+  cluster ids (pseudonyms that change) or pairs of identities with a split rule (the
+  requirement bars values, and the over-merge rule stays global and order-free).
 * Role-address disqualification (16.7, 8.14) is computed here from the whole set
   (``DisqualifiedAddresses``), not passed in: it is structural, needs no config, and a
   caller-supplied set could disagree with the contributions. Disqualified addresses
@@ -68,6 +74,7 @@ from leadforge.lead_ingestion.match_keys import (
     MatchKeys,
     extract_match_keys,
     linkedin_identity,
+    stated_email,
 )
 
 __all__ = [
@@ -229,7 +236,7 @@ def cluster_contributions(
     forest = _UnionFind(len(items), [linkedin_identity(c.values) for _, c in items])
     _link_linkedin(keys, forest)
     _link_email(keys, forest)
-    _link_name_domain(keys, forest)
+    _link_name_domain(keys, [stated_email(c.values) for _, c in items], forest)
 
     members: dict[int, list[int]] = defaultdict(list)
     for index in range(len(items)):
@@ -304,16 +311,22 @@ def _link_email(keys: list[MatchKeys], forest: _UnionFind) -> None:
                 forest.union(bare[0], index, MatchKeyKind.VERIFIED_EMAIL, value)
 
 
-def _link_name_domain(keys: list[MatchKeys], forest: _UnionFind) -> None:
+def _link_name_domain(
+    keys: list[MatchKeys], emails: Sequence[str | None], forest: _UnionFind
+) -> None:
+    """8.3 with the one-sided follow-up: a stated email no longer excludes a record.
+
+    Edges are collected first and applied per component of the name+domain graph: a
+    component whose members state two or more distinct addresses is ambiguous and
+    links nobody, so a bare record never bridges two addresses, whatever the order.
+    """
     by_value: dict[str, list[int]] = defaultdict(list)
     for index, value in _values(keys, MatchKeyKind.NAME_DOMAIN):
-        stronger = _has(keys[index], MatchKeyKind.LINKEDIN_URL) or _has(
-            keys[index], MatchKeyKind.VERIFIED_EMAIL
-        )
-        if not stronger:
+        if not _has(keys[index], MatchKeyKind.LINKEDIN_URL):
             by_value[value].append(index)
+    edges: list[tuple[int, int, str]] = []
     for value, group in by_value.items():
-        # Pairwise ``corroborates`` (shared title or employer) as buckets: one union
+        # Pairwise ``corroborates`` (shared title or employer) as buckets: one edge
         # per member per bucket instead of a loop over pairs.
         buckets: dict[tuple[str, str], list[int]] = defaultdict(list)
         for index in group:
@@ -322,4 +335,14 @@ def _link_name_domain(keys: list[MatchKeys], forest: _UnionFind) -> None:
             for employer in keys[index].employers:
                 buckets["employer", employer].append(index)
         for bucket in buckets.values():
-            _link_all(forest, bucket, MatchKeyKind.NAME_DOMAIN, value)
+            edges.extend((bucket[0], other, value) for other in bucket[1:])
+    components = _UnionFind(len(keys))
+    for a, b, _ in edges:
+        components.union(a, b)
+    stated: dict[int, set[str]] = defaultdict(set)
+    for index, email in enumerate(emails):
+        if email is not None:
+            stated[components.find(index)].add(email)
+    for a, b, value in edges:
+        if len(stated[components.find(a)]) <= 1:
+            forest.union(a, b, MatchKeyKind.NAME_DOMAIN, value)

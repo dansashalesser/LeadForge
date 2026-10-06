@@ -2570,3 +2570,49 @@ Independent spec-refactor review, 2026-10-06. Evidence from this run: full suite
 
 - **Supersedes (user-visible decision record):** the earlier choice that Apollo own-id hits carry confidence origin `none` is superseded: id hits now carry 0.9 so they never rank below name+domain hits (0.6).
 - **Known gaps (needs-follow-up):** in a real run only Apollo-discovered persons reach Apollo: the work list is built from Discovery output and later tiers only prune it (ADR-0002); the fix is the bounded second enrichment pass (open item 6). One person seen as a LinkedIn-only record and an email-only record is looked up twice (two credits).
+
+
+## Follow-up — name+domain joins when only one record has an email (8.3, user decision 2026-10-06)
+**User decision (verbatim "yes" to the proposal, 2026-10-06):** a name+company-domain Match Key may join two person records when only ONE of them has an email (verified or not); two DIFFERENT emails still block the join. **Supersedes** the 16.1/16.2 choice "only contributions with neither a LinkedIn nor a verified-email key take part" and the Hunter scope note "(c) Verified answer, no LinkedIn = two Leads" (the one-sided case now merges). Requirement 8.3 carries an amendment note pointing here.
+
+Evidence: tests/test_one_sided_email_name_domain.py written first; red run 8 failed, 13 passed (scratchpad red-fu-8.3.txt), green after the change.
+
+### Decisions
+- Participation: a record takes part in name+domain iff it has no LinkedIn key (present or barred), unchanged; a stated email no longer excludes it. Corroboration (shared title or employer) still required.
+- "Has an email" = `match_keys.stated_email`: normalized `person.email`, else the CRM bare `email` path (as projection reads it), any `email_status`, read raw (Identity Exclusions and 8.14 disqualification do not hide it, so barring an address never changes who may join).
+- Key-level ambiguity: a name+domain candidate stated by LinkedIn-less records with 2+ distinct addresses is disqualified (`DisqualifiedAddresses.name_domains`, same order-free first pass as the LinkedIn rule). LinkedIn holders' addresses do not count (they never join by name+domain).
+- Bridge rule (deterministic): name+domain edges are collected, grouped into components of the name+domain graph, and a component whose members state 2+ distinct addresses links NOBODY. So A(e1)-C(bare)-B(e2) gives three clusters whether they share one key (disqualified) or span domains (A@x, C@x+y, B@y). Rejected: a pairwise email cannot-link in the union-find (greedy: C joins whichever side sorts first; also refuses legitimate unions of sets holding a second address via a LinkedIn merge).
+- The LinkedIn cannot-link guard and the LinkedIn name+domain disqualification are untouched and still win.
+- Tests changed on purpose: test_role_addresses::test_removal_alone_must_not_open_the_weak_name_domain_route became test_a_disqualified_address_still_counts_as_stated_for_name_domain (x with a role address now joins bare y; a y stating another address stays apart). test_clustering near-linear stub: `kind` made optional to match the real `union` signature.
+
+### Known gaps
+- Two addresses of one real person (verified work + unverified guessed pattern) now block and disqualify that name+domain: under-merge, the cheap direction.
+- An ambiguous component also stops two bare records that previously joined each other (regression to under-merge when two different-address namesakes exist).
+- A record whose role address (8.14) is disqualified can still join an email-less namesake; the lead then carries the role address as data.
+- A disqualified role address still counts as a stated, DIFFERENT address (16.7 kept disqualified addresses "present"; ignoring it would be the plain removal 16.7 rejected): a namesake carrying `info@` blocks, and disqualifies the name+domain for, the real `jane@` record and any bare record. Under-merge only; tested in test_role_addresses.
+
+## Follow-up — name+domain joins when only one record has an email (8.3, user decision 2026-10-06)
+- Red: tests/test_one_sided_email_name_domain.py first; collection ImportError (stated_email), then 8 failed / 13 passed (scratchpad/red-fu-8.3.txt). Green: 21 passed.
+- Final: ruff check src exit 0; mypy no issues (174 files); pytest 3795 passed, 1 skipped, exit 0. Earlier run showed google_search failures (other agent's in-progress files: test_google_search_attachment, test_google_search_web_evidence_run, test_zero_credential_run_adapters); gone by final run.
+### Provisional decisions
+- Eligibility: no LinkedIn key (present or barred), unchanged; email no longer excludes. Corroboration still required.
+- "Has email" = match_keys.stated_email: person.email else CRM bare `email`, any status, raw (exclusions/8.14 do not hide it).
+- Ambiguity: candidate stated by LinkedIn-less records with 2+ distinct addresses -> DisqualifiedAddresses.name_domains. LinkedIn holders' addresses do not count.
+- Bridge: name+domain edges grouped by component; a component stating 2+ distinct addresses links nobody (covers cross-domain and chain bridges). Rejected pairwise email cannot-link (greedy, over-refuses).
+- Tests changed on purpose: test_role_addresses removal test renamed/rewritten (x with role address now joins bare y; different address still blocked); test_clustering near-linear stub `kind` optional.
+- Spec: requirements.md 8.3 amendment blockquote; choices.md follow-up entry appended (supersedes 16.1/16.2 rule and Hunter note (c)).
+### Known gaps
+- One person with two addresses (verified + guessed unverified) now under-merges and disqualifies the name+domain.
+- Ambiguous component also stops bare-bare joins that used to happen.
+- Disqualified role address can ride into a lead via a one-sided join (as data, not a key).
+- No mutation testing run; spec-refactor / production-readiness sub-agents not spawned (no Agent tool).
+
+### Self-review findings
+- Fixed (test defect): test_a_crm_bare_email_path_counts_as_an_email_for_the_block passed email= to jane(), which writes person.email, so the bare CRM path was never exercised (mutant "stated_email ignores bare path" survived). Rebuilt with a bare `email` path; mutant now killed.
+- Added test_every_permutation_of_small_mixed_pools_gives_one_result: 30 seeded pools of 3-5 (two domains, chains, LinkedIn mixes, two spellings of one address); ALL permutations give identical clusters, identical DisqualifiedAddresses, identical clusters under an exclusion; invariants: no two LinkedIns per cluster, LinkedIn-free clusters hold <=1 address.
+- Mutation: 8 mutants, all killed after the fix (no key-level email disqualification; LinkedIn holders' emails counted; bare path ignored; no normalisation; component threshold <=2; per-pair instead of per-component; verified email excludes again; LinkedIn holders join). match_keys.py/clustering.py restored, sha256 verified.
+- Role addresses: consistent with 16.7 (disqualified address stays PRESENT; plain removal rejected). info@ counts as a different address and blocks/disqualifies a jane@ namesake: under-merge; added as a known gap in choices.md.
+- Normalisation: stated_email uses normalize_email, same as the verified-email key (lower+strip, +tags kept on both). Bare-path reading matches projection output (probed person.email=None + bare email: lead carries the bare address).
+- Complexity: one edge per bucket member plus one extra union-find over n; linear.
+- Spec amendment: blockquote only, requirement text untouched; accurate. Known gaps 1-2 accurate.
+- Final: ruff check src 0; mypy 0 (174 files); pytest 3799 passed, 1 skipped, exit 0 (no Google failures this run).

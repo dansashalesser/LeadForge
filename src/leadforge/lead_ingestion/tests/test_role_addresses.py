@@ -174,9 +174,12 @@ def test_a_disqualified_address_is_skipped_but_its_kind_stays_present() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.14
-def test_removal_alone_must_not_open_the_weak_name_domain_route() -> None:
-    # Dropping the role address would make x look key-less and merge it with y on
-    # name+domain+title; as with a barred key it stays PRESENT, so they stay apart.
+# Verifies: specs/lead-source-adapters/requirements.md#8.3
+def test_a_disqualified_address_still_counts_as_stated_for_name_domain() -> None:
+    # 8.3 follow-up (user decision 2026-10-06): a record with an email joins an
+    # email-less one on name+domain+title, so x and y join with or without 8.14; the
+    # role address only stops x and z sharing a cluster. It still counts as x's
+    # stated address, so a y stating another address stays apart from x.
     pool = [
         named(
             "x",
@@ -193,7 +196,21 @@ def test_removal_alone_must_not_open_the_weak_name_domain_route() -> None:
         ),
         named("z", "info@x.com", "Zed Moss"),
     ]
-    assert partition(pool) == {frozenset("x"), frozenset("y"), frozenset("z")}
+    assert partition(pool) == {frozenset("xy"), frozenset("z")}
+    assert partition(pool[:2]) == {frozenset("xy")}
+    other = named(
+        "y",
+        "jane@acme.com",
+        "Jane Doe",
+        EmailStatus.UNVERIFIED,
+        company__domain="acme.com",
+        person__title="CTO",
+    )
+    assert partition([pool[0], other, pool[2]]) == {
+        frozenset("x"),
+        frozenset("y"),
+        frozenset("z"),
+    }
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.14
