@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T11:45:48+00:00
+- Written: 2026-10-06T11:57:01+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,13 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-I committed and pushed the harness memory files. The only uncommitted work now is item #6, where each enrichment step feeds the steps after it. It's still being built, and I'll commit it once it passes its self-review.
+The step-chaining review (item #6) found two real bugs and fixed both test-first. The full suite passes: 3827 tests, plus ruff and mypy. Committing now. Google is now called in a real-adapter run for the domain Apollo finds, so I'm also ticking 14.2:
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ git add .claude/memory .claude/behaviors 2>/dev/null; git diff --cached --quiet && echo NOTHING || (git commit -q -m "
 - $ git status --short src .env.example | head -40
 - $ git diff --stat src/leadforge/lead_ingestion/tests/adapters/test_fixture_outcome_matrix.py src/leadforge/lead_ingestio
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "Fully empty\|out of searches\|run out\|_EXHAUST\|def 
@@ -51,3 +50,4 @@ s=s.replace('''        ("hubspot",
 
 Co-Authored-By: Cla
 - $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Left unticked (par
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad; printf '\n- **Task 14.2 ticked w
