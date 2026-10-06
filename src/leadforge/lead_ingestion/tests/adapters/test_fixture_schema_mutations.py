@@ -58,15 +58,15 @@ MUTATIONS: list[tuple[str, str, str, Callable[[Any], None], str]] = [
         "apollo",
         "match.json",
         "bad confidence",
-        lambda b: b.update(match_confidence=CANARY),
-        "match_confidence",
+        lambda b: b["person"].update(match_confidence=CANARY),
+        "person.match_confidence",
     ),
     (
         "apollo",
         "match.json",
         "missing person id",
         lambda b: b["person"].pop("id"),
-        "person.id",
+        "person",  # a hit without its id: the person-level check names ``person``
     ),
     (
         "hubspot",
@@ -106,8 +106,8 @@ MUTATIONS: list[tuple[str, str, str, Callable[[Any], None], str]] = [
     (
         "hunter",
         "domain_search.json",
-        "missing domain",
-        lambda b: b["data"].pop("domain"),
+        "non-text domain",  # null is documented (no results); a number is not
+        lambda b: b["data"].update(domain=7),
         "data.domain",
     ),
     (
@@ -179,7 +179,7 @@ def test_a_mutated_fixture_fails_naming_provider_and_field(
 # Verifies: specs/lead-source-adapters/requirements.md#5.4
 def test_the_first_failure_stops_the_provider_check(tmp_path: Path) -> None:
     root = _copy(tmp_path)
-    _edit(root, "hunter", "domain_search.json", lambda b: b["data"].pop("domain"))
+    _edit(root, "hunter", "domain_search.json", lambda b: b["data"].update(domain=7))
     _edit(root, "hunter", "email_verifier.json", lambda b: b["data"].pop("status"))
     with pytest.raises(FixtureSchemaError) as exc:
         validate_provider_fixtures(root / "hunter", SOURCES["hunter"])
@@ -195,14 +195,14 @@ def test_the_reference_csv_is_checked_by_the_adapters_own_loader(
 ) -> None:
     root = _copy(tmp_path)
     csv_file = root / "apollo" / "supported_technologies.csv"
-    csv_file.write_text("name,category\nDataStax,Databases\n", encoding="utf-8")
+    csv_file.write_text("uid,name\ndatastax,DataStax\n", encoding="utf-8")
     error = _fails(root, "apollo", "supported_technologies.csv")
-    assert error.field == "supported_technologies.csv:uid"
-    csv_file.write_text("uid,name\n", encoding="utf-8")
+    assert error.field == "supported_technologies.csv:Technology"
+    csv_file.write_text("Category,Technology\n", encoding="utf-8")
     assert _fails(root, "apollo", "supported_technologies.csv").field == (
-        "supported_technologies.csv:uid"
+        "supported_technologies.csv:Technology"
     )
-    csv_file.write_text(f"uid,name\n,{CANARY}\n", encoding="utf-8")
+    csv_file.write_text(f"Category,Technology\n{CANARY},\n", encoding="utf-8")
     error = _fails(root, "apollo", "supported_technologies.csv")
     assert CANARY not in f"{error} {error.field}"
     csv_file.write_bytes(b"\xff\xfe\x00")
@@ -214,8 +214,12 @@ def test_the_reference_csv_is_checked_by_the_adapters_own_loader(
 # Verifies: specs/lead-source-adapters/requirements.md#5.4
 @pytest.mark.parametrize(
     "content",
-    [b"uid,name\n" + b"x" * 200_000 + b",y\n", b'uid,name\n"a\nb\n', b"uid,name\n,\n"],
-    ids=["oversized-field", "unterminated-quote", "blank-uid"],
+    [
+        b"Category,Technology\n" + b"x" * 200_000 + b",y\n",
+        b'Category,Technology\n"a\nb\n',
+        b"Category,Technology\n,\n",
+    ],
+    ids=["oversized-field", "unterminated-quote", "blank-technology"],
 )
 def test_a_hostile_reference_csv_fails_by_a_named_error(
     tmp_path: Path, content: bytes
@@ -236,8 +240,8 @@ def test_the_production_snapshot_loader_stays_lenient(
     from leadforge.lead_ingestion.adapters import apollo
 
     snapshot = tmp_path / "supported_technologies.csv"
-    snapshot.write_text("uid,name\n,blank\n", encoding="utf-8")
+    snapshot.write_text("Category,Technology\nblank,\n", encoding="utf-8")
     monkeypatch.setattr(apollo, "SUPPORTED_TECHNOLOGIES_SNAPSHOT", snapshot)
     assert apollo._supported_technologies() == {""}
-    snapshot.write_text("uid,name\n", encoding="utf-8")
+    snapshot.write_text("Category,Technology\n", encoding="utf-8")
     assert apollo._supported_technologies() == frozenset()

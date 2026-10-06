@@ -244,7 +244,7 @@ def apollo_search_no_match(run: Run) -> None:
     unmatched = {
         e["uid"] for e in run.logs if e["event"] == "apollo_technology_no_matches"
     }
-    assert unmatched == {"datastax", "apache_cassandra"}  # 12.13: named, never silent
+    assert unmatched == {"datastax", "cassandra"}  # 12.13: named, never silent
 
 
 def apollo_match_found(run: Run) -> None:

@@ -327,7 +327,9 @@ def test_shipped_fixtures_do_not_claim_a_capture_that_never_happened() -> None:
     }
     manifests = validate_fixture_tree(FIXTURES_ROOT, declared)
     origins = {r.origin for m in manifests.values() for r in m.fixtures}
-    assert origins == {FixtureOrigin.HAND_MADE}
+    # No capture exists yet; a provider-published file copied verbatim from its docs
+    # (the technology list) is a doc example, everything else is hand-made.
+    assert origins == {FixtureOrigin.HAND_MADE, FixtureOrigin.DOC_EXAMPLE}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#5.6
@@ -428,10 +430,22 @@ def test_loading_twice_gives_equal_manifests() -> None:
 
 
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+_TOKEN = r"[A-Za-z0-9_\-]{32,}"
 _SECRET = re.compile(
-    r"api_key|apikey|bearer\s|authorization|secret|password|[A-Za-z0-9_\-]{32,}",
-    re.IGNORECASE,
+    rf"api_key|apikey|bearer\s|authorization|secret|password|{_TOKEN}", re.IGNORECASE
 )
+# A provider's published technology list names products ("AWS Secrets Manager",
+# "CyberArk Enterprise Password Vault"); there only the token shape can be a credential.
+# Keyed by file name (a provider directory may not be named here, see
+# test_vendor_neutrality); a test pins it to exactly one file in the fixture tree.
+_PRODUCT_LIST = "supported_technologies.csv"
+_TOKEN_ONLY = re.compile(_TOKEN)
+
+
+def _secret_scan(path: Path) -> re.Pattern[str]:
+    return _TOKEN_ONLY if path.name == _PRODUCT_LIST else _SECRET
+
+
 _ALLOWED_EMAIL_DOMAINS = {"example.com", "example.org", "example.net", "example.test"}
 
 
@@ -441,10 +455,20 @@ def test_no_fixture_or_manifest_carries_a_secret_or_a_real_address() -> None:
     assert files
     for path in files:
         text = path.read_text(encoding="utf-8")
-        assert not _SECRET.search(text), path.name
+        assert not _secret_scan(path).search(text), path.name
         for address in _EMAIL.findall(text):
             domain = address.rsplit("@", 1)[1].lower()
             assert domain in _ALLOWED_EMAIL_DOMAINS, path.name
+
+
+def test_only_the_one_product_list_skips_the_secret_word_scan() -> None:
+    [product_list] = FIXTURES_ROOT.rglob(_PRODUCT_LIST)  # a second one must be vetted
+    token = "A" * 32
+    assert _secret_scan(product_list).search("Password Vault") is None
+    assert _secret_scan(product_list).search(token)
+    other = product_list.with_name("other.csv")
+    assert _secret_scan(other).search("Password Vault")
+    assert _secret_scan(other).search(token)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#5.6

@@ -101,16 +101,21 @@ def test_serpapi_hourly_limit_is_a_documented_optional_setting() -> None:
 
 # --- Apollo ------------------------------------------------------------------------
 
-FREE = ((50, 200, 600), (50, 200, 600))
-BASIC = ((200, 6000, 50_000), (200, 400, 2000))
-ORGANIZATION = ((200, 6000, 50_000), (200, 600, 6000))
+# (search, match) per minute, hour, day; None = no limit in that window. From
+# https://docs.apollo.io/reference/rate-limits (updated 2026-08-21, read 2026-10-06):
+# people/match is an Enrichment endpoint, 50/200/600 on Free and 1,000 a minute with
+# "No hourly limit" and "No daily limit" on every paid plan.
+_Plan = tuple[tuple[int | None, ...], tuple[int | None, ...]]
+FREE: _Plan = ((50, 200, 600), (50, 200, 600))
+PAID: _Plan = ((200, 6000, 50_000), (1000, None, None))
 
 
-def _windows(per_minute: int, per_hour: int, per_day: int) -> tuple[RateWindow, ...]:
-    return (
-        RateWindow(requests=per_minute, per_seconds=60.0),
-        RateWindow(requests=per_hour, per_seconds=3600.0),
-        RateWindow(requests=per_day, per_seconds=86_400.0),
+def _windows(*limits: int | None) -> tuple[RateWindow, ...]:
+    spans = (60.0, 3600.0, 86_400.0)
+    return tuple(
+        RateWindow(requests=n, per_seconds=span)
+        for n, span in zip(limits, spans, strict=True)
+        if n is not None
     )
 
 
@@ -137,15 +142,13 @@ def test_apollo_defaults_to_the_free_plan_windows() -> None:
     ("plan", "expected"),
     [
         ("free", FREE),
-        ("basic", BASIC),
-        ("professional", BASIC),
-        (" Organization ", ORGANIZATION),
+        ("basic", PAID),
+        ("professional", PAID),
+        (" Organization ", PAID),
         ("", FREE),
     ],
 )
-def test_apollo_plan_selects_the_documented_windows(
-    plan: str, expected: tuple[tuple[int, int, int], tuple[int, int, int]]
-) -> None:
+def test_apollo_plan_selects_the_documented_windows(plan: str, expected: _Plan) -> None:
     limits = ApolloSource.run_rate_limit({"APOLLO_PLAN": plan})
     assert limits["search"].windows == _windows(*expected[0])
     assert limits["match"].windows == _windows(*expected[1])
@@ -246,35 +249,45 @@ def test_hubspot_deal_fixtures_flag_hs_is_closed_and_secondly_as_unverified(
     assert "SECONDLY UNVERIFIED" in note
 
 
+# Every field of these matched the provider's live docs on 2026-10-06 (full pages:
+# docs.apollo.io OpenAPI, hunter.io/api-documentation/v2, serpapi.com/search-api and
+# api-status-and-error-codes, HubSpot's search guide and spec repo).
+VERIFIED = {
+    ("apollo", "search.json"),
+    ("apollo", "match.json"),
+    ("apollo", "supported_technologies.csv"),
+    ("apollo", "no_match/search.json"),
+    ("google_search", "search.json"),
+    ("google_search", "no_results/search.json"),
+    ("hubspot", "not_found/contact_search.json"),
+    ("hunter", "domain_search.json"),
+    ("hunter", "email_finder.json"),
+    ("hunter", "email_verifier.json"),
+    ("hunter", "no_emails/domain_search.json"),
+    ("hunter", "invalid/email_verifier.json"),
+    ("hunter", "accept_all/email_verifier.json"),
+    ("hunter", "unknown/email_verifier.json"),
+}
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#5.6
-@pytest.mark.parametrize(
-    ("provider", "file"),
-    [
-        ("hubspot", "not_found/contact_search.json"),
-        ("apollo", "no_match/search.json"),
-        ("google_search", "no_results/search.json"),
-    ],
-)
+@pytest.mark.parametrize(("provider", "file"), sorted(VERIFIED))
 def test_fixtures_whose_every_field_matched_the_docs_are_verified(
     provider: str, file: str
 ) -> None:
     record = _records(provider)[file]
     assert record["schema_status"] == "verified"
     assert record["schema_verified_on"] == "2026-10-06"
+    assert str(record["doc_url"]).startswith("https://")
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#5.6
-# no_open_deals/deal_search.json matched the envelope, but its outcome (no open deal)
-# is produced by the hs_is_closed filter, which is UNVERIFIED: a fixture is verified
-# only when everything it stands for was confirmed.
+# Not verified: HubSpot's contact and deal property names (not in the docs read) and
+# the hs_is_closed filter behind no_open_deals; Apollo's no-match answer and Hunter's
+# finder "not found" answer, whose shapes no doc shows.
 def test_no_other_fixture_claims_a_verification() -> None:
-    checked = {
-        ("hubspot", "not_found/contact_search.json"),
-        ("apollo", "no_match/search.json"),
-        ("google_search", "no_results/search.json"),
-    }
-    for provider in ("apollo", "hubspot", "google_search"):
+    for provider in ("apollo", "hubspot", "google_search", "hunter"):
         for file, record in _records(provider).items():
-            if (provider, file) not in checked:
+            if (provider, file) not in VERIFIED:
                 assert record["schema_status"] == "unverified", file
                 assert record["schema_verified_on"] is None, file

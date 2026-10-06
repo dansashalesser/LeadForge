@@ -485,6 +485,34 @@ def test_a_domain_with_no_emails_contributes_nothing() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.2
+def test_the_no_emails_fixture_is_hunters_documented_empty_answer() -> None:
+    # Domain Search, "Response: 200 OK (no results)" (hunter.io/api-documentation/v2,
+    # read 2026-10-06): every domain field null or empty, and the meta counts.
+    body = json.loads((FIXTURE.parent / "no_emails" / "domain_search.json").read_text())
+    assert body["data"] == {
+        "domain": None,
+        "disposable": False,
+        "webmail": False,
+        "accept_all": False,
+        "pattern": None,
+        "organization": None,
+        "linked_domains": [],
+        "emails": [],
+    }
+    assert body["meta"]["results"] == 0
+    assert body["meta"]["results_approximate"] is False
+    batch = RawBatch(
+        source_name="hunter",
+        payload={
+            "searches": [{"domain": "example.com", "response": body}],
+            "credits_billable": True,
+        },
+    )
+    assert live(Scripted(lambda _: found())).normalize_checked(batch) == []
+    assert credits_in(batch) == 0
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
 @pytest.mark.parametrize(
     ("status", "expected"),
     [
@@ -1233,6 +1261,24 @@ async def test_a_polled_verdict_never_overclaims(
     source = polling(transport, FakeTime())
     [contribution] = source.normalize_checked(await source.fetch_raw(verify_one()))
     assert contribution.values["person.email_status"] is expected
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.4
+@pytest.mark.parametrize("body", [None, {"errors": [{"code": 222}]}, {"data": {}}])
+async def test_a_222_smtp_failure_is_no_verdict_and_the_batch_goes_on(
+    body: object,
+) -> None:
+    # Email Verifier: "222 The verification failed because of an unexpected response
+    # from the remote SMTP server ... We recommend to retry later." Not a final verdict
+    # and not a broken response: the address stays unknown, nothing is retried now.
+    transport = Routed(verifier=lambda _: TransportResponse(222, {}, body))
+    source = polling(transport, FakeTime())
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(verify_one())
+    assert len(transport.calls) == 1
+    assert source.normalize_checked(batch) == []
+    assert [log["reason"] for log in logs] == ["smtp_failure"]
+    assert ADDRESS not in json.dumps(logs, default=str)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.4
@@ -2497,6 +2543,7 @@ def verifications(count: int) -> EnrichmentRequest:
         ("all-in-one", 1, Decimal("0.5")),  # exact: half a credit, never rounded
         ("all-in-one", 2, 1),
         ("ALL-IN-ONE", 3, Decimal("1.5")),
+        ("free", 1, Decimal("0.5")),  # Free is an All-in-one plan (hunter.io/pricing)
     ],
 )
 async def test_the_verifier_price_follows_hunter_plan(
@@ -2538,6 +2585,21 @@ async def test_an_unknown_hunter_plan_fails_closed_without_echo(plan: str) -> No
     assert transport.calls == []  # nothing bought on an unknown price
 
 
+# Verifies: specs/lead-source-adapters/requirements.md#16.1
+@pytest.mark.parametrize(
+    ("plan", "limit"), [(None, 100), ("data", 100), ("all-in-one", 100), ("Free", 10)]
+)
+async def test_a_free_plan_asks_a_domain_for_ten_addresses_at_most(
+    plan: str | None, limit: int
+) -> None:
+    # Domain Search pagination_error: "This error can also be returned if the limit
+    # additioned to the offset is higher than 10 for a Free plan user."
+    environ = dict(ENV) if plan is None else {**ENV, "HUNTER_PLAN": plan}
+    transport = Routed()
+    await live(transport, environ=environ).fetch_raw(enrich(person(domain="c.io")))
+    assert transport.calls[0][1] == {"domain": "c.io", "limit": limit}
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#7.1
 def test_a_valid_hunter_plan_leaves_the_documented_buckets() -> None:
     assert HunterSource.run_rate_limit({"HUNTER_PLAN": "all-in-one"}) == (
@@ -2549,7 +2611,7 @@ def test_a_valid_hunter_plan_leaves_the_documented_buckets() -> None:
 def test_hunter_plan_is_a_documented_optional_setting() -> None:
     assert HunterSource.optional_env == ("HUNTER_PLAN",)
     note = HunterSource.env_notes["HUNTER_PLAN"]
-    for word in ("data", "all-in-one", HUNTER_CREDITS):
+    for word in ("data", "all-in-one", "free", HUNTER_CREDITS):
         assert word in note
 
 

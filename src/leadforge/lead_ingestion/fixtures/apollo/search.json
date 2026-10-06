@@ -4,7 +4,7 @@
     {
       "id": "apollo-person-1",
       "first_name": "Ada",
-      "last_name_obfuscated": "Lo***",
+      "last_name_obfuscated": "Lo***e",
       "title": "VP Engineering",
       "last_refreshed_at": "2026-09-01T00:00:00.000+00:00",
       "has_email": true,
@@ -22,7 +22,7 @@
     {
       "id": "apollo-person-2",
       "first_name": "Grace",
-      "last_name_obfuscated": "Ho***",
+      "last_name_obfuscated": "Ho***r",
       "title": "Director of Data Platform",
       "last_refreshed_at": "2026-09-02T00:00:00.000+00:00",
       "has_email": false,

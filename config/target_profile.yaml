@@ -2,9 +2,10 @@
 # clone runs the demo with no edits. Copy it, then change terms and columns.
 #
 # EVERY IDENTIFIER BELOW IS AN EXAMPLE VALUE. The Apollo technology identifiers are
-# snake_case guesses in Apollo's published style, NOT checked against its supported
-# technology list (task 9.3 / 12.1 add that startup check). Search phrases are plain
-# text. Nothing here is a credential.
+# checked against Apollo's published supported-technologies list (downloaded
+# 2026-10-06; a UID is the listed name lowercased with spaces and periods as "_").
+# Apollo lists "Cassandra" and "MongoDB Atlas", not "Apache Cassandra" or "MongoDB".
+# Search phrases are plain text. Nothing here is a credential.
 #
 # Layout: technologies / competitors -> <term> -> <source name> -> vocabulary.
 #   * A source gets a column for a term only if that source has a surface for it
@@ -20,7 +21,7 @@
 
 technologies:
   apache_cassandra:
-    apollo: [apache_cassandra]
+    apollo: [cassandra]
     google_search:
       - "Apache Cassandra"
       - "Cassandra database"
@@ -32,7 +33,7 @@ technologies:
 
 competitors:
   mongodb:
-    apollo: [mongodb]
+    apollo: [mongodb_atlas]
     google_search:
       - "MongoDB"
       - "MongoDB Atlas"

@@ -172,7 +172,7 @@ def test_an_envelope_ignore_lists_leaves_so_a_stray_envelope_field_still_fails(
     ("source", "attribute", "entry", "file", "path"),
     [
         (ApolloSource, "IGNORED", "last_refreshed_at", "search.json", "people."),
-        (ApolloSource, "IGNORED", "match_confidence", "match.json", ""),
+        (ApolloSource, "IGNORED", "person.match_confidence", "match.json", ""),
         (ApolloSource, "SEARCH_ENVELOPE_IGNORED", "total_entries", "search.json", ""),
         (
             HubSpotSource,

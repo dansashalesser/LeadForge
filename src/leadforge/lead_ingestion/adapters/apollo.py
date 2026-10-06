@@ -5,9 +5,19 @@ email or phone and only an obfuscated last name (12.8). Technographic targeting 
 set of snake_case technology UIDs read from the Target Profile's Apollo vocabulary
 (12.12, 12.13); this module holds no UID of its own beyond the declared default every
 adapter carries for a term. Error classification (12.3 in tasks.md) is a separate task.
+Search filters travel as query parameters, where the OpenAPI reference lists them
+(https://docs.apollo.io/reference/people-api-search, "Credit usage: 0 credits", 100
+per page up to 500 pages; read 2026-10-06).
 
 Enrichment (task 12.2) calls ``POST /api/v1/people/match``, the only Credit-bearing
-path: one credit per match, none when ``match_confidence`` is ``none`` (12.8, 12.9).
+path: one credit per match, none when ``person.match_confidence`` is ``none`` or no
+person comes back (12.8, 12.9). Apollo documents ``match_confidence`` on the
+``person`` object (OpenAPI 200 response, https://docs.apollo.io/reference/
+people-enrichment, read 2026-10-06), not on the envelope; a top-level one is not read.
+"Apollo doesn't charge a demographic credit when ``match_confidence`` is ``none``";
+email and phone reveals would cost more, and this adapter requests neither. The shape
+of a no-match answer is not shown in the docs (UNVERIFIED): ``person`` null or absent
+and ``person.match_confidence`` ``none`` are both read as no match.
 It is a POST because Apollo takes it so; it reads a person and writes nothing to
 Apollo's data, so it is a read-only ``Endpoint``. There is no webhook or phone path
 (12.14).
@@ -25,8 +35,9 @@ Provisional decisions (see choices.md, task 12.2):
   evidence) and one attachment per hit and requester identity.
   ``credits_in(batch)`` derives the credit count from it (a pure function: there is
   no run-record channel yet). A no-match is also logged as ``apollo_no_match``.
-* ``match_confidence`` is a closed set (high, medium, low, none); anything else, or a
-  non-none match without a person, is a ``NormalizationError``, never a silent bill.
+* ``person.match_confidence`` is a closed set (high, medium, low, none); anything
+  else, its absence, or a non-none match without a person ``id``, is a
+  ``NormalizationError``, never a silent bill.
 * ``match_confidence`` is per record, not per field, and is not mapped to numbers
   (that would be invention). The Field Confidence is ours instead: see the ladder.
 * No Negative Evidence is emitted for match: no field question is declared as queried.
@@ -46,8 +57,12 @@ Provisional decisions (see choices.md, task 12.1):
   run time. Types of the named fields are strict, so a wrong shape raises.
 * Provider free text (names, title, company name) is ``UntrustedText``; identifiers and
   the technology list are not.
-* ``fixtures/apollo/supported_technologies.csv`` is a hand-made four-row STAND-IN, not
-  Apollo's published list; the snapshot date below is the stand-in's date.
+* ``fixtures/apollo/supported_technologies.csv`` is Apollo's published list, downloaded
+  on 2026-10-06 from https://api.apollo.io/v1/auth/supported_technologies_csv (the
+  link in the people search docs; no key). Its columns are ``Category,Technology``;
+  a UID is the name with spaces and periods as underscores, lowercased
+  (``technology_uid``), per the docs: "Use underscores (``_``) to replace spaces and
+  periods ... Examples: ``salesforce``; ``google_analytics``; ``wordpress_org``".
 * Warnings go to the structured log; there is no run-record warning channel yet.
 
 Lookup ladder (follow-up, user decision 2026-10-06: Apollo enriches people other
@@ -58,15 +73,17 @@ sources found, by other search terms when no Apollo id is known):
   record's, or the one an Apollo record with the same LinkedIn identity carries), (2)
   ``linkedin_url``, (3) ``email``, (4) ``first_name`` + ``last_name`` + ``domain``
   (registrable), else ``organization_name`` when there is no domain. Parameter names
-  are those Apollo's own CLI sends to people/match and its enrichment docs name
-  (live-docs-findings A9). They travel as the POST's JSON body, no query string
-  (VERIFIED 2026-10-06 against Apollo's own CLI, github.com/apolloio/apollo-io-cli
-  2.1.0, commit 70ce295: ``src/commands/people.ts`` ``buildPeopleEnrichBody`` builds
-  the body and ``src/api.ts`` ``apolloRequest`` sends it as JSON; supersedes the
-  query-parameter form). That covers the LinkedIn, address and name rungs only: the
-  same CLI asks by Apollo ``id`` with ``GET /people/match?id=`` (``people.ts`` ``email``
-  command, ``apolloGet``), so the id rung's POST JSON body is UNVERIFIED (kept: one
-  POST endpoint, no GET allowed). A masked or blank name (any ``*``) is never a term.
+  are the documented people/match parameters (``id``, ``linkedin_url``, ``email``,
+  ``first_name``, ``last_name``, ``domain``, ``organization_name``: OpenAPI at
+  https://docs.apollo.io/reference/people-enrichment, read 2026-10-06). They travel
+  as the POST's JSON body, no query string. The reference lists them as query
+  parameters, and https://docs.apollo.io/docs/enrich-people-data adds "If you prefer
+  to pass parameters via the body of the request, use the ``raw`` option instead of
+  ``form-data``"; Apollo's own CLI (apollo-io-cli 2.1.0, ``buildPeopleEnrichBody``)
+  sends the body too. The body keeps personal data out of URLs and logs. ``id`` is a
+  documented parameter of this same POST ("The Apollo ID for the person"), so the id
+  rung needs no GET (all rungs VERIFIED 2026-10-06). A masked or blank name (any
+  ``*``) is never a term.
 * Per-run cache keyed by the normalised lookup (id; LinkedIn identity; lowercased
   address; casefolded name with domain or company name): duplicates and a retried
   fetch never ask twice. ``matches`` lists each lookup once, so ``credits_in`` counts
@@ -99,13 +116,14 @@ sources found, by other search terms when no Apollo id is known):
 Rate limits (follow-up, 2026-10-06; supersedes the single 600-per-hour bucket):
 
 * Apollo's limits depend on the plan and are per minute, per hour and per day, ANDed
-  in one bucket. Search and match are paced on separate buckets, because Apollo
-  publishes a separate table for search endpoints. Figures (``_PLAN_LIMITS``) are from
-  https://docs.apollo.io/reference/rate-limits, read through a search-engine extract
-  on 2026-10-06 (the page was network-blocked): search, Free 50/min 200/h 600/day and
-  paid plans 200/min 6,000/h 50,000/day; other endpoints, Free 50/min 200/h 600/day,
-  Basic and Professional 200/min 400/h 2,000/day, Organization 200/min 600/h
-  6,000/day.
+  in one bucket. Search and match are paced on separate buckets: limits are "Per
+  endpoint" and each endpoint "has its own counters". Figures (``_PLAN_LIMITS``) are
+  from https://docs.apollo.io/reference/rate-limits (updated 2026-08-21, read in full
+  on 2026-10-06): people search ("Search Endpoints"), Free 50/min 200/h 600/day and
+  paid plans 200/min 6,000/h 50,000/day; people/match ("Enrichment Endpoints"), Free
+  50/min 200/h 600/day and paid plans 1,000/min with "No hourly limit" and "No daily
+  limit". (Superseded the general-endpoint figures, 400 or 600 an hour, used before:
+  people/match is listed as an enrichment endpoint.)
 * The plan is ``APOLLO_PLAN`` (free, basic, professional, organization), a non-secret
   setting read when a live run starts. Unset or blank means free, the lowest figures,
   so the default is safe on every plan. Any other value is a ``ConfigurationError``
@@ -124,7 +142,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 import structlog
-from pydantic import BaseModel, StrictStr
+from pydantic import BaseModel, StrictStr, model_validator
 
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
@@ -192,6 +210,7 @@ __all__ = [
     "ApolloSource",
     "credits_in",
     "plan_rate_limit",
+    "technology_uid",
 ]
 
 MAX_PER_PAGE = 100
@@ -200,8 +219,9 @@ MAX_PAGE = 500  # Apollo's documented display ceiling: 100 x 500 = 50,000 record
 SUPPORTED_TECHNOLOGIES_SNAPSHOT = (
     Path(__file__).parent.parent / "fixtures" / "apollo" / "supported_technologies.csv"
 )
-# Date of the hand-made stand-in CSV, not of a real Apollo export (see module doc).
-SUPPORTED_TECHNOLOGIES_SNAPSHOT_DATE = "2026-10-05"
+# Date Apollo's published CSV was downloaded (see module doc).
+SUPPORTED_TECHNOLOGIES_SNAPSHOT_DATE = "2026-10-06"
+_TECHNOLOGY_COLUMN = "Technology"
 
 _UID_PARAM = "currently_using_any_of_technology_uids[]"
 _KEY_HEADER = "x-api-key"
@@ -218,27 +238,30 @@ _SEARCH = Endpoint(
 
 _MATCH = Endpoint(method="POST", path="/api/v1/people/match", bucket="match")
 
-# Plan -> ((search per minute, hour, day), (match per minute, hour, day)). From
-# https://docs.apollo.io/reference/rate-limits, read 2026-10-06 through a search-engine
-# extract (the page itself was network-blocked): search endpoints have their own
-# table; people/match falls under the general-endpoint table.
-_Windows = tuple[int, int, int]
+# Plan -> ((search per minute, hour, day), (match per minute, hour, day)); None means
+# Apollo sets no limit in that window. From https://docs.apollo.io/reference/rate-limits
+# (page updated 2026-08-21, read 2026-10-06): people search has the "Search Endpoints"
+# table; people/match is in the "Enrichment Endpoints" table, whose paid plans have
+# "No hourly limit" and "No daily limit".
+_Windows = tuple[int | None, int | None, int | None]
+_SEARCH_PAID: _Windows = (200, 6000, 50_000)
+_MATCH_PAID: _Windows = (1000, None, None)
 _PLAN_LIMITS: Mapping[str, tuple[_Windows, _Windows]] = {
     "free": ((50, 200, 600), (50, 200, 600)),
-    "basic": ((200, 6000, 50_000), (200, 400, 2000)),
-    "professional": ((200, 6000, 50_000), (200, 400, 2000)),
-    "organization": ((200, 6000, 50_000), (200, 600, 6000)),
+    "basic": (_SEARCH_PAID, _MATCH_PAID),
+    "professional": (_SEARCH_PAID, _MATCH_PAID),
+    "organization": (_SEARCH_PAID, _MATCH_PAID),
 }
+_WINDOW_SECONDS = (60.0, 3600.0, 86_400.0)
 
 
 def _bucket(name: str, windows: _Windows) -> RateBucket:
-    per_minute, per_hour, per_day = windows
     return RateBucket(
         name=name,
-        windows=(
-            RateWindow(requests=per_minute, per_seconds=60.0),
-            RateWindow(requests=per_hour, per_seconds=3600.0),
-            RateWindow(requests=per_day, per_seconds=86_400.0),
+        windows=tuple(
+            RateWindow(requests=limit, per_seconds=span)
+            for limit, span in zip(windows, _WINDOW_SECONDS, strict=True)
+            if limit is not None
         ),
         documented=True,
         doc_url=_RATE_LIMITS_DOCS,
@@ -300,7 +323,9 @@ class _Person(BaseModel):
 
 
 class _MatchedPerson(BaseModel):
-    id: StrictStr
+    # Documented on the person, not the envelope (people-enrichment OpenAPI, 200).
+    match_confidence: Literal["high", "medium", "low", "none"]
+    id: StrictStr | None = None
     first_name: StrictStr | None = None
     last_name: StrictStr | None = None
     title: StrictStr | None = None
@@ -309,10 +334,25 @@ class _MatchedPerson(BaseModel):
     email_status: StrictStr | None = None
     organization: _Organization | None = None
 
+    @model_validator(mode="after")
+    def _a_hit_names_its_person(self) -> Self:
+        if self.match_confidence != _NO_MATCH and self.id is None:
+            raise ValueError("a matched person must carry its Apollo id")
+        return self
+
 
 class _Match(BaseModel):
-    match_confidence: Literal["high", "medium", "low", "none"]
     person: _MatchedPerson | None = None
+
+
+def _is_hit(response: Mapping[str, object]) -> bool:
+    """A billed match: a person whose ``match_confidence`` is not ``none``.
+
+    No person (null or absent) is a no-match too; a top-level ``match_confidence``
+    is not documented and is not read.
+    """
+    person = response.get("person")
+    return isinstance(person, Mapping) and person.get("match_confidence") != _NO_MATCH
 
 
 def _company_domain(value: object) -> str | None:
@@ -346,7 +386,7 @@ class ApolloSource(BaseLeadSource):
     live_access: ClassVar[LiveAccess] = LiveAccess.GATED
     target_vocabulary: ClassVar[Mapping[str, object]] = {
         "datastax": ["datastax"],
-        "apache_cassandra": ["apache_cassandra"],
+        "apache_cassandra": ["cassandra"],  # Apollo lists it as "Cassandra"
     }
     endpoints: ClassVar[Mapping[str, Endpoint]] = {
         "search": _SEARCH,
@@ -416,8 +456,10 @@ class ApolloSource(BaseLeadSource):
             "organization.has_industry",
             "organization.has_phone",
             "organization.has_employee_count",
-            # Match: the record-level certainty is read by the adapter, not contributed.
-            "match_confidence",
+            # Match: the record-level certainty is read by the adapter, not contributed;
+            # request_id is Apollo's id of the call, not of a lead.
+            "person.match_confidence",
+            "request_id",
         }
     )
 
@@ -579,7 +621,7 @@ class ApolloSource(BaseLeadSource):
                     break
                 key = await self._answer(lookup, headers)
                 matches.setdefault(key, self._matched[key])
-                if self._matched[key]["response"].get("match_confidence") != _NO_MATCH:
+                if _is_hit(self._matched[key]["response"]):
                     entry = asker.attachment(replace(lookup, key=key))
                     attach.setdefault(json.dumps(entry, sort_keys=True), entry)
                     break
@@ -732,16 +774,12 @@ class ApolloSource(BaseLeadSource):
         normalizer = Normalizer()
         responses: dict[str, Mapping[str, object]] = {}
         for lookup, rung, response in _match_entries(self.name, raw):
-            if response["match_confidence"] == _NO_MATCH:
+            if not _is_hit(response):
                 # An Apollo id is a pseudonymous provider id; every other lookup is
                 # personal data, so only its rung is logged.
                 named = {"lookup": lookup} if rung == "id" else {}
                 _log.info("apollo_no_match", rung=rung, **named)
                 continue
-            if response.get("person") is None:
-                raise NormalizationError(
-                    self.name, raw_field_path="person", canonical_path="<unmapped>"
-                )
             responses[lookup] = response
         contributions: list[LeadContribution] = []
         for entry in _attach_entries(self.name, raw):
@@ -822,7 +860,7 @@ def credits_in(batch: RawBatch) -> int:
     return sum(
         1
         for _, _, response in _match_entries(batch.source_name, batch)
-        if response["match_confidence"] != _NO_MATCH
+        if _is_hit(response)
     )
 
 
@@ -1081,7 +1119,7 @@ def _answer_keys(response: Mapping[str, Any]) -> set[str]:
     verified (8.11: an unverified address is no Match Key, so it identifies no one).
     """
     person = response.get("person")
-    if response.get("match_confidence") == _NO_MATCH or not isinstance(person, Mapping):
+    if not _is_hit(response) or not isinstance(person, Mapping):
         return set()
     keys: set[str] = set()
     own = person.get("id")
@@ -1281,29 +1319,40 @@ def _uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
     return tuple(uids)
 
 
+def technology_uid(name: str) -> str:
+    """Apollo's UID for a technology named in its CSV: lowercased, with spaces and
+    periods as underscores (the documented rule and its examples, e.g. ``WordPress.org``
+    is ``wordpress_org``)."""
+    return name.strip().casefold().replace(" ", "_").replace(".", "_")
+
+
 def _supported_technologies() -> frozenset[str]:
     with SUPPORTED_TECHNOLOGIES_SNAPSHOT.open(encoding="utf-8", newline="") as handle:
-        return frozenset(row["uid"] for row in csv.DictReader(handle))
+        return frozenset(
+            technology_uid(row.get(_TECHNOLOGY_COLUMN) or "")
+            for row in csv.DictReader(handle)
+        )
 
 
 def _check_technology_snapshot(provider: str, text: str) -> None:
-    """Fixture-guard check of the snapshot: a ``uid`` column, rows, no blank uid.
+    """Fixture-guard check of the snapshot: a ``Technology`` column, rows, no blank.
 
-    Stricter than the loader a run uses (a blank uid there is merely a uid that matches
-    nothing), so a damaged snapshot fails the suite without stopping a live run. The
-    error is raised outside the ``except`` so no csv text rides along in its context.
+    Stricter than the loader a run uses (a blank name there is merely a uid that
+    matches nothing), so a damaged snapshot fails the suite without stopping a live
+    run. The error is raised outside the ``except`` so no csv text rides along in its
+    context.
     """
-    uids: list[str | None] = []
+    names: list[str | None] = []
     readable = True
     try:
         reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
-        uids = [row.get("uid") for row in reader]
-        readable = "uid" in (reader.fieldnames or ())
+        names = [row.get(_TECHNOLOGY_COLUMN) for row in reader]
+        readable = _TECHNOLOGY_COLUMN in (reader.fieldnames or ())
     except csv.Error:
         readable = False
-    if not readable or not uids or not all(u and u.strip() for u in uids):
+    if not readable or not names or not all(n and n.strip() for n in names):
         raise NormalizationError(
-            provider, raw_field_path="uid", canonical_path="<unmapped>"
+            provider, raw_field_path=_TECHNOLOGY_COLUMN, canonical_path="<unmapped>"
         )
 
 

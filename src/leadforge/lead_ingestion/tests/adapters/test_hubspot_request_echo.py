@@ -459,7 +459,7 @@ class _ApolloMatches:
             return ok({"total_entries": 0, "people": []})
         url = str(asked.get("linkedin_url"))
         if url not in self.known:
-            return ok({"match_confidence": "none"})
+            return ok({"person": {"match_confidence": "none"}})
         first, last, address = self.known[url]
         body = shipped("apollo", "match.json")
         body["person"].update(

@@ -3216,3 +3216,52 @@ Independent review (spec-refactor) in a throwaway worktree (HEAD + this change's
 - (f) No N+1 (asserted). Order is deterministic. Succession is cycle-safe (seen set, tested).
 - (g) Mutation check: 12/12 mutants killed. Each file was restored and sha256-verified (fu5-review-mutants.txt).
 - Left as is: web evidence still reads every attached evidence row on each load. The legacy `identity_key` table stays unused, because its UNIQUE dedupe does not fit shared role addresses.
+
+## Follow-up — provider facts re-verified on live docs with full access (2026-10-06)
+
+Report: scratchpad/live-docs-findings-2.md. Raw pages: scratchpad/live2/raw, text in live2/txt. No provider API was called with a key. Apollo's keyless supported-technologies CSV, which the docs link to, was downloaded.
+
+Files: adapters/apollo.py, adapters/hunter.py, adapters/hubspot.py (doc only), adapters/search_backends/serpapi.py; fixtures apollo/{match.json, no_match/match.json, search.json, supported_technologies.csv, manifest.json}, hunter/{no_emails/domain_search.json, manifest.json}, google_search/manifest.json; .env.example (regenerated); config/target_profile.yaml (Apollo UIDs cassandra and mongodb_atlas). Tests: test_apollo_source, test_apollo_enrich_other_sources, test_hunter_source, test_provider_plan_limits, test_google_search_empty_results, test_fixture_{fields,schema}_mutations, test_fixture_outcome_matrix, test_from_run_vocabulary, test_hubspot_request_echo, tests/test_fixture_metadata.py. Not touched: store/*, cli.py, structure_guard.py, migrations.
+
+### DIFFERS fixed (red log, then fix)
+1. Apollo `match_confidence` is documented on `person`, not at the top level. The old model required it at the top level, so every live match would have failed. Red log: fu6-red-apollo-confidence.txt.
+2. Apollo people/match uses the Enrichment rate-limit table. Paid plans are 1,000 a minute with no hourly or daily limit; Free is 50/200/600. Red log: fu6-red-apollo-match-limits.txt.
+3. Apollo's technology CSV has the columns `Category,Technology`, and UIDs come from the documented rule. `apache_cassandra` does not exist, so it is now `cassandra`. The config used `mongodb`, which does not exist either, so it is now `mongodb_atlas`. Red log: fu6-red-apollo-csv.txt.
+4. The Apollo masking form is `Xx***y`. Red log: fu6-red-apollo-mask.txt.
+5. Hunter's Free plan rejects `limit` above 10, so `HUNTER_PLAN=free` was added (price 0.5, limit 10). Red log: fu6-red-hunter-free.txt.
+6. A Hunter 222 SMTP failure aborted the batch with `NormalizationError`; it is now no verdict. Red log: fu6-red-hunter-222.txt.
+7. Hunter's documented empty domain search has `data.domain: null`, which the model rejected. Red log: fu6-red-hunter-empty.txt.
+8. SerpApi's docs spell "Fully empty" two ways, so the state is now compared casefolded. Red log: fu6-red-serp-case.txt.
+
+### Verified now (manifests set to verified, 2026-10-06)
+Apollo search.json, match.json and supported_technologies.csv (origin doc_example); google_search search.json; Hunter domain_search.json, email_finder.json, email_verifier.json, no_emails, invalid, accept_all and unknown. Confirmed facts: the JSON body is a documented alternative; the id rung is a documented POST parameter; search filters go in the query string; HubSpot needs only `filterGroups` and the two read scopes; SerpApi plan hours are 50/200/1,000/3,000/6,000; Hunter charges `ceil(n/10)` on both plans, finder only when found, verifier 1 or 0.5, and does not charge for polling.
+
+### Still unverified
+HubSpot `hs_is_closed` (highest risk), the `SECONDLY` literal and `Retry-After` on search; Apollo's no-match shape; Hunter's domain-search maximum `limit`, the finder not-found shape, whether `test-api-key` is free, and whether an `unknown` verdict is charged; SerpApi's throughput 429 text and `answer_box`.
+
+### Decisions to confirm
+- `config/target_profile.yaml` is outside the listed paths. I edited it because a config column overrides the adapter default, so the UID fix would not take effect otherwise. The `mongodb_atlas` mapping is a guess at intent.
+- The secret scan in `test_fixture_metadata` keeps only the token-shape check for the product-list CSV, because product names like "AWS Secrets Manager" trip the word check.
+
+### Verification (this run)
+- Baseline before changes: 4346 passed, 1 skipped.
+- After: `ruff check src` clean; `mypy` no issues (218 files); `pytest -q` 4377 passed, 1 skipped.
+- `leadforge ingest` (synthetic mode, real adapters on fixtures) in a temporary directory: exit 0, 4 sources ok, no unknown-UID warning.
+- Not run: spec-refactor-agent and validate-production-agent (no Agent tool); Serena and GitNexus (unavailable). Blast radius was checked by grep; the changed symbols are private to their adapters, apart from the new export `technology_uid`.
+
+### Self-review findings
+
+Independent review, 2026-10-06. Pages re-fetched to scratchpad/live2/rv6/ (curl, no keys); Apollo OpenAPI parsed with jq.
+- (1) match_confidence: CONFIRMED. people/match 200 schema top-level keys ["person","request_id"]; person.properties.match_confidence {"enum":["high","medium","low","none"]}; no top-level match_confidence.
+- (2) Hunter 222: CONFIRMED meaning, "222 The verification failed because of an unexpected response from the remote SMTP server. This failure is outside of our control. We recommend to retry later." Charging NOT stated on the API page; help article says "No credits are used if Hunter can't find or verify an email". Code prices it (conservative, marked UNVERIFIED). Mapping correct: _verify returns None, normalize emits nothing (no Negative Evidence, no verdict); test asserts normalize_checked == []. Not retried in-run; cached like a 202 give-up.
+- (3) Apollo match limits: CONFIRMED (rate-limits.md, updatedAt 2026-08-21): Enrichment Endpoints include "People enrichment"; Free "50 (20 for bulk endpoints)" / "200 (100 for bulk endpoints)" / "600"; Basic/Professional/Organization "1,000" / "No hourly limit" / "No daily limit". Search table 50/200/600 and 200/6,000/50,000 also confirmed.
+- (4) HUNTER_PLAN=free: CONFIRMED. "pagination_error ... if the limit additioned to the offset is higher than 10 for a Free plan user"; hunter.io/pricing Free "50 credits per month ... Email verified · 0.5 credit"; Free listed under "All-in-one outreach platform".
+- (5) SerpApi: CONFIRMED both spellings on api-status-and-error-codes: field description "(e.g. Fully Empty, ...)" and example "organic_results_state": "Fully empty".
+- (b) CSV: re-downloaded, sha256 3fb5cfd7...18d0 identical, 432 KB, 13,113 rows. It is a runtime input (ApolloSource.__init__ warns on unknown UIDs), not test-only, so an excerpt would weaken the runtime check. License/terms of redistributing Apollo's list are NOT established: ASK FIRST (left as is). Secret-scan exemption: was keyed by file name only; a file of that name anywhere would inherit it. Path keying is impossible in tests/ (test_vendor_neutrality forbids the vendor name), so FIXED by a tripwire: test_only_the_one_product_list_skips_the_secret_word_scan requires exactly one such file and that only the word list is skipped (token scan and email scan intact).
+- (c) target_profile: CSV rows "Database,Cassandra", "Database,MongoDB Atlas", "Database,MongoDB Realm", "Database,DataStax", "Database,Couchbase"; no plain "MongoDB" or "Apache Cassandra". All four config UIDs (cassandra, datastax, mongodb_atlas, couchbase) are valid. mongodb_atlas vs also mongodb_realm is a user-intent choice, not decided here.
+- (d) Manifests: Apollo match/search/no_match walked against the OpenAPI schema (types, enums): no undocumented key. Hunter domain_search, email_finder, email_verifier and variants: all keys present in the doc examples; statuses invalid/accept_all/unknown among the 6 documented. Google search fields present in serpapi.com/search-api example. Minor: apollo/search.json has_direct_phone "No" is not a documented value (doc: "Yes" or "Maybe: ..."); not fixed (schema-only verification).
+- (e) Offline ingest (temp dir, keys unset): exit 0, 4 sources synthetic ok, 0 apollo_unknown_technology_uid.
+- (f) Mutations: 13 run, 13 killed (is_hit top-level, paid match windows, free match windows, id validator, uid period rule, default cassandra UID, 222 path, free domain limit, free price, nullable domain, serp casefold, duplicate product list, exempt-all); every file restored, sha256 verified.
+- Also: hunter.py MAX_EMAILS_PER_DOMAIN collapsed to one line (formatting artefact).
+- Verification: pytest 4378 passed, 1 skipped; ruff clean; mypy clean (218 files); no untracked files in repo.
+- Open: stored synthetic batches from older runs with top-level match_confidence will fail re-normalization (no live batch could exist: the old model rejected Apollo's real shape).

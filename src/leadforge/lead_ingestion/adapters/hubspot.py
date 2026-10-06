@@ -87,11 +87,22 @@ network-blocked):
   with ``id``, ``properties`` as nullable strings, ``createdAt``, ``updatedAt``,
   ``archived``), Bearer auth, the five-per-second search limit (per account, shared
   with other integrations), and the ``DAILY`` and ``TEN_SECONDLY_ROLLING`` policy names.
-* UNVERIFIED: the ``hs_is_closed`` deal property (only ``hs_is_closed_won`` and
-  ``hs_is_closed_lost`` were seen; confirm with the Properties API on a live portal),
-  and the ``SECONDLY`` policy name, which no source showed; the official SDK spots the
-  search throttle by its message instead. Behaviour does not depend on ``SECONDLY``:
-  any 429 is still ``SourceRateLimited``.
+* Re-checked on the live developer docs, 2026-10-06 (spec repo HEAD 5892c4d):
+  https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm shows a
+  body of ``filterGroups`` alone (the spec's "required" ``after``/``sorts`` are not
+  needed), "rate limited to five requests per second per account", "maximum number
+  of supported objects per page is 200", and the ``associations.{objectType}``
+  pseudo-property. https://developers.hubspot.com/docs/developer-tooling/platform/
+  usage-guidelines: a 429 carries ``"errorType": "RATE_LIMIT"`` and ``policyName``
+  ("will indicate which limit you hit (either daily or secondly)"), and "Responses
+  from the search API endpoints will not include any of the rate limit headers".
+* UNVERIFIED: the ``hs_is_closed`` deal property. HubSpot's default deal property list
+  (https://knowledge.hubspot.com/properties/hubspots-default-deal-properties) names
+  only "Is closed lost" and "Is Closed Won"; ``hs_is_closed`` appears only in
+  community answers as an internal calculated property usable in search filters.
+  Confirm with one deal search on a live portal. The literal ``SECONDLY`` is also
+  unconfirmed (the docs say "secondly" in prose and name ``TEN_SECONDLY_ROLLING``).
+  Behaviour does not depend on it: any 429 is still ``SourceRateLimited``.
 """
 
 import re

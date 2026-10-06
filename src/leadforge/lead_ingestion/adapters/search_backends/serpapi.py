@@ -10,9 +10,9 @@ Provisional decisions (see choices.md, task 14.1; revised 2026-10-06):
 
 * The bucket is SerpApi's hourly throughput, which depends on the plan: Free 50,
   Starter 200, Developer 1,000, Production 3,000, Big Data 6,000 searches per hour
-  (https://serpapi.com/pricing, read 2026-10-06 through a search-engine extract; the
-  page itself was network-blocked). The former self-imposed one request per second
-  (3,600 an hour) was above every plan but Big Data.
+  ("50 throughput per hour" ... "6,000 throughput per hour",
+  https://serpapi.com/pricing, read in full 2026-10-06). The former self-imposed one
+  request per second (3,600 an hour) was above every plan but Big Data.
 * The figure is ``SERPAPI_HOURLY_LIMIT``, a non-secret setting read when a live run
   starts. Unset or blank means ``DEFAULT_HOURLY_LIMIT``, 50: the Free plan, the lowest
   documented figure, so the default is safe on every plan. Anything but a positive
@@ -23,18 +23,23 @@ Provisional decisions (see choices.md, task 14.1; revised 2026-10-06):
 Provisional decisions (see choices.md, task 14.3):
 
 * SerpApi answers both an exhausted balance and exceeded hourly throughput with a 429
-  and an ``error`` string. Only the balance text is documented ("Your account has run
-  out of searches."); the throughput wording is not, so it is matched by the word
-  "throughput" (an assumption). Matching is case-insensitive on a top-level string
-  ``error``; anything else is ``UNRECOGNIZED``, which the adapter retries with backoff.
+  and an ``error`` string ("exceeds the hourly throughput limit OR your account has
+  run out of searches", https://serpapi.com/api-status-and-error-codes, read
+  2026-10-06). Only the balance text is documented ("Your account has run out of
+  searches."); the throughput wording is not, so it is matched by the word
+  "throughput" (an assumption). The free Account API (``account_rate_limit_per_hour``,
+  ``total_searches_left``) could tell them apart; it is not called. Matching is
+  case-insensitive on a top-level string ``error``; anything else is
+  ``UNRECOGNIZED``, which the adapter retries with backoff.
 
 Empty page versus failed search (follow-up, 2026-10-06):
 
 * SerpApi puts a top-level ``error`` on an empty page too. The documented empty page
   keeps ``search_metadata.status`` ``Success`` and has
-  ``search_information.organic_results_state`` ``Fully empty``
-  (https://serpapi.com/api-status-and-error-codes, https://serpapi.com/search-errors,
-  read 2026-10-06 through search-engine extracts). That page is no results. A 2xx page
+  ``search_information.organic_results_state`` ``Fully empty`` (the JSON example;
+  the field description says "Fully Empty", so the state is compared casefolded)
+  (https://serpapi.com/api-status-and-error-codes, read in full 2026-10-06). That page
+  is no results. A 2xx page
   whose status is ``Error``, or which carries ``error`` without being that empty page,
   is a failed search (``failed_search``). Only structured fields decide; the message
   wording is never read for it.
@@ -65,7 +70,7 @@ _BALANCE_MARKER = "run out of searches"
 _THROUGHPUT_MARKER = "throughput"
 _STATUS_ERROR = "Error"
 _STATUS_SUCCESS = "Success"
-_FULLY_EMPTY = "Fully empty"
+_FULLY_EMPTY = "fully empty"  # compared casefolded: the docs spell it both ways
 
 HOURLY_LIMIT_ENV = "SERPAPI_HOURLY_LIMIT"
 DEFAULT_HOURLY_LIMIT = 50  # Free plan: the lowest documented hourly throughput
@@ -175,4 +180,5 @@ class SerpApiBackend(SearchBackend):
             if isinstance(information, Mapping)
             else None
         )
-        return not (status == _STATUS_SUCCESS and state == _FULLY_EMPTY)
+        empty = isinstance(state, str) and state.casefold() == _FULLY_EMPTY
+        return not (status == _STATUS_SUCCESS and empty)

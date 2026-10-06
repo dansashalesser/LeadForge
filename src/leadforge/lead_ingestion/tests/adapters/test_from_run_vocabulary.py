@@ -93,7 +93,7 @@ def test_apollo_without_a_profile_keeps_its_own_default_vocabulary() -> None:
         vocabulary=None,
     )
 
-    assert source._uids == ("datastax", "apache_cassandra")
+    assert source._uids == ("datastax", "cassandra")
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#4.5

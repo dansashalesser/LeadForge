@@ -118,7 +118,7 @@ def answer(
 ) -> TransportResponse:
     if confidence == "none":
         return TransportResponse(
-            status=200, headers={}, body={"match_confidence": "none"}
+            status=200, headers={}, body={"person": {"match_confidence": "none"}}
         )
     person: dict[str, object] = {
         "id": person_id,
@@ -132,7 +132,7 @@ def answer(
     if email is not None:
         person["email"] = email
         person["email_status"] = "verified"
-    body = {"match_confidence": confidence, "person": person}
+    body = {"person": {**person, "match_confidence": confidence}}
     return TransportResponse(status=200, headers={}, body=body)
 
 
@@ -852,7 +852,7 @@ async def test_a_no_match_answer_answers_no_other_lookup() -> None:
     # A "none" answer names no one, even when its body carries a person object.
     empty = answer()
     assert isinstance(empty.body, dict)
-    empty.body["match_confidence"] = "none"
+    empty.body["person"]["match_confidence"] = "none"
     transport = Scripted(lambda params: empty if "linkedin_url" in params else ADA)
     source = apollo(transport)
     await source.fetch_raw(

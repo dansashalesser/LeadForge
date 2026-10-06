@@ -19,6 +19,11 @@ Provisional decisions (see choices.md, task 15.1):
 
 * One page of at most 100 addresses per domain, no paging: each page costs Credits. A
   domain with more addresses logs ``hunter_domain_search_truncated`` with counts only.
+  The docs give the domain search ``limit`` a default of 10 and state no maximum (100
+  is Discover's documented maximum; UNVERIFIED for domain search). A ``free`` plan asks
+  for 10: "This error [``pagination_error``] can also be returned if the limit
+  additioned to the offset is higher than 10 for a Free plan user"
+  (https://hunter.io/api-documentation/v2#domain-search, read 2026-10-06).
 * Routing, per Lead: a usable ``person.email`` wins (verifier); else usable
   ``person.first_name`` and ``person.last_name`` with a domain (finder); else every
   domain (domain search). A name is unusable if blank, over 100 characters, containing
@@ -27,28 +32,37 @@ Provisional decisions (see choices.md, task 15.1):
 * The raw batch is ``{"searches": [{"domain", "response"}], "finds": [{"domain",
   "first_name", "last_name", "linkedin_url", "response"}], "verifications": [{"email",
   "response"}], "credits_billable", "plan"}``, each response verbatim (``None`` for a
-  verifier 202). ``credits_in(batch)`` follows Hunter's billing (help.hunter.io, "How do
-  credits work", checked 2026-10-06) for a real key's live batch, zero for the sandbox
-  key or synthetic mode (16.8): a domain search costs ``ceil(addresses returned / 10)``
-  (none for none); a finder 1 only when it found an address; a verification the plan's
-  price (follow-up fu2, 2026-10-06). The plan is ``HUNTER_PLAN``, a non-secret setting:
-  ``data`` (1 Verification credit per call, "On Data Plans, Email Verifier costs 1
-  Verification credit per call") or ``all-in-one`` (0.5 credit, "On All-in-one Plans,
-  Email Verifier costs 0.5 credits per verification"), both from
-  https://help.hunter.io/en/articles/12149400-hunter-api-for-data-plans and the credits
-  article, read through a search-engine extract on 2026-10-06 (the pages were
-  network-blocked). Unset or blank means ``data``, the conservative price; any other
-  value is a ``ConfigurationError`` naming the variable, never the value, raised when a
-  live run starts (``run_rate_limit``) and again before a live fetch spends. The batch
-  records the plan (``plan``) so a stored batch is priced as it was bought. Credits
-  are an exact ``Decimal`` (follow-up fu3, 2026-10-06): three all-in-one
-  verifications are 1.5, never rounded and never a float; the store keeps them exact
-  (migration 0008). UNVERIFIED: the plan names beyond those two, whether a Data
-  plan's separate Verification credit type should be counted apart from search
-  credits (it is summed here), and how Hunter itself rounds half credits on its
-  invoice. A verification Hunter could not finish (202 give-up) or answered ``unknown``
-  is still priced, also conservative; Hunter's "no credit if it can't verify" may make
-  it 0.
+  verifier 202, a give-up or a 222). ``credits_in(batch)`` follows Hunter's API
+  billing for a real key's live batch, zero for the sandbox key or synthetic mode
+  (16.8): a domain search costs ``ceil(addresses returned / 10)`` (none for none; "1
+  Search credit for 1 to 10 email addresses per domain returned" on Data plans, "1
+  credit per 1 to 10 email addresses returned per domain" on All-in-one); a finder 1
+  only when it found an address ("1 credit per call, charged only if an email is
+  found"; the API reference: "If no email can be found, no credit is charged"); a
+  verification the plan's price. The plan is ``HUNTER_PLAN``, a non-secret setting:
+  ``data`` ("1 Verification credit per call"), ``all-in-one`` ("0.5 credits per
+  call") or ``free`` (an All-in-one plan on https://hunter.io/pricing: 0.5, and a
+  domain search capped at 10 addresses). Sources, read in full on 2026-10-06:
+  https://help.hunter.io/en/articles/12149400-hunter-api-for-data-plans,
+  https://help.hunter.io/en/articles/1970956-hunter-api (All-in-one) and
+  https://help.hunter.io/en/articles/1911617-how-do-credits-work-in-hunter. Hunter
+  also does not charge a repeat of the same question within a billing month, so a
+  sum over runs can overstate the bill. Unset or blank means ``data``, the
+  conservative price; any other value is a ``ConfigurationError`` naming the
+  variable, never the value, raised when a live run starts (``run_rate_limit``) and
+  again before a live fetch spends. The batch records the plan (``plan``) so a
+  stored batch is priced as it was bought. Credits are an exact ``Decimal``
+  (follow-up fu3, 2026-10-06): three all-in-one verifications are 1.5, never rounded
+  and never a float; the store keeps them exact (migration 0008). The plan names
+  are this setting's own labels for Hunter's two plan families ("Data Platform" and
+  "All-in-one outreach platform") and its Free tier. UNVERIFIED: whether a Data plan's
+  separate Verification credit type should be
+  counted apart from search credits (it is summed here), and how Hunter itself rounds
+  half credits on its invoice. A verification Hunter could not finish (202 give-up,
+  222) or answered ``unknown`` is still priced, also conservative: the credits article
+  says "No credits are used if Hunter can't find or verify an email", while both API
+  articles price the verifier "per call"; which one governs an ``unknown`` answer is
+  UNVERIFIED.
 * A found address carries the person it was asked for (follow-up, 2026-10-06): the
   domain and the name asked (not Hunter's echo) and the requester's own LinkedIn URL
   when it had one (never Hunter's ``linkedin_url``), at raw paths ``asked.*``, so the
@@ -94,9 +108,14 @@ Provisional decisions (see choices.md, task 15.1):
   ``hunter_verification_unfinished`` warning with the reason and the poll count, and no
   exception: it must not abort a paid batch. The give-up is cached like a verdict, so a
   retried fetch does not restart the poll; an error or cancel mid-poll caches nothing.
-  Hunter is ASSUMED not to charge for polling, so the batch still counts one Credit per
-  address, not per poll. The clock and sleep are injected, so tests never wait; the
-  default ``asyncio.sleep`` is cancellable, so a run timeout cuts a poll short.
+  Hunter does not charge for polling ("all the requests in this case are counted only
+  once", Email Verifier docs, read 2026-10-06), so the batch counts one verification
+  per address, not per poll. A 222 ("The verification failed because of an unexpected
+  response from the remote SMTP server ... We recommend to retry later") is also no
+  verdict: logged with reason ``smtp_failure``, not retried in this run, and priced
+  like a give-up (conservative). The clock and sleep are injected, so tests never
+  wait; the default ``asyncio.sleep`` is cancellable, so a run timeout cuts a poll
+  short.
 * Status conventions (16.7, 15.3), classified once in ``classify_error``: 403 is
   ``SourceRateLimited`` (with ``Retry-After`` when usable), 429 is
   ``SourceQuotaExhausted`` (halts the source for the run), 451 is
@@ -129,7 +148,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple
 
 import structlog
 from pydantic import BaseModel, Field, StrictStr
@@ -194,7 +213,7 @@ __all__ = [
     "credits_in",
 ]
 
-MAX_EMAILS_PER_DOMAIN = 100  # Hunter's documented ceiling for one domain-search page
+MAX_EMAILS_PER_DOMAIN = 100  # one domain-search page; no documented maximum
 SANDBOX_KEY = "test-api-key"  # Hunter's published key: dummy responses, no Credits
 CONFIDENCE_SCALE = "hunter_confidence_0_100"
 
@@ -207,6 +226,9 @@ _SEARCH = Endpoint(method="GET", path="/v2/domain-search", bucket="finder")
 _FINDER = Endpoint(method="GET", path="/v2/email-finder", bucket="finder")
 _VERIFIER = Endpoint(method="GET", path="/v2/email-verifier", bucket="verifier")
 _ACCEPTED = 202  # the verifier is still running: ask again (16.4)
+# "The verification failed because of an unexpected response from the remote SMTP
+# server ... We recommend to retry later" (Email Verifier errors): no verdict.
+_SMTP_FAILURE = 222
 _FORBIDDEN = 403  # Hunter: the rate limit was reached (16.7)
 _TOO_MANY = 429  # Hunter: the usage limit is spent (16.7)
 _RESTRICTED = 451  # Hunter: personal-data processing is restricted (16.6)
@@ -225,10 +247,21 @@ _CREDITS_DOCS = (
 )
 PLAN_ENV = "HUNTER_PLAN"
 DEFAULT_PLAN = "data"  # the dearer verification price, safe on every plan
-# Plan -> Credits one Email Verifier call costs (help.hunter.io, checked 2026-10-06).
-_VERIFIER_PRICE: Mapping[str, Decimal] = {
-    "data": Decimal(1),
-    "all-in-one": Decimal("0.5"),
+_FREE_PLAN_PAGE = 10  # Free plan: limit + offset above 10 is a ``pagination_error``
+
+
+class _PlanTerms(NamedTuple):
+    verifier_price: Decimal  # Credits one Email Verifier call costs
+    domain_limit: int  # the ``limit`` one domain search may ask for
+
+
+# Plan -> its terms (help.hunter.io and hunter.io/api-documentation/v2, read
+# 2026-10-06). Free is an All-in-one plan (hunter.io/pricing lists it with Starter,
+# Growth and Scale), so it pays the All-in-one price.
+_PLANS: Mapping[str, _PlanTerms] = {
+    "data": _PlanTerms(Decimal(1), MAX_EMAILS_PER_DOMAIN),
+    "all-in-one": _PlanTerms(Decimal("0.5"), MAX_EMAILS_PER_DOMAIN),
+    "free": _PlanTerms(Decimal("0.5"), _FREE_PLAN_PAGE),
 }
 _ADDRESS = re.compile(r"[^\s@?#/\\:]+@" + _HOSTNAME.pattern)
 # The finder question echoed back (``REQUEST_ECHO_RULES`` keys), in this order.
@@ -266,7 +299,8 @@ class _Email(BaseModel):
 
 
 class _Data(BaseModel):
-    domain: StrictStr
+    # Null in Hunter's documented "no results" answer (Domain Search, 200 OK).
+    domain: StrictStr | None = None
     organization: StrictStr | None = None
     emails: list[_Email]
 
@@ -360,8 +394,9 @@ class HunterSource(BaseLeadSource):
     optional_env: ClassVar[tuple[str, ...]] = (PLAN_ENV,)
     env_notes: ClassVar[Mapping[str, str]] = {
         PLAN_ENV: (
-            f"optional: your Hunter plan, one of {', '.join(_VERIFIER_PRICE)}; prices "
-            f"an Email Verifier call (data 1 credit, all-in-one 0.5; {_CREDITS_DOCS}); "
+            f"optional: your Hunter plan, one of {', '.join(_PLANS)}; prices an Email "
+            f"Verifier call (data 1 credit, all-in-one and free 0.5; {_CREDITS_DOCS}) "
+            f"and caps a free plan's domain search at {_FREE_PLAN_PAGE} addresses; "
             f"unset means {DEFAULT_PLAN}"
         )
     }
@@ -373,12 +408,12 @@ class HunterSource(BaseLeadSource):
         """The plan ``HUNTER_PLAN`` names; unset or blank is ``DEFAULT_PLAN``."""
         env = os.environ if environ is None else environ
         plan = env.get(PLAN_ENV, "").strip().casefold() or DEFAULT_PLAN
-        if plan not in _VERIFIER_PRICE:
+        if plan not in _PLANS:
             # The value is not echoed, as for every configuration error.
             raise ConfigurationError(
                 "environment",
                 key_path=PLAN_ENV,
-                detail=f"must be one of {', '.join(_VERIFIER_PRICE)}",
+                detail=f"must be one of {', '.join(_PLANS)}",
             )
         return plan
 
@@ -458,6 +493,7 @@ class HunterSource(BaseLeadSource):
     ENVELOPE_IGNORED: ClassVar[frozenset[str]] = frozenset(
         {
             "meta.results",
+            "meta.results_approximate",
             "meta.limit",
             "meta.offset",
             "meta.params.domain",
@@ -473,6 +509,7 @@ class HunterSource(BaseLeadSource):
             "webmail",
             "accept_all",
             "pattern",
+            "linked_domains",
             "email.type",
             "email.confidence",  # read by the adapter into the email's provenance
             "email.seniority",
@@ -568,7 +605,9 @@ class HunterSource(BaseLeadSource):
         searches: list[Mapping[str, Any]] = []
         for domain in plan.domains:
             if domain not in self._searched:
-                self._searched[domain] = await self._search(domain, headers)
+                self._searched[domain] = await self._search(
+                    domain, _PLANS[priced].domain_limit, headers
+                )
             searches.append({"domain": domain, "response": self._searched[domain]})
         finds: list[Mapping[str, Any]] = []
         ambiguous = 0
@@ -650,9 +689,9 @@ class HunterSource(BaseLeadSource):
         return body
 
     async def _search(
-        self, domain: str, headers: Mapping[str, str]
+        self, domain: str, limit: int, headers: Mapping[str, str]
     ) -> Mapping[str, Any]:
-        params = {"domain": domain, "limit": MAX_EMAILS_PER_DOMAIN}
+        params = {"domain": domain, "limit": limit}
         response = await self._send(
             _SEARCH, params=params, json_body=None, headers=headers
         )
@@ -683,10 +722,12 @@ class HunterSource(BaseLeadSource):
             response = await self._send(
                 _VERIFIER, params={"email": address}, json_body=None, headers=headers
             )
-            if response.status != _ACCEPTED:
+            if response.status not in (_ACCEPTED, _SMTP_FAILURE):
                 return self._checked(response)
             left = self._poll_budget_s - (self._clock() - started)
-            if polls >= self._poll_attempts:
+            if response.status == _SMTP_FAILURE:
+                reason = "smtp_failure"
+            elif polls >= self._poll_attempts:
                 reason = "attempts"
             elif left <= 0:
                 reason = "budget"
@@ -909,7 +950,8 @@ def credits_in(batch: RawBatch) -> Decimal:
     payload = batch.payload
     billable = payload.get("credits_billable") if isinstance(payload, Mapping) else None
     plan = payload.get("plan", DEFAULT_PLAN) if isinstance(payload, Mapping) else None
-    price = _VERIFIER_PRICE.get(plan) if isinstance(plan, str) else None
+    terms = _PLANS.get(plan) if isinstance(plan, str) else None
+    price = None if terms is None else terms.verifier_price
     if not isinstance(billable, bool) or price is None:
         raise NormalizationError(
             batch.source_name,

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import socket
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
@@ -165,10 +166,10 @@ async def test_synthetic_run_needs_no_key_and_sends_none() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#12.12
 async def test_technology_filter_is_a_snake_case_uid_on_the_search_call() -> None:
     transport = Scripted(lambda _: page(0, 0))
-    await live(transport, vocabulary={"t": ["apache_cassandra"]}).fetch_raw(REQUEST)
+    await live(transport, vocabulary={"t": ["google_analytics"]}).fetch_raw(REQUEST)
     endpoint, params, _ = transport.calls[0]
     assert endpoint.path == SEARCH_PATH
-    assert params[UID_PARAM] == "apache_cassandra"
+    assert params[UID_PARAM] == "google_analytics"
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.13
@@ -189,7 +190,7 @@ async def test_without_a_profile_the_adapters_declared_default_is_used() -> None
     await live(transport).fetch_raw(REQUEST)
     assert {c[1][UID_PARAM] for c in transport.calls} == {
         "datastax",
-        "apache_cassandra",
+        "cassandra",
     }
 
 
@@ -214,7 +215,7 @@ def test_startup_warns_naming_a_uid_missing_from_the_supported_snapshot() -> Non
 def test_startup_is_silent_when_every_uid_is_supported() -> None:
     transport = Scripted(lambda _: page(0, 0))
     with capture_logs() as logs:
-        live(transport, vocabulary={"t": ["datastax", "apache_cassandra"]})
+        live(transport, vocabulary={"t": ["datastax", "cassandra"]})
     assert logs == []
 
 
@@ -333,7 +334,7 @@ async def test_fixture_search_contributes_identity_firmographics_and_no_contact(
     assert plain == {
         "person.provider_id": "apollo-person-1",
         "person.first_name": "Ada",
-        "person.last_name": "Lo***",
+        "person.last_name": "Lo***e",
         "person.title": "VP Engineering",
         "company.name": "Example Data Corp",
     }
@@ -393,10 +394,58 @@ def test_normalizing_a_person_with_the_wrong_shape_names_the_path() -> None:
     assert "first_name" in str(caught.value)
 
 
-def test_snapshot_fixture_is_valid_csv_with_a_uid_column() -> None:
-    header = (FIXTURE_DIR / "supported_technologies.csv").read_text().splitlines()[0]
-    assert header.split(",")[0] == "uid"
+# Verifies: specs/lead-source-adapters/requirements.md#12.8
+def test_fixture_last_names_are_masked_in_apollos_documented_form() -> None:
+    # People search OpenAPI example: "last_name_obfuscated": "Hu***n" (first two
+    # letters, three stars, last letter).
+    people = json.loads((FIXTURE_DIR / "search.json").read_text())["people"]
+    masked = [p["last_name_obfuscated"] for p in people]
+    assert masked
+    assert all(re.fullmatch(r"\w{2}\*{3}\w", m) for m in masked)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.12
+def test_snapshot_is_apollos_published_csv() -> None:
+    # The file behind https://api.apollo.io/v1/auth/supported_technologies_csv, linked
+    # from the people search docs, has these two columns and no uid column.
+    lines = (FIXTURE_DIR / "supported_technologies.csv").read_text().splitlines()
+    assert lines[0] == "Category,Technology"
+    assert len(lines) > 1000  # Apollo documents "1,500+ technologies"
     assert json.loads((FIXTURE_DIR / "search.json").read_text())["people"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.12
+@pytest.mark.parametrize(
+    ("name", "uid"),
+    # The documented rule and its own examples: "Use underscores (_) to replace
+    # spaces and periods ... Examples: salesforce; google_analytics; wordpress_org".
+    [
+        ("Salesforce", "salesforce"),
+        ("Google Analytics", "google_analytics"),
+        ("WordPress.org", "wordpress_org"),
+    ],
+)
+def test_a_technology_uid_follows_apollos_documented_rule(name: str, uid: str) -> None:
+    from leadforge.lead_ingestion.adapters import apollo
+
+    assert apollo.technology_uid(name) == uid
+    assert uid in apollo._supported_technologies()
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.13
+def test_every_shipped_apollo_uid_is_in_apollos_list() -> None:
+    from leadforge.lead_ingestion.adapters import apollo
+    from leadforge.lead_ingestion.target_profile import load_target_profile
+
+    shipped = load_target_profile(
+        Path(__file__).parents[5] / "config/target_profile.yaml"
+    )
+    supported = apollo._supported_technologies()
+    for vocabulary in (
+        ApolloSource.target_vocabulary,
+        shipped.vocabulary_for("apollo"),
+    ):
+        assert set(apollo._uids_of(vocabulary)) <= supported
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.1
@@ -521,12 +570,13 @@ def enrich(*leads: LeadContribution) -> EnrichmentRequest:
 
 
 def matched(confidence: str = "high", person_id: str = "p1") -> TransportResponse:
-    body: dict[str, object] = {"match_confidence": confidence}
-    body["person"] = (
-        None
-        if confidence == "none"
-        else {"id": person_id, "first_name": "A", "last_name": "Bee"}
-    )
+    """People/match as documented: ``match_confidence`` sits on ``person``.
+
+    https://docs.apollo.io/reference/people-enrichment (OpenAPI, 200 response:
+    ``person.match_confidence`` enum high/medium/low/none; no top-level field).
+    """
+    person = {"id": person_id, "first_name": "A", "last_name": "Bee"}
+    body = {"person": {**person, "match_confidence": confidence}, "request_id": 1}
     return TransportResponse(status=200, headers={}, body=body)
 
 
@@ -640,7 +690,8 @@ async def test_a_none_confidence_match_contributes_no_lead_and_no_credit() -> No
     assert source.normalize_checked(batch) == []
     assert credits_in(batch) == 0
     # The no-match outcome stays in the raw evidence.
-    assert batch.payload["matches"][0]["response"]["match_confidence"] == "none"
+    response = batch.payload["matches"][0]["response"]
+    assert response["person"]["match_confidence"] == "none"
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.9
@@ -666,30 +717,51 @@ async def test_a_no_match_is_logged_naming_the_lookup_and_never_the_key() -> Non
     assert KEY not in repr(logs)
 
 
+def _stored(body: Mapping[str, object]) -> RawBatch:
+    return RawBatch(
+        source_name="apollo",
+        payload={"matches": [{"lookup": "p1", "response": body}], "attach": []},
+    )
+
+
 # Verifies: specs/lead-source-adapters/requirements.md#12.9
-def test_a_billed_match_without_a_person_is_a_normalization_error() -> None:
+@pytest.mark.parametrize("body", [{"person": None}, {}], ids=["null", "absent"])
+def test_an_answer_without_a_person_is_a_no_match_and_costs_nothing(
+    body: Mapping[str, object],
+) -> None:
     source = enrichment_source(Scripted(lambda _: matched()))
+    assert source.normalize(_stored(body)) == []
+    assert credits_in(_stored(body)) == 0
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+def test_a_top_level_match_confidence_is_not_read() -> None:
+    # Only ``person.match_confidence`` is documented; a stray top-level "high" next
+    # to no person bills nothing and contributes nothing.
     body = {"match_confidence": "high", "person": None}
-    batch = RawBatch(
-        source_name="apollo",
-        payload={"matches": [{"lookup": "p1", "response": body}]},
-    )
-    with pytest.raises(NormalizationError) as caught:
-        source.normalize(batch)
-    assert "person" in str(caught.value)
+    assert credits_in(_stored(body)) == 0
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.9
-def test_an_unknown_match_confidence_is_refused_not_billed_silently() -> None:
+@pytest.mark.parametrize(
+    "person",
+    [{"id": "p1", "match_confidence": "certain"}, {"id": "p1"}],
+    ids=["unknown", "missing"],
+)
+def test_a_person_without_a_known_match_confidence_is_refused(
+    person: Mapping[str, object],
+) -> None:
     source = enrichment_source(Scripted(lambda _: matched()))
-    body = {"match_confidence": "certain", "person": {"id": "p1"}}
-    batch = RawBatch(
-        source_name="apollo",
-        payload={"matches": [{"lookup": "p1", "response": body}]},
-    )
     with pytest.raises(NormalizationError) as caught:
-        source.normalize(batch)
+        source.normalize(_stored({"person": person}))
     assert "match_confidence" in str(caught.value)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+def test_a_hit_must_name_its_apollo_person() -> None:
+    source = enrichment_source(Scripted(lambda _: matched()))
+    with pytest.raises(NormalizationError):
+        source.normalize(_stored({"person": {"match_confidence": "high"}}))
 
 
 async def fixture_match() -> tuple[ApolloSource, RawBatch]:

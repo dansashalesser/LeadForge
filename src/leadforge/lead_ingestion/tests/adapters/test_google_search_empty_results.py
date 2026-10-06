@@ -85,8 +85,13 @@ def test_the_no_results_fixture_passes_the_fixture_field_guard() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.4
-async def test_a_fully_empty_page_is_no_evidence_not_a_source_error() -> None:
-    source = live(Fixed(200, empty_page()))
+# SerpApi's own page spells the state both ways: the JSON example says "Fully empty",
+# the field description "(e.g. Fully Empty ...)"
+# (serpapi.com/api-status-and-error-codes, read 2026-10-06). Either is the empty page.
+@pytest.mark.parametrize("state", ["Fully empty", "Fully Empty", "FULLY EMPTY"])
+async def test_a_fully_empty_page_is_no_evidence_not_a_source_error(state: str) -> None:
+    page = {**empty_page(), "search_information": {"organic_results_state": state}}
+    source = live(Fixed(200, page))
     raw = await source.fetch_raw(REQUEST)
     assert source.normalize(raw) == []
 
