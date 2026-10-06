@@ -4,4 +4,4 @@
 {"date": "2026-10-05", "idle": false, "meta": {"topics": []}, "metric": "memory-gap", "value": 0.0}
 {"date": "2026-10-05", "idle": false, "meta": {"forward_commits": 1, "note": "real work window, not idle; spec reached grill-approved but gitignored; heavy harness gate friction", "reverts": 0, "rework_files": 0}, "metric": "session-quality", "value": 3.0}
 {"date": "2026-10-05", "idle": false, "meta": {"erosion": 0.0, "file": "/home/user/LeadForge/src/leadforge/lead_ingestion/tests/test_end_to_end_zero_credential.py", "verdict": "high-slop"}, "metric": "sloppiness", "value": 0.41}
-{"date": "2026-10-06", "idle": false, "meta": {"erosion": 0.0, "file": "/home/user/LeadForge/src/leadforge/lead_ingestion/tests/test_linkedin_cannot_link.py", "verdict": "elevated"}, "metric": "sloppiness", "value": 0.321}
+{"date": "2026-10-06", "idle": false, "meta": {"erosion": 1.0, "file": "/home/user/LeadForge/src/leadforge/lead_ingestion/match_keys.py", "verdict": "high-slop"}, "metric": "sloppiness", "value": 0.118}

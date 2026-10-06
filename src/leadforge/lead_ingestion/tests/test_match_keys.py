@@ -71,7 +71,36 @@ def test_linkedin_urls_differing_only_by_case_query_fragment_slash_share_one_key
     url: str,
 ) -> None:
     value = one_key(MatchKeyKind.LINKEDIN_URL, person__linkedin_url=url)
-    assert value == "www.linkedin.com/in/jane-doe"
+    assert value == "linkedin.com/in/jane-doe"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.1
+# One profile spelled two ways must stay one person: the cannot-link rule
+# treats two distinct LinkedIn identities as two people.
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://linkedin.com/in/jane-doe",
+        "https://uk.linkedin.com/in/jane-doe",
+        "https://de.linkedin.com/in/Jane-Doe/",
+        "https://www.linkedin.com/in/jane%2Ddoe",
+        "https://www.linkedin.com//in//jane-doe/",
+        "https://WWW.LINKEDIN.COM./in/jane-doe",
+        "www.linkedin.com/in/jane-doe",
+    ],
+)
+def test_linkedin_host_variants_and_percent_encoding_share_one_key(url: str) -> None:
+    value = one_key(MatchKeyKind.LINKEDIN_URL, person__linkedin_url=url)
+    assert value == "linkedin.com/in/jane-doe"
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#8.1
+def test_a_non_linkedin_host_is_not_folded_into_linkedin() -> None:
+    value = one_key(
+        MatchKeyKind.LINKEDIN_URL,
+        person__linkedin_url="https://notlinkedin.com/in/jane-doe",
+    )
+    assert value == "notlinkedin.com/in/jane-doe"
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.1

@@ -50,6 +50,15 @@ them is a later task. Provisional decisions (choices.md, 16.1):
   of EVERY ``email_status`` count, since the status says deliverable, not unshared.
   No role-word list. The set is independent of Identity Exclusions; both bar. The
   address stays on the contribution and in provenance; it just is not a key.
+* Distinct LinkedIn identities (follow-up, user decision: a different LinkedIn URL is
+  a different person). The same first pass also disqualifies an address, and a
+  name+domain candidate value, reported together with two or more DISTINCT normalised
+  LinkedIn URLs (``linkedin_identity``: raw, so a URL barred by an Identity Exclusion
+  still counts). Such a value is evidently shared or wrong. For an address, a bare
+  holder would otherwise bridge two people by transitive closure. A name+domain
+  candidate cannot bridge (only LinkedIn-less, email-less records use it); barring it
+  is a deliberate under-merge: two people demonstrably share that name+domain, so it
+  cannot tell bare records apart. Barred like 8.14 addresses.
 * Values are read at the paths the adapters write (``person.*``, ``company.*``).
 """
 
@@ -59,7 +68,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from hashlib import sha256
 from unicodedata import normalize
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 import tldextract
 
@@ -74,6 +83,7 @@ __all__ = [
     "MatchKeys",
     "corroborates",
     "extract_match_keys",
+    "linkedin_identity",
     "normalize_email",
     "normalize_linkedin_url",
     "normalized_person_name",
@@ -170,23 +180,41 @@ class IdentityExclusions:
 
 @dataclass(frozen=True)
 class DisqualifiedAddresses:
-    """Normalised addresses reported against two or more distinct names (8.14)."""
+    """Key values evidently shared by different people; personal data.
+
+    ``addresses``: reported against two or more distinct names (8.14) or together with
+    two or more distinct normalised LinkedIn URLs. ``name_domains``: name+domain
+    candidate values reported together with two or more distinct LinkedIn URLs.
+    """
 
     addresses: frozenset[str] = field(default=frozenset(), repr=False)
+    name_domains: frozenset[str] = field(default=frozenset(), repr=False)
 
     @classmethod
     def from_contributions(
         cls, contributions: Iterable[LeadContribution]
     ) -> "DisqualifiedAddresses":
-        """The addresses any contributions attach to different people; order-free."""
+        """The values any contributions attach to different people; order-free."""
         names: dict[str, set[str]] = {}
+        address_urls: dict[str, set[str]] = {}
+        candidate_urls: dict[str, set[str]] = {}
         for contribution in contributions:
             values = contribution.values
             address = normalize_email(_text(values, _EMAIL))
             name = normalized_person_name(values)
+            url = linkedin_identity(values)
             if address and name:
                 names.setdefault(address, set()).add(name)
-        return cls(frozenset(a for a, found in names.items() if len(found) > 1))
+            if url:
+                if address:
+                    address_urls.setdefault(address, set()).add(url)
+                for candidate in _name_domain_values(values):
+                    candidate_urls.setdefault(candidate, set()).add(url)
+        return cls(_shared(names) | _shared(address_urls), _shared(candidate_urls))
+
+
+def _shared(found: Mapping[str, set[str]]) -> frozenset[str]:
+    return frozenset(value for value, seen in found.items() if len(seen) > 1)
 
 
 def corroborates(a: MatchKeys, b: MatchKeys) -> bool:
@@ -220,20 +248,14 @@ def extract_match_keys(
         elif status in _CORROBORATING_STATUSES:
             corroborating = frozenset({email})
 
-    name = _full_name(values)
-    if name:
-        for domain in registrable_domains(values.get(_COMPANY_DOMAIN)):
-            keys.add(
-                MatchKey(
-                    MatchKeyKind.NAME_DOMAIN, name + _NAME_DOMAIN_SEPARATOR + domain
-                )
-            )
+    for candidate in _name_domain_values(values):
+        keys.add(MatchKey(MatchKeyKind.NAME_DOMAIN, candidate))
 
     barred = (
         {k for k in keys if exclusions.bars(k)} if exclusions is not None else set()
     )
-    if disqualified is not None and email in disqualified.addresses:
-        barred |= {k for k in keys if k.kind is MatchKeyKind.VERIFIED_EMAIL}
+    if disqualified is not None:
+        barred |= {k for k in keys if _disqualifies(disqualified, k)}
     return MatchKeys(
         keys=tuple(sorted(keys - barred)),
         barred_kinds=frozenset(k.kind for k in barred),
@@ -241,6 +263,23 @@ def extract_match_keys(
         titles=_fold_set(_text(values, _TITLE)),
         employers=_fold_set(_text(values, _COMPANY_NAME)),
     )
+
+
+def _disqualifies(disqualified: DisqualifiedAddresses, key: MatchKey) -> bool:
+    if key.kind is MatchKeyKind.VERIFIED_EMAIL:
+        return key.value in disqualified.addresses
+    if key.kind is MatchKeyKind.NAME_DOMAIN:
+        return key.value in disqualified.name_domains
+    return False
+
+
+def _name_domain_values(values: Mapping[str, object]) -> list[str]:
+    """The name+domain candidate values (8.3), one per registrable domain."""
+    name = _full_name(values)
+    if not name:
+        return []
+    domains = registrable_domains(values.get(_COMPANY_DOMAIN))
+    return [name + _NAME_DOMAIN_SEPARATOR + domain for domain in domains]
 
 
 def _text(values: Mapping[str, object], path: str) -> str | None:
@@ -267,16 +306,27 @@ def _fold_set(text: str | None) -> frozenset[str]:
     return frozenset({folded}) if folded else frozenset()
 
 
+_LINKEDIN_HOST = "linkedin.com"
+
+
 def normalize_linkedin_url(url: str | None) -> str | None:
     if url is None or not url.strip():
         return None
     text = url.strip()
     parts = urlsplit(text if "//" in text else "//" + text)
-    host = (parts.hostname or "").lower()
-    path = parts.path.lower().rstrip("/")
-    if not host or not path:
+    host = (parts.hostname or "").lower().rstrip(".")
+    # www., country (uk., de.) and mobile subdomains all serve one profile.
+    if host == _LINKEDIN_HOST or host.endswith("." + _LINKEDIN_HOST):
+        host = _LINKEDIN_HOST
+    segments = [s for s in unquote(parts.path).casefold().split("/") if s]
+    if not host or not segments:
         return None
-    return host + path
+    return host + "/" + "/".join(segments)
+
+
+def linkedin_identity(values: Mapping[str, object]) -> str | None:
+    """The normalised LinkedIn URL a contribution names, barred or not."""
+    return normalize_linkedin_url(_text(values, _LINKEDIN))
 
 
 def normalize_email(address: str | None) -> str | None:

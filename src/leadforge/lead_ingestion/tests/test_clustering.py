@@ -150,12 +150,15 @@ def test_pair_sharing_only_an_unverified_email_merges_once_verified() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.8
 def test_transitive_closure_links_through_different_key_kinds() -> None:
-    # A~B by LinkedIn, B~C by email (C has no LinkedIn), C~D by email.
+    # A~B by LinkedIn, B~C by email (C has no LinkedIn), C~D by email (D has none).
+    # Follow-up: D used to hold a second LinkedIn (jd2) and was bridged in by C; a
+    # different LinkedIn is a different person now, so that case lives in
+    # test_linkedin_cannot_link.py and this test keeps one LinkedIn identity.
     pool = [
         li("a", "linkedin.com/in/jd"),
         li("b", "linkedin.com/in/jd", person__email="e@x.com", person__email_status=V),
         em("c", "e@x.com"),
-        li("d", "linkedin.com/in/jd2", person__email="e@x.com", person__email_status=V),
+        em("d", "e@x.com"),
         li("e", "linkedin.com/in/solo"),
     ]
     assert groups(cluster_contributions(pool), pool) == {

@@ -11,6 +11,9 @@ from typing import Any, ClassVar
 import pytest
 from structlog.testing import capture_logs
 
+from leadforge.lead_ingestion.adapters.apollo import ApolloSource
+from leadforge.lead_ingestion.adapters.google_search import GoogleSearchSource
+from leadforge.lead_ingestion.adapters.hubspot import HubSpotSource
 from leadforge.lead_ingestion.adapters.hunter import (
     CONFIDENCE_SCALE,
     SANDBOX_KEY,
@@ -52,8 +55,8 @@ from leadforge.lead_ingestion.normalizer import unmapped_raw_paths
 from leadforge.lead_ingestion.orchestrator import (
     IngestionOrchestrator,
     SourceOutcome,
+    SourceResult,
     SourceStatus,
-    per_company_work_list,
 )
 from leadforge.lead_ingestion.pacing import SourcePacing
 from leadforge.lead_ingestion.registry import SourceRegistry
@@ -276,11 +279,14 @@ async def test_a_domain_search_takes_capacity_from_the_finder_bucket_only() -> N
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.5
-def test_declares_paid_per_company_enrichment_without_suppression() -> None:
+def test_declares_paid_per_lead_enrichment_without_suppression() -> None:
+    # Leads are per person (user decision, 2026-10-06): the finder and verifier are
+    # per-person calls, so the orchestrator must hand Hunter every lead, not one per
+    # company. Domain search stays once per company through the per-run domain cache.
     assert HunterSource.cost_class is CostClass.PAID
-    assert HunterSource.charge_unit is ChargeUnit.PER_COMPANY
+    assert HunterSource.charge_unit is ChargeUnit.PER_LEAD
     assert HunterSource.yields_suppression is False
-    assert enrichment_sort_key(HunterSource) == (True, True, 0, "hunter")
+    assert enrichment_sort_key(HunterSource) == (True, True, 2, "hunter")
 
 
 # --- batching by domain (16.5 via ADR-0002, 6.11) ----------------------------------
@@ -310,10 +316,10 @@ async def test_one_domain_search_per_distinct_domain_however_many_leads() -> Non
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.5
-async def test_the_orchestrators_per_company_list_makes_one_call_per_company() -> None:
+async def test_the_whole_work_list_still_makes_one_search_per_company() -> None:
     transport = Scripted(lambda _: found())
     work = tuple(lead("example.com") for _ in range(5))
-    await live(transport).fetch_raw(enrich(*per_company_work_list(work)))
+    await live(transport).fetch_raw(enrich(*work))
     assert len(transport.calls) == 1
 
 
@@ -1923,3 +1929,238 @@ async def test_a_restricted_address_never_keeps_contact_data_from_the_finder() -
     assert [c.values for c in contributions] == [
         {"person.email": ADA, "suppressed": True}
     ]
+
+
+# --- leads are per person: every person reaches Hunter (follow-up 2026-10-06) -------
+#
+# User decision: a lead is a person; several leads at one company are fine as long as
+# they are different people. The finder and verifier are per-person calls, so every
+# Lead must reach them; only the domain search is per company, paid once per domain.
+
+ACME = "acme.com"
+ACME_ADDRESSES = ("v1@acme.com", "v2@acme.com")
+ACME_NAMES = (("Ada", "Lovelace"), ("Grace", "Hopper"), ("Alan", "Turing"))
+
+
+def acme_people() -> tuple[LeadContribution, ...]:
+    """Seven Leads at one company: two known addresses, three names, two bare."""
+    return (
+        *(person(email=a, domain=ACME) for a in ACME_ADDRESSES),
+        *(person(first=f, last=last, domain=ACME) for f, last in ACME_NAMES),
+        person(domain=ACME),
+        person(domain=ACME),
+    )
+
+
+def acme_finder(params: Mapping[str, object]) -> TransportResponse:
+    address = f"{params['first_name']}.{params['last_name']}@{ACME}".lower()
+    return found_one(
+        address,
+        first_name=params["first_name"],
+        last_name=params["last_name"],
+        domain=params["domain"],
+    )
+
+
+def acme_routed(**answers: Responder) -> Routed:
+    return Routed(
+        finder=answers.get("finder", acme_finder),
+        verifier=answers.get("verifier", lambda p: verdict(address=str(p["email"]))),
+        search=answers.get(
+            "search", lambda _: found(ACME, emails=[email(f"info@{ACME}")])
+        ),
+    )
+
+
+def calls_to(transport: Scripted, path: str) -> list[Mapping[str, object]]:
+    return [params for endpoint, params, _ in transport.calls if endpoint.path == path]
+
+
+def finder_addresses() -> set[str]:
+    return {f"{f}.{last}@{ACME}".lower() for f, last in ACME_NAMES}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+async def test_every_person_at_one_company_is_asked_and_the_domain_once() -> None:
+    transport = acme_routed()
+    source = live(transport)
+    batch = await source.fetch_raw(enrich(*acme_people()))
+    assert sorted(
+        str(p["email"]) for p in calls_to(transport, VERIFIER_PATH)
+    ) == sorted(ACME_ADDRESSES)
+    assert len(calls_to(transport, FINDER_PATH)) == len(ACME_NAMES)
+    assert calls_to(transport, SEARCH_PATH) == [{"domain": ACME, "limit": 100}]
+    out = {c.values.get("person.email") for c in source.normalize_checked(batch)}
+    assert out == {*ACME_ADDRESSES, *finder_addresses(), f"info@{ACME}"}
+    assert credits_in(batch) == len(transport.calls) == 6
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+async def test_a_retried_fetch_pays_for_no_person_or_domain_twice() -> None:
+    failed = {"once": False}
+
+    def flaky(params: Mapping[str, object]) -> TransportResponse:
+        if params["email"] == ACME_ADDRESSES[-1] and not failed["once"]:
+            failed["once"] = True
+            return status_of(503)
+        return verdict(address=str(params["email"]))
+
+    transport = acme_routed(verifier=flaky)
+    source = live(transport)
+    with pytest.raises(SourceTransient):
+        await source.fetch_raw(enrich(*acme_people()))
+    batch = await source.fetch_raw(enrich(*acme_people()))
+    # Six questions, one of them asked twice because its first answer was a 503.
+    assert len(transport.calls) == 7
+    assert [p["email"] for p in calls_to(transport, VERIFIER_PATH)] == [
+        ACME_ADDRESSES[0],
+        ACME_ADDRESSES[1],
+        ACME_ADDRESSES[1],
+    ]
+    assert len(calls_to(transport, FINDER_PATH)) == len(ACME_NAMES)
+    assert len(calls_to(transport, SEARCH_PATH)) == 1
+    assert credits_in(batch) == 6
+    await source.fetch_raw(enrich(*acme_people()))
+    assert len(transport.calls) == 7  # a third fetch buys nothing at all
+
+
+class _PerCompanyProbe(BaseLeadSource):
+    """A genuinely per-company paid source: records the work list it is handed."""
+
+    name: ClassVar[str] = "per_company_probe"
+    capabilities: ClassVar[frozenset[Capability]] = frozenset({Capability.ENRICH})
+    rate_limit: ClassVar[Mapping[str, Any]] = {}
+    answerable_surfaces: ClassVar[Mapping[str, frozenset[str]]] = {}
+    cost_class: ClassVar[CostClass] = CostClass.PAID
+    charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_COMPANY
+    yields_suppression: ClassVar[bool] = False
+    target_vocabulary: ClassVar[Mapping[str, object]] = {}
+    endpoints: ClassVar[Mapping[str, Endpoint]] = {}
+    required_env: ClassVar[tuple[str, ...]] = ()
+    handed: ClassVar[list[int]] = []
+
+    async def fetch_raw(self, request: SourceRequest) -> RawBatch:
+        assert isinstance(request, EnrichmentRequest)
+        type(self).handed.append(len(request.work_list))
+        return RawBatch(source_name=self.name, payload={})
+
+    def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+        return []
+
+
+async def run_people(
+    transport: Scripted, people: tuple[LeadContribution, ...]
+) -> dict[str, list[LeadContribution]]:
+    """The real orchestrator: a stub Discovery hands ``people`` to the real tiers."""
+    results = await run_people_results(transport, people)
+    return {name: list(r.contributions or ()) for name, r in results.items()}
+
+
+async def run_people_results(
+    transport: Scripted, people: tuple[LeadContribution, ...]
+) -> dict[str, SourceResult]:
+
+    class People(_Discovery):
+        def normalize(self, raw: RawBatch) -> list[LeadContribution]:
+            return list(people)
+
+    def build(
+        source_class: type[BaseLeadSource], mode: DataMode, pacing: SourcePacing | None
+    ) -> BaseLeadSource:
+        if source_class is HunterSource:
+            return HunterSource(mode, transport=transport, environ=ENV, pacing=pacing)
+        return source_class(mode)
+
+    orchestrator = IngestionOrchestrator(
+        SourceRegistry([People, HunterSource, _PerCompanyProbe]),
+        resolve_mode=lambda _c, _s: ModeResolution(DataMode.LIVE, "test"),
+        build_source=build,
+        max_concurrent_sources=3,
+        run_timeout_s=30,
+        retry_policy=RetryPolicy(max_attempts=3, base_delay_s=0.001, max_delay_s=0.002),
+    )
+    results = await orchestrator.run(SourceRequest(kind="search"))
+    assert all(r.outcome.status is SourceStatus.OK for r in results)
+    return {r.source_name: r for r in results}
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_end_to_end_every_person_at_one_company_reaches_hunter() -> None:
+    _PerCompanyProbe.handed = []
+    transport = acme_routed()
+    out = await run_people(transport, acme_people())
+    assert sorted(
+        str(p["email"]) for p in calls_to(transport, VERIFIER_PATH)
+    ) == sorted(ACME_ADDRESSES)
+    assert sorted(
+        (str(p["first_name"]), str(p["last_name"]))
+        for p in calls_to(transport, FINDER_PATH)
+    ) == sorted(ACME_NAMES)
+    assert len(calls_to(transport, SEARCH_PATH)) == 1
+    assert {c.values.get("person.email") for c in out["hunter"]} == {
+        *ACME_ADDRESSES,
+        *finder_addresses(),
+        f"info@{ACME}",
+    }
+    assert len(out["discovery"]) == len(acme_people())  # no lead dropped
+    # A genuinely per-company source in the same run is still handed one Lead.
+    assert _PerCompanyProbe.handed == [1]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_end_to_end_two_people_with_one_name_at_one_company_stay_two() -> None:
+    twins = (
+        person(email="john.smith@acme.com", first="John", last="Smith", domain=ACME),
+        person(email="jsmith@acme.com", first="John", last="Smith", domain=ACME),
+    )
+    transport = acme_routed()
+    out = await run_people(transport, twins)
+    assert sorted(str(p["email"]) for p in calls_to(transport, VERIFIER_PATH)) == [
+        "john.smith@acme.com",
+        "jsmith@acme.com",
+    ]
+    assert sorted(str(c.values["person.email"]) for c in out["hunter"]) == [
+        "john.smith@acme.com",
+        "jsmith@acme.com",
+    ]
+    assert len(out["discovery"]) == 2
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+async def test_end_to_end_an_orchestrator_retry_repays_only_the_failed_question() -> (
+    None
+):
+    # The orchestrator retries the whole fetch on the same instance; the per-run caches
+    # keep every answered finder, verifier and domain-search question from being paid
+    # twice, and the reported Credits match the live calls that delivered an answer.
+    failed = {"once": False}
+
+    def flaky(params: Mapping[str, object]) -> TransportResponse:
+        if params["email"] == ACME_ADDRESSES[-1] and not failed["once"]:
+            failed["once"] = True
+            return status_of(503)
+        return verdict(address=str(params["email"]))
+
+    _PerCompanyProbe.handed = []
+    transport = acme_routed(verifier=flaky)
+    results = await run_people_results(transport, acme_people())
+    hunter = results["hunter"]
+    assert (hunter.outcome.attempted, hunter.outcome.retries) == (2, 1)
+    assert len(transport.calls) == 7  # six questions, the 503 one asked twice
+    assert len(calls_to(transport, FINDER_PATH)) == len(ACME_NAMES)
+    assert len(calls_to(transport, SEARCH_PATH)) == 1
+    assert hunter.batch is not None
+    assert credits_in(hunter.batch) == 6
+
+
+def test_hunter_now_shares_the_paid_per_lead_tier_with_apollo() -> None:
+    # Recorded consequence of PER_LEAD (2026-10-06): Hunter no longer runs in a tier of
+    # its own before Apollo, so a Hunter 451 cannot prune a Lead before Apollo's paid
+    # match. Changing that is a declaration decision (yields_suppression), not silent.
+    def tier(source: type[BaseLeadSource]) -> tuple[bool, bool, int]:
+        cost, no_suppression, unit, _ = enrichment_sort_key(source)
+        return cost, no_suppression, unit
+
+    assert tier(HubSpotSource) < tier(GoogleSearchSource) < tier(HunterSource)
+    assert tier(HunterSource) == tier(ApolloSource)  # one tier, run concurrently

@@ -5,10 +5,12 @@ Each Lead on the work list is routed to one Hunter endpoint (16.3): a known addr
 ``GET /v2/email-finder``; a Lead with only a company domain to
 ``GET /v2/domain-search``, once per distinct domain. Every answer becomes a Lead
 contribution: the address, its deliverability verdict, Hunter's own confidence, and
-where it was found (16.2). The adapter declares ``per_company`` so the orchestrator
-hands it one Lead per company (11.7), and asks each distinct domain, address or name
-pair only once per run. The key travels in the ``X-API-KEY`` header, never in the
-query string (16.1).
+where it was found (16.2). A Lead is a person, and several people at one company are
+several Leads (user decision, 2026-10-06), so the adapter declares ``per_lead``: the
+orchestrator hands it every Lead, and each person reaches the finder or verifier. Only
+the domain search is a per-company call; it is asked once per distinct domain per run
+(the per-run domain cache), as is each address and name pair. The key travels in the
+``X-API-KEY`` header, never in the query string (16.1).
 
 A verifier answer that is still running (HTTP 202) is polled (16.4, task 15.2), see
 below. Error classification is Hunter's own (task 15.3): see ``classify_error``.
@@ -281,7 +283,10 @@ class HunterSource(BaseLeadSource):
         "person.title": frozenset({"email.position"}),
     }
     cost_class: ClassVar[CostClass] = CostClass.PAID
-    charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_COMPANY
+    # Per lead, not per company: the finder and verifier are per-person calls, so the
+    # orchestrator must not collapse a company's people to one (11.7). The per-company
+    # domain search is still paid once per domain by the per-run cache in fetch_raw.
+    charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_LEAD
     yields_suppression: ClassVar[bool] = False
     target_vocabulary: ClassVar[Mapping[str, object]] = {}
     endpoints: ClassVar[Mapping[str, Endpoint]] = {

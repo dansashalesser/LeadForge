@@ -8,8 +8,11 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
 * Strength rules. LinkedIn: equal key merges. Verified email: equal key merges unless
   every member offered both carries a LinkedIn key (8.2 applies "when ``linkedin_url``
   is absent on either lead", so two leads that each name a LinkedIn profile never merge
-  on email; a LinkedIn-less holder of the address joins all of them, which is what
-  transitive closure over the pairwise rule gives). Name+domain (8.3): only a
+  on email; a LinkedIn-less holder of the address joins all of them). Follow-up (user
+  decision: different LinkedIn = different person): an address seen with two distinct
+  LinkedIn URLs is disqualified (``match_keys``), so that holder can no longer bridge
+  two LinkedIn identities, and a cannot-link guard in the union-find refuses any union
+  of two distinct LinkedIn URLs as a final invariant. Name+domain (8.3): only a
   contribution with NO LinkedIn key and NO verified-email key takes part, and two merge
   only when they share a name+domain key AND ``corroborates`` (a shared title or a
   shared employer). Rejected: letting a keyed contribution join through the weak key;
@@ -47,7 +50,7 @@ depend on arrival order. Provisional decisions (choices.md, 16.2):
 
 import json
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from enum import Enum
@@ -63,6 +66,7 @@ from leadforge.lead_ingestion.match_keys import (
     MatchKeyKind,
     MatchKeys,
     extract_match_keys,
+    linkedin_identity,
 )
 
 __all__ = [
@@ -85,12 +89,18 @@ class IdentityCluster:
 
 
 class _UnionFind:
-    """Union by size with path halving; elements are ``0..n-1``."""
+    """Union by size with path halving; elements are ``0..n-1``.
 
-    def __init__(self, size: int) -> None:
+    ``labels`` (the normalised LinkedIn URL per element, ``None`` when absent) make a
+    cannot-link constraint: a union that would put two distinct labels in one set is
+    refused, so no set ever carries two LinkedIn identities.
+    """
+
+    def __init__(self, size: int, labels: Sequence[str | None] | None = None) -> None:
         self._parent = list(range(size))
         self._size = [1] * size
         self._kinds: list[set[MatchKeyKind]] = [set() for _ in range(size)]
+        self._label: list[str | None] = list(labels) if labels else [None] * size
 
     def kinds(self, item: int) -> set[MatchKeyKind]:
         return self._kinds[self.find(item)]
@@ -106,11 +116,15 @@ class _UnionFind:
         root_a, root_b = self.find(a), self.find(b)
         if root_a == root_b:
             return
+        label_a, label_b = self._label[root_a], self._label[root_b]
+        if label_a is not None and label_b is not None and label_a != label_b:
+            return  # cannot-link: two LinkedIn identities are two people
         if self._size[root_a] < self._size[root_b]:
             root_a, root_b = root_b, root_a
         self._parent[root_b] = root_a
         self._size[root_a] += self._size[root_b]
         self._kinds[root_a] |= self._kinds[root_b]
+        self._label[root_a] = label_a or label_b
         if kind is not None:
             self._kinds[root_a].add(kind)
 
@@ -178,7 +192,9 @@ def cluster_contributions(
     """Cluster ``contributions`` by Match Key; the result ignores arrival order.
 
     ``exclusions`` bars values from acting as a key (8.13); it can only split clusters.
-    So does the structural rule that bars an address reported against two names (8.14).
+    So does the structural rule that bars an address reported against two names (8.14)
+    or a key value reported with two distinct LinkedIn URLs; no cluster ever holds two
+    distinct normalised LinkedIn URLs.
     """
     # Canonical order first, so nothing downstream depends on arrival. Byte-identical
     # contributions are interchangeable, so their relative order is immaterial.
@@ -189,7 +205,10 @@ def cluster_contributions(
     # contribution that carries it, whichever arrived first.
     shared = DisqualifiedAddresses.from_contributions(c for _, c in items)
     keys = [extract_match_keys(c, exclusions, shared) for _, c in items]
-    forest = _UnionFind(len(items))
+    # Final guard: unions run in canonical order, so what it refuses is a function of
+    # the set. With single-valued LinkedIn and email per contribution the pass above
+    # already removes every bridging key, so it never fires today; it is the backstop.
+    forest = _UnionFind(len(items), [linkedin_identity(c.values) for _, c in items])
     _link_linkedin(keys, forest)
     _link_email(keys, forest)
     _link_name_domain(keys, forest)

@@ -134,8 +134,12 @@ def test_three_names_are_counted() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.15
-def test_the_known_bridge_path_is_flagged() -> None:
-    # Two LinkedIn URLs, one verified email, bridged by a record with no LinkedIn.
+def test_the_known_bridge_path_is_no_longer_formed_so_nothing_is_flagged() -> None:
+    # Follow-up: this test used to assert the bridge (two LinkedIns, one verified
+    # email, a LinkedIn-less third record) was flagged. It passed vacuously: both
+    # names sat on the address, so 16.7 already split it and both sides were []. With
+    # one name on the address, the old rule merged {one, two, bridge, bob} under two
+    # names; two distinct LinkedIns now disqualify the address, so no cluster forms.
     one = contribution(
         "a",
         person__linkedin_url="linkedin.com/in/one",
@@ -148,14 +152,14 @@ def test_the_known_bridge_path_is_flagged() -> None:
         person__linkedin_url="linkedin.com/in/two",
         person__email="x@acme.com",
         person__email_status=V,
-        person__full_name="Bob Two",
     )
     bridge = contribution("c", person__email="x@acme.com", person__email_status=V)
-    clusters = cluster_contributions([one, two, bridge])
-    flagged = detect_over_merges(clusters)
-    assert [r.cluster_id for r in flagged] == [
-        c.cluster_id for c in clusters if len(c.contributions) == 3
-    ]
+    bob = contribution(
+        "d", person__linkedin_url="linkedin.com/in/two", person__full_name="Bob Two"
+    )
+    clusters = cluster_contributions([one, two, bridge, bob])
+    assert sorted(len(c.contributions) for c in clusters) == [1, 1, 2]
+    assert detect_over_merges(clusters) == ()
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.15

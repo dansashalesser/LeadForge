@@ -69,7 +69,12 @@ def serialise(
 
 
 def over_merged_pool() -> list[LeadContribution]:
-    """Two people (different LinkedIn) bridged by a bare record on a shared address."""
+    """Three people sharing a role address that carries one LinkedIn and no names.
+
+    Follow-up: this pool used to give b a second LinkedIn (bob), bridged to a by the
+    bare c. Two distinct LinkedIns now disqualify the address unaided, so the
+    over-merge only an exclusion can repair is the single-LinkedIn one below.
+    """
     return [
         li(
             "a",
@@ -77,12 +82,7 @@ def over_merged_pool() -> list[LeadContribution]:
             person__email="info@x.com",
             person__email_status=V,
         ),
-        li(
-            "b",
-            "linkedin.com/in/bob",
-            person__email="info@x.com",
-            person__email_status=V,
-        ),
+        em("b", "info@x.com"),
         em("c", "info@x.com"),
         em("d", "ann@x.com"),
     ]
@@ -378,7 +378,9 @@ def test_the_repair_projects_two_people_to_two_leads_end_to_end() -> None:
     from leadforge.lead_ingestion.projection import project_lead
 
     # No name is reported against the shared address (with two names, 16.7 would
-    # disqualify it unaided), so only the exclusion can repair this over-merge.
+    # disqualify it unaided) and only one LinkedIn holds it (with two, the follow-up
+    # rule would), so only the exclusion can repair this over-merge. Follow-up: b
+    # used to carry a second LinkedIn; that pool now splits without any exclusion.
     pool = [
         li(
             "a",
@@ -386,28 +388,23 @@ def test_the_repair_projects_two_people_to_two_leads_end_to_end() -> None:
             person__email="info@x.com",
             person__email_status=V,
         ),
-        li(
-            "b",
-            "linkedin.com/in/bob",
-            person__email="info@x.com",
-            person__email_status=V,
-        ),
         em("c", "info@x.com"),
     ]
-    ranks = {"a": 1, "b": 2, "c": 3}
+    ranks = {"a": 1, "c": 3}
 
     def leads(ex: IdentityExclusions) -> int:
         out = [project_lead(c, ranks).lead for c in cluster_contributions(pool, ex)]
         return sum(1 for lead in out if lead is not None)
 
     assert leads(NONE) == 1
-    assert leads(IdentityExclusions.from_values(emails=["INFO@x.com"])) == 3
+    assert leads(IdentityExclusions.from_values(emails=["INFO@x.com"])) == 2
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#8.13
 def test_barring_the_linkedin_instead_does_not_split_a_bridged_email() -> None:
-    # Documents the limit: the bare holder still links every email holder, so only
-    # barring the shared email repairs this over-merge.
+    # Documents the limit: the bare holders still link every email holder, so only
+    # barring the shared email repairs this over-merge. Follow-up: the pool once
+    # held two LinkedIns here; that bridge is now refused unaided.
     pool = over_merged_pool()[:3]
     barred = IdentityExclusions.from_values(linkedin_urls=["linkedin.com/in/ann"])
     assert partition(pool, barred) == {frozenset("abc")}
