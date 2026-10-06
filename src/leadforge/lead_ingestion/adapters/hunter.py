@@ -26,15 +26,27 @@ Provisional decisions (see choices.md, task 15.1):
   spend a Credit on a guess). A Lead with a name but no domain makes no call.
 * The raw batch is ``{"searches": [{"domain", "response"}], "finds": [{"domain",
   "first_name", "last_name", "linkedin_url", "response"}], "verifications": [{"email",
-  "response"}], "credits_billable"}``, each response verbatim (``None`` for a verifier
-  202). ``credits_in(batch)`` follows Hunter's billing (help.hunter.io, "How do credits
-  work", checked 2026-10-06) for a real key's live batch, zero for the sandbox key or
-  synthetic mode (16.8): a domain search costs ``ceil(addresses returned / 10)`` (none
-  for none); a finder 1 only when it found an address; a verification 1. KNOWN GAP: the
-  verifier price is plan-dependent (1 verification credit on Data plans, 0.5 credit on
-  All-in-one plans); 1 is kept as the conservative figure. A verification Hunter could
-  not finish (202 give-up) or answered ``unknown`` is still counted 1, also
-  conservative; Hunter's "no credit if it can't verify" may make it 0.
+  "response"}], "credits_billable", "plan"}``, each response verbatim (``None`` for a
+  verifier 202). ``credits_in(batch)`` follows Hunter's billing (help.hunter.io, "How do
+  credits work", checked 2026-10-06) for a real key's live batch, zero for the sandbox
+  key or synthetic mode (16.8): a domain search costs ``ceil(addresses returned / 10)``
+  (none for none); a finder 1 only when it found an address; a verification the plan's
+  price (follow-up fu2, 2026-10-06). The plan is ``HUNTER_PLAN``, a non-secret setting:
+  ``data`` (1 Verification credit per call, "On Data Plans, Email Verifier costs 1
+  Verification credit per call") or ``all-in-one`` (0.5 credit, "On All-in-one Plans,
+  Email Verifier costs 0.5 credits per verification"), both from
+  https://help.hunter.io/en/articles/12149400-hunter-api-for-data-plans and the credits
+  article, read through a search-engine extract on 2026-10-06 (the pages were
+  network-blocked). Unset or blank means ``data``, the conservative price; any other
+  value is a ``ConfigurationError`` naming the variable, never the value, raised when a
+  live run starts (``run_rate_limit``) and again before a live fetch spends. The batch
+  records the plan (``plan``) so a stored batch is priced as it was bought; a batch's
+  half credits round up (``ceil(verifications x price)``). UNVERIFIED: the plan names
+  beyond those two, whether a Data plan's separate Verification credit type should be
+  counted apart from search credits (it is summed here), and how Hunter rounds half
+  credits. A verification Hunter could not finish (202 give-up) or answered ``unknown``
+  is still priced, also conservative; Hunter's "no credit if it can't verify" may make
+  it 0.
 * A found address carries the person it was asked for (follow-up, 2026-10-06): the
   domain and the name asked (not Hunter's echo) and the requester's own LinkedIn URL
   when it had one (never Hunter's ``linkedin_url``), at raw paths ``asked.*``, so the
@@ -44,7 +56,11 @@ Provisional decisions (see choices.md, task 15.1):
   (``hunter_finder_ambiguous`` with a count only, no Credit): one answer cannot belong
   to both. That holds across fetches of one run; an answer already attached in an
   earlier batch is not recalled. Records with no LinkedIn are indistinguishable and
-  share the one answer.
+  share the one answer. A record with no LinkedIn of its own that is strongly linked
+  (LinkedIn URL or verified-address Match Keys, transitively, the orchestrator's
+  pruning components, so a shared address links no one) to a person holding exactly
+  one LinkedIn takes that identity (follow-up fu2, 2026-10-06): one person's records
+  ask once. A bare record not so linked still makes the name ambiguous.
 * The sandbox is live mode whose key equals ``test-api-key``; there is no third data
   mode. The batch records it as not billable. The key value is compared only to price
   the batch (16.8 names the key); the data mode never comes from the credential.
@@ -104,11 +120,13 @@ Provisional decisions (see choices.md, task 15.1):
 
 import asyncio
 import math
+import os
 import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from fractions import Fraction
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
 import structlog
@@ -130,6 +148,7 @@ from leadforge.lead_ingestion.base_source import (
     retry_after_seconds,
 )
 from leadforge.lead_ingestion.errors import (
+    ConfigurationError,
     NormalizationError,
     SourceComplianceRestricted,
     SourceError,
@@ -153,6 +172,7 @@ from leadforge.lead_ingestion.normalizer import (
     unmapped_raw_paths,
     validate_raw_payload,
 )
+from leadforge.lead_ingestion.orchestrator import _strong_person_labels
 from leadforge.lead_ingestion.throttle import Clock, Sleep
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
@@ -161,10 +181,12 @@ if TYPE_CHECKING:
 
 __all__ = [
     "CONFIDENCE_SCALE",
+    "DEFAULT_PLAN",
     "DEFAULT_POLL_ATTEMPTS",
     "DEFAULT_POLL_BUDGET_S",
     "DEFAULT_POLL_INTERVAL_S",
     "MAX_EMAILS_PER_DOMAIN",
+    "PLAN_ENV",
     "SANDBOX_KEY",
     "HunterSource",
     "credits_in",
@@ -196,6 +218,16 @@ _MAX_DOMAIN_LENGTH = 253
 _MAX_NAME_LENGTH = 100
 _MAX_ADDRESS_LENGTH = 254
 _ADDRESSES_PER_CREDIT = 10  # Domain Search: one Credit per 1-10 addresses returned
+_CREDITS_DOCS = (
+    "https://help.hunter.io/en/articles/1911617-how-do-credits-work-in-hunter"
+)
+PLAN_ENV = "HUNTER_PLAN"
+DEFAULT_PLAN = "data"  # the dearer verification price, safe on every plan
+# Plan -> Credits one Email Verifier call costs (help.hunter.io, checked 2026-10-06).
+_VERIFIER_PRICE: Mapping[str, Fraction] = {
+    "data": Fraction(1),
+    "all-in-one": Fraction(1, 2),
+}
 _ADDRESS = re.compile(r"[^\s@?#/\\:]+@" + _HOSTNAME.pattern)
 # The finder question echoed back (``REQUEST_ECHO_RULES`` keys), in this order.
 _ASKED_KEYS = ("domain", "first_name", "last_name", "linkedin_url")
@@ -323,8 +355,41 @@ class HunterSource(BaseLeadSource):
         "email_verifier": _VERIFIER,
     }
     required_env: ClassVar[tuple[str, ...]] = (_KEY_ENV,)
+    optional_env: ClassVar[tuple[str, ...]] = (PLAN_ENV,)
+    env_notes: ClassVar[Mapping[str, str]] = {
+        PLAN_ENV: (
+            f"optional: your Hunter plan, one of {', '.join(_VERIFIER_PRICE)}; prices "
+            f"an Email Verifier call (data 1 credit, all-in-one 0.5; {_CREDITS_DOCS}); "
+            f"unset means {DEFAULT_PLAN}"
+        )
+    }
     docs_url: ClassVar[str] = _DOCS
     base_url: ClassVar[str] = "https://api.hunter.io"
+
+    @classmethod
+    def plan(cls, environ: Mapping[str, str] | None = None) -> str:
+        """The plan ``HUNTER_PLAN`` names; unset or blank is ``DEFAULT_PLAN``."""
+        env = os.environ if environ is None else environ
+        plan = env.get(PLAN_ENV, "").strip().casefold() or DEFAULT_PLAN
+        if plan not in _VERIFIER_PRICE:
+            # The value is not echoed, as for every configuration error.
+            raise ConfigurationError(
+                "environment",
+                key_path=PLAN_ENV,
+                detail=f"must be one of {', '.join(_VERIFIER_PRICE)}",
+            )
+        return plan
+
+    @classmethod
+    def run_rate_limit(
+        cls, environ: Mapping[str, str] | None = None
+    ) -> Mapping[str, RateBucket]:
+        """The declared buckets (no plan changes them), once ``HUNTER_PLAN`` is valid.
+
+        Read when a live run starts, so an unusable plan fails before any record.
+        """
+        cls.plan(environ)
+        return cls.rate_limit
 
     RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule("company.domain", "domain"),
@@ -491,8 +556,10 @@ class HunterSource(BaseLeadSource):
         plan = _route(self.name, request.work_list)
         headers: Mapping[str, str] = {}
         billable = False
+        priced = DEFAULT_PLAN
         asks = plan.domains or plan.names or plan.addresses
         if asks and self.data_mode is DataMode.LIVE:
+            priced = self.plan(self._environ)  # before any call: no unknown price
             key = resolve_credentials(self, self._environ)[_KEY_ENV]
             headers = {_KEY_HEADER: key}
             billable = key != SANDBOX_KEY
@@ -567,6 +634,7 @@ class HunterSource(BaseLeadSource):
                     if address in self._restricted_addresses
                 ],
                 "credits_billable": billable,
+                "plan": priced,
             },
         )
 
@@ -832,15 +900,18 @@ def credits_in(batch: RawBatch) -> int:
     """Credits a real key's live batch spent, by Hunter's billing rules (16.8).
 
     A domain search costs one per 1-10 addresses returned (none for none); a finder
-    one only when it found an address; a verification one (conservative: some plans
-    charge 0.5). The sandbox key and synthetic mode spend none.
+    one only when it found an address; a verification the batch's plan price, half
+    credits rounded up per batch (a batch without ``plan`` predates it: ``data``). The
+    sandbox key and synthetic mode spend none.
     """
     payload = batch.payload
     billable = payload.get("credits_billable") if isinstance(payload, Mapping) else None
-    if not isinstance(billable, bool):
+    plan = payload.get("plan", DEFAULT_PLAN) if isinstance(payload, Mapping) else None
+    price = _VERIFIER_PRICE.get(plan) if isinstance(plan, str) else None
+    if not isinstance(billable, bool) or price is None:
         raise NormalizationError(
             batch.source_name,
-            raw_field_path="credits_billable",
+            raw_field_path="credits_billable" if price is not None else "plan",
             canonical_path="<unmapped>",
         )
     if not billable:
@@ -855,7 +926,8 @@ def credits_in(batch: RawBatch) -> int:
         for response in _responses(provider, batch, "finds")
         if _data_of(provider, response, "finds").get("email") is not None
     )
-    return searched + found + len(_responses(provider, batch, "verifications"))
+    verified = len(_responses(provider, batch, "verifications"))
+    return searched + found + math.ceil(verified * price)
 
 
 def _data_of(
@@ -977,7 +1049,9 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
     names: dict[tuple[str, str, str], tuple[str, str, str]] = {}
     askers: dict[tuple[str, str, str], dict[str | None, str | None]] = {}
     addresses: dict[str, None] = {}
-    for contribution in work_list:
+    person = _strong_person_labels(work_list)
+    linkedin = _person_linkedin(provider, work_list, person)
+    for index, contribution in enumerate(work_list):
         company = _domains_of(provider, contribution)
         address = _address_of(provider, contribution)
         if address is not None:
@@ -990,6 +1064,8 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
                 folded = (company[0], first.casefold(), last.casefold())
                 names.setdefault(folded, (company[0], first, last))
                 identity, url = _linkedin_of(provider, contribution)
+                if identity is None:  # the one LinkedIn its person holds, if any
+                    identity, url = linkedin.get(person[index], (None, None))
                 askers.setdefault(folded, {}).setdefault(identity, url)
             continue  # a person we cannot ask about is not a company-level question
         domains.update(dict.fromkeys(company))
@@ -1004,6 +1080,29 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
         for folded in names
     ]
     return _Plan(list(domains), asks, list(addresses))
+
+
+def _person_linkedin(
+    provider: str, work_list: tuple[LeadContribution, ...], person: list[int]
+) -> dict[int, tuple[str, str]]:
+    """Each strongly linked person's LinkedIn identity and text, when it has one only.
+
+    ``person`` labels records linked by a LinkedIn URL or verified-address Match Key,
+    transitively (the orchestrator's pruning components: a shared address links no
+    one). A record with no LinkedIn of its own is then known by its person's, so two
+    records of one person never make one name question ambiguous. A person holding
+    two LinkedIn identities lends neither.
+    """
+    held: dict[int, dict[str, str]] = {}
+    for label, contribution in zip(person, work_list, strict=True):
+        identity, url = _linkedin_of(provider, contribution)
+        if identity is not None and url is not None:
+            held.setdefault(label, {}).setdefault(identity, url)
+    return {
+        label: next(iter(found.items()))
+        for label, found in held.items()
+        if len(found) == 1
+    }
 
 
 def _linkedin_of(

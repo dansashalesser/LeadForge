@@ -20,14 +20,24 @@ Provisional decisions (see choices.md, task 20):
 * The store is the one ``create_store_engine`` resolves (``DATABASE_URL``, else the
   local SQLite file). The migration to head is an explicit step of every run
   (idempotent); nothing creates tables implicitly.
-* Run lifecycle (follow-up 2026-10-06, superseding "the merge runs after the record
-  is completed"): the orchestrator's completion is deferred, and the merge write and
-  the completion (status, exit code, per-source counts, ``contributions_written``)
-  are one transaction, so the record says ``completed`` only once every write of the
-  run committed. A failure after the sources ran (merging, or the merge write) rolls
-  that transaction back, marks the run ``aborted`` with the reason ``<stage>:
-  <exception class>`` (``merge`` or ``merge_write``; never the exception's text) and
-  propagates. ``aborted`` is the existing vocabulary for "ended by an exception".
+* One run at a time (follow-up 2026-10-06): the run takes the store's run lock
+  (``store.run_lock``) after migrating and BEFORE its run record or any provider
+  call; a second run raises ``RunInProgressError`` ("another run in progress", no
+  value) having recorded and spent nothing. The lease is the run timeout plus
+  ``LOCK_STALE_GRACE_S``; a crashed run's lock is taken over once it expired. The
+  merge transaction renews the lease first, so a run whose lock was taken over is
+  refused there (``merge: RunLockLostError``). The lock is released at the end.
+* Run lifecycle (follow-up 2026-10-06): the orchestrator's completion is deferred.
+  The run's raw payloads, contributions and per-source counts (calls, records,
+  credits, ``contributions_written``) commit FIRST in their own transaction
+  (``persist_observations`` + ``StoreRunRecorder.spend``; idempotent, so a repeated
+  record is stored once). The merge and the completion (status, exit code) are a
+  second transaction, so the record says ``completed`` only once the merge
+  committed. A failure after the sources ran rolls back only its own transaction,
+  marks the run ``aborted`` with the reason ``<stage>: <exception class>``
+  (``observe``, ``merge`` or ``merge_write``; never the exception's text) and
+  propagates; contributions an aborted merge left unmerged are merged by the next
+  run. ``aborted`` is the existing vocabulary for "ended by an exception".
 * Projection version (16.6 wiring, follow-up 2026-10-06): the basis
   (``ProjectionBasis.of``: rules revision, Identity Exclusions as keyed digests, Source
   Trust Ranks) is built with the rest of the configuration, so exclusions without a
@@ -37,13 +47,16 @@ Provisional decisions (see choices.md, task 20):
   canonical leads are written under its version, and the run stores the stamp and the
   count of flagged primary-domain tie fallbacks. Two runs racing for the stamp are
   not serialized.
-* Re-merge (follow-up, user option A, 2026-10-06): in that same transaction the run
-  merges its contributions with the whole stored log (``remerge.project_with_store``)
-  and saves through the one ``persist_merge`` path, so a repeated run adds no
-  contribution and no lead, and a split or join retires the replaced leads. An exact
-  primary-domain tie is asked for through ``tie_resolution.resolve_primary_domain``
-  (stored answer first; a model only in live mode and only when ``tie_resolver`` is
-  given, none by default); the run records the leads merged and retired.
+* Re-merge (follow-up, user option A, 2026-10-06): in the merge transaction the run
+  identifies the whole stored log and re-projects only the clusters that need it
+  (``remerge.reproject``: incremental, or every cluster when the projection basis
+  changed, flagged ``full: <why>`` on the run and in the report), and saves them
+  through the one ``persist_merge`` path, so a repeated run adds no contribution and
+  no lead and re-projects nothing, and a split or join retires the replaced leads.
+  An exact primary-domain tie is asked for through
+  ``tie_resolution.resolve_primary_domain`` (stored answer first; a model only in
+  live mode and only when ``tie_resolver`` is given, none by default); the run
+  records the leads merged and retired.
 * The exit code is ``map_run_exit`` over the orchestrator's results only: whether the
   merge persisted anything does not change it (6.4, 6.5).
 * Configuration is read and validated before the run record exists (follow-up
@@ -57,7 +70,8 @@ Provisional decisions (see choices.md, task 20):
   environment with the rest of the configuration, so a too-short
   ``LEADFORGE_MATCH_KEY_SECRET`` fails the run before any record or source; an absent
   one gives a per-run key, one warning, and ``per_run`` in the run record and report.
-  One ``lead_merge`` line per merge is logged after the merge has persisted; the
+  One ``lead_merge`` line per lead the merge created or changed is logged after the
+  merge has persisted (an unchanged lead is never re-logged); the
   logger-failure count (``MergeLogOutcome.failed``) is not surfaced yet (18.x).
 """
 
@@ -66,7 +80,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -75,7 +89,6 @@ from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
-    LeadContribution,
     LiveAccess,
     RateBucket,
     SourceRequest,
@@ -102,7 +115,7 @@ from leadforge.lead_ingestion.projection import (
     stamp_projection,
 )
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
-from leadforge.lead_ingestion.remerge import Merged, project_with_store
+from leadforge.lead_ingestion.remerge import Reprojection, reproject
 from leadforge.lead_ingestion.run_exit import RunExit, map_run_exit
 from leadforge.lead_ingestion.run_recorder import StoreRunRecorder
 from leadforge.lead_ingestion.run_report import build_run_report, render_run_report
@@ -113,11 +126,20 @@ from leadforge.lead_ingestion.source_settings import (
 )
 from leadforge.lead_ingestion.store.merged_leads import (
     MergeStored,
+    Observed,
     SourceBatch,
     persist_merge,
+    persist_observations,
 )
 from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 from leadforge.lead_ingestion.store.raw_responses import RetentionPolicy
+from leadforge.lead_ingestion.store.run_lock import (
+    LOCK_STALE_GRACE_S,
+    RunInProgressError,
+    release_run_lock,
+    renew_run_lock,
+    try_acquire_run_lock,
+)
 from leadforge.lead_ingestion.store.run_records import RunRecordRepository
 from leadforge.lead_ingestion.store.transactions import StoreWriter
 from leadforge.lead_ingestion.target_profile import (
@@ -129,7 +151,12 @@ from leadforge.lead_ingestion.target_profile import (
 )
 from leadforge.lead_ingestion.tie_resolution import TieResolver
 
-__all__ = ["IngestionOutcome", "live_rate_limits", "run_ingestion"]
+__all__ = [
+    "IngestionOutcome",
+    "RunInProgressError",
+    "live_rate_limits",
+    "run_ingestion",
+]
 GLOBAL_MODE_VARIABLE = "LEADFORGE_MODE"
 
 _log = structlog.get_logger(__name__)
@@ -206,6 +233,14 @@ async def _abort(
             f"run record {run_id} could not be marked aborted: "
             f"{type(write_error).__name__}"
         )
+
+
+async def _release(writer: StoreWriter, holder: uuid.UUID) -> None:
+    """Free the run lock; a failure is logged (the lease expires anyway)."""
+    try:
+        await writer.write_batch(lambda session: release_run_lock(session, holder))
+    except Exception as error:  # noqa: BLE001 - the run's own outcome wins
+        _log.error("run_lock_release_failed", error=type(error).__name__)
 
 
 def _global_mode() -> DataMode | None:
@@ -304,112 +339,158 @@ async def run_ingestion(
     try:
         upgrade_to_head(engine.url.render_as_string(hide_password=False))
         writer = StoreWriter(engine)
-        store_recorder = StoreRunRecorder(
-            writer,
-            global_mode=global_mode,
-            match_key_digests_comparable=digester.comparable_across_runs,
-        )
-        recorder = _DeferredCompletion(store_recorder)
-
-        def build(
-            source_class: type[BaseLeadSource],
-            mode: DataMode,
-            pacing: SourcePacing | None,
-        ) -> BaseLeadSource:
-            return source_class.from_run(
-                mode,
-                transport=source_class.build_transport(mode),
-                pacing=pacing,
-                vocabulary=(
-                    None
-                    if profile is None
-                    else effective_vocabulary(profile, source_class)
-                ),
+        # The run lock comes before the run record and any provider call: a run
+        # that cannot take it records nothing and spends nothing.
+        holder = uuid.uuid4()
+        lease = timeout + LOCK_STALE_GRACE_S
+        held = await writer.write_batch(
+            lambda session: try_acquire_run_lock(
+                session, holder, now=clock(), lease_s=lease
             )
-
-        orchestrator = IngestionOrchestrator(
-            registry,
-            resolve_mode=resolve,
-            build_source=build,
-            max_concurrent_sources=pool,
-            run_timeout_s=timeout,
-            run_recorder=recorder,
-            live_rate_limits=rate_limits,
-            identity_exclusions=exclusions,
         )
-        results = await orchestrator.run(SourceRequest(kind="discovery"))
-        run_id = recorder.run_id
-        if run_id is None:  # the orchestrator starts the record before any source
-            raise RuntimeError("the run record was not started")
-
-        stage = "merge"
+        if held is not None:
+            raise RunInProgressError(
+                acquired_at=held.acquired_at, expires_at=held.expires_at
+            )
         try:
-            batches = tuple(
-                SourceBatch(
-                    r.source_name,
-                    r.resolved_mode,
-                    r.phase.value,
-                    r.batch.payload,
-                    tuple(r.contributions),
-                )
-                for r in results
-                if r.batch is not None and r.contributions is not None
+            store_recorder = StoreRunRecorder(
+                writer,
+                global_mode=global_mode,
+                match_key_digests_comparable=digester.comparable_across_runs,
             )
-            contributions: list[LeadContribution] = [
-                c for b in batches for c in b.contributions
-            ]
-            computed_at = clock()
-            complete = store_recorder.completion(run_id, results)
-            merged: Merged = ()
+            recorder = _DeferredCompletion(store_recorder)
 
-            def merge_and_complete(session: Session) -> MergeStored:
-                # One transaction: the stored log is read, merged with this run's
-                # contributions and saved through the one persist path (option A).
-                nonlocal stage, merged
-                runs = RunRecordRepository(session)
-                previous = runs.latest_projection_stamp()
-                stamp = stamp_projection(
-                    None if previous is None else ProjectionStamp(*previous), basis
+            def build(
+                source_class: type[BaseLeadSource],
+                mode: DataMode,
+                pacing: SourcePacing | None,
+            ) -> BaseLeadSource:
+                return source_class.from_run(
+                    mode,
+                    transport=source_class.build_transport(mode),
+                    pacing=pacing,
+                    vocabulary=(
+                        None
+                        if profile is None
+                        else effective_vocabulary(profile, source_class)
+                    ),
                 )
-                merged = project_with_store(
-                    session,
-                    contributions,
-                    exclusions=exclusions,
-                    trust_ranks=ranks,
-                    now=computed_at,
-                    tie_resolver=tie_resolver,
-                )
-                stage = "merge_write"
-                stored = persist_merge(
-                    session,
-                    run_id=run_id,
-                    batches=batches,
-                    merged=merged,
-                    computed_at=computed_at,
-                    projection_version=stamp.version,
-                    projection_fingerprint=stamp.fingerprint,
-                    retention=RetentionPolicy(),
-                )
-                runs.record_projection(
-                    run_id,
-                    version=stamp.version,
-                    fingerprint=stamp.fingerprint,
-                    ties_flagged=sum(1 for _, r in merged if r.primary_domain_flagged),
-                    leads_merged=stored.canonical_leads,
-                    leads_retired=stored.leads_retired,
-                )
-                complete(session)
-                return stored
 
-            stored = await writer.write_batch(merge_and_complete)
-        except BaseException as error:
-            await _abort(store_recorder, run_id, stage, error)
-            raise
-        log_merges((result for _, result in merged), digester=digester)
-        with Session(engine) as session:
-            report_text = render_run_report(build_run_report(session, run_id))
-        return IngestionOutcome(
-            run_id, map_run_exit(results), results, stored, report_text
-        )
+            orchestrator = IngestionOrchestrator(
+                registry,
+                resolve_mode=resolve,
+                build_source=build,
+                max_concurrent_sources=pool,
+                run_timeout_s=timeout,
+                run_recorder=recorder,
+                live_rate_limits=rate_limits,
+                identity_exclusions=exclusions,
+            )
+            results = await orchestrator.run(SourceRequest(kind="discovery"))
+            run_id = recorder.run_id
+            if run_id is None:  # the orchestrator starts the record before any source
+                raise RuntimeError("the run record was not started")
+
+            stage = "observe"
+            try:
+                batches = tuple(
+                    SourceBatch(
+                        r.source_name,
+                        r.resolved_mode,
+                        r.phase.value,
+                        r.batch.payload,
+                        tuple(r.contributions),
+                    )
+                    for r in results
+                    if r.batch is not None and r.contributions is not None
+                )
+                computed_at = clock()
+                spend = store_recorder.spend(run_id, results)
+
+                def observe(session: Session) -> Observed:
+                    # Committed on its own, before the merge: what the run fetched
+                    # and spent survives a merge that fails.
+                    observed = persist_observations(
+                        session,
+                        run_id=run_id,
+                        batches=batches,
+                        computed_at=computed_at,
+                        retention=RetentionPolicy(),
+                    )
+                    spend(session)
+                    return observed
+
+                observed = await writer.write_batch(observe)
+                stage = "merge"
+                complete = store_recorder.completion(run_id, results)
+                plan = Reprojection((), None, 0)
+
+                def merge_and_complete(session: Session) -> MergeStored:
+                    # One transaction, under the renewed lock: the clusters that
+                    # need it are re-projected and saved through the one path.
+                    nonlocal stage, plan
+                    renew_run_lock(session, holder, now=clock(), lease_s=lease)
+                    runs = RunRecordRepository(session)
+                    previous = runs.latest_projection_stamp()
+                    stamp = stamp_projection(
+                        None if previous is None else ProjectionStamp(*previous), basis
+                    )
+                    plan = reproject(
+                        session,
+                        (),
+                        exclusions=exclusions,
+                        trust_ranks=ranks,
+                        now=computed_at,
+                        tie_resolver=tie_resolver,
+                        projection_version=stamp.version,
+                        full_reason=(
+                            None
+                            if previous is None or previous[0] == stamp.version
+                            else "projection basis changed"
+                        ),
+                    )
+                    stage = "merge_write"
+                    stored = persist_merge(
+                        session,
+                        run_id=run_id,
+                        batches=(),
+                        merged=plan.merged,
+                        computed_at=computed_at,
+                        projection_version=stamp.version,
+                        projection_fingerprint=stamp.fingerprint,
+                        retention=RetentionPolicy(),
+                    )
+                    runs.record_projection(
+                        run_id,
+                        version=stamp.version,
+                        fingerprint=stamp.fingerprint,
+                        ties_flagged=sum(
+                            1 for _, r in plan.merged if r.primary_domain_flagged
+                        ),
+                        leads_merged=stored.canonical_leads,
+                        leads_retired=stored.leads_retired,
+                        clusters_reprojected=len(plan.merged),
+                        reprojection=plan.label,
+                    )
+                    complete(session)
+                    return replace(
+                        stored,
+                        contributions=observed.contributions,
+                        raw_responses=observed.raw_responses,
+                    )
+
+                stored = await writer.write_batch(merge_and_complete)
+            except BaseException as error:
+                await _abort(store_recorder, run_id, stage, error)
+                raise
+            # Only the leads this merge created or changed are logged.
+            log_merges((plan.merged[i][1] for i in stored.changed), digester=digester)
+            with Session(engine) as session:
+                report_text = render_run_report(build_run_report(session, run_id))
+            return IngestionOutcome(
+                run_id, map_run_exit(results), results, stored, report_text
+            )
+        finally:
+            await _release(writer, holder)
     finally:
         engine.dispose()

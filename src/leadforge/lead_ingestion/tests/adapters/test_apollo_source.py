@@ -103,8 +103,9 @@ class Scripted:
         json_body: Mapping[str, object] | None,
         headers: Mapping[str, str],
     ) -> TransportResponse:
-        self.calls.append((endpoint, dict(params or {}), dict(headers)))
-        return self.responder(params or {})
+        asked = dict(json_body or params or {})  # match: JSON body; search: query
+        self.calls.append((endpoint, asked, dict(headers)))
+        return self.responder(asked)
 
 
 def live(

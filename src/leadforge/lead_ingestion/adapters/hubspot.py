@@ -33,6 +33,12 @@ Provisional decisions (see choices.md, task 13.1):
 * Open deal presence is a second search, deals associated with the contact and not
   closed, read from ``total``. It is made once per contact found.
 * Lookups are cached for the life of the source, so a retried fetch repeats no call.
+  An address whose answer a returned batch already carried is not emitted again this
+  run (follow-up fu2, 2026-10-06): the free second pass re-hands a record whose
+  address was asked when it brings a new LinkedIn URL, and HubSpot asks by address
+  only, so a repeat would be a duplicate record of the same contact. A fetch that
+  fails returns no batch, so its addresses are still emitted by the retry. GAP: the
+  echo is the first emission's; a LinkedIn URL learned later does not upgrade it.
 * Lifecycle stage and owner are identifiers, not free text, so they are not
   ``UntrustedText``. No free-text property is requested.
 * Property names (``notes_last_updated`` for last activity, ``hs_email_optout``,
@@ -333,6 +339,8 @@ class HubSpotSource(BaseLeadSource):
         self._found: dict[str, list[Mapping[str, Any]]] = {}
         # Who each address was asked for this run: LinkedIn identities and names.
         self._asked_for: dict[str, tuple[set[str], set[str]]] = {}
+        # Addresses a returned batch already answered: emitted once per run.
+        self._emitted: set[str] = set()
 
     def _call_context(self) -> tuple[Mapping[str, str], Mapping[str, object]]:
         """Request headers and path parameters; synthetic mode needs neither."""
@@ -384,7 +392,11 @@ class HubSpotSource(BaseLeadSource):
             raise SourceError(
                 self.name, "hubspot answers an enrichment request only, not discovery"
             )
-        requesters = _requesters_of(request.work_list)
+        requesters = {
+            email: records
+            for email, records in _requesters_of(request.work_list).items()
+            if email not in self._emitted
+        }
         lookups: list[Mapping[str, Any]] = []
         ambiguous = 0
         if requesters:
@@ -406,6 +418,7 @@ class HubSpotSource(BaseLeadSource):
             _log.warning(
                 "hubspot_echo_withheld", reason="ambiguous_requester", lookups=ambiguous
             )
+        self._emitted.update(requesters)  # only now: a failed fetch emitted nothing
         return RawBatch(source_name=self.name, payload={"lookups": lookups})
 
     def _echo_for(

@@ -425,7 +425,7 @@ class ApolloMatches(ApolloTransport):
         headers: Mapping[str, str],
     ) -> TransportResponse:
         if endpoint.path == apollo_t.MATCH_PATH:
-            self.ids.append(str((params or {}).get("id")))
+            self.ids.append(str((json_body or {}).get("id")))
         return await super().send(
             endpoint, params=params, json_body=json_body, headers=headers
         )

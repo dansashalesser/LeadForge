@@ -428,8 +428,10 @@ def test_remerging_the_same_contributions_twice_keeps_lead_count_and_ids(
         2,
         3,
     )
+    # Incremental re-projection (follow-up 2026-10-06): nothing changed, so no
+    # cluster is re-projected and no canonical lead is rewritten.
     assert (again.canonical_leads, again.leads_created, again.leads_retired) == (
-        2,
+        0,
         0,
         0,
     )

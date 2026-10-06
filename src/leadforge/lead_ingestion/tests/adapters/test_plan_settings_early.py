@@ -78,6 +78,7 @@ def runs_recorded(database: Path) -> int:
 PLAN_SENTINELS = {
     "apollo": ("APOLLO_PLAN", "platinum-plan-sentinel"),
     "google_search": ("SERPAPI_HOURLY_LIMIT", "-77-limit-sentinel"),
+    "hunter": ("HUNTER_PLAN", "gold-plan-sentinel"),
 }
 
 

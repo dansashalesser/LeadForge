@@ -24,10 +24,15 @@ never fetched at run time. Provisional decisions (choices.md, 16.9):
   with a gmail address would be one company, and a per-company Credit would be skipped
   for all but the first). A personal domain (a freelancer's own name.com) cannot be
   recognised and is treated as a company.
+* A Lead's own domainless company, once persisted, is ``lead_company_id``:
+  ``co-`` plus the lead identity's uuid hex (follow-up 2026-10-06). The projection
+  works on a cluster pseudonym in memory; the store replaces it with the lead's
+  persisted id, so no hash of a contribution reaches a canonical row.
 * The primary domain (8.17) is not chosen here and appears in no rule.
 * Cluster members are in canonical-JSON order and clusters in ``company_id`` order.
 """
 
+import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -44,6 +49,7 @@ __all__ = [
     "company_domains",
     "company_id_for",
     "domain_components",
+    "lead_company_id",
 ]
 
 # Registrable domains of well-known free-mail providers (not exhaustive by design).
@@ -93,6 +99,11 @@ def company_id_for(domains: Iterable[str]) -> str:
     """The canonical id of the company whose registrable-domain set is ``domains``."""
     basis = "\x1f".join(sorted(set(domains)))
     return "co-" + sha256(basis.encode("utf-8")).hexdigest()[:16]
+
+
+def lead_company_id(lead_identity_id: uuid.UUID) -> str:
+    """The persisted id of a Lead's own domainless company: its identity's uuid."""
+    return f"co-{lead_identity_id.hex}"
 
 
 def domain_components(domain_sets: Sequence[frozenset[str]]) -> tuple[int, ...]:

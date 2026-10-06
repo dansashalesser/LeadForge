@@ -83,6 +83,8 @@ class Scripted:
     def __init__(self, responder: Responder) -> None:
         self.responder = responder
         self.calls: list[tuple[str, dict[str, object]]] = []
+        # Each call's query string and JSON body as sent: (path, params, json_body).
+        self.sent: list[tuple[str, object, object]] = []
 
     async def send(
         self,
@@ -92,11 +94,13 @@ class Scripted:
         json_body: Mapping[str, object] | None,
         headers: Mapping[str, str],
     ) -> TransportResponse:
-        self.calls.append((endpoint.path, dict(params or {})))
+        self.sent.append((endpoint.path, params, json_body))
+        asked = dict(json_body or params or {})
+        self.calls.append((endpoint.path, asked))
         if endpoint.path == SEARCH_PATH:
             body = {"total_entries": 0, "people": []}
             return TransportResponse(status=200, headers={}, body=body)
-        return self.responder(params or {})
+        return self.responder(asked)
 
     @property
     def matches(self) -> list[dict[str, object]]:
@@ -674,3 +678,203 @@ async def test_end_to_end_a_person_pruned_by_suppression_is_never_looked_up() ->
         person(email=ADA_EMAIL, email_status="verified"),
     )
     assert transport.matches == [{"email": ADA_EMAIL}]
+
+
+# ------------------------------- one person under two disjoint keys (follow-up fu2)
+
+GRACE_LINKEDIN = "https://www.linkedin.com/in/grace-hopper"
+GRACE_EMAIL = "grace@acme.com"
+
+
+def by_person(params: Mapping[str, object]) -> TransportResponse:
+    """Apollo's answer for whichever of two people the lookup names."""
+    if params.get("email") == GRACE_EMAIL or params.get("linkedin_url") == (
+        GRACE_LINKEDIN
+    ):
+        return answer(
+            person_id="apollo-grace", linkedin=GRACE_LINKEDIN, email=GRACE_EMAIL
+        )
+    return ADA
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_one_person_by_linkedin_alone_and_by_email_alone_costs_one_credit() -> (
+    None
+):
+    # Two records, no shared key in the work list: the LinkedIn answer names the
+    # verified address the second record asks by, so it answers that lookup too.
+    transport = Scripted(by_person)
+    source = apollo(transport)
+    batch = await source.fetch_raw(
+        enrich(
+            person(linkedin=ADA_LINKEDIN),
+            person(source="web", email=ADA_EMAIL, email_status="verified"),
+        )
+    )
+    assert transport.matches == [{"linkedin_url": ADA_LINKEDIN}]
+    assert credits_in(batch) == 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_two_people_each_seen_by_one_key_cost_two_credits() -> None:
+    transport = Scripted(by_person)
+    source = apollo(transport)
+    batch = await source.fetch_raw(
+        enrich(
+            person(linkedin=ADA_LINKEDIN),
+            person(source="web", email=GRACE_EMAIL, email_status="verified"),
+        )
+    )
+    assert transport.matches == [
+        {"linkedin_url": ADA_LINKEDIN},
+        {"email": GRACE_EMAIL},
+    ]
+    assert credits_in(batch) == 2
+    found = source.normalize_checked(batch)
+    assert sorted(str(c.values["person.email"]) for c in found) == [
+        ADA_EMAIL,
+        GRACE_EMAIL,
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_end_to_end_one_person_under_disjoint_keys_is_one_lead_one_credit() -> (
+    None
+):
+    transport = Scripted(by_person)
+    results = await run(
+        transport,
+        person(linkedin=ADA_LINKEDIN),
+        person(email=ADA_EMAIL, email_status="verified"),
+    )
+    assert transport.matches == [{"linkedin_url": ADA_LINKEDIN}]
+    enriched = results["apollo:enrich"]
+    assert enriched.batch is not None
+    assert credits_in(enriched.batch) == 1
+    [lead] = merged(results)
+    assert lead.lead is not None
+    assert lead.lead.email == ADA_EMAIL
+    assert lead.contributing_sources == ("apollo", "crm")
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_an_answer_never_serves_a_requester_with_another_linkedin() -> None:
+    # The second record names a different LinkedIn: it is asked by its own profile
+    # first, and Ada's answer (other LinkedIn) is never put on it.
+    transport = Scripted(by_person)
+    source = apollo(transport)
+    batch = await source.fetch_raw(
+        enrich(
+            person(linkedin=ADA_LINKEDIN),
+            person(
+                source="web",
+                linkedin=GRACE_LINKEDIN,
+                email=ADA_EMAIL,
+                email_status="verified",
+            ),
+        )
+    )
+    assert {"linkedin_url": GRACE_LINKEDIN} in transport.matches
+    found = source.normalize_checked(batch)
+    linked = sorted(str(c.values["person.linkedin_url"]) for c in found)
+    assert linked == [ADA_LINKEDIN, GRACE_LINKEDIN]
+    assert credits_in(batch) == len(transport.matches)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+async def test_an_answer_never_serves_a_lookup_two_people_share() -> None:
+    # Two distinguishable LinkedIn people share one verified address (8.14): the
+    # address question stays ambiguous, even when a LinkedIn answer names it.
+    transport = Scripted(lambda params: NO_MATCH if "linkedin_url" in params else ADA)
+    source = apollo(transport)
+    with capture_logs() as logs:
+        await source.fetch_raw(
+            enrich(
+                person(
+                    linkedin=OTHER_LINKEDIN, email=ADA_EMAIL, email_status="verified"
+                ),
+                person(
+                    source="web",
+                    linkedin=GRACE_LINKEDIN,
+                    email=ADA_EMAIL,
+                    email_status="verified",
+                ),
+            )
+        )
+    assert {"email": ADA_EMAIL} not in transport.matches
+    assert [e for e in logs if e["event"] == "apollo_match_ambiguous"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.3
+@pytest.mark.parametrize(
+    "asker",
+    [
+        person(linkedin=ADA_LINKEDIN),
+        person(email=ADA_EMAIL, email_status="verified"),
+        person(employer="Acme Corp"),
+    ],
+    ids=["linkedin_url", "email", "name_domain"],
+)
+async def test_a_lookup_is_sent_as_a_json_body_not_a_query_string(
+    asker: LeadContribution,
+) -> None:
+    # Apollo's own CLI (github.com/apolloio/apollo-io-cli 2.1.0, commit 70ce295:
+    # src/commands/people.ts buildPeopleEnrichBody, src/api.ts apolloRequest) POSTs
+    # /people/match with the lookup as a JSON body and no query string.
+    transport = Scripted(lambda _: ADA)
+    await apollo(transport).fetch_raw(enrich(asker))
+    [(_, params, body)] = [s for s in transport.sent if s[0] == MATCH_PATH]
+    assert params is None
+    assert isinstance(body, Mapping)
+    assert body
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_an_answer_with_an_unverified_address_answers_no_address_lookup() -> None:
+    # An unverified address is no Match Key (8.11): it identifies no one, so the
+    # address-only record is still asked by its own address.
+    guessed = answer()
+    assert isinstance(guessed.body, dict)
+    guessed.body["person"]["email_status"] = "guessed"
+    transport = Scripted(lambda params: guessed)
+    source = apollo(transport)
+    await source.fetch_raw(
+        enrich(
+            person(linkedin=ADA_LINKEDIN),
+            person(source="web", email=ADA_EMAIL, email_status="verified"),
+        )
+    )
+    assert transport.matches == [{"linkedin_url": ADA_LINKEDIN}, {"email": ADA_EMAIL}]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_a_no_match_answer_answers_no_other_lookup() -> None:
+    # A "none" answer names no one, even when its body carries a person object.
+    empty = answer()
+    assert isinstance(empty.body, dict)
+    empty.body["match_confidence"] = "none"
+    transport = Scripted(lambda params: empty if "linkedin_url" in params else ADA)
+    source = apollo(transport)
+    await source.fetch_raw(
+        enrich(
+            person(linkedin=ADA_LINKEDIN, first=None, last=None),
+            person(source="web", email=ADA_EMAIL, email_status="verified"),
+        )
+    )
+    assert transport.matches == [{"linkedin_url": ADA_LINKEDIN}, {"email": ADA_EMAIL}]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#12.9
+async def test_apollos_own_answer_to_a_lookup_wins_over_another_hits_keys() -> None:
+    # The address was asked first and Apollo matched no one; a later LinkedIn hit
+    # naming that address does not overrule Apollo's own answer to it.
+    transport = Scripted(lambda params: NO_MATCH if "email" in params else ADA)
+    source = apollo(transport)
+    by_address = person(
+        source="web", first=None, last=None, email=ADA_EMAIL, email_status="verified"
+    )
+    await source.fetch_raw(enrich(by_address))
+    await source.fetch_raw(enrich(person(linkedin=ADA_LINKEDIN)))
+    again = await source.fetch_raw(enrich(by_address))
+    assert transport.matches == [{"email": ADA_EMAIL}, {"linkedin_url": ADA_LINKEDIN}]
+    assert source.normalize_checked(again) == []

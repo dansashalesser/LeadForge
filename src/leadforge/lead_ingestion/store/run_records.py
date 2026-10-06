@@ -192,9 +192,13 @@ class RunRecordRepository:
         ties_flagged: int,
         leads_merged: int | None = None,
         leads_retired: int | None = None,
+        clusters_reprojected: int | None = None,
+        reprojection: str | None = None,
     ) -> None:
-        """Store the projection stamp the run wrote under, its flagged ties, and the
-        leads its merge wrote and retired (0006; ``None``: not recorded)."""
+        """Store the projection stamp the run wrote under, its flagged ties, the
+        leads its merge wrote and retired (0006), and how many clusters it
+        re-projected and how (0007: ``incremental`` or ``full: <why>``); ``None``:
+        not recorded."""
         self._session.execute(
             sa.update(IngestionRun)
             .where(IngestionRun.id == run_id)
@@ -204,6 +208,8 @@ class RunRecordRepository:
                 primary_domain_ties_flagged=ties_flagged,
                 leads_merged=leads_merged,
                 leads_retired=leads_retired,
+                clusters_reprojected=clusters_reprojected,
+                reprojection=reprojection,
             )
             .execution_options(synchronize_session="fetch")
         )

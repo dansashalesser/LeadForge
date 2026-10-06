@@ -6,9 +6,12 @@ re-merge (follow-up, user option A, 2026-10-06): ``merged`` is the clustering of
 whole contribution log plus the run's new contributions (``remerge.project_with_store``)
 and ``batches`` are only what the run fetched. In the caller's one transaction it:
 
-* writes a ``raw_response`` per batch and inserts each contribution whose identity
-  (``contributions.contribution_sha``) is not stored yet; a stored one is reused, so
-  the same observation is never stored twice (8.12, append-only);
+* stores the batches through ``persist_observations`` (a ``raw_response`` per batch,
+  and each contribution whose keyed identity is not stored yet; a stored one is
+  reused, so the same observation is never stored twice: 8.12, append-only). The
+  run calls ``persist_observations`` itself in an earlier committed transaction
+  (follow-up 2026-10-06) and hands ``persist_merge`` no batches, so a failed merge
+  keeps what was fetched;
 * gives every cluster a stable ``lead_identity`` (``assign_leads``): a cluster keeps the
   lead all its stored contributions belonged to; a join keeps the most senior lead and
   retires the absorbed one; a split retires the lead and every part is a new lead. A
@@ -19,7 +22,12 @@ and ``batches`` are only what the run fetched. In the caller's one transaction i
 * upserts one ``canonical_lead`` per cluster that names a person, keyed by its lead
   identity, with its primary-domain decision and projection stamp, and rewrites its
   ``canonical_field_provenance`` rows (the winning field, its agreeing-source count
-  and the superseded losers' field ids).
+  and the superseded losers' field ids). A domainless company is stored as the
+  lead's own (``companies.lead_company_id``); ``MergeStored.changed`` lists the leads
+  created or changed in content, the only ones the run logs.
+
+``merged`` may be any set of clusters that covers every lead it touches: the run
+hands only the clusters ``remerge.reproject`` selected (incremental re-projection).
 
 Provisional decisions (see choices.md, task 20 and the follow-up):
 
@@ -35,9 +43,10 @@ Provisional decisions (see choices.md, task 20 and the follow-up):
 * ``lead_scope`` is a leftover NOT NULL column (ADR-0001 removed the concept): it is
   ``person`` when the contribution carries a person path or a bare CRM ``email``, else
   ``company``.
-* A raw batch is stored under its phase as ``endpoint_key`` and fingerprinted by its
-  canonical JSON; it is written even when every contribution in it was already stored
-  (the run did fetch it).
+* A raw batch is stored under its phase as ``endpoint_key`` with an opaque random
+  ``request_fingerprint`` (nothing looks a payload up by it, so it needs no
+  determinism, and a digest of the payload would outlive its purge); it is written
+  even when every contribution in it was already stored (the run did fetch it).
 * A provenance record is matched to its stored field by (source, path, raw path,
   fetch time); a CRM source's bare ``email`` is the ``person.email`` the projection
   re-keyed it to. Byte-identical duplicates are interchangeable, so the first is used.
@@ -48,14 +57,14 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from hashlib import sha256
 from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.base_source import LeadContribution
-from leadforge.lead_ingestion.clustering import IdentityCluster, canonical_value_json
+from leadforge.lead_ingestion.clustering import IdentityCluster
+from leadforge.lead_ingestion.companies import lead_company_id
 from leadforge.lead_ingestion.models import CanonicalLead, DataMode, FieldProvenance
 from leadforge.lead_ingestion.projection import ProjectionResult
 from leadforge.lead_ingestion.store.contributions import (
@@ -77,13 +86,17 @@ from leadforge.lead_ingestion.store.raw_responses import (
     RawResponseRepository,
     RetentionPolicy,
 )
+from leadforge.lead_ingestion.store.store_key import store_digest
 
 __all__ = [
     "LeadAssignment",
     "MergeStored",
+    "Observed",
     "SourceBatch",
     "assign_leads",
+    "current_leads",
     "persist_merge",
+    "persist_observations",
     "stale_projections",
 ]
 
@@ -115,6 +128,17 @@ class MergeStored:
     # Canonical leads on a new identity, and leads this merge retired.
     leads_created: int = 0
     leads_retired: int = 0
+    # Indexes (into ``merged``) of the canonical leads this merge created or whose
+    # content changed; a re-projection that wrote the same lead is not listed.
+    changed: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class Observed:
+    """What ``persist_observations`` stored: new contribution rows, raw payloads."""
+
+    contributions: int
+    raw_responses: int
 
 
 @dataclass(frozen=True)
@@ -163,6 +187,78 @@ def assign_leads[K: Hashable, L: Hashable](
     return LeadAssignment(tuple(kept), retired)
 
 
+def persist_observations(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    batches: Sequence[SourceBatch],
+    computed_at: datetime,
+    retention: RetentionPolicy,
+) -> Observed:
+    """Each batch's raw payload, and each contribution not stored yet; unmapped.
+
+    Idempotent: a stored observation (same keyed ``content_sha``) is not inserted
+    again. The run commits this on its own BEFORE its merge (follow-up 2026-10-06), so
+    a merge that fails never loses what was fetched; a contribution with no
+    ``contribution_lead`` row is merged by the next merge.
+    """
+    return _observe(
+        session,
+        run_id=run_id,
+        batches=batches,
+        computed_at=computed_at,
+        retention=retention,
+        rows=_stored_rows_by_digest(session) if batches else {},
+    )
+
+
+def _observe(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    batches: Sequence[SourceBatch],
+    computed_at: datetime,
+    retention: RetentionPolicy,
+    rows: dict[str, list[uuid.UUID]],
+) -> Observed:
+    """``persist_observations`` over ``rows`` (stored ids by digest), kept current."""
+    source_runs = _source_runs(session, run_id)
+    for batch in batches:
+        if batch.source_name not in source_runs:
+            raise LookupError(f"run has no source {batch.source_name!r}")
+    digest = _digester(session)
+    inserted = 0
+    for batch in batches:
+        fetched = _fetched_at(batch, computed_at)
+        raw_id = RawResponseRepository.add(
+            session,
+            source_run_id=source_runs[batch.source_name],
+            endpoint_key=batch.endpoint_key,
+            request_fingerprint=uuid.uuid4().hex,
+            payload=batch.payload,
+            fetched_at=fetched,
+            mode=batch.data_mode,
+            policy=retention,
+        )
+        for contribution in batch.contributions:
+            key = digest(contribution)
+            if key in rows:
+                continue
+            rows[key] = [
+                write_contribution(
+                    session,
+                    contribution,
+                    source_run_id=source_runs[batch.source_name],
+                    raw_response_id=raw_id,
+                    data_mode=batch.data_mode,
+                    fetched_at=_contribution_fetched_at(contribution, fetched),
+                    lead_scope=_lead_scope(contribution),
+                )
+            ]
+            inserted += 1
+    return Observed(contributions=inserted, raw_responses=len(batches))
+
+
 def persist_merge(
     session: Session,
     *,
@@ -174,27 +270,29 @@ def persist_merge(
     retention: RetentionPolicy,
     projection_fingerprint: str | None = None,
 ) -> MergeStored:
-    source_runs = _source_runs(session, run_id)
-    for batch in batches:
-        if batch.source_name not in source_runs:
-            raise LookupError(f"run has no source {batch.source_name!r}")
-    shas = [
-        {contribution_sha(c) for c in cluster.contributions} for cluster, _ in merged
-    ]
+    digest = _digester(session)
+    shas = [{digest(c) for c in cluster.contributions} for cluster, _ in merged]
     cluster_of = {sha: index for index, group in enumerate(shas) for sha in group}
+    rows = _stored_rows_by_digest(session)
     for batch in batches:
         for contribution in batch.contributions:
-            if contribution_sha(contribution) not in cluster_of:
+            key = digest(contribution)
+            if key not in cluster_of and key not in rows:
                 raise ValueError(
                     f"a contribution of {batch.source_name!r} is in no cluster"
                 )
-
-    rows = _stored_rows_by_sha(session)
-    fetched = {contribution_sha(c) for b in batches for c in b.contributions}
-    if any(sha not in rows and sha not in fetched for sha in cluster_of):
+    observed = _observe(
+        session,
+        run_id=run_id,
+        batches=batches,
+        computed_at=computed_at,
+        retention=retention,
+        rows=rows,
+    )
+    if any(sha not in rows for sha in cluster_of):
         raise ValueError("a clustered contribution is neither stored nor in a batch")
-    in_scope = [{i for sha in group for i in rows.get(sha, ())} for group in shas]
-    prior = _current_leads(session)
+    in_scope = [{i for sha in group for i in rows[sha]} for group in shas]
+    prior = current_leads(session)
     _require_whole_leads(prior, set().union(*in_scope) if in_scope else set())
     touched = {prior[i] for group in in_scope for i in group if i in prior}
     identities = {
@@ -240,37 +338,20 @@ def persist_merge(
                 )
             )
     session.flush()
-
-    inserted = _insert_new(
-        session,
-        batches,
-        rows,
-        cluster_of,
-        lead_ids,
-        source_runs,
-        computed_at,
-        retention,
-    )
     _rebuild_mapping(
         session,
-        {
-            i: lead_ids[index]
-            for index, group in enumerate(shas)
-            for sha in group
-            for i in rows[sha]
-        },
+        {i: lead_ids[index] for index, group in enumerate(in_scope) for i in group},
     )
 
     canonical_leads = created = 0
+    changed: list[int] = []
     for index, (cluster, result) in enumerate(merged):
         if result.lead is None:
             continue
         fields: dict[_FieldKey, uuid.UUID] = {}
         for contribution in cluster.contributions:
-            _index_fields(
-                session, contribution, rows[contribution_sha(contribution)][0], fields
-            )
-        _write_canonical(
+            _index_fields(session, contribution, rows[digest(contribution)][0], fields)
+        if _write_canonical(
             session,
             lead_ids[index],
             result,
@@ -279,16 +360,18 @@ def persist_merge(
             computed_at,
             projection_version,
             projection_fingerprint,
-        )
+        ):
+            changed.append(index)
         canonical_leads += 1
         created += plan.kept[index] is None
     return MergeStored(
         identities=len(lead_ids),
-        contributions=inserted,
+        contributions=observed.contributions,
         canonical_leads=canonical_leads,
-        raw_responses=len(batches),
+        raw_responses=observed.raw_responses,
         leads_created=created,
         leads_retired=sum(1 for lead in plan.retired if lead in with_lead),
+        changed=tuple(changed),
     )
 
 
@@ -321,9 +404,23 @@ def _source_runs(session: Session, run_id: uuid.UUID) -> dict[str, uuid.UUID]:
     return {name: source_run_id for name, source_run_id in rows}
 
 
-def _stored_rows_by_sha(session: Session) -> dict[str, list[uuid.UUID]]:
-    """Stored contribution ids by identity; a row from before 0006 is rebuilt to
-    compute its identity (it has no ``content_sha``)."""
+def _digester(session: Session) -> Callable[[LeadContribution], str]:
+    """A contribution's stored identity: the keyed digest of ``contribution_sha``."""
+    seen: dict[int, tuple[LeadContribution, str]] = {}
+
+    def digest(contribution: LeadContribution) -> str:
+        hit = seen.get(id(contribution))
+        if hit is None or hit[0] is not contribution:
+            hit = (contribution, store_digest(session, contribution_sha(contribution)))
+            seen[id(contribution)] = hit
+        return hit[1]
+
+    return digest
+
+
+def _stored_rows_by_digest(session: Session) -> dict[str, list[uuid.UUID]]:
+    """Stored contribution ids by keyed identity; a row from before 0006 is rebuilt
+    to compute its identity (it has no ``content_sha``)."""
     out: dict[str, list[uuid.UUID]] = defaultdict(list)
     legacy = False
     for row_id, sha in session.execute(
@@ -337,15 +434,16 @@ def _stored_rows_by_sha(session: Session) -> dict[str, list[uuid.UUID]]:
             out[sha].append(row_id)
     if legacy:
         known = {i for ids in out.values() for i in ids}
+        digest = _digester(session)
         for row_id, contribution in sorted(
             load_lead_contributions(session).items(), key=lambda kv: str(kv[0])
         ):
             if row_id not in known:
-                out[contribution_sha(contribution)].append(row_id)
+                out[digest(contribution)].append(row_id)
     return out
 
 
-def _current_leads(session: Session) -> dict[uuid.UUID, uuid.UUID]:
+def current_leads(session: Session) -> dict[uuid.UUID, uuid.UUID]:
     """Contribution id -> its active lead, from the derived mapping."""
     rows = session.execute(
         sa.select(ContributionLead.contribution_id, ContributionLead.lead_identity_id)
@@ -361,52 +459,6 @@ def _require_whole_leads(
     touched = {prior[i] for i in in_scope if i in prior}
     if any(lead in touched and i not in in_scope for i, lead in prior.items()):
         raise ValueError("a merge must cover every contribution of a lead it touches")
-
-
-def _insert_new(
-    session: Session,
-    batches: Sequence[SourceBatch],
-    rows: dict[str, list[uuid.UUID]],
-    cluster_of: Mapping[str, int],
-    lead_ids: Sequence[uuid.UUID],
-    source_runs: Mapping[str, uuid.UUID],
-    computed_at: datetime,
-    retention: RetentionPolicy,
-) -> int:
-    """Raw payloads, and each contribution not stored yet; returns how many."""
-    inserted = 0
-    for batch in batches:
-        fetched = _fetched_at(batch, computed_at)
-        raw_id = RawResponseRepository.add(
-            session,
-            source_run_id=source_runs[batch.source_name],
-            endpoint_key=batch.endpoint_key,
-            request_fingerprint=sha256(
-                canonical_value_json(batch.payload).encode("utf-8")
-            ).hexdigest(),
-            payload=batch.payload,
-            fetched_at=fetched,
-            mode=batch.data_mode,
-            policy=retention,
-        )
-        for contribution in batch.contributions:
-            sha = contribution_sha(contribution)
-            if sha in rows:
-                continue
-            rows[sha] = [
-                write_contribution(
-                    session,
-                    contribution,
-                    source_run_id=source_runs[batch.source_name],
-                    raw_response_id=raw_id,
-                    data_mode=batch.data_mode,
-                    fetched_at=_contribution_fetched_at(contribution, fetched),
-                    lead_scope=_lead_scope(contribution),
-                    lead_identity_id=lead_ids[cluster_of[sha]],
-                )
-            ]
-            inserted += 1
-    return inserted
 
 
 def _rebuild_mapping(session: Session, wanted: Mapping[uuid.UUID, uuid.UUID]) -> None:
@@ -498,13 +550,15 @@ def _write_canonical(
     computed_at: datetime,
     projection_version: int,
     projection_fingerprint: str | None,
-) -> None:
-    """Insert or update the identity's canonical lead and rewrite its provenance."""
+) -> bool:
+    """Insert or update the identity's canonical lead and rewrite its provenance;
+    ``True`` when the lead is new or its content (fields, provenance) changed."""
     row = session.scalar(
         sa.select(CanonicalLeadRow).where(
             CanonicalLeadRow.lead_identity_id == identity_id
         )
     )
+    before = None if row is None else _content(session, row)
     if row is None:
         row = CanonicalLeadRow(lead_identity_id=identity_id)
         session.add(row)
@@ -518,7 +572,9 @@ def _write_canonical(
     row.email_status = None if lead.email is None else lead.email_status.value
     row.linkedin_url = None if lead.linkedin_url is None else str(lead.linkedin_url)
     row.full_name = lead.full_name
-    row.employments = [e.model_dump(mode="json") for e in lead.employments]
+    row.employments = [
+        _lead_owned(e.model_dump(mode="json"), identity_id) for e in lead.employments
+    ]
     row.tech_signals = [s.model_dump(mode="json") for s in lead.tech_signals]
     row.intent_signals = [s.model_dump(mode="json") for s in lead.intent_signals]
     row.opt_out = lead.opt_out
@@ -554,3 +610,45 @@ def _write_canonical(
             )
         )
     session.flush()
+    return before is None or before != _content(session, row)
+
+
+def _lead_owned(employment: dict[str, Any], identity_id: uuid.UUID) -> dict[str, Any]:
+    """A domainless company is the Lead's own: its id is the lead's persisted uuid,
+    never the projection's in-memory pseudonym (a hash of a contribution)."""
+    company = employment.get("company")
+    if isinstance(company, dict) and not company.get("domains"):
+        employment["company"] = {**company, "company_id": lead_company_id(identity_id)}
+    return employment
+
+
+def _content(session: Session, row: CanonicalLeadRow) -> tuple[Any, ...]:
+    """What a reader of the lead sees: every field and the field provenance."""
+    provenance = sorted(
+        (
+            p.canonical_path,
+            str(p.winning_field_id),
+            p.agreeing_source_count,
+            tuple(p.superseded_field_ids),
+        )
+        for p in session.scalars(
+            sa.select(CanonicalFieldProvenance).where(
+                CanonicalFieldProvenance.canonical_lead_id == row.id
+            )
+        )
+    )
+    return (
+        row.email,
+        row.email_status,
+        row.linkedin_url,
+        row.full_name,
+        row.employments,
+        row.tech_signals,
+        row.intent_signals,
+        row.opt_out,
+        row.suppressed,
+        row.contributing_sources,
+        row.primary_domain,
+        row.primary_domain_source,
+        provenance,
+    )

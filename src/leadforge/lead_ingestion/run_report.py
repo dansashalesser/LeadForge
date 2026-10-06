@@ -129,6 +129,9 @@ class RunReport:
     # Active leads the merge wrote and leads it retired (0006); None: not recorded.
     leads_merged: int | None = None
     leads_retired: int | None = None
+    # Clusters the merge re-projected and how: "incremental" or "full: <why>" (0007).
+    clusters_reprojected: int | None = None
+    reprojection: str | None = None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -176,6 +179,15 @@ def _web_evidence(session: Session, run_id: uuid.UUID) -> dict[str, tuple[int, i
     return counts
 
 
+def _reprojection(report: RunReport) -> str:
+    if report.clusters_reprojected is None or report.reprojection is None:
+        return NOT_RECORDED
+    how = report.reprojection
+    if how.startswith("full: "):
+        how = f"full ({how.removeprefix('full: ')})"
+    return f"{how}, {report.clusters_reprojected} clusters"
+
+
 def _stale(session: Session, version: int | None) -> int | None:
     """Active canonical leads projected under another version than the run's."""
     if version is None:
@@ -202,8 +214,9 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
         .where(SourceRun.run_id == run.id)
         .order_by(SourceRun.source_name)
     ).all()
-    # Counts exist only once the run completed (they are written with the finish).
-    recorded = run.status == RunStatus.COMPLETED.value
+    # Counts exist once the run stored what it fetched (follow-up 2026-10-06: before
+    # its merge, so an aborted merge keeps them); a completed run always has them.
+    completed = run.status == RunStatus.COMPLETED.value
     web_evidence = _web_evidence(session, run.id)
     return RunReport(
         run_id=run.id,
@@ -219,6 +232,8 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
         stale_projections=_stale(session, run.projection_version),
         leads_merged=run.leads_merged,
         leads_retired=run.leads_retired,
+        clusters_reprojected=run.clusters_reprojected,
+        reprojection=run.reprojection,
         sources=tuple(
             SourceReport(
                 source_name=r.source_name,
@@ -242,6 +257,7 @@ def build_run_report(session: Session, run_id: uuid.UUID | None = None) -> RunRe
                 contributions_written=r.contributions_written if recorded else None,
             )
             for r in rows
+            for recorded in (completed or r.attempted is not None,)
         ),
     )
 
@@ -343,6 +359,7 @@ def render_run_report(report: RunReport) -> str:
             else f"{report.leads_merged} merged, {report.leads_retired} retired"
         )
     )
+    lines.append(f"re-projection: {_reprojection(report)}")
     lines.append(
         "match-key digests: "
         + _MATCH_KEY_DIGEST_LINES.get(report.match_key_digests or "", NOT_RECORDED)

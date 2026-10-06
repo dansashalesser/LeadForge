@@ -367,14 +367,17 @@ async def test_no_email_makes_no_call_and_a_discovery_request_is_refused() -> No
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#13.2
-async def test_a_retried_fetch_repeats_no_lookup() -> None:
+async def test_a_second_fetch_repeats_no_lookup_and_no_record() -> None:
+    # Follow-up fu2: an answer a returned batch carried is emitted once per run (a
+    # failed fetch returns no batch, so a retry still emits; see the echo tests).
     transport = Scripted(answers([contact()]))
     source = live(transport)
     first = await source.fetch_raw(request("ada@example.com"))
     calls = len(transport.calls)
     second = await source.fetch_raw(request("ada@example.com"))
     assert len(transport.calls) == calls
-    assert first == second
+    assert len(first.payload["lookups"]) == 1
+    assert second.payload == {"lookups": []}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#13.2

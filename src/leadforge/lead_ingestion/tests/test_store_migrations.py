@@ -203,10 +203,8 @@ def test_head_makes_raw_response_link_nullable_with_set_null() -> None:
         tuple(f["constrained_columns"])
         for f in inspect(engine).get_foreign_keys("source_contribution")
     }
-    assert names == {("source_run_id",), ("lead_identity_id",), ("raw_response_id",)}
-    assert "ix_source_contribution_lead_identity_id" in {
-        i["name"] for i in inspect(engine).get_indexes("source_contribution")
-    }
+    # (0007 dropped the first-seen ``lead_identity_id`` column, its key and index.)
+    assert names == {("source_run_id",), ("raw_response_id",)}
 
 
 def _seed_contribution_with_raw(conn: sa.Connection, raw_id: uuid.UUID | None) -> None:

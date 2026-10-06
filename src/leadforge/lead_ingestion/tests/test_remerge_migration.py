@@ -23,6 +23,12 @@ from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # no
 )
 
 T0 = datetime(2026, 10, 6, 8, 0, tzinfo=UTC)
+# The table as it was before 0007 (which dropped the first-seen lead column).
+CONTRIBUTION_0005 = sa.table(
+    "source_contribution",
+    *(sa.column(c.name, c.type) for c in m.SourceContribution.__table__.columns),
+    sa.column("lead_identity_id", sa.Uuid()),
+)
 NEW_TABLES = {"contribution_lead", "lead_succession", "contribution_absence"}
 
 
@@ -41,7 +47,7 @@ def _seed_at_0005(engine: Engine) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
         conn.execute(sa.insert(m.LeadIdentity).values(id=identity, created_at=T0))
         for contribution, lead in ((linked, identity), (loose, None)):
             conn.execute(
-                sa.insert(m.SourceContribution).values(
+                sa.insert(CONTRIBUTION_0005).values(
                     id=contribution,
                     source_run_id=sr,
                     lead_identity_id=lead,

@@ -319,7 +319,10 @@ async def test_a_merge_write_failure_marks_the_run_aborted_on_each_engine(
     assert run.failure_reason == "merge_write: RuntimeError"
     # The merge and the completion are one transaction: nothing of it survived.
     assert _count(composed, m.CanonicalLeadRow) == 0
-    assert _count(composed, m.SourceContribution) == 0
+    assert _count(composed, m.ContributionLead) == 0
+    # What the run fetched committed before the merge (follow-up 2026-10-06): the
+    # next run merges it.
+    assert _count(composed, m.SourceContribution) > 0
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#21.1
@@ -430,12 +433,14 @@ class _MergeBrokeError(Exception):
     """A merge failure the tests raise (its text is never stored)."""
 
 
-_WRITE_STEPS = (
-    "record_projection",
-    "finish",
-    "record_source_counts",
-    "record_contributions_written",
-)
+# Step -> the transaction it belongs to (follow-up 2026-10-06): the counts commit
+# with the fetched records ("observe"), the projection and the finish with the merge.
+_WRITE_STEPS = {
+    "record_projection": "merge_write",
+    "finish": "merge_write",
+    "record_source_counts": "observe",
+    "record_contributions_written": "observe",
+}
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#21.1
@@ -459,12 +464,19 @@ async def test_a_failure_at_any_completing_write_rolls_the_whole_merge_back(
 
     run = _only_run(composed)
     assert (run.status, run.exit_code) == ("aborted", None)
-    assert run.failure_reason == "merge_write: RuntimeError"
+    assert run.failure_reason == f"{_WRITE_STEPS[step]}: RuntimeError"
     assert run.projection_version is None
     assert _count(composed, m.CanonicalLeadRow) == 0
-    assert _count(composed, m.SourceContribution) == 0
-    for name, row in _rows(composed).items():
-        assert (row.attempted, row.contributions_written) == (None, 0), name
+    rows = _rows(composed).values()
+    if _WRITE_STEPS[step] == "observe":  # its own transaction rolled back whole
+        assert _count(composed, m.SourceContribution) == 0
+        assert {(r.attempted, r.contributions_written) for r in rows} == {(None, 0)}
+    else:  # the fetched records and the spend committed before the merge
+        assert _count(composed, m.SourceContribution) > 0
+        assert all(r.attempted is not None for r in rows)
+        assert sum(r.contributions_written for r in rows) == _count(
+            composed, m.SourceContribution
+        )
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#21.1

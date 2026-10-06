@@ -273,13 +273,18 @@ async def test_opt_outs_follow_links_and_hubspot_asks_again_what_was_found_later
             leads = session.scalars(sa.select(m.CanonicalLeadRow)).all()
             crm_fields = session.execute(
                 sa.select(
-                    m.SourceContribution.lead_identity_id,
+                    m.ContributionLead.lead_identity_id,
                     m.ContributionField.canonical_path,
                     m.ContributionField.value,
                 )
                 .join(
                     m.SourceContribution,
                     m.SourceContribution.id == m.ContributionField.contribution_id,
+                )
+                .join(
+                    m.ContributionLead,
+                    m.ContributionLead.contribution_id
+                    == m.ContributionField.contribution_id,
                 )
                 .where(m.SourceContribution.source_name == "hubspot")
             ).all()

@@ -597,6 +597,9 @@ def _employments(
 
 
 def _lead_company_id(cluster_id: str) -> str:
+    # In memory only: a pseudonym of the cluster (itself a hash of a contribution).
+    # The store replaces it with the lead's persisted id (``companies.
+    # lead_company_id``) before the row is written, so it never reaches the store.
     basis = "no-domain\x1f" + cluster_id
     return "co-" + sha256(basis.encode("utf-8")).hexdigest()[:16]
 

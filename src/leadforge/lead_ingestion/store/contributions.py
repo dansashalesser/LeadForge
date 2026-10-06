@@ -27,6 +27,9 @@ the absences and the ``content_sha``, so ``load_lead_contributions`` rebuilds th
 * ``contribution_sha`` is the identity of an observation: the sha256 of
   ``clustering.canonical_json`` with every ``fetched_at`` left out, so the same answer
   fetched again is the same contribution and is stored once (UNIQUE ``content_sha``).
+  It is an in-memory identity only: the stored ``content_sha`` is its HMAC under the
+  store's key (``store_key.store_digest``, follow-up 2026-10-06), never the plain
+  hash of personal data.
 * Read back, a datetime value is its ISO-8601 text and a tuple a list (as above); both
   serialise to the same canonical JSON, so the identity and every merge comparison
   are unchanged. Absences are a set: they read back sorted by path and kind, and the
@@ -62,6 +65,7 @@ from leadforge.lead_ingestion.store.models import (
     ContributionField,
     SourceContribution,
 )
+from leadforge.lead_ingestion.store.store_key import store_digest
 
 __all__ = [
     "ContributionValueError",
@@ -150,7 +154,6 @@ def write_contribution(
     data_mode: DataMode,
     fetched_at: datetime,
     lead_scope: str,
-    lead_identity_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
     """Insert one contribution and its fields; returns the contribution id."""
     fetched = _as_utc(fetched_at)
@@ -181,13 +184,12 @@ def write_contribution(
 
     row = SourceContribution(
         source_run_id=source_run_id,
-        lead_identity_id=lead_identity_id,
         raw_response_id=raw_response_id,
         source_name=contribution.source_name,
         data_mode=data_mode.value,
         fetched_at=fetched,
         lead_scope=lead_scope,
-        content_sha=contribution_sha(contribution),
+        content_sha=store_digest(session, contribution_sha(contribution)),
     )
     session.add(row)
     session.flush()

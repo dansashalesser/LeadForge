@@ -59,13 +59,21 @@ sources found, by other search terms when no Apollo id is known):
   ``linkedin_url``, (3) ``email``, (4) ``first_name`` + ``last_name`` + ``domain``
   (registrable), else ``organization_name`` when there is no domain. Parameter names
   are those Apollo's own CLI sends to people/match and its enrichment docs name
-  (live-docs-findings A9); sending them as query parameters of the POST, as the id
-  already was, is UNVERIFIED (A5 is the same open question for search). A masked or
-  blank name (any ``*``) is never a term.
+  (live-docs-findings A9). They travel as the POST's JSON body, no query string
+  (VERIFIED 2026-10-06 against Apollo's own CLI, github.com/apolloio/apollo-io-cli
+  2.1.0, commit 70ce295: ``src/commands/people.ts`` ``buildPeopleEnrichBody`` builds
+  the body and ``src/api.ts`` ``apolloRequest`` sends it as JSON; supersedes the
+  query-parameter form). That covers the LinkedIn, address and name rungs only: the
+  same CLI asks by Apollo ``id`` with ``GET /people/match?id=`` (``people.ts`` ``email``
+  command, ``apolloGet``), so the id rung's POST JSON body is UNVERIFIED (kept: one
+  POST endpoint, no GET allowed). A masked or blank name (any ``*``) is never a term.
 * Per-run cache keyed by the normalised lookup (id; LinkedIn identity; lowercased
   address; casefolded name with domain or company name): duplicates and a retried
   fetch never ask twice. ``matches`` lists each lookup once, so ``credits_in`` counts
-  real billed calls.
+  real billed calls. A hit also answers the lookups its own strong keys name (its
+  Apollo id, LinkedIn identity, and address when Apollo marks it verified): one
+  person seen once by LinkedIn and once by address alone costs one Credit. The
+  ambiguity and cannot-link rules below still apply to the lookup it serves.
 * The answer carries the requester's identity at ``asked.*`` (``REQUEST_ECHO_PREFIX``)
   so the normal Match Keys put it on that person, and the echo never corroborates. The
   anchor is the requester's strongest key: its LinkedIn URL; else its verified address
@@ -169,6 +177,7 @@ from leadforge.lead_ingestion.normalizer import (
     unmapped_raw_paths,
     validate_raw_payload,
 )
+from leadforge.lead_ingestion.orchestrator import _components
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 if TYPE_CHECKING:
@@ -430,8 +439,12 @@ class ApolloSource(BaseLeadSource):
             raise ValueError(f"per_page must be at least 1, got {per_page}")
         self._per_page = min(per_page, MAX_PER_PAGE)
         self._environ = environ
-        # Answers already paid for this run: a retried fetch must not buy them again.
+        # Answers already paid for this run (the batch's ``matches`` entry, by lookup
+        # key): a retried fetch must not buy them again.
         self._matched: dict[str, Mapping[str, Any]] = {}
+        # A lookup a hit already answers: the hit's own strong keys (Apollo id,
+        # LinkedIn identity, verified address) -> the lookup that bought it.
+        self._served_by: dict[str, str] = {}
         # LinkedIn identities (None: none) that asked each lookup, across fetches.
         self._asked_for: dict[str, set[str | None]] = {}
         self._allowances: dict[str, int] = {}
@@ -564,17 +577,10 @@ class ApolloSource(BaseLeadSource):
                 if len(self._asked_for[lookup.key]) > 1:
                     ambiguous.add(lookup.key)  # one answer cannot fit two people
                     break
-                if lookup.key not in self._matched:
-                    self._matched[lookup.key] = await self._match(
-                        lookup.params, headers
-                    )
-                response = self._matched[lookup.key]
-                matches.setdefault(
-                    lookup.key,
-                    {"lookup": lookup.key, "rung": lookup.rung, "response": response},
-                )
-                if response.get("match_confidence") != _NO_MATCH:
-                    entry = asker.attachment(lookup)
+                key = await self._answer(lookup, headers)
+                matches.setdefault(key, self._matched[key])
+                if self._matched[key]["response"].get("match_confidence") != _NO_MATCH:
+                    entry = asker.attachment(replace(lookup, key=key))
                     attach.setdefault(json.dumps(entry, sort_keys=True), entry)
                     break
         if ambiguous:
@@ -587,11 +593,34 @@ class ApolloSource(BaseLeadSource):
             },
         )
 
+    async def _answer(self, lookup: "_Lookup", headers: Mapping[str, str]) -> str:
+        """The key of the paid answer to ``lookup``, asking Apollo only when none is.
+
+        A lookup an earlier hit already answers (the hit's Apollo id, LinkedIn identity
+        or verified address equals it) is served by that hit: one person seen once by
+        LinkedIn and once by address alone costs one Credit, not two.
+        """
+        key = (
+            lookup.key
+            if lookup.key in self._matched
+            else self._served_by.get(lookup.key, lookup.key)
+        )
+        if key not in self._matched:
+            response = await self._match(lookup.params, headers)
+            self._matched[key] = {
+                "lookup": key,
+                "rung": lookup.rung,
+                "response": response,
+            }
+            for alias in _answer_keys(response):
+                self._served_by.setdefault(alias, key)
+        return key
+
     async def _match(
         self, params: Mapping[str, str], headers: Mapping[str, str]
     ) -> Mapping[str, Any]:
         response = await self._send(
-            _MATCH, params=params, json_body=None, headers=headers
+            _MATCH, params=None, json_body=params, headers=headers
         )
         if not isinstance(response.body, Mapping):
             raise NormalizationError(
@@ -1027,27 +1056,45 @@ def _merged(ladders: list[tuple[_Lookup, ...]]) -> tuple[_Lookup, ...]:
 def _people(work_list: tuple[LeadContribution, ...]) -> list[list[int]]:
     """Record indices per person: a shared address or LinkedIn identity, transitively.
 
+    The components are the orchestrator's (clustering's union-find), not a copy.
     Groups come in order of their first record; records keep work-list order.
     """
-    parent = list(range(len(work_list)))
-
-    def root(index: int) -> int:
-        while parent[index] != index:
-            parent[index] = parent[parent[index]]
-            index = parent[index]
-        return index
-
-    holder: dict[tuple[str, str], int] = {}
-    for index, contribution in enumerate(work_list):
-        for identity in identities(contribution):
-            first = holder.setdefault(identity, index)
-            a, b = root(first), root(index)
-            if a != b:
-                parent[max(a, b)] = min(a, b)
     groups: dict[int, list[int]] = {}
-    for index in range(len(work_list)):
-        groups.setdefault(root(index), []).append(index)
+    labels = _components([identities(c) for c in work_list])
+    for index, label in enumerate(labels):
+        groups.setdefault(label, []).append(index)
     return list(groups.values())
+
+
+def _linkedin_key(identity: str) -> str:
+    return f"linkedin_url:{identity}"
+
+
+def _email_key(address: str) -> str:
+    return f"email:{address}"
+
+
+def _answer_keys(response: Mapping[str, Any]) -> set[str]:
+    """The lookups a hit answers by its own strong keys; none for a no-match.
+
+    The Apollo id, the LinkedIn identity, and the address only when Apollo marks it
+    verified (8.11: an unverified address is no Match Key, so it identifies no one).
+    """
+    person = response.get("person")
+    if response.get("match_confidence") == _NO_MATCH or not isinstance(person, Mapping):
+        return set()
+    keys: set[str] = set()
+    own = person.get("id")
+    if isinstance(own, str) and own.strip():
+        keys.add(own)
+    url = person.get("linkedin_url")
+    identity = normalize_linkedin_url(url) if isinstance(url, str) else None
+    if identity is not None:
+        keys.add(_linkedin_key(identity))
+    address = person.get("email")
+    if isinstance(address, str) and person.get("email_status") == "verified":
+        keys.add(_email_key(address.strip().lower()))
+    return keys
 
 
 def _ladder(
@@ -1064,11 +1111,11 @@ def _ladder(
         ladder.append(_Lookup(known, "id", {"id": known}))
     if identity is not None and url is not None:
         ladder.append(
-            _Lookup(f"linkedin_url:{identity}", "linkedin_url", {"linkedin_url": url})
+            _Lookup(_linkedin_key(identity), "linkedin_url", {"linkedin_url": url})
         )
     address = _address_of(provider, contribution)
     if address is not None:
-        ladder.append(_Lookup(f"email:{address}", "email", {"email": address}))
+        ladder.append(_Lookup(_email_key(address), "email", {"email": address}))
     first = _term(values.get("person.first_name"), _MAX_NAME_LENGTH)
     last = _term(values.get("person.last_name"), _MAX_NAME_LENGTH)
     if first is not None and last is not None:

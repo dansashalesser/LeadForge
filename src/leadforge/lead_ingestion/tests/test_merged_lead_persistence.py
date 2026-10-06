@@ -131,7 +131,10 @@ def test_a_merge_persists_one_canonical_lead_with_its_identity_and_sources(
         assert lead.linkedin_url is not None
         assert lead.contributing_sources == ["alpha", "beta"]
         assert lead.projection_version == 1
-        rows = session.scalars(sa.select(m.SourceContribution)).all()
+        # The lead of a contribution is the derived mapping (0006); the legacy
+        # first-seen column is no longer written (stored before the merge).
+        rows = session.scalars(sa.select(m.ContributionLead)).all()
+        assert len(rows) == 2
         assert {r.lead_identity_id for r in rows} == {lead.lead_identity_id}
         assert session.scalars(sa.select(m.LeadIdentity)).one().id == (
             lead.lead_identity_id

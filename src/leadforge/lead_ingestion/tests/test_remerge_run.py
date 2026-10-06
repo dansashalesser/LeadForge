@@ -75,10 +75,14 @@ async def test_running_twice_on_the_same_data_grows_no_lead_on_each_engine(
     assert _count(composed, m.CanonicalLeadRow) == leads
     assert (again.stored.leads_created, again.stored.leads_retired) == (0, 0)
     assert f"leads: {leads} merged, 0 retired" in first.report_text.splitlines()
-    assert f"leads: {leads} merged, 0 retired" in again.report_text.splitlines()
+    # Incremental: the identical second run re-projects and rewrites nothing.
+    assert "leads: 0 merged, 0 retired" in again.report_text.splitlines()
     with Session(composed.engine) as s:
         runs = s.scalars(sa.select(m.IngestionRun)).all()
-    assert sorted((r.leads_merged, r.leads_retired) for r in runs) == [(leads, 0)] * 2
+    assert sorted((r.leads_merged, r.leads_retired) for r in runs) == [
+        (0, 0),
+        (leads, 0),
+    ]
 
 
 class _Resolver:

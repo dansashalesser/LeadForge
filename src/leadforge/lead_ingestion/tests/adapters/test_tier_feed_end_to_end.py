@@ -94,8 +94,9 @@ class Served:
         headers: Mapping[str, str],
     ) -> TransportResponse:
         name = self._names[endpoint]
-        asked = dict(params or {})
-        Served.calls.append((self._provider, name, {**asked, **(json_body or {})}))
+        # Apollo's match lookup is the JSON body; its search and Hunter use the query.
+        asked = {**(params or {}), **(json_body or {})}
+        Served.calls.append((self._provider, name, asked))
         return self._route(name, asked, json_body or {})
 
 

@@ -33,6 +33,8 @@ EXPECTED_TABLES = {
     "primary_domain_tie_resolution",
     "canonical_lead",
     "canonical_field_provenance",
+    "run_lock",  # 0007
+    "store_secret",  # 0007
 }
 PORTABLE_TYPES = (
     sa.Uuid,

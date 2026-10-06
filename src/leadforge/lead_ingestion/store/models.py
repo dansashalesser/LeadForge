@@ -54,8 +54,10 @@ __all__ = [
     "LeadSuccession",
     "PrimaryDomainTieResolution",
     "RawResponse",
+    "RunLock",
     "SourceContribution",
     "SourceRun",
+    "StoreSecret",
 ]
 
 
@@ -112,6 +114,9 @@ class IngestionRun(Base):
     # Active canonical leads the run's merge wrote, and leads it retired (0006).
     leads_merged: Mapped[int | None] = mapped_column(Integer, nullable=True)
     leads_retired: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Clusters the run re-projected, and how (0007): ``incremental`` or ``full: <why>``.
+    clusters_reprojected: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reprojection: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class SourceRun(Base):
@@ -158,6 +163,7 @@ class RawResponse(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     source_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_run.id"))
     endpoint_key: Mapped[str] = mapped_column(String(128))
+    # An opaque random value since 0007: nothing looks a payload up by it.
     request_fingerprint: Mapped[str] = mapped_column(String(128))
     payload: Mapped[Any] = mapped_column(JSON, deferred=True)
     fetched_at: Mapped[datetime] = _utc()
@@ -213,23 +219,20 @@ class IdentityKey(Base):
 class SourceContribution(Base):
     """Append-only: one source's view of one lead.
 
-    ``lead_identity_id`` is the lead it was first merged into; the current lead is the
-    derived ``ContributionLead``. ``content_sha`` (0006) is the contribution's identity
-    (``store.contributions.contribution_sha``): the same observation is stored once.
-    NULL on rows written before 0006.
+    Its lead is the derived ``ContributionLead`` (0007 dropped the first-seen
+    ``lead_identity_id``: a contribution is stored before any lead exists).
+    ``content_sha`` (0006) is the contribution's identity, keyed under the store's
+    key since 0007 (``store.store_key``): the same observation is stored once. NULL on
+    rows written before 0006.
     """
 
     __tablename__ = "source_contribution"
     __table_args__ = (
-        Index("ix_source_contribution_lead_identity_id", "lead_identity_id"),
         UniqueConstraint("content_sha", name="uq_source_contribution_content_sha"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     source_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_run.id"))
-    lead_identity_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("lead_identity.id"), nullable=True
-    )
     # NULL once the raw payload expired and was purged (9.8): the database detaches the
     # row (ON DELETE SET NULL), so the append-only guard never sees an UPDATE.
     raw_response_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -379,6 +382,34 @@ class PrimaryDomainTieResolution(Base):
     model: Mapped[str] = mapped_column(String(128))
     prompt_version: Mapped[str] = mapped_column(String(64))
     resolved_at: Mapped[datetime] = _utc()
+
+
+class RunLock(Base):
+    """The one-run-at-a-time lock (0007): one row per lock name, seeded by migration.
+
+    ``holder`` is the run's random token (NULL: free); a holder whose ``expires_at``
+    passed is stale and may be taken over (``store.run_lock``).
+    """
+
+    __tablename__ = "run_lock"
+
+    name: Mapped[str] = mapped_column(String(32), primary_key=True)
+    holder: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    acquired_at: Mapped[datetime | None] = _utc(nullable=True)
+    expires_at: Mapped[datetime | None] = _utc(nullable=True)
+
+
+class StoreSecret(Base):
+    """The store's own random HMAC key (0007), written once by migration.
+
+    ``content_sha`` is keyed by it (``store.store_key``), so no plain hash of
+    personal data is stored. Never logged or reported.
+    """
+
+    __tablename__ = "store_secret"
+
+    name: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[str] = mapped_column(String(128))
 
 
 def _check_string_columns(mapper: Mapper[Any], connection: Any, target: Any) -> None:

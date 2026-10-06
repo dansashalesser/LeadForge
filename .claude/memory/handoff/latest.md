@@ -1,6 +1,6 @@
 # Session Handoff
 
-- Written: 2026-10-06T13:45:59+00:00
+- Written: 2026-10-06T14:03:56+00:00
 - Trigger: agent-spawn
 - Source transcript: /root/.claude/projects/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f.jsonl
 - cwd: /home/user/LeadForge
@@ -10,19 +10,12 @@
 This session's worker process was restarted. If your previous turn was already complete, take no action and wait for the next event. Otherwise, continue from where you left off.
 
 ## Last assistant text
-Only four harness memory files are uncommitted; no code has changed yet. The safety check blocked a commit of just these files earlier, so I'm not retrying it. They'll go in with the first follow-up commit.
-
-The three follow-up agents are still running:
-- saving runs and concurrency;
-- merge rules;
-- adapters.
+The uncommitted changes are the persistence follow-ups, which are in self-review, and the adapter follow-ups, which are still being built. Each will be committed after its self-review passes.
 
 ## In-flight todos
 _(none captured)_
 
 ## Files / commands touched (most recent last)
-- $ uv run pytest -q 2>&1 | grep -i "error" | head -10
-- $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && grep -n "note" models.py fixture*.py 2>/dev/null | grep -i "ma
 - $ uv run pytest -q 2>&1 | grep -E "^FAILED|^E " | head -8
 - $ cd /home/user/LeadForge/src/leadforge/lead_ingestion && sed -i 's/Unverified: its outcome comes from the hs_is_closed 
 - $ git status --short | grep -v '^.. \.claude' | head; git add .claude/memory .claude/behaviors 2>/dev/null; git diff --c
@@ -48,3 +41,5 @@ Co-Authored-By: Cla
 - $ grep -n "^- \[.\] 16.11 " specs/lead-source-adapters/tasks.md | cut -c1-60; git status --short | head -5; grep -c "^- 
 - $ grep -n "^  *- \[ \]" specs/lead-source-adapters/tasks.md | head -3; sed -i 's/^- \[ \] 14\. Google Search Source adap
 - $ git status --short | grep -v '^.. \.claude' | head -5; git status --short | grep -c '^.. \.claude'
+- $ git diff --stat -- src/leadforge/lead_ingestion/tests/test_projection_version.py specs/ src/leadforge/lead_ingestion/m
+- $ S=/tmp/claude-0/-home-user-LeadForge/14914905-130a-5b7c-bbb3-5f689299081f/scratchpad && L=src/leadforge/lead_ingestion

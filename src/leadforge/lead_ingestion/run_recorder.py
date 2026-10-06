@@ -89,33 +89,50 @@ class StoreRunRecorder:
         if results is None:
             await self.abort(run_id, reason=None)
             return
-        await self._writer.write_batch(self.completion(run_id, results))
+        spend, complete = self.spend(run_id, results), self.completion(run_id, results)
 
-    def completion(
+        def write(session: Session) -> None:
+            spend(session)
+            complete(session)
+
+        await self._writer.write_batch(write)
+
+    def spend(
         self, run_id: uuid.UUID, results: tuple[SourceResult, ...]
     ) -> Callable[[Session], None]:
-        """The completing write, to run inside the caller's transaction.
+        """Every source's counts (calls, records, credits) and the contributions
+        stored for the run, to run inside the caller's transaction.
 
-        Finishes the record ``completed`` with the mapped exit code, writes every
-        source's counts and counts the contributions stored for the run. Run in the
-        same ``write_batch`` as the merge (follow-up 2026-10-06), a run is completed
-        only when its merge committed, and its ``contributions_written`` are the rows
-        that transaction stored.
+        The composition root runs it in the transaction that stores the run's raw
+        payloads and contributions, BEFORE the merge (follow-up 2026-10-06): what a
+        run spent is recorded even when its merge then fails.
         """
-        finished_at = self._clock()
-        exit_code = map_run_exit(results).exit_code
         counts = build_source_counts(results)
 
         def write(session: Session) -> None:
             repo = RunRecordRepository(session)
-            repo.finish(
+            repo.record_source_counts(run_id, counts)
+            repo.record_contributions_written(run_id)
+
+        return write
+
+    def completion(
+        self, run_id: uuid.UUID, results: tuple[SourceResult, ...]
+    ) -> Callable[[Session], None]:
+        """The completing write, to run inside the caller's transaction: finishes
+        the record ``completed`` with the mapped exit code. Run in the same
+        ``write_batch`` as the merge, a run is completed only when its merge
+        committed."""
+        finished_at = self._clock()
+        exit_code = map_run_exit(results).exit_code
+
+        def write(session: Session) -> None:
+            RunRecordRepository(session).finish(
                 run_id,
                 status=RunStatus.COMPLETED,
                 exit_code=exit_code,
                 finished_at=finished_at,
             )
-            repo.record_source_counts(run_id, counts)
-            repo.record_contributions_written(run_id)
 
         return write
 

@@ -42,6 +42,7 @@ from leadforge.lead_ingestion.base_source import (
 from leadforge.lead_ingestion.clustering import cluster_contributions
 from leadforge.lead_ingestion.compliance import blocked_identities
 from leadforge.lead_ingestion.database import create_store_engine
+from leadforge.lead_ingestion.errors import SourceTransient
 from leadforge.lead_ingestion.ingest_runner import run_ingestion
 from leadforge.lead_ingestion.mode_resolution import ModeResolution
 from leadforge.lead_ingestion.models import ConfidenceOrigin, DataMode
@@ -286,17 +287,22 @@ async def test_one_ask_made_for_two_distinguishable_people_carries_no_echo(
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#13.1
-async def test_an_ask_for_two_people_across_fetches_echoes_neither_later() -> None:
+async def test_an_ask_for_a_second_person_later_emits_no_record_for_them() -> None:
+    # Follow-up fu2: a cached answer is emitted once per run, so the later ask (another
+    # person, same address) gets no record at all, echoed or not. Before, it got an
+    # unechoed repeat of the same contact.
     transport = Contacts([contact(ADA)])
     source = hubspot(transport)
+    batches = []
     for url in (ADA_LINKEDIN, OTHER_LINKEDIN):
         request = EnrichmentRequest(
             kind="enrich",
             work_list=(requester(person__email=ADA, person__linkedin_url=url),),
         )
-        batch = await source.fetch_raw(request)
-    [found] = source.normalize_checked(batch)
-    assert echoed(found) == {}
+        batches.append(await source.fetch_raw(request))
+    [found] = source.normalize_checked(batches[0])
+    assert echoed(found) == {"person.linkedin_url": ADA_LINKEDIN}
+    assert source.normalize_checked(batches[1]) == []
     assert len(transport.bodies) == 1  # the lookup itself is still cached
 
 
@@ -448,7 +454,7 @@ class _ApolloMatches:
         json_body: Mapping[str, object] | None,
         headers: Mapping[str, str],
     ) -> TransportResponse:
-        asked = dict(params or {})
+        asked = dict(json_body or params or {})  # match: JSON body; search: query
         if "page" in asked:
             return ok({"total_entries": 0, "people": []})
         url = str(asked.get("linkedin_url"))
@@ -716,3 +722,61 @@ async def test_run_ingestion_joins_hubspot_contacts_to_the_asked_people(
     # The two contacts give identical observations: stored once, one lead (0006).
     assert len(hubspot_only) == 1
     assert {lead.email for lead in hubspot_only} == {LEE}
+
+
+# ------------------------- a cached answer is emitted once per person (follow-up fu2)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#13.1
+async def test_a_record_re_handed_for_a_new_linkedin_url_emits_no_repeat_record() -> (
+    None
+):
+    # The free second pass re-hands a record whose address was already asked, now with
+    # a LinkedIn URL learned later: HubSpot is asked by address only, so the cached
+    # contact was already emitted for this person and is not emitted again.
+    transport = Contacts([contact(ADA)])
+    source = hubspot(transport)
+    first = EnrichmentRequest(
+        kind="enrich",
+        work_list=(requester(person__email=ADA, person__email_status="verified"),),
+    )
+    again = EnrichmentRequest(
+        kind="enrich",
+        work_list=(
+            requester(
+                person__email=ADA,
+                person__email_status="verified",
+                person__linkedin_url=ADA_LINKEDIN,
+            ),
+        ),
+    )
+    assert len(source.normalize_checked(await source.fetch_raw(first))) == 1
+    repeat = await source.fetch_raw(again)
+    assert source.normalize_checked(repeat) == []
+    assert source.records_fetched(repeat) == 0
+    assert len(transport.bodies) == 1  # and no repeat call
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#13.1
+async def test_a_fetch_that_failed_midway_still_emits_every_answer_on_retry() -> None:
+    # A failed attempt delivers no batch, so nothing it looked up counts as emitted.
+    failures = {"left": 1}
+
+    def found(address: str) -> list[Any]:
+        if address == KIM and failures["left"]:
+            failures["left"] -= 1
+            raise SourceTransient("hubspot", status=503)
+        return [contact(address)]
+
+    source = hubspot(Contacts(found))
+    work = EnrichmentRequest(
+        kind="enrich",
+        work_list=(
+            requester(person__email=ADA, person__email_status="verified"),
+            requester(person__email=KIM, person__email_status="verified"),
+        ),
+    )
+    with pytest.raises(SourceTransient):
+        await source.fetch_raw(work)
+    retried = source.normalize_checked(await source.fetch_raw(work))
+    assert sorted(str(c.values["email"]) for c in retried) == [ADA, KIM]

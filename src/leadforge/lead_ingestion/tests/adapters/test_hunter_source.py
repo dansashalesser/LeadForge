@@ -34,6 +34,7 @@ from leadforge.lead_ingestion.base_source import (
 )
 from leadforge.lead_ingestion.clustering import cluster_contributions
 from leadforge.lead_ingestion.errors import (
+    ConfigurationError,
     MissingCredentialError,
     NormalizationError,
     SourceComplianceRestricted,
@@ -2188,21 +2189,27 @@ RANKS = {"discovery": 2, "hunter": 1, "per_company_probe": 3}
 def requester(
     *,
     first: object = "Ada",
-    last: str = "Lovelace",
-    domain: str = ACME,
+    last: str | None = "Lovelace",
+    domain: str | None = ACME,
     linkedin: str | None = None,
     employer: str | None = None,
+    email: str | None = None,
+    email_status: str | None = None,
 ) -> LeadContribution:
-    """A person another source found: a name and a company, no address."""
-    values: dict[str, object] = {
+    """A person another source found: a name and a company, no address by default.
+
+    A ``None`` name or domain is left out.
+    """
+    optional = {
         "person.first_name": first,
         "person.last_name": last,
         "company.domain": domain,
+        "person.linkedin_url": linkedin,
+        "company.name": employer,
+        "person.email": email,
+        "person.email_status": email_status,
     }
-    if linkedin is not None:
-        values["person.linkedin_url"] = linkedin
-    if employer is not None:
-        values["company.name"] = employer
+    values = {path: value for path, value in optional.items() if value is not None}
     return LeadContribution(
         source_name="discovery",
         values=values,
@@ -2466,3 +2473,176 @@ def test_a_search_whose_addresses_are_not_a_list_cannot_be_priced() -> None:
     )
     with pytest.raises(NormalizationError):
         credits_in(batch)
+
+
+# --- the verifier price depends on the plan (follow-up fu2) -------------------------
+
+HUNTER_CREDITS = (
+    "https://help.hunter.io/en/articles/1911617-how-do-credits-work-in-hunter"
+)
+
+
+def verifications(count: int) -> EnrichmentRequest:
+    return enrich(*(person(email=f"p{n}@example.com") for n in range(count)))
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+@pytest.mark.parametrize(
+    ("plan", "count", "credits"),
+    [
+        (None, 3, 3),  # unset: the conservative price, 1 per verification
+        ("data", 3, 3),
+        (" Data ", 1, 1),
+        ("all-in-one", 1, 1),  # half a credit, rounded up per batch
+        ("all-in-one", 2, 1),
+        ("ALL-IN-ONE", 3, 2),
+    ],
+)
+async def test_the_verifier_price_follows_hunter_plan(
+    plan: str | None, count: int, credits: int
+) -> None:
+    environ = dict(ENV) if plan is None else {**ENV, "HUNTER_PLAN": plan}
+    batch = await live(Routed(), environ=environ).fetch_raw(verifications(count))
+    assert credits_in(batch) == credits
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+async def test_the_plan_prices_verifications_only() -> None:
+    work = enrich(
+        person(email="a@example.com"),
+        person(first="Ada", last="L", domain="b.io"),
+        person(domain="c.io"),
+    )
+    batch = await live(
+        Routed(), environ={**ENV, "HUNTER_PLAN": "all-in-one"}
+    ).fetch_raw(work)
+    assert credits_in(batch) == 3  # search 1 + finder 1 + one half verification -> 1
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#7.1
+@pytest.mark.parametrize("plan", ["starter-plan-sentinel", "0.5", "allinone"])
+async def test_an_unknown_hunter_plan_fails_closed_without_echo(plan: str) -> None:
+    with pytest.raises(ConfigurationError) as caught:
+        HunterSource.run_rate_limit({**ENV, "HUNTER_PLAN": plan})
+    assert "HUNTER_PLAN" in str(caught.value)
+    assert plan not in repr(caught.value) + str(caught.value)
+    transport = Routed()
+    with pytest.raises(ConfigurationError) as again:
+        await live(transport, environ={**ENV, "HUNTER_PLAN": plan}).fetch_raw(
+            verifications(1)
+        )
+    assert plan not in repr(again.value) + str(again.value)
+    assert transport.calls == []  # nothing bought on an unknown price
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#7.1
+def test_a_valid_hunter_plan_leaves_the_documented_buckets() -> None:
+    assert HunterSource.run_rate_limit({"HUNTER_PLAN": "all-in-one"}) == (
+        HunterSource.rate_limit
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#10.4
+def test_hunter_plan_is_a_documented_optional_setting() -> None:
+    assert HunterSource.optional_env == ("HUNTER_PLAN",)
+    note = HunterSource.env_notes["HUNTER_PLAN"]
+    for word in ("data", "all-in-one", HUNTER_CREDITS):
+        assert word in note
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+def test_a_stored_batch_with_an_unknown_plan_is_refused() -> None:
+    batch = RawBatch(
+        source_name="hunter",
+        payload={
+            "searches": [],
+            "finds": [],
+            "verifications": [],
+            "credits_billable": True,
+            "plan": "gold",
+        },
+    )
+    with pytest.raises(NormalizationError):
+        credits_in(batch)
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.8
+async def test_a_stored_batch_from_before_the_plan_is_priced_as_data() -> None:
+    bought = await live(
+        Routed(), environ={**ENV, "HUNTER_PLAN": "all-in-one"}
+    ).fetch_raw(verifications(2))
+    assert credits_in(bought) == 1
+    older = {key: value for key, value in bought.payload.items() if key != "plan"}
+    assert credits_in(RawBatch(source_name="hunter", payload=older)) == 2
+
+
+# --- one person under two records of one name (follow-up fu2) ------------------------
+
+# An address Hunter cannot ask about (not hostname-shaped for its verifier) but that
+# is still a verified-email Match Key, so it links records of one person.
+IDN_ADDRESS = "ada@bücher.example"
+
+
+def one_ada_three_records(*, link: str = IDN_ADDRESS) -> tuple[LeadContribution, ...]:
+    """Ada with her LinkedIn; Ada with no LinkedIn; a record linking both strongly."""
+    return (
+        requester(linkedin=ADA_LINKEDIN),
+        requester(email=IDN_ADDRESS, email_status="verified"),
+        requester(
+            first=None,
+            last=None,
+            domain=None,
+            linkedin=ADA_LINKEDIN,
+            email=link,
+            email_status="verified",
+        ),
+    )
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_records_of_one_person_by_strong_key_share_one_finder_call() -> None:
+    transport = acme_routed(finder=ada_found())
+    source = live(transport)
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(enrich(*one_ada_three_records()))
+    assert len(calls_to(transport, FINDER_PATH)) == 1
+    assert credits_in(batch) == 1
+    assert not [e for e in logs if e["event"] == "hunter_finder_ambiguous"]
+    [contribution] = source.normalize_checked(batch)
+    assert contribution.values["person.email"] == ADA_AT_ACME
+    assert contribution.values["person.linkedin_url"] == ADA_LINKEDIN
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_a_bare_record_not_strongly_linked_still_makes_the_name_ambiguous() -> (
+    None
+):
+    # The linking record names another address, so the bare Ada is not provably the
+    # LinkedIn Ada: one answer could belong to either, so Hunter is not asked.
+    transport = acme_routed(finder=ada_found())
+    source = live(transport)
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(
+            enrich(*one_ada_three_records(link="other@bücher.example"))
+        )
+    assert calls_to(transport, FINDER_PATH) == []
+    assert credits_in(batch) == 0
+    assert [e for e in logs if e["event"] == "hunter_finder_ambiguous"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.3
+async def test_a_shared_address_never_merges_two_linkedin_people_for_the_finder() -> (
+    None
+):
+    # One verified address seen with two LinkedIn identities is shared (8.14): it
+    # links no one, so the two LinkedIn Adas stay two people and nobody is asked.
+    transport = acme_routed(finder=ada_found())
+    source = live(transport)
+    shared = {"email": IDN_ADDRESS, "email_status": "verified"}
+    await source.fetch_raw(
+        enrich(
+            requester(linkedin=ADA_LINKEDIN, **shared),
+            requester(linkedin=OTHER_LINKEDIN, **shared),
+        )
+    )
+    assert calls_to(transport, FINDER_PATH) == []
