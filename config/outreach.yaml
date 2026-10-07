@@ -13,7 +13,8 @@
 # triggers: days after an accepted invite before the email fires (accept_delay_days),
 # and days an invite may stay unanswered before the fallback email (invite_timeout_days).
 #
-# messages: character limits, the bound on regenerations before manual review, and
+# messages: character limits, the bound on regenerations before manual review, how many
+# hook facts of each kind a writer sees (max_hook_facts), and
 # phrases no Message may contain (case-insensitive).
 #
 # llm: the provider and model used when LEADFORGE_LLM_PROVIDER and LEADFORGE_LLM_MODEL
@@ -50,6 +51,7 @@ messages:
   email_subject_max_chars: 80
   email_max_chars: 1200
   max_regenerations: 3
+  max_hook_facts: 3
   banned_phrases:
     - hope this email finds you well
     - touch base

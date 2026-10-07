@@ -82,6 +82,8 @@ class MessageConfig(_Frozen):
     email_subject_max_chars: Count
     email_max_chars: Count
     max_regenerations: Annotated[int, Field(ge=0)]
+    # How many tech, intent and web-evidence facts of each kind a writer is shown.
+    max_hook_facts: Count
     banned_phrases: tuple[Annotated[str, Field(min_length=1)], ...]
 
 

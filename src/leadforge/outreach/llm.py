@@ -7,11 +7,13 @@ path and say so. LangChain's model layer builds the chat model, so a different p
 is a different environment variable, not a code edit.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
+from pydantic import BaseModel
 
 from leadforge.outreach.config import LlmConfig
 
@@ -19,6 +21,8 @@ __all__ = [
     "MODEL_ENV",
     "PROVIDER_ENV",
     "LlmSettings",
+    "ModelInvoker",
+    "StructuredModel",
     "build_chat_model",
     "llm_settings",
 ]
@@ -55,3 +59,20 @@ def build_chat_model(
         api_key=environ[settings.key_env],
         timeout=settings.timeout_s,
     )
+
+
+class ModelInvoker(Protocol):
+    """A model that answers a list of ``(role, text)`` messages with something
+    shaped like the schema it was built for."""
+
+    def invoke(self, messages: Sequence[tuple[str, str]]) -> object: ...
+
+
+class StructuredModel:
+    """``ModelInvoker`` over a LangChain chat model's structured output."""
+
+    def __init__(self, chat: BaseChatModel, schema: type[BaseModel]) -> None:
+        self._structured = chat.with_structured_output(schema)
+
+    def invoke(self, messages: Sequence[tuple[str, str]]) -> object:
+        return self._structured.invoke(list(messages))

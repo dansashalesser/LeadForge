@@ -75,6 +75,7 @@ def test_a_changed_value_changes_the_setting_with_no_code_change(
         ("triggers.invite_timeout_days", "soon"),
         ("messages.invite_max_chars", 0),
         ("messages.max_regenerations", -1),
+        ("messages.max_hook_facts", 0),
         ("llm.timeout_s", 0),
         ("llm.compile_retries", -1),
         ("qualify.customer_stages", [""]),

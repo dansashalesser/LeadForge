@@ -12,16 +12,15 @@ output schema.
 """
 
 from collections.abc import Collection, Sequence
-from typing import Protocol
 
-from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from leadforge.outreach.errors import PlanCompileError, UnknownTermError
+from leadforge.outreach.llm import ModelInvoker
 from leadforge.outreach.prompts import Prompt, delimit
 from leadforge.outreach.search_plan import SearchPlan, SearchRequest, check_terms
 
-__all__ = ["LangChainPlanModel", "LlmCompiler", "PlanDraft", "PlanModel"]
+__all__ = ["LlmCompiler", "PlanDraft"]
 
 Messages = Sequence[tuple[str, str]]
 
@@ -40,28 +39,12 @@ class PlanDraft(BaseModel):
     seniorities: tuple[str, ...] = ()
 
 
-class PlanModel(Protocol):
-    """A model that answers a message list with something plan-shaped."""
-
-    def invoke(self, messages: Messages) -> object: ...
-
-
-class LangChainPlanModel:
-    """``PlanModel`` over a LangChain chat model's structured output."""
-
-    def __init__(self, chat: BaseChatModel) -> None:
-        self._structured = chat.with_structured_output(PlanDraft)
-
-    def invoke(self, messages: Messages) -> object:
-        return self._structured.invoke(list(messages))
-
-
 class LlmCompiler:
     """``SearchCompiler`` that asks a model, validates, and retries a bounded number."""
 
     def __init__(
         self,
-        model: PlanModel,
+        model: ModelInvoker,
         prompt: Prompt,
         known_terms: Collection[str],
         *,

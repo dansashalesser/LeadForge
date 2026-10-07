@@ -1,0 +1,10 @@
+# Fragments the offline writer joins into a Message; one "key: text" per line.
+# {title}, {company} and {value} are filled from the Lead's own facts.
+greeting.none: there
+role.title_company: I noticed you are {title} at {company}.
+role.title: I noticed you are {title}.
+role.company: I noticed your work at {company}.
+role.none: I came across your profile.
+hook.tech: Your use of {value} caught my eye.
+hook.intent: I saw signs of activity around {value}.
+hook.evidence: I read "{value}" and thought of you.

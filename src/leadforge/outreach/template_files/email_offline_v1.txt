@@ -1,0 +1,9 @@
+Subject: A note for {first_name}{at_company}
+
+Hi {first_name},
+
+{role_line}{hook_line}
+
+If it would help, I can share what we have seen from teams in a similar position. Would a short conversation be useful?
+
+Thanks for your time.

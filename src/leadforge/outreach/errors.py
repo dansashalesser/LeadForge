@@ -45,3 +45,11 @@ class MissingDomainError(ValueError):
 
 class PlanCompileError(RuntimeError):
     """A query could not be compiled into a valid Search Plan."""
+
+
+class MessageGenerationError(RuntimeError):
+    """The model call that writes or judges a Message failed (type only, no text)."""
+
+
+class MessageValidationError(ValueError):
+    """A Message that failed its checks was offered for storage."""
