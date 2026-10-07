@@ -282,13 +282,22 @@ def live_rate_limits(
     return limits
 
 
-def _read_profile(registry: SourceRegistry, path: Path | None) -> TargetProfile | None:
-    """The Target Profile, or ``None`` when no path was given and none is in reach."""
-    if path is None:
-        if not DEFAULT_TARGET_PROFILE_PATH.is_file():
-            return None
+def _read_profile(
+    registry: SourceRegistry, path: Path | None, given: TargetProfile | None = None
+) -> TargetProfile | None:
+    """The Target Profile, or ``None`` when none was given and none is in reach.
+
+    A ready ``given`` profile is used as is; a path (or the default file) is loaded.
+    """
+    if given is not None:
+        profile = given
         path = DEFAULT_TARGET_PROFILE_PATH
-    profile = load_target_profile(path)
+    else:
+        if path is None:
+            if not DEFAULT_TARGET_PROFILE_PATH.is_file():
+                return None
+            path = DEFAULT_TARGET_PROFILE_PATH
+        profile = load_target_profile(path)
     unregistered = check_against_registry(profile, registry, path=path)
     if unregistered:
         _log.warning("target_profile_names_unregistered_sources", sources=unregistered)
@@ -300,6 +309,7 @@ async def run_ingestion(
     registry: SourceRegistry | None = None,
     sources_path: Path | None = None,
     target_profile_path: Path | None = None,
+    target_profile: TargetProfile | None = None,
     exclusions_path: Path | None = None,
     env_file_path: Path | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
@@ -316,13 +326,21 @@ async def run_ingestion(
     default, so such a tie stays the flagged fallback. ``transport_factory`` replaces
     ``BaseLeadSource.build_transport`` (the demo dataset's routed transport);
     ``synthetic_retry`` gives synthetic sources a retry policy (none by default).
+    ``target_profile`` is a ready profile used instead of a file; giving it together
+    with ``target_profile_path`` is a ``ConfigurationError``.
     """
+    if target_profile is not None and target_profile_path is not None:
+        raise ConfigurationError(
+            "run_ingestion",
+            key_path="target_profile",
+            detail="give a profile object or a profile path, not both",
+        )
     load_env_file_into_process(env_file_path)
     if registry is None:
         registry = SourceRegistry.discover(config=load_source_settings(sources_path))
     pool = load_max_concurrent_sources(sources_path)
     timeout = load_run_timeout_s(sources_path)
-    profile = _read_profile(registry, target_profile_path)
+    profile = _read_profile(registry, target_profile_path, target_profile)
     exclusions = load_identity_exclusions(exclusions_path)
     global_mode = _global_mode()
     digester = match_key_digester_from_environ(os.environ)

@@ -69,23 +69,28 @@ from leadforge.lead_ingestion.store.models import (
     CanonicalFieldProvenance,
     CanonicalLeadRow,
     ContributionField,
+    ContributionLead,
     LeadIdentity,
     LeadSuccession,
     SourceContribution,
+    SourceRun,
 )
 from leadforge.lead_ingestion.store.run_records import RunRecordRepository
 from leadforge.lead_ingestion.tie_resolution import TieOutcome, TieSource
 
 __all__ = [
+    "CrmState",
     "StoredLead",
     "SuccessionError",
     "WebEvidence",
+    "crm_state",
     "find_lead",
     "list_leads",
     "load_lead",
 ]
 
 DEFAULT_PAGE = 50
+_CRM_PATHS = ("crm.contact_exists", "crm.lifecycle_stage", "crm.has_open_deal")
 _EVIDENCE = "company.web_evidence."
 _ATTACHMENT = _EVIDENCE + "attachment"
 _COMPANY_DOMAIN = "company.domain"
@@ -118,6 +123,15 @@ class WebEvidence:
     # The company's registrable domains the record names.
     domains: tuple[str, ...]
     values: Mapping[str, Any] = field(repr=False)
+
+
+@dataclass(frozen=True)
+class CrmState:
+    """A lead's CRM contribution fields, newest stored value each; ``None`` if none."""
+
+    contact_exists: bool | None = None
+    lifecycle_stage: str | None = None
+    has_open_deal: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -189,14 +203,30 @@ def list_leads(
     *,
     include_retired: bool = False,
     company_id: str | None = None,
+    run_id: uuid.UUID | None = None,
     limit: int = DEFAULT_PAGE,
     after: uuid.UUID | None = None,
     current_version: int | None = None,
 ) -> tuple[StoredLead, ...]:
-    """Up to ``limit`` leads ordered by id, after the keyset cursor ``after``."""
+    """Up to ``limit`` leads ordered by id, after the keyset cursor ``after``.
+
+    With ``run_id`` only leads holding a contribution of that ingestion run.
+    """
     if limit < 1:
         raise ValueError("limit must be at least 1")
     criteria: list[sa.ColumnElement[bool]] = []
+    if run_id is not None:
+        criteria.append(
+            CanonicalLeadRow.lead_identity_id.in_(
+                sa.select(ContributionLead.lead_identity_id)
+                .join(
+                    SourceContribution,
+                    SourceContribution.id == ContributionLead.contribution_id,
+                )
+                .join(SourceRun, SourceRun.id == SourceContribution.source_run_id)
+                .where(SourceRun.run_id == run_id)
+            )
+        )
     if not include_retired:
         criteria.append(LeadIdentity.retired_at.is_(None))
     if company_id is not None:
@@ -221,6 +251,56 @@ def list_leads(
             break
         after = loaded[-1].lead_id
     return tuple(out)
+
+
+def crm_state(
+    session: Session, lead_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, CrmState]:
+    """The CRM state of each lead: its newest stored ``crm.*`` contribution fields.
+
+    One query for any number of leads. Every given id is a key; a lead no CRM source
+    contributed to has an all-``None`` state. Reads contribution fields, not the
+    projection: the projection drops them.
+    """
+    found: dict[uuid.UUID, dict[str, tuple[datetime, Any]]] = defaultdict(dict)
+    if lead_ids:
+        rows = session.execute(
+            sa.select(
+                ContributionLead.lead_identity_id,
+                ContributionField.canonical_path,
+                ContributionField.value,
+                SourceContribution.fetched_at,
+            )
+            .join(
+                SourceContribution,
+                SourceContribution.id == ContributionLead.contribution_id,
+            )
+            .join(
+                ContributionField,
+                ContributionField.contribution_id == SourceContribution.id,
+            )
+            .where(
+                ContributionLead.lead_identity_id.in_(list(lead_ids)),
+                ContributionField.canonical_path.in_(_CRM_PATHS),
+            )
+        ).all()
+        for lead_id, path, value, fetched_at in rows:
+            seen = found[lead_id].get(path)
+            if seen is None or aware_utc(fetched_at) > seen[0]:
+                found[lead_id][path] = (aware_utc(fetched_at), value)
+
+    def pick(lead_id: uuid.UUID, path: str) -> Any:
+        hit = found[lead_id].get(path)
+        return None if hit is None else hit[1]
+
+    return {
+        lead_id: CrmState(
+            contact_exists=pick(lead_id, "crm.contact_exists"),
+            lifecycle_stage=pick(lead_id, "crm.lifecycle_stage"),
+            has_open_deal=pick(lead_id, "crm.has_open_deal"),
+        )
+        for lead_id in lead_ids
+    }
 
 
 def find_lead(

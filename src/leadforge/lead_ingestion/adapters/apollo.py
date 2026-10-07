@@ -227,6 +227,11 @@ _CATEGORY_COLUMN = "Category"
 _TECHNOLOGY_COLUMN = "Technology"
 
 _UID_PARAM = "currently_using_any_of_technology_uids[]"
+# The same search filtered by employer domain instead of technology (workers mode).
+_DOMAIN_PARAM = "q_organization_domains_list[]"
+# A vocabulary value ``{DOMAINS_KEY: [domain, ...]}`` asks for people working at them.
+DOMAINS_KEY = "organization_domains"
+_DOMAIN = re.compile(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}")
 _KEY_HEADER = "x-api-key"
 _KEY_ENV = "APOLLO_API_KEY"
 _DOCS = "https://docs.apollo.io/reference/people-api-search"
@@ -493,9 +498,9 @@ class ApolloSource(BaseLeadSource):
         # LinkedIn identities (None: none) that asked each lookup, across fetches.
         self._asked_for: dict[str, set[str | None]] = {}
         self._allowances: dict[str, int] = {}
-        self._uids = uids_of(
-            self.target_vocabulary if vocabulary is None else vocabulary
-        )
+        chosen = self.target_vocabulary if vocabulary is None else vocabulary
+        self._uids = uids_of(chosen)
+        self._domains = domains_of(chosen)
 
     @classmethod
     def from_run(
@@ -563,27 +568,32 @@ class ApolloSource(BaseLeadSource):
             return await self._enrich(request)
         headers = self._headers()
         people: dict[str, Mapping[str, Any]] = {}
-        for uid in self._uids:
+        # A domain search carries no technology filter, and the other way round.
+        asks = [*((_UID_PARAM, u) for u in self._uids)]
+        asks += [(_DOMAIN_PARAM, d) for d in self._domains]
+        for param, value in asks:
             matched = False
             for number in range(1, MAX_PAGE + 1):
-                found = await self._search(uid, number, headers)
+                found = await self._search(param, value, number, headers)
                 matched = matched or bool(found)
                 for person in found:
                     people.setdefault(str(person.get("id")), person)
                 if len(found) < self._per_page:
                     break
-            if not matched:
-                _log.warning("apollo_technology_no_matches", uid=uid)
+            if not matched and param == _UID_PARAM:
+                _log.warning("apollo_technology_no_matches", uid=value)
+            elif not matched:
+                _log.warning("apollo_domain_no_matches")
         return RawBatch(
             source_name=self.name, payload={"people": list(people.values())}
         )
 
     async def _search(
-        self, uid: str, number: int, headers: Mapping[str, str]
+        self, param: str, value: str, number: int, headers: Mapping[str, str]
     ) -> list[Mapping[str, Any]]:
         response = await self._send(
             _SEARCH,
-            params={_UID_PARAM: uid, "page": number, "per_page": self._per_page},
+            params={param: value, "page": number, "per_page": self._per_page},
             json_body=None,
             headers=headers,
         )
@@ -1308,6 +1318,8 @@ def uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
     """
     uids: dict[str, None] = {}
     for term, value in vocabulary.items():
+        if _is_domain_filter(value):
+            continue
         items = [value] if isinstance(value, str) else value
         if not isinstance(items, list | tuple) or not all(
             isinstance(i, str) and i.strip() and technology_uid(i) == i for i in items
@@ -1318,6 +1330,36 @@ def uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
             )
         uids.update(dict.fromkeys(items))
     return tuple(uids)
+
+
+def _is_domain_filter(value: object) -> bool:
+    return isinstance(value, Mapping) and DOMAINS_KEY in value
+
+
+def domains_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
+    """Every employer domain asked for by the vocabulary, first appearance, no repeats.
+
+    A domain filter is ``{"organization_domains": [domain, ...]}`` and nothing else;
+    each domain must be hostname-shaped, so a bad one fails at startup instead of
+    spending a search that can match nothing.
+    """
+    domains: dict[str, None] = {}
+    for term, value in vocabulary.items():
+        if not isinstance(value, Mapping) or DOMAINS_KEY not in value:
+            continue
+        items = value[DOMAINS_KEY]
+        if (
+            set(value) != {DOMAINS_KEY}
+            or not isinstance(items, list | tuple)
+            or not items
+            or not all(isinstance(i, str) and _DOMAIN.fullmatch(i) for i in items)
+        ):
+            raise ValueError(
+                f"apollo vocabulary for term {term!r} must be "
+                f"{{{DOMAINS_KEY!r}: [lowercase domain, ...]}} and nothing else"
+            )
+        domains.update(dict.fromkeys(items))
+    return tuple(domains)
 
 
 def technology_uid(name: str) -> str:

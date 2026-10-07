@@ -54,6 +54,7 @@ from leadforge.lead_ingestion.throttle import SourceThrottle
 from leadforge.lead_ingestion.transport import RestTransport, TransportResponse
 
 UID_PARAM = "currently_using_any_of_technology_uids[]"
+DOMAIN_PARAM = "q_organization_domains_list[]"
 SEARCH_PATH = "/api/v1/mixed_people/api_search"
 MATCH_PATH = "/api/v1/people/match"
 FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "apollo"
@@ -192,6 +193,42 @@ async def test_without_a_profile_the_adapters_declared_default_is_used() -> None
         "datastax",
         "cassandra",
     }
+
+
+# Verifies: specs/hunter-outreach/requirements.md#3.1
+async def test_a_domain_filter_is_the_same_search_with_no_technology() -> None:
+    transport = Scripted(lambda _: page(0, 0))
+    vocabulary = {"acme": {"organization_domains": ["acme.com", "acme.io"]}}
+    await live(transport, vocabulary=vocabulary).fetch_raw(REQUEST)
+    assert [(c[0].path, c[1][DOMAIN_PARAM]) for c in transport.calls] == [
+        (SEARCH_PATH, "acme.com"),
+        (SEARCH_PATH, "acme.io"),
+    ]
+    assert all(UID_PARAM not in c[1] for c in transport.calls)
+
+
+# Verifies: specs/hunter-outreach/requirements.md#3.1
+async def test_domain_terms_and_technology_terms_make_separate_searches() -> None:
+    transport = Scripted(lambda _: page(0, 0))
+    vocabulary = {"t": ["datastax"], "acme": {"organization_domains": ["acme.com"]}}
+    await live(transport, vocabulary=vocabulary).fetch_raw(REQUEST)
+    filters = [{UID_PARAM, DOMAIN_PARAM} & set(c[1]) for c in transport.calls]
+    assert filters == [{UID_PARAM}, {DOMAIN_PARAM}]
+
+
+# Verifies: specs/hunter-outreach/requirements.md#3.1
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"organization_domains": []},
+        {"organization_domains": ["Not A Domain"]},
+        {"organization_domains": ["acme.com"], "other": 1},
+    ],
+)
+def test_a_malformed_domain_filter_is_refused_at_startup(bad: object) -> None:
+    transport = Scripted(lambda _: page(0, 0))
+    with pytest.raises(ValueError, match="acme"):
+        live(transport, vocabulary={"acme": bad})
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.13
