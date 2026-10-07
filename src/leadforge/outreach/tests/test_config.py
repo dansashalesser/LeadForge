@@ -48,7 +48,11 @@ def test_the_shipped_file_loads_with_every_setting() -> None:
     assert config.messages.invite_max_chars == 300
     assert config.messages.max_regenerations >= 0
     assert config.llm.timeout_s > 0
+    assert config.llm.compile_retries >= 0
+    assert config.llm.provider
+    assert config.llm.model
     assert config.outbox_path == Path("outbox/dry_run.jsonl")
+    assert config.sources.domain_key
 
 
 # Verifies: outreach requirements 14.1
@@ -72,7 +76,9 @@ def test_a_changed_value_changes_the_setting_with_no_code_change(
         ("messages.invite_max_chars", 0),
         ("messages.max_regenerations", -1),
         ("llm.timeout_s", 0),
+        ("llm.compile_retries", -1),
         ("qualify.customer_stages", [""]),
+        ("sources.domain_filter", ""),
     ],
 )
 def test_a_bad_value_is_a_named_error_that_never_echoes_it(

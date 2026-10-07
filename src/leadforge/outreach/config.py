@@ -23,8 +23,10 @@ __all__ = [
     "OutreachConfig",
     "QualifyConfig",
     "QualifyWeights",
+    "SourcesConfig",
     "TriggerConfig",
     "load_outreach_config",
+    "read_yaml_mapping",
 ]
 
 DEFAULT_OUTREACH_CONFIG_PATH = Path("config/outreach.yaml")
@@ -84,10 +86,30 @@ class MessageConfig(_Frozen):
 
 
 class LlmConfig(_Frozen):
+    """Model defaults; the ``LEADFORGE_LLM_*`` environment variables override them."""
+
+    provider: Annotated[str, Field(min_length=1)]
+    model: Annotated[str, Field(min_length=1)]
     timeout_s: Annotated[float, Field(gt=0, allow_inf_nan=False)]
+    # Extra tries when the model returns a plan that does not validate.
+    compile_retries: Annotated[int, Field(ge=0)]
+
+
+class SourcesConfig(_Frozen):
+    """Which source columns of a Target Profile take which kind of search.
+
+    The outreach code names no source: it writes a profile with a domain filter under
+    ``domain_filter`` (as ``{domain_key: [domain, ...]}``) and a plain phrase list under
+    ``phrase_search``.
+    """
+
+    domain_filter: Annotated[str, Field(min_length=1)]
+    domain_key: Annotated[str, Field(min_length=1)]
+    phrase_search: Annotated[str, Field(min_length=1)]
 
 
 class OutreachConfig(_Frozen):
+    sources: SourcesConfig
     qualify: QualifyConfig
     triggers: TriggerConfig
     messages: MessageConfig
@@ -95,9 +117,9 @@ class OutreachConfig(_Frozen):
     outbox_path: Path
 
 
-def load_outreach_config(path: str | Path | None = None) -> OutreachConfig:
-    """The outreach settings, from ``path`` or ``DEFAULT_OUTREACH_CONFIG_PATH``."""
-    file = Path(path) if path is not None else DEFAULT_OUTREACH_CONFIG_PATH
+def read_yaml_mapping(path: str | Path) -> dict[str, object]:
+    """The mapping a YAML file holds, or ``OutreachConfigError`` naming the file."""
+    file = Path(path)
     try:
         text = file.read_text(encoding="utf-8")
     except OSError as error:
@@ -114,6 +136,13 @@ def load_outreach_config(path: str | Path | None = None) -> OutreachConfig:
         raise OutreachConfigError(
             str(file), key_path="", detail="the document must be a mapping"
         )
+    return document
+
+
+def load_outreach_config(path: str | Path | None = None) -> OutreachConfig:
+    """The outreach settings, from ``path`` or ``DEFAULT_OUTREACH_CONFIG_PATH``."""
+    file = Path(path) if path is not None else DEFAULT_OUTREACH_CONFIG_PATH
+    document = read_yaml_mapping(file)
     try:
         config = OutreachConfig.model_validate(document)
     except ValidationError as error:

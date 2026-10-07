@@ -1,6 +1,10 @@
 # Outreach settings (requirement 14.1): every number the outreach slice uses lives here,
 # never in code. Change a value and rerun; no code edit is needed.
 #
+# sources: the source columns a search is written for. domain_filter takes the people of
+# a company by its domains (as {domain_key: [domain, ...]}); phrase_search takes plain
+# search phrases (a company that has no entry in company_terms.yaml).
+#
 # qualify.weights: one weight per scoring term. A Lead's score is the weighted mean of
 # its term values (each 0..1), so it stays in 0..1 whatever the weights sum to.
 # qualify.threshold: the least score a Lead needs to be selected (0..1).
@@ -12,10 +16,18 @@
 # messages: character limits, the bound on regenerations before manual review, and
 # phrases no Message may contain (case-insensitive).
 #
-# llm.timeout_s: seconds one model call may take. Provider and model come from the
-# environment, not from this file.
+# llm: the provider and model used when LEADFORGE_LLM_PROVIDER and LEADFORGE_LLM_MODEL
+# are not set (the environment wins, so a different provider needs no edit here); the key
+# is read from <PROVIDER>_API_KEY. timeout_s is how long one model call may take, and
+# compile_retries how many more times a free-text query is compiled when the model's
+# plan does not validate.
 #
 # outbox_path: the JSONL file every dry-run Message is appended to.
+
+sources:
+  domain_filter: apollo
+  domain_key: organization_domains
+  phrase_search: google_search
 
 qualify:
   weights:
@@ -46,6 +58,9 @@ messages:
     - game-changer
 
 llm:
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
   timeout_s: 30
+  compile_retries: 2
 
 outbox_path: outbox/dry_run.jsonl

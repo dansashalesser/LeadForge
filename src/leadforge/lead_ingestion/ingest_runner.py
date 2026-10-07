@@ -190,8 +190,13 @@ class _DeferredCompletion:
     expects.
     """
 
-    def __init__(self, inner: StoreRunRecorder) -> None:
+    def __init__(
+        self,
+        inner: StoreRunRecorder,
+        on_started: Callable[[uuid.UUID], None] | None = None,
+    ) -> None:
         self._inner = inner
+        self._on_started = on_started
         self.run_id: uuid.UUID | None = None
 
     async def start(
@@ -210,6 +215,13 @@ class _DeferredCompletion:
             run_timeout_s=run_timeout_s,
             live_access=live_access,
         )
+        if self._on_started is not None:
+            try:
+                self._on_started(self.run_id)
+            except BaseException as error:
+                # The run record exists but no source has run: close it, then stop.
+                await _abort(self._inner, self.run_id, "on_run_started", error)
+                raise
         return self.run_id
 
     async def finish(
@@ -316,6 +328,7 @@ async def run_ingestion(
     tie_resolver: Callable[[], TieResolver] | None = None,
     transport_factory: TransportFactory | None = None,
     synthetic_retry: RetryPolicy | None = None,
+    on_run_started: Callable[[uuid.UUID], None] | None = None,
 ) -> IngestionOutcome:
     """Run every enabled source, merge and persist, and report. Raises on bad config.
 
@@ -327,7 +340,10 @@ async def run_ingestion(
     ``BaseLeadSource.build_transport`` (the demo dataset's routed transport);
     ``synthetic_retry`` gives synthetic sources a retry policy (none by default).
     ``target_profile`` is a ready profile used instead of a file; giving it together
-    with ``target_profile_path`` is a ``ConfigurationError``.
+    with ``target_profile_path`` is a ``ConfigurationError``. ``on_run_started`` is
+    called with the run id once the run record exists and before any source is built or
+    called, so a caller can link its own record to the run; if it raises, the run is
+    marked aborted (``on_run_started: <exception class>``) and the exception propagates.
     """
     if target_profile is not None and target_profile_path is not None:
         raise ConfigurationError(
@@ -384,7 +400,7 @@ async def run_ingestion(
                 global_mode=global_mode,
                 match_key_digests_comparable=digester.comparable_across_runs,
             )
-            recorder = _DeferredCompletion(store_recorder)
+            recorder = _DeferredCompletion(store_recorder, on_run_started)
 
             def build(
                 source_class: type[BaseLeadSource],
