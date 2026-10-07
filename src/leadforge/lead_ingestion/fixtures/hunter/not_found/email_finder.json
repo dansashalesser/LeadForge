@@ -1,0 +1,11 @@
+{
+  "data": {
+    "first_name": "Ada",
+    "last_name": "Lovelace",
+    "email": null,
+    "score": null,
+    "domain": "example.com",
+    "sources": []
+  },
+  "meta": {"params": {"first_name": "Ada", "last_name": "Lovelace", "domain": "example.com"}}
+}

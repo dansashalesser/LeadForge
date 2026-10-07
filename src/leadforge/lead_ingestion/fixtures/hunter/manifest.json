@@ -1,0 +1,101 @@
+{
+  "provider": "hunter",
+  "fixtures": [
+    {
+      "file": "domain_search.json",
+      "endpoint": "domain_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Every field (data domain, disposable, webmail, accept_all, pattern, organization, emails[] with value, type, confidence, names, position, seniority, department, linkedin, twitter, phone_number, sources[], verification{date,status}; meta results, limit, offset, params) matched the Domain Search example at https://hunter.io/api-documentation/v2, read in full on 2026-10-06."
+    },
+    {
+      "file": "email_finder.json",
+      "endpoint": "email_finder",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Every field matched the Email Finder example at https://hunter.io/api-documentation/v2, read in full on 2026-10-06."
+    },
+    {
+      "file": "email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. data.status (one of six documented values), score and email matched the Email Verifier docs at https://hunter.io/api-documentation/v2, read in full on 2026-10-06."
+    },
+    {
+      "file": "no_emails/domain_search.json",
+      "endpoint": "domain_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made copy of Hunter's documented Domain Search \"200 OK (no results)\" answer; not a capture (data.domain null, emails []), from https://hunter.io/api-documentation/v2, read in full on 2026-10-06. meta.limit is the 100 this adapter asks and params keep the asked domain only (task 17.3 outcome variant)."
+    },
+    {
+      "file": "not_found/email_finder.json",
+      "endpoint": "email_finder",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a finder call that found no address; not a capture (task 17.3 outcome variant). The docs say only \"If no email can be found, no credit is charged\" (2026-10-06): the not-found shape stays UNVERIFIED."
+    },
+    {
+      "file": "invalid/email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for an invalid verdict (task 17.3 outcome variant); not a capture. Shape and the invalid status matched the Email Verifier docs at https://hunter.io/api-documentation/v2 on 2026-10-06."
+    },
+    {
+      "file": "accept_all/email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for an accept_all verdict (task 17.3 outcome variant); not a capture. Shape and the accept_all status matched the Email Verifier docs at https://hunter.io/api-documentation/v2 on 2026-10-06."
+    },
+    {
+      "file": "unknown/email_verifier.json",
+      "endpoint": "email_verifier",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://hunter.io/api-documentation/v2",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for an unknown verdict (task 17.3 outcome variant); not a capture. Shape and the unknown status matched the Email Verifier docs at https://hunter.io/api-documentation/v2 on 2026-10-06."
+    }
+  ]
+}

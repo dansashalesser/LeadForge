@@ -1,0 +1,18 @@
+{
+  "search_metadata": {"status": "Success"},
+  "search_information": {"total_results": 2},
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "Senior Data Engineer - Example Corp",
+      "link": "https://jobs.example.test/senior-data-engineer",
+      "snippet": "Hand-made stand-in result text."
+    },
+    {
+      "position": 2,
+      "title": "Platform talk - Example Conf",
+      "link": "https://conf.example.test/talks/platform",
+      "snippet": "Another hand-made stand-in result text."
+    }
+  ]
+}

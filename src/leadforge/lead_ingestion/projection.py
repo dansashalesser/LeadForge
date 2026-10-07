@@ -1,0 +1,668 @@
+"""The Lead projection, recomputed non-destructively (task 16.5; Requirement 8.12).
+
+``project_lead`` is a pure function from one ``IdentityCluster`` and a Source Trust
+Rank mapping to a ``ProjectionResult``: the ``CanonicalLead`` (when the cluster names
+a person), its provenance records with the losers marked superseded, the
+contributing-source set and the per-path agreeing-source counts (8.5-8.7). It reads
+the stored contributions and nothing else, never edits or deletes one, and builds
+everything new, so it can be re-run at any time (a changed trust rank, a new run) and
+the previous result simply replaced; there is no unmerge or split anywhere (8.12).
+Contribution order does not matter (8.8): conflicts are resolved under 16.3's total
+order and every collection built here is sorted. Persisting the result and the
+"one transaction" recompute belong to the Lead Store wiring and are not built here.
+Provisional decisions (choices.md, 16.5):
+
+* ``CanonicalLead`` has no field for the contributing sources or the provenance, so
+  they ride on ``ProjectionResult`` beside it; the model is unchanged.
+* A CRM source's bare ``email`` path is read as ``person.email``: the contribution is
+  re-keyed in memory before resolving (the stored one is untouched), unless it already
+  has a ``person.email`` of its own, in which case the bare path stays a separate,
+  unmapped path.
+* Scalar fields take the 16.3 winner for their path. A winner that fails the model's
+  own validation (an unparseable address or URL) leaves the field empty; no lower
+  candidate is promoted in its place, so the field still resolves to the winning
+  provenance record.
+* ``email_status`` is only meaningful for the address it was stated about, so it is
+  taken from the first contribution, in ``person.email`` candidate order (winner,
+  agreeing, superseded), that supplied the chosen address and states a counted status
+  in the same record; else ``unknown``. Paired per contribution, not per source: a
+  source's other record (its ``info@``) never labels the chosen address. That order
+  puts a verified statement first (user decision 2026-10-06), so an address one source
+  verified reads verified even when a higher-ranked source called it unverified.
+* ``person.email`` is chosen verified first, then personal over role, then 8.4
+  (``conflicts``; user decision 2026-10-06). A role address (``IdentityCluster.
+  role_addresses``) is never dropped: when it is the email, ``email_is_role_address``
+  is set (the person has no personal address that won); every other one stated in the
+  cluster goes to ``role_contact_emails`` (company contacts), normalised, sorted and
+  distinct. A status with no email is never
+  built, so the model's validator cannot reject the merge.
+* ``opt_out`` and ``suppressed`` are the OR over every candidate of every source, not
+  the winner: a flag from any source is never lost to a conflict (design: OR
+  semantics). They are also kept on the result, so a cluster that names no person
+  (a provider restriction that carries only a name or a domain) still reports them.
+* A cluster with no email, LinkedIn URL or name forms no Lead: ``lead`` is ``None``
+  and everything else is still returned. Not an error.
+* ``full_name`` is ``person.full_name``, else ``person.first_name`` and
+  ``person.last_name`` joined by a space (both required), as ``match_keys`` does; a
+  masked name (any ``*``, how a provider obfuscates last names) is no name.
+* One ``Employment`` at most, from the winning ``company.name`` / ``company.domain``
+  and ``person.title``. ``company_id`` is derived from the registrable-domain set
+  (task 16.9, ``companies``), and ``domains`` is that set, so ``www.x.com`` and
+  ``x.com`` are one id with one content. A Lead whose company has no usable domain gets
+  an id derived from its own cluster id, never from the name (no merge by name alone).
+  ``is_current`` stays ``None``: no canonical path states it. With no organization name
+  or usable domain there is no Employment and the title stays in
+  provenance only.
+* Signals are evidence, not competing values: every ``TechSignal`` and
+  ``IntentSignal`` found in any candidate of any path is carried, one per (kind,
+  label), the first in candidate order (path, winner, agreeing, superseded) keeping
+  its strength, so Signal Strength never decides anything (24.4). Flat adapter values
+  that are not ``Signal`` objects (the flat ``company.technologies`` list) are not
+  turned into Signals here.
+* The log line of 21.4 is derived from the result (task 16.12, ``merge_log``):
+  ``match_keys`` is the cluster's ``merged_by`` (kinds that linked it, strongest first)
+  and ``conflicts`` lists, per path with a losing value, the winning source, the number
+  of superseded candidates and the rule that decided (``ConflictRule``). Kinds, source
+  names, paths and counts only; ``contribution_count`` says whether it was a merge.
+  ``linking_keys`` (the cluster's ``linked_by``) carries the key values themselves,
+  hidden from ``repr``, so the log can show their keyed digests (``match_key_digest``).
+* Personal data stays out of ``repr`` and no error text is built from it.
+"""
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
+from hashlib import sha256
+from typing import Any
+
+from pydantic import HttpUrl, TypeAdapter, ValidationError
+
+from leadforge.lead_ingestion.base_source import LeadContribution
+from leadforge.lead_ingestion.clustering import IdentityCluster
+from leadforge.lead_ingestion.companies import (
+    CompanyCluster,
+    company_domains,
+    company_id_for,
+)
+from leadforge.lead_ingestion.compliance import (
+    COMPLIANCE_FLAGS,
+    Blocked,
+    identities,
+    is_flag_set,
+)
+from leadforge.lead_ingestion.conflicts import (
+    ClusterResolution,
+    ConflictRule,
+    FieldCandidate,
+    resolve_conflicts,
+)
+from leadforge.lead_ingestion.match_key_digest import (
+    MATCH_KEY_SECRET_ENV,
+    MatchKeyDigester,
+)
+from leadforge.lead_ingestion.match_keys import (
+    IdentityExclusions,
+    MatchKey,
+    MatchKeyKind,
+    normalize_email,
+)
+from leadforge.lead_ingestion.models import (
+    REQUEST_ECHO_PREFIX,
+    CanonicalLead,
+    CompanySignal,
+    EmailStatus,
+    Employment,
+    FieldProvenance,
+    IntentSignal,
+    SourceAbsence,
+    StrictEmail,
+    TechSignal,
+    UntrustedText,
+)
+from leadforge.lead_ingestion.primary_domain import PrimaryDomain, elect_by_votes
+from leadforge.lead_ingestion.superseded import (
+    agreeing_source_count,
+    contributing_sources,
+    provenance_records,
+)
+from leadforge.lead_ingestion.tie_resolution import (
+    TieOutcome,
+    TieResolutionReader,
+    TieSource,
+    read_primary_domain_outcome,
+)
+
+__all__ = [
+    "PROJECTION_RULES_REVISION",
+    "PrimaryDomainTie",
+    "ProjectionBasis",
+    "ProjectionResult",
+    "ProjectionStamp",
+    "ResolvedConflict",
+    "project_lead",
+    "stamp_projection",
+]
+
+# The revision of the projection rules in this module and the ones it calls. Bump it in
+# the same change as any rule that can alter a projection. 1: the 16.5 rules. 2: the
+# one-sided email rule (8.3), request-echo fields counted only when no other source has
+# the field, LinkedIn cannot-link, the confidence table changes, and the display
+# primary domain read from the stored tie resolution (16.11). 3: a request-echo
+# ``person.email`` no longer hides a CRM source's own bare ``email``. 4: the email is
+# chosen verified first, then personal over role (user decision 2026-10-06), with the
+# role flag and the company contact addresses; role-word addresses (``info@``) count as
+# role addresses, also for clustering.
+PROJECTION_RULES_REVISION = 4
+
+_BARE_EMAIL = "email"
+_EMAIL = "person.email"
+_EMAIL_STATUS = "person.email_status"
+_LINKEDIN = "person.linkedin_url"
+_FULL_NAME = "person.full_name"
+_FIRST_NAME = "person.first_name"
+_LAST_NAME = "person.last_name"
+_TITLE = "person.title"
+_COMPANY_NAME = "company.name"
+_COMPANY_DOMAIN = "company.domain"
+_OPT_OUT = "opt_out"  # both are in ``COMPLIANCE_FLAGS``
+_SUPPRESSED = "suppressed"
+
+_EMAIL_ADAPTER: TypeAdapter[str] = TypeAdapter(StrictEmail)
+_URL_ADAPTER: TypeAdapter[HttpUrl] = TypeAdapter(HttpUrl)
+
+
+@dataclass(frozen=True)
+class PrimaryDomainTie:
+    """An exact primary-domain tie: the company and its election (domains hidden)."""
+
+    company: CompanyCluster = field(repr=False)
+    election: PrimaryDomain = field(repr=False)
+
+
+@dataclass(frozen=True)
+class ResolvedConflict:
+    """One path whose competing values were resolved; no value, only who and why."""
+
+    canonical_path: str
+    winning_source: str
+    superseded_count: int
+    decided_by: ConflictRule
+
+
+@dataclass(frozen=True)
+class ProjectionResult:
+    """One cluster's projection; ``lead`` is ``None`` when it names no person."""
+
+    lead: CanonicalLead | None = field(repr=False)
+    contributing_sources: tuple[str, ...]
+    # (canonical path, distinct sources holding the winning value), sorted by path.
+    agreement: tuple[tuple[str, int], ...]
+    provenance: tuple[FieldProvenance, ...] = field(repr=False)
+    negative_evidence: tuple[SourceAbsence, ...] = field(repr=False)
+    not_applicable: tuple[SourceAbsence, ...] = field(repr=False)
+    opt_out: bool
+    suppressed: bool
+    # Task 16.12 (21.4): Match Key kinds that linked the cluster, strongest first.
+    match_keys: tuple[MatchKeyKind, ...] = ()
+    # The Match Keys that linked it (the cluster's ``linked_by``); personal data, never
+    # in ``repr``. ``merge_log`` logs keyed digests of them, never the values.
+    linking_keys: tuple[MatchKey, ...] = field(default=(), repr=False)
+    # Paths with a losing value, sorted by path.
+    conflicts: tuple[ResolvedConflict, ...] = ()
+    contribution_count: int = 0
+    # Task 19.3 (11.4): sorted names of the sources that set ``opt_out`` or
+    # ``suppressed`` on this Lead, in its own cluster or on a linked identity.
+    compliance_sources: tuple[str, ...] = ()
+    # Task 16.11 (8.17, 8.18): the display-only primary domain of the Lead's company
+    # (personal data, never in ``repr``) and how it was decided; both ``None`` when the
+    # company has no usable domain.
+    primary_domain: str | None = field(default=None, repr=False)
+    primary_domain_source: TieSource | None = None
+    # The exact tie behind a flagged fallback, so the run can ask for a resolution
+    # (``tie_resolution.resolve_primary_domain``) and project again; the projection
+    # itself never asks. ``None`` when nothing is tied.
+    primary_domain_tie: "PrimaryDomainTie | None" = field(default=None, repr=False)
+
+    @property
+    def primary_domain_flagged(self) -> bool:
+        """True when a lowest-sorted fallback stands in for a tie resolution."""
+        source = self.primary_domain_source
+        return source is not None and TieOutcome(None, source).flagged
+
+
+@dataclass(frozen=True)
+class ProjectionBasis:
+    """What a projection is a function of besides its contributions (8.13).
+
+    The rules revision, the Identity Exclusions and the Source Trust Ranking. The
+    exclusions enter only as keyed HMAC digests (``match_key_digest``, user decision
+    2026-10-06), never as a plain hash of the values, which a dictionary would reverse;
+    so the fingerprint may be stored. Kept out of ``repr`` and never logged anyway.
+    """
+
+    rules_revision: int
+    exclusions_token: str = field(repr=False)
+    trust_ranks_token: str = field(repr=False)
+
+    @classmethod
+    def of(
+        cls,
+        exclusions: IdentityExclusions | None,
+        trust_ranks: Mapping[str, int],
+        *,
+        digester: MatchKeyDigester | None = None,
+        rules_revision: int = PROJECTION_RULES_REVISION,
+    ) -> "ProjectionBasis":
+        """``digester`` must be keyed from the configured secret when any exclusion
+        is set: a per-run random key would change the fingerprint on every run."""
+        ranks = "\x1e".join(
+            f"{name}\x1f{rank}" for name, rank in sorted(trust_ranks.items())
+        )
+        return cls(
+            rules_revision,
+            _exclusions_token(exclusions or IdentityExclusions(), digester),
+            sha256(ranks.encode("utf-8")).hexdigest(),
+        )
+
+    @property
+    def fingerprint(self) -> str:
+        """Equal bases agree; any change to any part differs."""
+        basis = "\x1e".join(
+            (str(self.rules_revision), self.exclusions_token, self.trust_ranks_token)
+        )
+        return sha256(basis.encode("utf-8")).hexdigest()
+
+
+def _exclusions_token(
+    exclusions: IdentityExclusions, digester: MatchKeyDigester | None
+) -> str:
+    """Sorted keyed digests of the barred keys, hashed; no value and no plain hash."""
+    keys = [MatchKey(MatchKeyKind.LINKEDIN_URL, u) for u in exclusions.linkedin_urls]
+    keys += [MatchKey(MatchKeyKind.VERIFIED_EMAIL, e) for e in exclusions.emails]
+    if keys and (digester is None or not digester.comparable_across_runs):
+        raise ValueError(
+            f"Identity Exclusions need {MATCH_KEY_SECRET_ENV} set so the projection "
+            "version is stable across runs"
+        )
+    digests = sorted(
+        f"{key.kind.name.lower()}\x1f{digester.digest(key)}"
+        for key in keys
+        if digester is not None
+    )
+    return sha256("\x1e".join(digests).encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class ProjectionStamp:
+    """The ``projection_version`` and the basis fingerprint it was stamped for."""
+
+    version: int
+    fingerprint: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if self.version < 1:
+            raise ValueError("a projection version starts at 1")
+
+    def is_stale_for(self, basis: ProjectionBasis) -> bool:
+        """True when a projection stamped so must be recomputed under ``basis``."""
+        return self.fingerprint != basis.fingerprint
+
+
+def stamp_projection(
+    previous: ProjectionStamp | None, basis: ProjectionBasis
+) -> ProjectionStamp:
+    """The version to stamp under ``basis``: kept if unchanged, else incremented.
+
+    Monotonic: reverting a change is another change, so a version never repeats for a
+    different basis and an older stored projection is always detectably older.
+    """
+    if previous is None:
+        return ProjectionStamp(1, basis.fingerprint)
+    if not previous.is_stale_for(basis):
+        return previous
+    return ProjectionStamp(previous.version + 1, basis.fingerprint)
+
+
+def project_lead(
+    cluster: IdentityCluster,
+    trust_ranks: Mapping[str, int],
+    *,
+    blocked: Blocked | None = None,
+    tie_resolutions: TieResolutionReader | None = None,
+) -> ProjectionResult:
+    """Project ``cluster``; the result ignores contribution order.
+
+    ``blocked`` (``compliance.blocked_identities`` over every contribution of the run)
+    carries a flag a source set on an identity onto a Lead another source supplied
+    (11.4): the report may sit in a cluster of its own, since an unverified address is
+    no Match Key. ``tie_resolutions`` is read (never written, no model is called) for
+    the stored answer to an exact primary-domain tie (16.11); without it, or with
+    nothing stored, a tie is the lowest-sorted candidate, flagged.
+    """
+    merged = replace(
+        cluster,
+        contributions=tuple(_with_canonical_email(c) for c in cluster.contributions),
+    )
+    members = merged.contributions
+    resolution = _flagged_first(resolve_conflicts(merged, trust_ranks))
+    sources = sorted(
+        {c.source_name for c in members} | set(contributing_sources(resolution))
+    )
+    reports = _compliance_reports(resolution, members, blocked or {})
+    opt_out = any(flag == _OPT_OUT for flag, _ in reports)
+    suppressed = any(flag == _SUPPRESSED for flag, _ in reports)
+    primary, tie = _primary_domain(resolution, trust_ranks, tie_resolutions)
+    return ProjectionResult(
+        lead=_build_lead(resolution, merged, opt_out, suppressed),
+        contributing_sources=tuple(sources),
+        agreement=tuple(
+            (f.canonical_path, agreeing_source_count(f)) for f in resolution.fields
+        ),
+        provenance=provenance_records(resolution),
+        negative_evidence=resolution.negative_evidence,
+        not_applicable=resolution.not_applicable,
+        opt_out=opt_out,
+        suppressed=suppressed,
+        compliance_sources=tuple(sorted({source for _, source in reports})),
+        match_keys=cluster.merged_by,
+        linking_keys=cluster.linked_by,
+        conflicts=tuple(
+            ResolvedConflict(
+                f.canonical_path, f.winner.source_name, len(f.superseded), f.decided_by
+            )
+            for f in resolution.fields
+            if f.decided_by is not None
+        ),
+        contribution_count=len(members),
+        primary_domain=None if primary is None else primary.domain,
+        primary_domain_source=None if primary is None else primary.source,
+        primary_domain_tie=tie,
+    )
+
+
+def _primary_domain(
+    resolution: ClusterResolution,
+    trust_ranks: Mapping[str, int],
+    store: TieResolutionReader | None,
+) -> tuple[TieOutcome | None, PrimaryDomainTie | None]:
+    """The display domain of the Employment's company, by trust-weighted vote.
+
+    The company is the winning ``company.domain`` value's registrable-domain set (as
+    ``_employments`` builds it). Every source holding a ``company.domain`` candidate
+    (winner, agreeing or superseded) votes for each of its domains in that set; a
+    domain outside it is another company and casts nothing. Signal Strength is never
+    read (24.4).
+    """
+    domains = tuple(sorted(company_domains(_winner_value(resolution, _COMPANY_DOMAIN))))
+    if not domains:
+        return None, None
+    votes = {
+        (candidate.source_name, domain)
+        for candidate in _candidates(resolution, _COMPANY_DOMAIN)
+        for domain in company_domains(candidate.value)
+        if domain in domains
+    }
+    primary = elect_by_votes(votes, trust_ranks)
+    company = CompanyCluster(company_id_for(domains), domains, ())
+    tie = PrimaryDomainTie(company, primary) if primary.tied else None
+    return read_primary_domain_outcome(company, primary, store), tie
+
+
+def _with_canonical_email(contribution: LeadContribution) -> LeadContribution:
+    """A copy keyed ``person.email`` instead of the bare ``email`` (a CRM path).
+
+    A ``person.email`` that is only a request echo (what the source was asked about)
+    does not count as the source's own: it is dropped so the source's observed bare
+    ``email`` takes its place, and an echo never stands in for an observation.
+    """
+    if _BARE_EMAIL not in contribution.values:
+        return contribution
+    echoed = {
+        p.canonical_path
+        for p in contribution.provenance
+        if p.canonical_path == _EMAIL
+        and p.raw_field_path.startswith(REQUEST_ECHO_PREFIX)
+    }
+    if _EMAIL in contribution.values and not echoed:
+        return contribution
+    values = {
+        (_EMAIL if path == _BARE_EMAIL else path): value
+        for path, value in contribution.values.items()
+        if path not in echoed
+    }
+    provenance = tuple(
+        p.model_copy(update={"canonical_path": _EMAIL})
+        if p.canonical_path == _BARE_EMAIL
+        else p
+        for p in contribution.provenance
+        if p.canonical_path not in echoed
+    )
+    absences = tuple(
+        a.model_copy(update={"canonical_path": _EMAIL})
+        if a.canonical_path == _BARE_EMAIL
+        else a
+        for a in contribution.absences
+    )
+    return contribution.model_copy(
+        update={"values": values, "provenance": provenance, "absences": absences}
+    )
+
+
+def _candidates(resolution: ClusterResolution, path: str) -> tuple[FieldCandidate, ...]:
+    for f in resolution.fields:
+        if f.canonical_path == path:
+            return (f.winner, *f.agreeing, *f.superseded)
+    return ()
+
+
+def _winner_value(resolution: ClusterResolution, path: str) -> object:
+    candidates = _candidates(resolution, path)
+    return candidates[0].value if candidates else None
+
+
+def _flagged_first(resolution: ClusterResolution) -> ClusterResolution:
+    """Make a flag's winner the first source that set it, and never a rank decision.
+
+    A Suppression is not resolved by trust rank (11.4): the candidates that set the flag
+    lead, so provenance names the source that flagged the Lead, and the path reports no
+    resolved conflict.
+    """
+    fields = []
+    for f in resolution.fields:
+        if f.canonical_path not in COMPLIANCE_FLAGS:
+            fields.append(f)
+            continue
+        everyone = (f.winner, *f.agreeing, *f.superseded)
+        flagged = [c for c in everyone if is_flag_set(c.value)]
+        if not flagged:
+            fields.append(replace(f, decided_by=None))
+            continue
+        winner = flagged[0]
+        agreeing = tuple(c for c in flagged[1:] if _same_value(c.value, winner.value))
+        kept = {id(winner), *(id(c) for c in agreeing)}
+        superseded = tuple(c for c in everyone if id(c) not in kept)
+        fields.append(
+            replace(
+                f,
+                winner=winner,
+                agreeing=agreeing,
+                superseded=superseded,
+                decided_by=None,
+            )
+        )
+    return replace(resolution, fields=tuple(fields))
+
+
+def _same_value(a: object, b: object) -> bool:
+    return type(a) is type(b) and a == b
+
+
+def _compliance_reports(
+    resolution: ClusterResolution,
+    members: tuple[LeadContribution, ...],
+    blocked: Blocked,
+) -> frozenset[tuple[str, str]]:
+    """``(flag, source_name)`` for every flag set on this Lead; fails closed."""
+    reports: set[tuple[str, str]] = set()
+    for flag in COMPLIANCE_FLAGS:
+        reports.update(
+            (flag, c.source_name)
+            for c in _candidates(resolution, flag)
+            if is_flag_set(c.value)
+        )
+    for member in members:
+        for identity in identities(member):
+            reports.update(blocked.get(identity, ()))
+    return frozenset(reports)
+
+
+def _text(value: object) -> str | None:
+    if isinstance(value, UntrustedText):
+        value = value.value
+    if isinstance(value, str) and value.strip():
+        return value
+    return None
+
+
+def _build_lead(
+    resolution: ClusterResolution,
+    cluster: IdentityCluster,
+    opt_out: bool,
+    suppressed: bool,
+) -> CanonicalLead | None:
+    email = _valid_email(_text(_winner_value(resolution, _EMAIL)))
+    roles = cluster.role_addresses
+    linkedin = _valid_url(_text(_winner_value(resolution, _LINKEDIN)))
+    full_name = _full_name(resolution)
+    if email is None and linkedin is None and full_name is None:
+        return None
+    tech, intent = _signals(resolution)
+    return CanonicalLead(
+        email=email,
+        email_status=_email_status(resolution, cluster.contributions, email),
+        email_is_role_address=normalize_email(email) in roles,
+        linkedin_url=linkedin,
+        full_name=full_name,
+        employments=_employments(resolution, cluster.cluster_id),
+        tech_signals=tech,
+        intent_signals=intent,
+        opt_out=opt_out,
+        suppressed=suppressed,
+        role_contact_emails=_role_contacts(resolution, roles, email),
+    )
+
+
+def _role_contacts(
+    resolution: ClusterResolution, roles: frozenset[str], email: str | None
+) -> tuple[str, ...]:
+    """The role addresses stated as ``person.email`` here, other than the email."""
+    stated = {normalize_email(_text(c.value)) for c in _candidates(resolution, _EMAIL)}
+    contacts = roles.intersection(stated) - {normalize_email(email)}
+    return tuple(a for a in sorted(contacts) if _valid_email(a) is not None)
+
+
+def _valid_email(text: str | None) -> str | None:
+    if text is None:
+        return None
+    try:
+        return _EMAIL_ADAPTER.validate_python(text)
+    except ValidationError:
+        return None
+
+
+def _valid_url(text: str | None) -> HttpUrl | None:
+    if text is None:
+        return None
+    try:
+        return _URL_ADAPTER.validate_python(text)
+    except ValidationError:
+        return None
+
+
+def _full_name(resolution: ClusterResolution) -> str | None:
+    """The winning name; a masked one (any ``*``) is no name, as in ``match_keys``."""
+    name = _text(_winner_value(resolution, _FULL_NAME))
+    if name is None:
+        first = _text(_winner_value(resolution, _FIRST_NAME))
+        last = _text(_winner_value(resolution, _LAST_NAME))
+        if first is None or last is None:
+            return None
+        name = f"{first} {last}"
+    return None if "*" in name else name
+
+
+def _email_status(
+    resolution: ClusterResolution,
+    members: tuple[LeadContribution, ...],
+    email: str | None,
+) -> EmailStatus:
+    if email is None:
+        return EmailStatus.UNKNOWN
+    wanted = normalize_email(email)
+    # The statuses 16.3 counts (an echo only when nothing was observed).
+    counted = {c.provenance for c in _candidates(resolution, _EMAIL_STATUS)}
+    for candidate in _candidates(resolution, _EMAIL):
+        if normalize_email(_text(candidate.value)) != wanted:
+            continue
+        for member in members:
+            if candidate.provenance not in member.provenance:
+                continue
+            if normalize_email(_text(member.values.get(_EMAIL))) != wanted:
+                continue
+            if not counted.intersection(member.provenance):
+                continue
+            status: Any = member.values.get(_EMAIL_STATUS)
+            try:
+                return EmailStatus(status)
+            except ValueError:
+                return EmailStatus.UNKNOWN
+    return EmailStatus.UNKNOWN
+
+
+def _employments(
+    resolution: ClusterResolution, cluster_id: str
+) -> tuple[Employment, ...]:
+    name = _text(_winner_value(resolution, _COMPANY_NAME))
+    domains = tuple(sorted(company_domains(_winner_value(resolution, _COMPANY_DOMAIN))))
+    if name is None and not domains:
+        return ()
+    company = CompanySignal(
+        # A company with no usable domain is this Lead's own: never merged by name.
+        company_id=company_id_for(domains) if domains else _lead_company_id(cluster_id),
+        name=name,
+        domains=domains,
+    )
+    return (
+        Employment(company=company, title=_text(_winner_value(resolution, _TITLE))),
+    )
+
+
+def _lead_company_id(cluster_id: str) -> str:
+    # In memory only: a pseudonym of the cluster (itself a hash of a contribution).
+    # The store replaces it with the lead's persisted id (``companies.
+    # lead_company_id``) before the row is written, so it never reaches the store.
+    basis = "no-domain\x1f" + cluster_id
+    return "co-" + sha256(basis.encode("utf-8")).hexdigest()[:16]
+
+
+def _signals(
+    resolution: ClusterResolution,
+) -> tuple[tuple[TechSignal, ...], tuple[IntentSignal, ...]]:
+    tech: dict[str, TechSignal] = {}
+    intent: dict[str, IntentSignal] = {}
+    for f in resolution.fields:
+        for candidate in (f.winner, *f.agreeing, *f.superseded):
+            for item in _flatten(candidate.value):
+                if isinstance(item, TechSignal):
+                    tech.setdefault(item.label, item)
+                elif isinstance(item, IntentSignal):
+                    intent.setdefault(item.label, item)
+    return (
+        tuple(tech[k] for k in sorted(tech)),
+        tuple(intent[k] for k in sorted(intent)),
+    )
+
+
+def _flatten(value: Any) -> tuple[object, ...]:
+    if isinstance(value, tuple | list):
+        return tuple(value)
+    return (value,)

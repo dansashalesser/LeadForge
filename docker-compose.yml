@@ -1,0 +1,30 @@
+# Local PostgreSQL for development and for the Postgres leg of the persistence test
+# (requirement 9.5). Development defaults only: never reuse these credentials, and do
+# not expose this port beyond localhost.
+#
+#   docker compose up -d postgres
+#   export LEADFORGE_TEST_POSTGRES_URL=postgresql://leadforge:leadforge@localhost:5432/leadforge
+#   export DATABASE_URL=$LEADFORGE_TEST_POSTGRES_URL   # optional: run the app on it
+#
+# Override any value from the environment (POSTGRES_USER, POSTGRES_PASSWORD,
+# POSTGRES_DB, POSTGRES_PORT) and build the URL to match.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-leadforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadforge}
+      POSTGRES_DB: ${POSTGRES_DB:-leadforge}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - leadforge-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  leadforge-pgdata:

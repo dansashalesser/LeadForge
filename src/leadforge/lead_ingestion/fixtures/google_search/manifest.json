@@ -1,0 +1,29 @@
+{
+  "provider": "google_search",
+  "fixtures": [
+    {
+      "file": "search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://serpapi.com/search-api",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Every field (search_metadata.status, search_information.total_results, organic_results[] position, title, link, snippet) matched the example at https://serpapi.com/search-api, read in full on 2026-10-06."
+    },
+    {
+      "file": "no_results/search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-06",
+      "doc_url": "https://serpapi.com/api-status-and-error-codes",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for SerpApi's empty page (task 17.3 outcome variant); not a capture. Status Success, organic_results_state Fully empty and the top-level error message matched the docs (also https://serpapi.com/search-errors) on 2026-10-06. Evidence: search-engine extract of the official page (site network-blocked)."
+    }
+  ]
+}

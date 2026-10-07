@@ -1,0 +1,65 @@
+{
+  "provider": "apollo",
+  "fixtures": [
+    {
+      "file": "search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-api-search",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Every field (total_entries; people[] id, first_name, last_name_obfuscated, title, last_refreshed_at, has_*; organization name and has_*) and the masking form (\"Hu***n\" in the official example) matched the OpenAPI at https://docs.apollo.io/reference/people-api-search, read in full on 2026-10-06."
+    },
+    {
+      "file": "match.json",
+      "endpoint": "match",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-enrichment",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Every field matched the OpenAPI 200 response at https://docs.apollo.io/reference/people-enrichment, read in full on 2026-10-06: person.match_confidence (enum high/medium/low/none, on person, not the envelope), person id, names, title, linkedin_url, email, email_status, organization name, primary_domain and current_technologies[uid,name,category], and request_id."
+    },
+    {
+      "file": "supported_technologies_excerpt.csv",
+      "endpoint": null,
+      "origin": "doc_example",
+      "recorded_on": "2026-10-06",
+      "doc_url": "https://docs.apollo.io/reference/people-api-search",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Excerpt of Apollo's published list: the header and only the rows for technologies configured in config/target_profile.yaml, copied verbatim from https://api.apollo.io/v1/auth/supported_technologies_csv (linked from the people search docs), downloaded 2026-10-06. The full list is Apollo's data and is not vendored; refresh with scripts/check_apollo_technologies.py --rows."
+    },
+    {
+      "file": "no_match/search.json",
+      "endpoint": "search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/docs/find-people-using-filters",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a search that matched no person (task 17.3 outcome variant); not a capture. Its only fields, total_entries and people[], matched the docs on 2026-10-06. Evidence: search-engine extract of the official page (site network-blocked)."
+    },
+    {
+      "file": "no_match/match.json",
+      "endpoint": "match",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://docs.apollo.io/reference/people-enrichment",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a match call that matched no one; not a capture (task 17.3 outcome variant). match_confidence sits on person and none means \"Apollo could not find a match\" (docs, 2026-10-06), but no doc shows a whole no-match answer, so the shape stays UNVERIFIED. Replace with a capture."
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+# no-regex debt ledger — shell files with embedded Python still using `re`.
+#
+# Read by scripts/utils/check-no-regex.py. Files listed here are KNOWN debt and
+# do not fail the guard. Anything not listed that uses regex DOES fail, so the
+# hole cannot re-open while the debt is paid down.
+#
+# THE LEDGER ONLY SHRINKS. When you rewrite a file to drop `re`, delete its line
+# here in the same commit — the guard fails on a stale entry precisely so that a
+# fixed file cannot silently become a free pass for a future regression.
+#
+# Seeded 2026-09-03 with the 15 files measured at that date. The 16th,
+# hooks/claude/test-integrity-guard.sh, was rewritten to literal-token matching
+# in the same commit and is deliberately absent — see it for the pattern.
+#
+# Highest-value ones to fix next, because they parse free text to compute values
+# rather than matching fixed source-code constructs (this is the exact failure
+# mode the ban exists for — see the note at the top of ruff.toml):
+#   1. hooks/claude/stop-hook.sh          — loop-debt detector + learnings promoter
+#                                           read observations.md free text
+#   2. hooks/claude/action-capture.sh
+#
+# Paid down: hooks/claude/prompt-quality-check.sh (2026-09-30) — literal token
+# matching, verified score-identical to the regex version on 94 real Agent prompts.
+# Paid down: scripts/routines/startup-payload-audit.sh (2026-09-30) — line-prefix
+# `@import` parser, pinned by startup-payload-audit.test.sh.
+
+hooks/claude/action-capture.sh
+hooks/claude/address-check-hook.sh
+hooks/claude/agent-behavior-guard.sh
+hooks/claude/ai-writing-guard-hook.sh
+hooks/claude/reject-feedback-hook.sh
+hooks/claude/skill-validate-hook.sh
+hooks/claude/stop-hook.sh
+hooks/claude/tool-failure-capture.sh
+hooks/claude/tool-failure-recall.sh
+install.sh
+scripts/routines/code-review-learning-runner.sh
+skills/loki-mode/autonomy/run.sh
+skills/loki-mode/benchmarks/run-benchmarks.sh

@@ -1,0 +1,65 @@
+{
+  "provider": "hubspot",
+  "fixtures": [
+    {
+      "file": "contact_search.json",
+      "endpoint": "contact_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Envelope (total, results[] with id, properties as nullable strings, createdAt, updatedAt, archived) matched the OpenAPI spec in GitHub HubSpot public-api-spec-collection (rollout 2026-09) on 2026-10-06. hs_email_optout matched secondary sources; other property names were not checked against a live portal, so the file stays unverified."
+    },
+    {
+      "file": "deal_search.json",
+      "endpoint": "deal_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in; not a capture. Envelope (total, results[] with id, properties as nullable strings, createdAt, updatedAt, archived) matched the OpenAPI spec in GitHub HubSpot public-api-spec-collection (rollout 2026-09) on 2026-10-06. Deal property names not checked. Produced by the hs_is_closed EQ false filter: hs_is_closed UNVERIFIED. 429 policy SECONDLY UNVERIFIED (DAILY and TEN_SECONDLY_ROLLING documented)."
+    },
+    {
+      "file": "not_opted_out/contact_search.json",
+      "endpoint": "contact_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a contact who has not opted out (task 17.3 outcome variant); not a capture. Envelope (total, results[] with id, properties as nullable strings, createdAt, updatedAt, archived) matched the OpenAPI spec in GitHub HubSpot public-api-spec-collection (rollout 2026-09) on 2026-10-06. Property names other than hs_email_optout were not checked."
+    },
+    {
+      "file": "not_found/contact_search.json",
+      "endpoint": "contact_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "verified",
+      "schema_verified_on": "2026-10-06",
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a contact search with no result (task 17.3 outcome variant); not a capture. Envelope (total, results[] with id, properties as nullable strings, createdAt, updatedAt, archived) matched the OpenAPI spec in GitHub HubSpot public-api-spec-collection (rollout 2026-09) on 2026-10-06."
+    },
+    {
+      "file": "no_open_deals/deal_search.json",
+      "endpoint": "deal_search",
+      "origin": "hand_made",
+      "recorded_on": "2026-10-05",
+      "doc_url": "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm",
+      "schema_status": "unverified",
+      "schema_verified_on": null,
+      "api_version": null,
+      "redaction": null,
+      "note": "Hand-made stand-in for a deal search with no open deal (task 17.3 outcome variant); not a capture. Envelope (total, results[] with id, properties as nullable strings, createdAt, updatedAt, archived) matched the OpenAPI spec in GitHub HubSpot public-api-spec-collection (rollout 2026-09) on 2026-10-06. Unverified: outcome relies on hs_is_closed UNVERIFIED. 429 policy SECONDLY UNVERIFIED (DAILY and TEN_SECONDLY_ROLLING documented)."
+    }
+  ]
+}
