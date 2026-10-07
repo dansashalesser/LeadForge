@@ -1,6 +1,6 @@
 # SDD harness — local-only, never committed
-# .claude/
-# specs/
+.claude/
+specs/
 CLAUDE.md
 AGENTS.md
 ERRORS.md

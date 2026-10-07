@@ -1,9 +1,0 @@
-# Allowlist for scripts/utils/check-skill-tiers.py — "<repo-relative path> <skill name>".
-# Only for mentions a human reads (docstrings, repo-source pointers), never text an
-# agent is told to act on. A prompt that names a Library-tier skill must use its
-# ~/.claude/skill-library/<name>/SKILL.md path instead of an entry here.
-scripts/utils/dashboard.py karpathy-guidelines
-scripts/utils/token-forensics.py context-optimization
-scripts/pr/validate_review_json.py gitnexus-pr-review
-scripts/routines/code-review-learning-prompt.md code-reviewer
-templates/settings.notes.md.template ktx-data-context
