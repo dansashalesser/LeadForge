@@ -30,10 +30,16 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.store.lead_reader", "crm_state"),
         # CanonicalLead and its value types.
         (f"{INGESTION}.models", "*"),
+        # The one store the run uses: engine from the environment, migrated to head
+        # before the search row is written (the run itself migrates again, idempotent).
+        (f"{INGESTION}.database", "create_store_engine"),
+        (f"{INGESTION}.store.migrate", "upgrade_to_head"),
         # The shared declarative Base the four outreach tables are mapped on, and the
         # error its append-only guard raises (tables.py).
         (f"{INGESTION}.store.models", "Base"),
         (f"{INGESTION}.store.models", "AppendOnlyViolationError"),
+        # The report says which sources ran synthetic, read from the run's own rows.
+        (f"{INGESTION}.store.models", "SourceRun"),
     }
 )
 
