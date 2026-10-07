@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.store import models as m
-from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 from leadforge.lead_ingestion.target_profile import load_target_profile
 from leadforge.lead_ingestion.tests.socket_guard import guard_for_mode
 from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # noqa: F401 - fixtures
@@ -44,7 +43,7 @@ from leadforge.outreach.tables import (
     OutreachSearch,
     OutreachTriggerEvent,
 )
-from leadforge.outreach.tests.support import NOW, make_plan
+from leadforge.outreach.tests.support import NOW, engine, make_plan  # noqa: F401
 from leadforge.outreach.tests.test_triggers import _seed_lead
 from leadforge.outreach.tick import tick
 
@@ -130,12 +129,9 @@ class _Accepts:
         return invited_at + timedelta(days=1) if lead_id in self._ids else None
 
 
-def _seeded() -> tuple[sa.Engine, uuid.UUID, uuid.UUID]:
+def _seeded(engine: sa.Engine) -> tuple[uuid.UUID, uuid.UUID]:
     """Two searches over one store. A: a Lead who accepts (invite, then email), one
     who never answers and has no Verified Email (stalled), one rejected. B: one Lead."""
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        upgrade_to_head(conn)
     config = load_outreach_config(CONFIG_DIR / "outreach.yaml")
     with Session(engine) as session, session.begin():
         a = start_search(session, make_plan(), now=NOW)
@@ -165,7 +161,7 @@ def _seeded() -> tuple[sa.Engine, uuid.UUID, uuid.UUID]:
                     acceptance=_Accepts({accepting}),
                     dispatcher=DryRunDispatcher(Path(os.devnull), lambda _: None),
                 )
-    return engine, a, b
+    return a, b
 
 
 def _scalar(engine: sa.Engine, sql: str, **bind: object) -> int:
@@ -174,8 +170,8 @@ def _scalar(engine: sa.Engine, sql: str, **bind: object) -> int:
 
 
 # Verifies: outreach requirements 11.1
-def test_every_funnel_count_matches_a_direct_query() -> None:
-    engine, a, _ = _seeded()
+def test_every_funnel_count_matches_a_direct_query(engine: sa.Engine) -> None:
+    a, _ = _seeded(engine)
     with Session(engine) as session:
         funnel = build_report(session, a).funnel
     sid = a.hex
@@ -202,8 +198,10 @@ def test_every_funnel_count_matches_a_direct_query() -> None:
 
 # Verifies: outreach requirements 11.2
 # Verifies: outreach requirements 11.3
-def test_a_row_shows_reasons_and_texts_and_markdown_and_json_agree() -> None:
-    engine, a, _ = _seeded()
+def test_a_row_shows_reasons_and_texts_and_markdown_and_json_agree(
+    engine: sa.Engine,
+) -> None:
+    a, _ = _seeded(engine)
     with Session(engine) as session:
         report = build_report(session, a)
 
@@ -223,8 +221,10 @@ def test_a_row_shows_reasons_and_texts_and_markdown_and_json_agree() -> None:
 
 
 # Verifies: outreach requirements 11.4
-def test_a_default_report_masks_emails_and_urls_and_reveal_shows_them() -> None:
-    engine, a, _ = _seeded()
+def test_a_default_report_masks_emails_and_urls_and_reveal_shows_them(
+    engine: sa.Engine,
+) -> None:
+    a, _ = _seeded(engine)
     with Session(engine) as session:
         masked = build_report(session, a)
         shown = build_report(session, a, reveal=True)
@@ -241,8 +241,10 @@ def test_a_default_report_masks_emails_and_urls_and_reveal_shows_them() -> None:
 
 
 # Verifies: outreach requirements 5.2
-def test_a_report_for_one_search_never_lists_a_lead_found_only_by_another() -> None:
-    engine, a, b = _seeded()
+def test_a_report_for_one_search_never_lists_a_lead_found_only_by_another(
+    engine: sa.Engine,
+) -> None:
+    a, b = _seeded(engine)
     with Session(engine) as session:
         in_a = {r.lead_id for r in build_report(session, a).leads}
         in_b = {r.lead_id for r in build_report(session, b).leads}

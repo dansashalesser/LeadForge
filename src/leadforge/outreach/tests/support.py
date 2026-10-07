@@ -4,6 +4,9 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
+import pytest
+import sqlalchemy as sa
+
 from leadforge.lead_ingestion.models import (
     CanonicalLead,
     CompanySignal,
@@ -12,7 +15,28 @@ from leadforge.lead_ingestion.models import (
     TechSignal,
 )
 from leadforge.lead_ingestion.store.lead_reader import StoredLead
+from leadforge.lead_ingestion.tests.test_persistence_both_engines import (
+    Backend,
+    backend,
+    blank,
+    postgres_url,
+)
 from leadforge.outreach.search_plan import SearchPlan
+
+__all__ = [
+    "LINKEDIN",
+    "NOW",
+    "Backend",
+    "ScriptedModel",
+    "backend",
+    "blank",
+    "engine",
+    "make_employment",
+    "make_lead",
+    "make_plan",
+    "make_stored",
+    "postgres_url",
+]
 
 NOW = datetime(2026, 10, 7, tzinfo=UTC)
 LINKEDIN = "https://www.linkedin.com/in/someone"
@@ -101,3 +125,9 @@ class ScriptedModel:
         if isinstance(answer, Exception):
             raise answer
         return answer
+
+
+@pytest.fixture
+def engine(backend: Backend) -> sa.Engine:
+    """The engine under test, SQLite then PostgreSQL, migrated to head (10.3)."""
+    return backend.engine

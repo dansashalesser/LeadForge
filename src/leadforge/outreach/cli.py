@@ -11,6 +11,7 @@ Message cannot drive the terminal. This module only parses and prints: the work 
 """
 
 import asyncio
+import json
 import os
 import re
 import uuid
@@ -45,6 +46,8 @@ from leadforge.outreach.errors import (
 from leadforge.outreach.messages import stored_messages
 from leadforge.outreach.report import build_report, render_json, render_markdown
 from leadforge.outreach.runtime import build_service
+from leadforge.outreach.scorecard import render as render_scorecard
+from leadforge.outreach.scorecard import score_decisions
 from leadforge.outreach.search_plan import Mode, SearchPlan, parse_request
 from leadforge.outreach.service import SearchSummary
 from leadforge.outreach.tables import OutreachDecision, OutreachSearch
@@ -52,6 +55,14 @@ from leadforge.outreach.tick import tick
 
 __all__ = ["outreach_app"]
 
+# The demo answer key ships beside the demo tables; it is data, so it is read as a file.
+DEMO_ANSWER_KEY = (
+    Path(__file__).resolve().parents[1]
+    / "lead_ingestion"
+    / "demo"
+    / "data"
+    / "answer_key.json"
+)
 EXIT_FAILED = 1
 EXIT_CONFIGURATION_ERROR = 2
 EXIT_RUN_IN_PROGRESS = 3
@@ -246,3 +257,25 @@ def report(
         built = build_report(session, search, reveal=reveal)
         text = render_json(built) if fmt == "json" else render_markdown(built)
         _echo(text)
+
+
+@outreach_app.command("scorecard")
+def scorecard(
+    search: Annotated[uuid.UUID, _SEARCH],
+    answer_key: Annotated[
+        Path | None,
+        typer.Option(
+            "--answer-key", help="The demo answer key (default: the bundled)."
+        ),
+    ] = None,
+) -> None:
+    """Compare a demo search's Decisions with the answer key."""
+    key_path = answer_key or DEMO_ANSWER_KEY
+    if not key_path.is_file():
+        raise typer.BadParameter(f"no answer key at {key_path}")
+    key = json.loads(key_path.read_text(encoding="utf-8"))
+    with _failing_cleanly(), _session() as session:
+        if session.get(OutreachSearch, search) is None:
+            typer.echo(f"no such search: {search}", err=True)
+            raise typer.Exit(EXIT_FAILED)
+        typer.echo(render_scorecard(score_decisions(session, search, key)))

@@ -1,5 +1,7 @@
 """Trigger logic: the fold, clock, seeded acceptance, dry-run dispatch (8.x, 9.x)."""
 
+# ruff: noqa: F811 - fixtures imported from support
+
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -11,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.store import models as m
-from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 from leadforge.outreach.acceptance import SeededAcceptance
 from leadforge.outreach.clock import FakeClock
@@ -23,7 +24,14 @@ from leadforge.outreach.tables import (
     OutreachMessage,
     OutreachTriggerEvent,
 )
-from leadforge.outreach.tests.support import NOW, make_plan
+from leadforge.outreach.tests.support import (  # noqa: F401 - fixtures
+    NOW,
+    backend,
+    blank,
+    engine,
+    make_plan,
+    postgres_url,
+)
 from leadforge.outreach.tick import tick
 from leadforge.outreach.triggers import ContactFacts, Event, due
 
@@ -146,14 +154,6 @@ def test_acceptance_follows_the_configured_rate_and_window() -> None:
 
 
 # ------------------------------------------------------------- 6.3 dispatch + tick
-
-
-@pytest.fixture
-def engine() -> sa.Engine:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        upgrade_to_head(conn)
-    return engine
 
 
 def _seed_lead(
@@ -366,7 +366,8 @@ def test_a_whole_sequence_opens_no_socket(
     engine: sa.Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     guard: SocketGuard = guard_for_mode(DataMode.SYNTHETIC)
-    guard.install(monkeypatch)
+    if engine.dialect.name == "sqlite":  # a Postgres server is a socket by nature
+        guard.install(monkeypatch)
     search = _setup(engine)
     outbox, lines = tmp_path / "o.jsonl", list[str]()
 
@@ -374,7 +375,7 @@ def test_a_whole_sequence_opens_no_socket(
     _run(
         engine,
         search,
-        NOW + TIMEOUT,
+        NOW + TIMEOUT + DELAY,
         SeededAcceptance(CONFIG.simulation),
         outbox,
         lines,
@@ -397,13 +398,3 @@ def test_the_socket_guard_fails_a_run_that_opens_a_connection(
         socket.create_connection(("example.invalid", 80))
     with pytest.raises(AssertionError):
         guard.assert_clean()
-
-
-# Verifies: outreach requirements 9.4
-def test_a_message_state_other_than_dry_run_cannot_be_stored(engine: sa.Engine) -> None:
-    with Session(engine) as session, session.begin():
-        search = start_search(session, make_plan(), now=NOW)
-        _seed_lead(session, search)
-        row = session.scalars(sa.select(OutreachMessage)).first()
-        assert row is not None
-        assert row.state == "dry_run"

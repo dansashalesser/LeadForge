@@ -3,7 +3,8 @@
 Migration up and down runs on SQLite here; the Postgres leg is task 10.4.
 """
 
-from collections.abc import Iterator
+# ruff: noqa: F811 - fixtures imported from support
+
 from datetime import UTC, datetime
 
 import pytest
@@ -25,17 +26,14 @@ from leadforge.outreach.tables import (
     OutreachSearch,
     OutreachTriggerEvent,
 )
+from leadforge.outreach.tests.support import (  # noqa: F401 - fixtures
+    backend,
+    blank,
+    engine,
+    postgres_url,
+)
 
 NOW = datetime(2026, 10, 7, tzinfo=UTC)
-
-
-@pytest.fixture
-def engine() -> Iterator[sa.Engine]:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        upgrade_to_head(conn)
-    yield engine
-    engine.dispose()
 
 
 def _names(engine: sa.Engine) -> set[str]:

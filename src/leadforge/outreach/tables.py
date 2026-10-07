@@ -106,7 +106,10 @@ class OutreachMessage(Base):
     model: Mapped[str] = mapped_column(String(128))
     prompt_version: Mapped[str] = mapped_column(String(64))
     checks: Mapped[dict[str, Any]] = mapped_column(JSON)
-    judge: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # SQL NULL, not a JSON null, when no judge ran.
+    judge: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     state: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = _utc()
 

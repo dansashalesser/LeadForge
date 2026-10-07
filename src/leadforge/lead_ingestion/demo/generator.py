@@ -1232,13 +1232,19 @@ def build(seed: int = SEED) -> dict[str, Json]:
             for p in people
         ],
     }
-    return {
+    tables = {
         "apollo": _apollo_table(people, ids),
         "hubspot": _hubspot_table(rng, ids, people),
         "hunter": _hunter_table(rng, companies, people),
         "google_search": _google_table(rng, companies),
         ANSWER_KEY: key,
     }
+    # The outreach people come last, from their own random generator, so every record
+    # above is the same as before they existed.
+    from leadforge.lead_ingestion.demo.outreach_data import extend
+
+    extend(tables)
+    return tables
 
 
 def write(directory: Path = DATA_DIR, seed: int = SEED) -> list[Path]:

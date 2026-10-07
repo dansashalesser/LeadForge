@@ -40651,6 +40651,1806 @@
     },
     "request_id": 718432950164242
    }
+  },
+  {
+   "subject": "p243",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "7193e66a5373a9c5b1ab075c",
+    "first_name": "Zelda",
+    "last_name_obfuscated": "Ca***h",
+    "title": "Director of Infrastructure",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "7193e66a5373a9c5b1ab075c",
+     "first_name": "Zelda",
+     "last_name": "Cavendish",
+     "name": "Zelda Cavendish",
+     "linkedin_url": "http://www.linkedin.com/in/zelda-cavendish-450a",
+     "title": "Director of Infrastructure",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Director of Infrastructure",
+     "email": "zelda.cavendish@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "c570ba1b5c9a3735a66e3917",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Director of Infrastructure",
+       "updated_at": null,
+       "id": "c570ba1b5c9a3735a66e3917",
+       "key": "c570ba1b5c9a3735a66e3917"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "director",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164001
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p244",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "b499d1075693e908ebad9c3d",
+    "first_name": "Nils",
+    "last_name_obfuscated": "Lo***e",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "b499d1075693e908ebad9c3d",
+     "first_name": "Nils",
+     "last_name": "Lockridge",
+     "name": "Nils Lockridge",
+     "linkedin_url": "http://www.linkedin.com/in/nils-lockridge-d43e",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "nils.lockridge@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "d3c9dabe809e3965701d994b",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "d3c9dabe809e3965701d994b",
+       "key": "d3c9dabe809e3965701d994b"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164002
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p245",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "85946301eadb11accd9c17a6",
+    "first_name": "Isolde",
+    "last_name_obfuscated": "Th***x",
+    "title": "VP Engineering",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "85946301eadb11accd9c17a6",
+     "first_name": "Isolde",
+     "last_name": "Thibodeaux",
+     "name": "Isolde Thibodeaux",
+     "linkedin_url": "http://www.linkedin.com/in/isolde-thibodeaux-f6ef",
+     "title": "VP Engineering",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "VP Engineering",
+     "email": "isolde.thibodeaux@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "6a71c9dcca11bdae10364958",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "VP Engineering",
+       "updated_at": null,
+       "id": "6a71c9dcca11bdae10364958",
+       "key": "6a71c9dcca11bdae10364958"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "vp",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164003
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p246",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "70aefd2f9bc096a8d9ce0277",
+    "first_name": "Odette",
+    "last_name_obfuscated": "Na***a",
+    "title": "Principal Site Reliability Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "70aefd2f9bc096a8d9ce0277",
+     "first_name": "Odette",
+     "last_name": "Nakashima",
+     "name": "Odette Nakashima",
+     "linkedin_url": "http://www.linkedin.com/in/odette-nakashima-9a6f",
+     "title": "Principal Site Reliability Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Principal Site Reliability Engineer",
+     "email": "odette.nakashima@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "7720ec9d8a690cb9f2dfea07",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Principal Site Reliability Engineer",
+       "updated_at": null,
+       "id": "7720ec9d8a690cb9f2dfea07",
+       "key": "7720ec9d8a690cb9f2dfea07"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164004
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p247",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "12090cb0cee80f237bd002d2",
+    "first_name": "Nils",
+    "last_name_obfuscated": "Ra***n",
+    "title": "Director of Infrastructure",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "12090cb0cee80f237bd002d2",
+     "first_name": "Nils",
+     "last_name": "Rasmussen",
+     "name": "Nils Rasmussen",
+     "linkedin_url": "http://www.linkedin.com/in/nils-rasmussen-2a8b",
+     "title": "Director of Infrastructure",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Director of Infrastructure",
+     "email": "nils.rasmussen@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "2d200db732f08eec0bc09021",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Director of Infrastructure",
+       "updated_at": null,
+       "id": "2d200db732f08eec0bc09021",
+       "key": "2d200db732f08eec0bc09021"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "director",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164005
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p248",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "513b4b250fe32e4521d33314",
+    "first_name": "Lucan",
+    "last_name_obfuscated": "Ya***h",
+    "title": "Principal Site Reliability Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": false,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "513b4b250fe32e4521d33314",
+     "first_name": "Lucan",
+     "last_name": "Yarborough",
+     "name": "Lucan Yarborough",
+     "linkedin_url": "http://www.linkedin.com/in/lucan-yarborough-280c",
+     "title": "Principal Site Reliability Engineer",
+     "email_status": "unavailable",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Principal Site Reliability Engineer",
+     "email": null,
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "41333d1254e23ef052b4b315",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Principal Site Reliability Engineer",
+       "updated_at": null,
+       "id": "41333d1254e23ef052b4b315",
+       "key": "41333d1254e23ef052b4b315"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164006
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p249",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "edf7166d43b77fe3a7baaa6d",
+    "first_name": "Celine",
+    "last_name_obfuscated": "Un***l",
+    "title": "Engineering Manager, Storage",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "edf7166d43b77fe3a7baaa6d",
+     "first_name": "Celine",
+     "last_name": "Underhill",
+     "name": "Celine Underhill",
+     "linkedin_url": null,
+     "title": "Engineering Manager, Storage",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Engineering Manager, Storage",
+     "email": "celine.underhill@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "d6aaab7a3ef77b34d6617fde",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Engineering Manager, Storage",
+       "updated_at": null,
+       "id": "d6aaab7a3ef77b34d6617fde",
+       "key": "d6aaab7a3ef77b34d6617fde"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "manager",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164007
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p250",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "ab823af4896ec3bb99adf072",
+    "first_name": "Gideon",
+    "last_name_obfuscated": "Pe***n",
+    "title": "Director of Infrastructure",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "ab823af4896ec3bb99adf072",
+     "first_name": "Gideon",
+     "last_name": "Pemberton",
+     "name": "Gideon Pemberton",
+     "linkedin_url": null,
+     "title": "Director of Infrastructure",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Director of Infrastructure",
+     "email": "gideon.pemberton@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "270fda99bb3ce6984fa328ba",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Director of Infrastructure",
+       "updated_at": null,
+       "id": "270fda99bb3ce6984fa328ba",
+       "key": "270fda99bb3ce6984fa328ba"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "director",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164008
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p251",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "39939e2b1958a18ff98e840a",
+    "first_name": "Joaquin",
+    "last_name_obfuscated": "Va***a",
+    "title": "VP Engineering",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "39939e2b1958a18ff98e840a",
+     "first_name": "Joaquin",
+     "last_name": "Valderrama",
+     "name": "Joaquin Valderrama",
+     "linkedin_url": "http://www.linkedin.com/in/joaquin-valderrama-9def",
+     "title": "VP Engineering",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "VP Engineering",
+     "email": "joaquin.valderrama@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "a048e89ff81a8591b2e93993",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "VP Engineering",
+       "updated_at": null,
+       "id": "a048e89ff81a8591b2e93993",
+       "key": "a048e89ff81a8591b2e93993"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "vp",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164009
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p252",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "7a46c88bde3458688f8a6a9f",
+    "first_name": "Tamsin",
+    "last_name_obfuscated": "Va***a",
+    "title": "Director of Data Engineering",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "7a46c88bde3458688f8a6a9f",
+     "first_name": "Tamsin",
+     "last_name": "Valderrama",
+     "name": "Tamsin Valderrama",
+     "linkedin_url": "http://www.linkedin.com/in/tamsin-valderrama-cc74",
+     "title": "Director of Data Engineering",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Director of Data Engineering",
+     "email": "tamsin.valderrama@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "f9a6a8f8868543edb88c64a7",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Director of Data Engineering",
+       "updated_at": null,
+       "id": "f9a6a8f8868543edb88c64a7",
+       "key": "f9a6a8f8868543edb88c64a7"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "data_science"
+     ],
+     "subdepartments": [],
+     "seniority": "director",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164010
+   },
+   "domain": "datastax.com"
   }
  ]
 }

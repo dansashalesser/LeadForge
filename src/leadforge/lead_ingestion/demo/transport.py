@@ -119,6 +119,15 @@ def _person_keys(person: Mapping[str, Any]) -> list[str]:
     return keys
 
 
+def _record_domain(record: Mapping[str, Any]) -> str:
+    """The employer domain of an Apollo table record."""
+    if record.get("domain"):
+        return str(record["domain"]).lower()
+    person = record["enrichment"].get("person") or {}
+    org = person.get("organization") or {}
+    return str(org.get("primary_domain") or "").lower()
+
+
 def _linkedin(url: str) -> str:
     """The profile slug, however the URL is written (scheme, www, slash, query)."""
     path = url.split("?")[0].rstrip("/")
@@ -189,13 +198,21 @@ class DemoTransport:
 
     def _apollo_search(self, query: Mapping[str, object]) -> Json:
         uid = str(query.get("currently_using_any_of_technology_uids[]", ""))
+        domain = str(query.get("q_organization_domains_list[]", ""))
         page = int(str(query.get("page", 1)))
         per_page = int(str(query.get("per_page", 100)))
-        found = [
-            r["search_result"]
-            for r in self._tables.apollo_records
-            if uid in r["technology_uids"]
-        ]
+        if domain:
+            found = [
+                r["search_result"]
+                for r in self._tables.apollo_records
+                if _record_domain(r) == domain.lower()
+            ]
+        else:
+            found = [
+                r["search_result"]
+                for r in self._tables.apollo_records
+                if uid in r["technology_uids"]
+            ]
         start = (page - 1) * per_page
         return {"total_entries": len(found), "people": found[start : start + per_page]}
 

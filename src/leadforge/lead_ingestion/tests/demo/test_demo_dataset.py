@@ -20,7 +20,7 @@ from leadforge.lead_ingestion.adapters.google_search import GoogleSearchSource
 from leadforge.lead_ingestion.adapters.hubspot import HubSpotSource
 from leadforge.lead_ingestion.adapters.hunter import HunterSource
 from leadforge.lead_ingestion.database import create_store_engine
-from leadforge.lead_ingestion.demo import generator
+from leadforge.lead_ingestion.demo import generator, outreach_data
 from leadforge.lead_ingestion.demo.cli import DEMO_RETRY, PROFILE
 from leadforge.lead_ingestion.demo.scorecard import load_active_leads, render, score
 from leadforge.lead_ingestion.demo.transport import (
@@ -88,9 +88,9 @@ def test_the_generator_is_deterministic() -> None:
 def test_the_answer_key_covers_every_scenario() -> None:
     key = generator.load(generator.ANSWER_KEY)
     seen = {p["scenario"] for p in key["people"]}
-    assert seen == set(generator.SCENARIO_NOTES)
+    assert seen == set(generator.SCENARIO_NOTES) | set(outreach_data.WORKER_NOTES)
     assert len(key["people"]) >= 240
-    assert len(key["companies"]) == 40
+    assert len(key["companies"]) == 41  # the 40 of the base set and DataStax
 
 
 def _transport(

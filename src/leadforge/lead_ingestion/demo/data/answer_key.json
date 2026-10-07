@@ -25,7 +25,13 @@
   "hunter_invalid": "Apollo says verified; Hunter's verifier says invalid",
   "hunter_accept_all": "Apollo says verified; Hunter says the domain accepts all",
   "hunter_claimed_email": "Hunter answers 451: the person asked not to be processed",
-  "hunter_smtp_failure": "Hunter answers 222 (SMTP failure): Apollo's status stands"
+  "hunter_smtp_failure": "Hunter answers 222 (SMTP failure): Apollo's status stands",
+  "worker_accepts": "A DataStax worker; the invite is accepted, then the email fires",
+  "worker_ignores": "A DataStax worker; ignored invite, a Verified Email falls back",
+  "worker_ignores_no_email": "A DataStax worker with no email; ignored, so stalled",
+  "worker_no_linkedin": "A DataStax worker with an email and no LinkedIn URL",
+  "worker_opted_out": "A DataStax worker who opted out in the CRM",
+  "worker_customer": "A DataStax worker who is already a customer in the CRM"
  },
  "companies": {
   "quillstack.io": {
@@ -187,6 +193,10 @@
   "foxgloveretail.ai": {
    "name": "Foxglove Retail",
    "web_profile": "injection"
+  },
+  "datastax.com": {
+   "name": "DataStax",
+   "web_profile": "own_site"
   }
  },
  "people": [
@@ -207,6 +217,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -217,6 +232,9 @@
    "apollo_id": "06b68bb639db671022009b21",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -236,6 +254,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -255,6 +278,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -274,6 +302,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -284,6 +316,9 @@
    "apollo_id": "8bfbbc7e2e8df7dbf22e88c4",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -303,6 +338,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -322,6 +362,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -341,6 +386,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -360,6 +410,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -379,6 +434,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -398,6 +458,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -417,6 +482,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -436,6 +506,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -455,6 +530,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -474,6 +554,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -493,6 +578,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -512,6 +602,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -531,6 +626,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -550,6 +650,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -569,6 +674,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -588,6 +698,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -607,6 +721,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -626,6 +745,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -645,6 +769,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -664,6 +793,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -683,6 +817,10 @@
     "suppressed": true,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -693,6 +831,9 @@
    "apollo_id": "1d49a1bf0892c979ea2183aa",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -712,6 +853,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -731,6 +877,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -750,6 +901,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -769,6 +925,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -788,6 +949,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -807,6 +973,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -826,6 +997,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -845,6 +1021,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -864,6 +1045,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -883,6 +1069,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -902,6 +1093,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -921,6 +1117,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -940,6 +1141,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -959,6 +1165,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -969,6 +1180,9 @@
    "apollo_id": "dbbdc1b78ed4f96d907fdbb2",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -988,6 +1202,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -998,6 +1217,9 @@
    "apollo_id": "96211805830eeeae72868081",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -1017,6 +1239,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1027,6 +1254,9 @@
    "apollo_id": "3116e912bf8b45f90e6667e0",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -1046,6 +1276,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1065,6 +1300,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1084,6 +1324,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1094,6 +1339,9 @@
    "apollo_id": "f97f95c818292f01ccf03715",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -1113,6 +1361,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1132,6 +1385,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1151,6 +1408,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1161,6 +1423,9 @@
    "apollo_id": "fda551aacd5f81766082ff91",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -1180,6 +1445,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1199,6 +1469,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1218,6 +1493,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1237,6 +1517,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1256,6 +1541,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1275,6 +1565,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1294,6 +1589,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -1313,6 +1613,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1332,6 +1637,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1351,6 +1661,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1370,6 +1685,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1389,6 +1709,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1408,6 +1733,10 @@
     "suppressed": true,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1427,6 +1756,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1446,6 +1780,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1465,6 +1804,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1484,6 +1828,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1503,6 +1852,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1522,6 +1876,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1541,6 +1900,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1560,6 +1924,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1579,6 +1948,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1599,6 +1973,11 @@
     "web_evidence": "none",
     "crm_open_deal": false,
     "title_bounded": true
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1618,6 +1997,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1637,6 +2021,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1656,6 +2044,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1675,6 +2068,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1694,6 +2092,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1713,6 +2115,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1732,6 +2138,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1751,6 +2162,10 @@
     "suppressed": true,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1770,6 +2185,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1789,6 +2209,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1808,6 +2233,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1827,6 +2257,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1846,6 +2280,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1865,6 +2304,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1884,6 +2328,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1903,6 +2351,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1922,6 +2375,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1941,6 +2398,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -1960,6 +2422,10 @@
     "suppressed": true,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1979,6 +2445,10 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -1998,6 +2468,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2017,6 +2492,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2036,6 +2516,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2055,6 +2540,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2074,6 +2564,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2093,6 +2588,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2112,6 +2612,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2131,6 +2636,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2150,6 +2660,10 @@
     "suppressed": true,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2169,6 +2683,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2188,6 +2707,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2207,6 +2731,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2226,6 +2754,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2245,6 +2778,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2264,6 +2802,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2283,6 +2826,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2302,6 +2849,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2321,6 +2873,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2340,6 +2897,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2359,6 +2921,10 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2378,6 +2944,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2397,6 +2968,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2416,6 +2992,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2435,6 +3016,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2454,6 +3040,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2473,6 +3063,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2492,6 +3087,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2511,6 +3111,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2530,6 +3135,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2549,6 +3159,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2559,6 +3174,9 @@
    "apollo_id": "069783184f3c9ace7ddb53a8",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -2578,6 +3196,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2597,6 +3220,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2616,6 +3244,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2635,6 +3268,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2654,6 +3292,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2673,6 +3316,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2692,6 +3339,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2711,6 +3363,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2730,6 +3387,10 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2749,6 +3410,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2768,6 +3434,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2787,6 +3458,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2806,6 +3482,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2825,6 +3505,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2844,6 +3529,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2863,6 +3553,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2882,6 +3577,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -2901,6 +3601,10 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2920,6 +3624,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2939,6 +3648,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2958,6 +3672,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -2977,6 +3696,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -2996,6 +3719,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3015,6 +3743,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3034,6 +3767,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3053,6 +3791,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3072,6 +3815,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3091,6 +3839,10 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3110,6 +3862,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3129,6 +3886,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3148,6 +3910,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3167,6 +3934,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3177,6 +3949,9 @@
    "apollo_id": "a6a7b91d920338586bf5050d",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -3196,6 +3971,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3215,6 +3995,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -3234,6 +4019,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3253,6 +4043,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3272,6 +4067,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3291,6 +4091,10 @@
     "suppressed": true,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3310,6 +4114,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3329,6 +4138,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3348,6 +4162,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3367,6 +4186,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3386,6 +4209,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3405,6 +4233,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3424,6 +4257,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3443,6 +4281,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -3462,6 +4305,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3481,6 +4329,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3500,6 +4353,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3519,6 +4377,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3538,6 +4400,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3557,6 +4424,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3576,6 +4448,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3595,6 +4471,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -3614,6 +4495,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3633,6 +4519,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3652,6 +4543,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -3671,6 +4567,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3681,6 +4582,9 @@
    "apollo_id": "08bd17b95f1ea1f9cb32831a",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -3700,6 +4604,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3719,6 +4628,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3739,6 +4653,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "title_bounded": true
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3758,6 +4677,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3768,6 +4692,9 @@
    "apollo_id": "18ebf6b1815f794657b9d126",
    "expect": {
     "lead": "absent"
+   },
+   "outreach": {
+    "decision": "absent"
    }
   },
   {
@@ -3787,6 +4714,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3806,6 +4738,10 @@
     "suppressed": true,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3825,6 +4761,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3844,6 +4785,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3863,6 +4809,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -3882,6 +4833,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3901,6 +4856,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3920,6 +4880,10 @@
     "suppressed": true,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3939,6 +4903,10 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": true
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -3958,6 +4926,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3977,6 +4950,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -3996,6 +4974,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4015,6 +4998,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4034,6 +5022,10 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   },
   {
@@ -4053,6 +5045,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4072,6 +5069,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4091,6 +5093,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4110,6 +5117,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4129,6 +5141,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4148,6 +5165,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4167,6 +5189,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4186,6 +5213,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4205,6 +5237,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4224,6 +5261,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4243,6 +5285,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4262,6 +5309,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4281,6 +5333,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4300,6 +5357,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4320,6 +5382,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p224"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -4340,6 +5407,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p223"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -4360,6 +5432,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p226"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -4380,6 +5457,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p225"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
    }
   },
   {
@@ -4400,6 +5482,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "same_lead_as": "p228"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4420,6 +5507,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "same_lead_as": "p227"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4440,6 +5532,11 @@
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
     "same_lead_as": "p230"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4460,6 +5557,11 @@
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
     "same_lead_as": "p229"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4480,6 +5582,11 @@
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
     "same_lead_as": "p232"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4500,6 +5607,11 @@
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
     "same_lead_as": "p231"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4520,6 +5632,11 @@
     "web_evidence": "none",
     "crm_open_deal": false,
     "same_lead_as": "p234"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4540,6 +5657,11 @@
     "web_evidence": "none",
     "crm_open_deal": false,
     "same_lead_as": "p233"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4560,6 +5682,11 @@
     "crm_open_deal": false,
     "same_lead_as": "p236",
     "primary_domain_tie": true
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4580,6 +5707,11 @@
     "crm_open_deal": false,
     "same_lead_as": "p235",
     "primary_domain_tie": true
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4600,6 +5732,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p238"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4620,6 +5757,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p237"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4640,6 +5782,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p240"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4660,6 +5807,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p239"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4680,6 +5832,11 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p242"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   },
   {
@@ -4700,6 +5857,247 @@
     "web_evidence": "own_domain",
     "crm_open_deal": false,
     "different_lead_from": "p241"
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p243",
+   "scenario": "worker_accepts",
+   "name": "Zelda Cavendish",
+   "company": "datastax.com",
+   "apollo_id": "7193e66a5373a9c5b1ab075c",
+   "expect": {
+    "lead": "present",
+    "full_name": "Zelda Cavendish",
+    "linkedin_url": "http://www.linkedin.com/in/zelda-cavendish-450a",
+    "email": "zelda.cavendish@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": 1,
+    "sequence": "email"
+   }
+  },
+  {
+   "subject": "p244",
+   "scenario": "worker_accepts",
+   "name": "Nils Lockridge",
+   "company": "datastax.com",
+   "apollo_id": "b499d1075693e908ebad9c3d",
+   "expect": {
+    "lead": "present",
+    "full_name": "Nils Lockridge",
+    "linkedin_url": "http://www.linkedin.com/in/nils-lockridge-d43e",
+    "email": "nils.lockridge@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": 2,
+    "sequence": "email"
+   }
+  },
+  {
+   "subject": "p245",
+   "scenario": "worker_accepts",
+   "name": "Isolde Thibodeaux",
+   "company": "datastax.com",
+   "apollo_id": "85946301eadb11accd9c17a6",
+   "expect": {
+    "lead": "present",
+    "full_name": "Isolde Thibodeaux",
+    "linkedin_url": "http://www.linkedin.com/in/isolde-thibodeaux-f6ef",
+    "email": "isolde.thibodeaux@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": 3,
+    "sequence": "email"
+   }
+  },
+  {
+   "subject": "p246",
+   "scenario": "worker_ignores",
+   "name": "Odette Nakashima",
+   "company": "datastax.com",
+   "apollo_id": "70aefd2f9bc096a8d9ce0277",
+   "expect": {
+    "lead": "present",
+    "full_name": "Odette Nakashima",
+    "linkedin_url": "http://www.linkedin.com/in/odette-nakashima-9a6f",
+    "email": "odette.nakashima@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p247",
+   "scenario": "worker_ignores",
+   "name": "Nils Rasmussen",
+   "company": "datastax.com",
+   "apollo_id": "12090cb0cee80f237bd002d2",
+   "expect": {
+    "lead": "present",
+    "full_name": "Nils Rasmussen",
+    "linkedin_url": "http://www.linkedin.com/in/nils-rasmussen-2a8b",
+    "email": "nils.rasmussen@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p248",
+   "scenario": "worker_ignores_no_email",
+   "name": "Lucan Yarborough",
+   "company": "datastax.com",
+   "apollo_id": "513b4b250fe32e4521d33314",
+   "expect": {
+    "lead": "present",
+    "full_name": "Lucan Yarborough",
+    "linkedin_url": "http://www.linkedin.com/in/lucan-yarborough-280c",
+    "email": null,
+    "email_status": "unknown",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "stalled"
+   }
+  },
+  {
+   "subject": "p249",
+   "scenario": "worker_no_linkedin",
+   "name": "Celine Underhill",
+   "company": "datastax.com",
+   "apollo_id": "edf7166d43b77fe3a7baaa6d",
+   "expect": {
+    "lead": "present",
+    "full_name": "Celine Underhill",
+    "linkedin_url": null,
+    "email": "celine.underhill@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "needs_enrichment",
+    "accepts_after_days": null
+   }
+  },
+  {
+   "subject": "p250",
+   "scenario": "worker_no_linkedin",
+   "name": "Gideon Pemberton",
+   "company": "datastax.com",
+   "apollo_id": "ab823af4896ec3bb99adf072",
+   "expect": {
+    "lead": "present",
+    "full_name": "Gideon Pemberton",
+    "linkedin_url": null,
+    "email": "gideon.pemberton@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "needs_enrichment",
+    "accepts_after_days": null
+   }
+  },
+  {
+   "subject": "p251",
+   "scenario": "worker_opted_out",
+   "name": "Joaquin Valderrama",
+   "company": "datastax.com",
+   "apollo_id": "39939e2b1958a18ff98e840a",
+   "expect": {
+    "lead": "present",
+    "full_name": "Joaquin Valderrama",
+    "linkedin_url": "http://www.linkedin.com/in/joaquin-valderrama-9def",
+    "email": "joaquin.valderrama@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": true,
+    "suppressed": true,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
+   }
+  },
+  {
+   "subject": "p252",
+   "scenario": "worker_customer",
+   "name": "Tamsin Valderrama",
+   "company": "datastax.com",
+   "apollo_id": "7a46c88bde3458688f8a6a9f",
+   "expect": {
+    "lead": "present",
+    "full_name": "Tamsin Valderrama",
+    "linkedin_url": "http://www.linkedin.com/in/tamsin-valderrama-cc74",
+    "email": "tamsin.valderrama@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false
+   },
+   "outreach": {
+    "decision": "rejected",
+    "accepts_after_days": null
    }
   }
  ]

@@ -51,7 +51,7 @@ def build_facts(stored: StoredLead, cfg: MessageConfig) -> LeadFacts:
         facts.append(
             Fact(id="name", kind="name", value=lead.full_name, field="full_name")
         )
-    current = lead.current_employments
+    current = tuple(e for e in lead.employments if e.is_current is not False)
     if current:
         employment = current[0]
         where = f"employments[{lead.employments.index(employment)}]"

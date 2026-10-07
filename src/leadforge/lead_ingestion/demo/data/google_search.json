@@ -982,6 +982,24 @@
      "source": "www.foxgloveretail.ai"
     }
    ]
+  },
+  "datastax.com": {
+   "web_profile": "own_site",
+   "organic_results": [
+    {
+     "position": 1,
+     "title": "How DataStax scaled its data platform",
+     "link": "https://www.datastax.com/blog/scaling-our-data-platform",
+     "snippet": "Engineering at DataStax: migrating our event store, lessons learned.",
+     "redirect_link": "https://www.google.com/url?q=https://www.datastax.com/blog/scaling-our-data-platform",
+     "displayed_link": "www.datastax.com",
+     "favicon": null,
+     "snippet_highlighted_words": [
+      "DataStax"
+     ],
+     "source": "www.datastax.com"
+    }
+   ]
   }
  },
  "faults": [

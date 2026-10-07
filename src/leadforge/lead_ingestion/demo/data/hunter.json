@@ -8616,6 +8616,313 @@
      "decision_maker": null
     }
    }
+  },
+  "datastax.com": {
+   "data": {
+    "domain": "datastax.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "DataStax",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "zelda.cavendish@datastax.com",
+      "type": "personal",
+      "confidence": 78,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-02-14",
+        "last_seen_on": "2026-07-17",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Zelda",
+      "last_name": "Cavendish",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/zelda-cavendish-450a",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "nils.lockridge@datastax.com",
+      "type": "personal",
+      "confidence": 86,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-08-16",
+        "last_seen_on": "2026-07-03",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Nils",
+      "last_name": "Lockridge",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/nils-lockridge-d43e",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "isolde.thibodeaux@datastax.com",
+      "type": "personal",
+      "confidence": 66,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-01-22",
+        "last_seen_on": "2026-06-27",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Isolde",
+      "last_name": "Thibodeaux",
+      "position": "VP Engineering",
+      "position_raw": "VP Engineering",
+      "seniority": "executive",
+      "department": "it",
+      "decision_maker": true,
+      "linkedin": "http://www.linkedin.com/in/isolde-thibodeaux-f6ef",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "odette.nakashima@datastax.com",
+      "type": "personal",
+      "confidence": 83,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-02-01",
+        "last_seen_on": "2026-07-04",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Odette",
+      "last_name": "Nakashima",
+      "position": "Principal Site Reliability Engineer",
+      "position_raw": "Principal Site Reliability Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/odette-nakashima-9a6f",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "nils.rasmussen@datastax.com",
+      "type": "personal",
+      "confidence": 92,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-01-13",
+        "last_seen_on": "2026-01-19",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Nils",
+      "last_name": "Rasmussen",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/nils-rasmussen-2a8b",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "celine.underhill@datastax.com",
+      "type": "personal",
+      "confidence": 73,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-06-14",
+        "last_seen_on": "2026-01-03",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Celine",
+      "last_name": "Underhill",
+      "position": "Engineering Manager, Storage",
+      "position_raw": "Engineering Manager, Storage",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "gideon.pemberton@datastax.com",
+      "type": "personal",
+      "confidence": 77,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-07-23",
+        "last_seen_on": "2026-07-01",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Gideon",
+      "last_name": "Pemberton",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "joaquin.valderrama@datastax.com",
+      "type": "personal",
+      "confidence": 62,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-07-15",
+        "last_seen_on": "2026-06-25",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Joaquin",
+      "last_name": "Valderrama",
+      "position": "VP Engineering",
+      "position_raw": "VP Engineering",
+      "seniority": "executive",
+      "department": "it",
+      "decision_maker": true,
+      "linkedin": "http://www.linkedin.com/in/joaquin-valderrama-9def",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "tamsin.valderrama@datastax.com",
+      "type": "personal",
+      "confidence": 85,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-01-18",
+        "last_seen_on": "2026-06-20",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Tamsin",
+      "last_name": "Valderrama",
+      "position": "Director of Data Engineering",
+      "position_raw": "Director of Data Engineering",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/tamsin-valderrama-cc74",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@datastax.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-01-13",
+        "last_seen_on": "2026-05-04",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 10,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "datastax.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
   }
  },
  "email_finder": [
@@ -17726,6 +18033,375 @@
      "max_duration": null
     }
    }
+  },
+  {
+   "data": {
+    "first_name": "Zelda",
+    "last_name": "Cavendish",
+    "email": "zelda.cavendish@datastax.com",
+    "score": 89,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Director of Infrastructure",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/zelda-cavendish-450a",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-09-13",
+      "last_seen_on": "2026-01-19",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Zelda",
+     "last_name": "Cavendish",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Nils",
+    "last_name": "Lockridge",
+    "email": "nils.lockridge@datastax.com",
+    "score": 90,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/nils-lockridge-d43e",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-02-17",
+      "last_seen_on": "2026-07-26",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Nils",
+     "last_name": "Lockridge",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Isolde",
+    "last_name": "Thibodeaux",
+    "email": "isolde.thibodeaux@datastax.com",
+    "score": 83,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "VP Engineering",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/isolde-thibodeaux-f6ef",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-05-24",
+      "last_seen_on": "2026-09-02",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Isolde",
+     "last_name": "Thibodeaux",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Odette",
+    "last_name": "Nakashima",
+    "email": "odette.nakashima@datastax.com",
+    "score": 76,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Principal Site Reliability Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/odette-nakashima-9a6f",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-08-04",
+      "last_seen_on": "2026-07-17",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Odette",
+     "last_name": "Nakashima",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Nils",
+    "last_name": "Rasmussen",
+    "email": "nils.rasmussen@datastax.com",
+    "score": 89,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Director of Infrastructure",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/nils-rasmussen-2a8b",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-03-07",
+      "last_seen_on": "2026-06-07",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Nils",
+     "last_name": "Rasmussen",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Lucan",
+    "last_name": "Yarborough",
+    "email": null,
+    "score": null,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Principal Site Reliability Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/lucan-yarborough-280c",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [],
+    "verification": null
+   },
+   "meta": {
+    "params": {
+     "first_name": "Lucan",
+     "last_name": "Yarborough",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Celine",
+    "last_name": "Underhill",
+    "email": "celine.underhill@datastax.com",
+    "score": 98,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Engineering Manager, Storage",
+    "twitter": null,
+    "linkedin_url": null,
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-03-21",
+      "last_seen_on": "2026-06-18",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Celine",
+     "last_name": "Underhill",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Gideon",
+    "last_name": "Pemberton",
+    "email": "gideon.pemberton@datastax.com",
+    "score": 85,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Director of Infrastructure",
+    "twitter": null,
+    "linkedin_url": null,
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-05-23",
+      "last_seen_on": "2026-02-04",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Gideon",
+     "last_name": "Pemberton",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Joaquin",
+    "last_name": "Valderrama",
+    "email": "joaquin.valderrama@datastax.com",
+    "score": 76,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "VP Engineering",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/joaquin-valderrama-9def",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-04-17",
+      "last_seen_on": "2026-08-24",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Joaquin",
+     "last_name": "Valderrama",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Tamsin",
+    "last_name": "Valderrama",
+    "email": "tamsin.valderrama@datastax.com",
+    "score": 84,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Director of Data Engineering",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/tamsin-valderrama-cc74",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-07-26",
+      "last_seen_on": "2026-05-01",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Tamsin",
+     "last_name": "Valderrama",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
   }
  ],
  "email_verifier": {
@@ -25671,6 +26347,321 @@
    "meta": {
     "params": {
      "email": "igalbraith2@vantorin.com"
+    }
+   }
+  },
+  "zelda.cavendish@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 91,
+    "email": "zelda.cavendish@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-02-08",
+      "last_seen_on": "2026-04-28",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "zelda.cavendish@datastax.com"
+    }
+   }
+  },
+  "nils.lockridge@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 85,
+    "email": "nils.lockridge@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-04-16",
+      "last_seen_on": "2026-07-07",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "nils.lockridge@datastax.com"
+    }
+   }
+  },
+  "isolde.thibodeaux@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 96,
+    "email": "isolde.thibodeaux@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-02-23",
+      "last_seen_on": "2026-01-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "isolde.thibodeaux@datastax.com"
+    }
+   }
+  },
+  "odette.nakashima@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 86,
+    "email": "odette.nakashima@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-07-28",
+      "last_seen_on": "2026-01-28",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "odette.nakashima@datastax.com"
+    }
+   }
+  },
+  "nils.rasmussen@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 91,
+    "email": "nils.rasmussen@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-07-04",
+      "last_seen_on": "2026-04-12",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "nils.rasmussen@datastax.com"
+    }
+   }
+  },
+  "celine.underhill@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 97,
+    "email": "celine.underhill@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-01-23",
+      "last_seen_on": "2026-09-09",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "celine.underhill@datastax.com"
+    }
+   }
+  },
+  "gideon.pemberton@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 97,
+    "email": "gideon.pemberton@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-05-19",
+      "last_seen_on": "2026-07-23",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "gideon.pemberton@datastax.com"
+    }
+   }
+  },
+  "joaquin.valderrama@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 96,
+    "email": "joaquin.valderrama@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-02-10",
+      "last_seen_on": "2026-04-14",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "joaquin.valderrama@datastax.com"
+    }
+   }
+  },
+  "tamsin.valderrama@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 86,
+    "email": "tamsin.valderrama@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-01-15",
+      "last_seen_on": "2026-08-16",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "tamsin.valderrama@datastax.com"
     }
    }
   }

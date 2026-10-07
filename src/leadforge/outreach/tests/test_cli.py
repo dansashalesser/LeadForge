@@ -43,7 +43,7 @@ def test_every_outreach_command_appears_in_the_help() -> None:
     assert top.exit_code == group.exit_code == search.exit_code == 0
     assert "outreach" in top.output
     assert "ingest" in top.output
-    for command in ("search", "tick", "messages", "report"):
+    for command in ("search", "tick", "messages", "report", "scorecard"):
         assert command in group.output
     for command in SEARCH_COMMANDS:
         assert command in search.output
@@ -215,3 +215,30 @@ def test_the_report_command_masks_unless_reveal(workdir: Path) -> None:
     assert "***@" in plain.output
     assert "***@" not in shown.output
     assert plain.output != shown.output
+
+
+# Verifies: outreach requirements 15.2
+def test_the_scorecard_command_prints_the_mismatch_count(workdir: Path) -> None:
+    runner.invoke(app, ["outreach", "search", "users", "mongodb"])
+    engine = sa.create_engine(f"sqlite:///{workdir / 'store.db'}")
+    with Session(engine) as session:
+        search_id = session.scalars(sa.select(OutreachSearch.id)).one()
+    engine.dispose()
+
+    result = runner.invoke(app, ["outreach", "scorecard", "--search", str(search_id)])
+    missing = runner.invoke(
+        app,
+        [
+            "outreach",
+            "scorecard",
+            "--search",
+            str(search_id),
+            "--answer-key",
+            "nope.json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "mismatches:" in result.output
+    assert "mismatched" in result.output
+    assert missing.exit_code != 0

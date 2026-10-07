@@ -1721,6 +1721,50 @@
    "createdAt": "2025-03-24T07:17:15.084Z",
    "updatedAt": "2026-06-28T18:27:15.198Z",
    "archived": false
+  },
+  {
+   "id": "90032",
+   "properties": {
+    "createdate": "2025-07-10T22:13:45.666Z",
+    "email": "joaquin.valderrama@datastax.com",
+    "firstname": "Joaquin",
+    "lastname": "Valderrama",
+    "jobtitle": "VP Engineering",
+    "company": "DataStax",
+    "website": "datastax.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "90032",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-05-01T04:54:02.081Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-05-01T04:54:02.081Z"
+   },
+   "createdAt": "2025-07-10T22:13:45.666Z",
+   "updatedAt": "2026-05-01T04:54:02.081Z",
+   "archived": false
+  },
+  {
+   "id": "90068",
+   "properties": {
+    "createdate": "2025-08-21T20:50:31.404Z",
+    "email": "tamsin.valderrama@datastax.com",
+    "firstname": "Tamsin",
+    "lastname": "Valderrama",
+    "jobtitle": "Director of Data Engineering",
+    "company": "DataStax",
+    "website": "datastax.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "90068",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-02-23T12:50:52.774Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-02-23T12:50:52.774Z"
+   },
+   "createdAt": "2025-08-21T20:50:31.404Z",
+   "updatedAt": "2026-02-23T12:50:52.774Z",
+   "archived": false
   }
  ],
  "deals": [

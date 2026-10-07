@@ -1,5 +1,7 @@
 """Selection: hard rules, needs_enrichment, a configured score, reasons (4.1, 4.2)."""
 
+# ruff: noqa: F811 - fixtures imported from support
+
 import uuid
 from decimal import Decimal
 from pathlib import Path
@@ -10,7 +12,6 @@ from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.store.lead_reader import CrmState, StoredLead
-from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 from leadforge.outreach.config import QualifyConfig, load_outreach_config
 from leadforge.outreach.decisions import (
     Decision,
@@ -21,12 +22,16 @@ from leadforge.outreach.decisions import (
 from leadforge.outreach.qualify import decide, decide_all
 from leadforge.outreach.search_plan import SearchPlan
 from leadforge.outreach.searches import start_search
-from leadforge.outreach.tests.support import (
+from leadforge.outreach.tests.support import (  # noqa: F401 - fixtures
     NOW,
+    backend,
+    blank,
+    engine,
     make_employment,
     make_lead,
     make_plan,
     make_stored,
+    postgres_url,
 )
 
 CONFIG = load_outreach_config(
@@ -283,10 +288,9 @@ def test_crm_state_is_looked_up_permake_lead() -> None:
 
 
 # Verifies: outreach requirements 6.6
-def test_decisions_are_stored_with_their_score_and_non_empty_reasons() -> None:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        upgrade_to_head(conn)
+def test_decisions_are_stored_with_their_score_and_non_empty_reasons(
+    engine: sa.Engine,
+) -> None:
     stored = [
         make_stored(),
         make_stored(make_lead(opt_out=True)),

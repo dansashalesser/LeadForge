@@ -1,5 +1,7 @@
 """Messages: checks, offline, model writer, judge, storage (7.x, 9.4, 15.3, 15.4)."""
 
+# ruff: noqa: F811 - fixtures imported from support
+
 from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path
@@ -13,7 +15,6 @@ from sqlalchemy.orm import Session
 from leadforge.lead_ingestion.models import DataMode, UntrustedText
 from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.store.lead_reader import StoredLead, WebEvidence
-from leadforge.lead_ingestion.store.migrate import upgrade_to_head
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 from leadforge.outreach.config import MessageConfig, load_outreach_config
 from leadforge.outreach.decisions import Decision, Reason, record_decisions
@@ -32,13 +33,17 @@ from leadforge.outreach.offline_messages import OfflineWriter
 from leadforge.outreach.prompts import load_prompt
 from leadforge.outreach.searches import start_search
 from leadforge.outreach.tables import OutreachDecision
-from leadforge.outreach.tests.support import (
+from leadforge.outreach.tests.support import (  # noqa: F401 - fixtures
     NOW,
     ScriptedModel,
+    backend,
+    blank,
+    engine,
     make_employment,
     make_lead,
     make_plan,
     make_stored,
+    postgres_url,
 )
 
 CFG: MessageConfig = load_outreach_config(
@@ -518,10 +523,9 @@ def _decision(session: Session) -> Decision:
 # Verifies: outreach requirements 7.1
 # Verifies: outreach requirements 7.7
 # Verifies: outreach requirements 9.4
-def test_each_selected_lead_stores_one_invite_and_one_email_in_dry_run() -> None:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        upgrade_to_head(conn)
+def test_each_selected_lead_stores_one_invite_and_one_email_in_dry_run(
+    engine: sa.Engine,
+) -> None:
     facts = _facts()
     invite, email = OfflineWriter().write(facts)
     written = tuple(
@@ -550,10 +554,9 @@ def test_each_selected_lead_stores_one_invite_and_one_email_in_dry_run() -> None
 
 
 # Verifies: outreach requirements 7.4
-def test_a_message_that_failed_its_checks_is_refused_for_storage() -> None:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        upgrade_to_head(conn)
+def test_a_message_that_failed_its_checks_is_refused_for_storage(
+    engine: sa.Engine,
+) -> None:
     bad = _draft(claims=())
 
     with Session(engine) as session, session.begin():
