@@ -22,11 +22,15 @@ from leadforge.lead_ingestion.store.migrate import (
     downgrade_to_base,
     upgrade_to_head,
 )
+from leadforge.lead_ingestion.tests.test_persistence_both_engines import (
+    OUTREACH_TABLES,
+    ignore_outreach,
+)
 
 SLICE_ROOT = Path(slice_pkg.__file__).resolve().parent
 SRC_ROOT = SLICE_ROOT.parents[1]
 MIGRATIONS_DIR = SLICE_ROOT / "store" / "migrations"
-MODEL_TABLES = set(m.Base.metadata.tables)
+MODEL_TABLES = set(m.Base.metadata.tables) | OUTREACH_TABLES
 CREATE_STYLE_ATTRS = {"create_all", "drop_all"}
 
 
@@ -74,7 +78,12 @@ def test_migration_head_matches_orm_metadata_with_no_drift() -> None:
     with engine.begin() as conn:
         upgrade_to_head(conn)
         context = MigrationContext.configure(
-            conn, opts={"compare_type": True, "compare_server_default": True}
+            conn,
+            opts={
+                "compare_type": True,
+                "compare_server_default": True,
+                "include_object": ignore_outreach,
+            },
         )
         diff = compare_metadata(context, m.Base.metadata)
 

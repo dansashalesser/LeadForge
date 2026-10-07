@@ -74,7 +74,29 @@ POSTGRES_HINT = (
     "(see README), or install the PostgreSQL 16 server binaries so an ephemeral "
     "cluster can be started."
 )
-MODEL_TABLES = set(m.Base.metadata.tables)
+# The outreach slice's tables (migration 0012) share this schema and history. Ingestion
+# never imports that slice, so its tables are named here, and the drift checks skip them
+# whether or not the outreach models happen to be imported.
+OUTREACH_TABLES = frozenset(
+    {
+        "outreach_search",
+        "outreach_decision",
+        "outreach_message",
+        "outreach_trigger_event",
+    }
+)
+MODEL_TABLES = set(m.Base.metadata.tables) | OUTREACH_TABLES
+
+
+def ignore_outreach(
+    obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any
+) -> bool:
+    """``include_object`` for ``compare_metadata``: leave the outreach tables out."""
+    if type_ == "table":
+        return name not in OUTREACH_TABLES
+    return getattr(getattr(obj, "table", None), "name", None) not in OUTREACH_TABLES
+
+
 T0 = datetime(2026, 10, 5, 12, 0, 0, tzinfo=UTC)
 NOW = T0 + timedelta(days=40)
 
@@ -483,7 +505,12 @@ def test_upgrade_through_a_connection_and_twice_is_idempotent(blank: Backend) ->
 def test_head_matches_orm_metadata_with_no_drift(backend: Backend) -> None:
     with backend.engine.connect() as conn:
         context = MigrationContext.configure(
-            conn, opts={"compare_type": True, "compare_server_default": True}
+            conn,
+            opts={
+                "compare_type": True,
+                "compare_server_default": True,
+                "include_object": ignore_outreach,
+            },
         )
         assert compare_metadata(context, m.Base.metadata) == []
 

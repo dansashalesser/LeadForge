@@ -1,0 +1,51 @@
+# Outreach settings (requirement 14.1): every number the outreach slice uses lives here,
+# never in code. Change a value and rerun; no code edit is needed.
+#
+# qualify.weights: one weight per scoring term. A Lead's score is the weighted mean of
+# its term values (each 0..1), so it stays in 0..1 whatever the weights sum to.
+# qualify.threshold: the least score a Lead needs to be selected (0..1).
+# qualify.customer_stages: CRM lifecycle stages that mark a Lead as already a customer.
+#
+# triggers: days after an accepted invite before the email fires (accept_delay_days),
+# and days an invite may stay unanswered before the fallback email (invite_timeout_days).
+#
+# messages: character limits, the bound on regenerations before manual review, and
+# phrases no Message may contain (case-insensitive).
+#
+# llm.timeout_s: seconds one model call may take. Provider and model come from the
+# environment, not from this file.
+#
+# outbox_path: the JSONL file every dry-run Message is appended to.
+
+qualify:
+  weights:
+    competitor_evidence: 0.35
+    icp_fit: 0.25
+    intent: 0.15
+    contactability: 0.15
+    source_agreement: 0.10
+  threshold: 0.5
+  customer_stages:
+    - customer
+    - evangelist
+
+triggers:
+  accept_delay_days: 2
+  invite_timeout_days: 5
+
+messages:
+  invite_max_chars: 300
+  email_subject_max_chars: 80
+  email_max_chars: 1200
+  max_regenerations: 3
+  banned_phrases:
+    - hope this email finds you well
+    - touch base
+    - circle back
+    - synergy
+    - game-changer
+
+llm:
+  timeout_s: 30
+
+outbox_path: outbox/dry_run.jsonl

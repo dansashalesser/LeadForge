@@ -102,10 +102,14 @@ def _seed_contribution(s: Session) -> tuple[m.SourceContribution, m.Contribution
 
 # Verifies: specs/lead-source-adapters/requirements.md#9.1
 def test_every_listed_table_exists_as_a_mapped_model() -> None:
-    assert set(m.Base.metadata.tables) == EXPECTED_TABLES
-    assert {mp.class_.__tablename__ for mp in m.Base.registry.mappers} == (
-        EXPECTED_TABLES
-    )
+    # The outreach slice maps its own four tables on this Base (migration 0012).
+    ours = {n for n in m.Base.metadata.tables if not n.startswith("outreach_")}
+    assert ours == EXPECTED_TABLES
+    assert {
+        mp.class_.__tablename__
+        for mp in m.Base.registry.mappers
+        if not mp.class_.__tablename__.startswith("outreach_")
+    } == (EXPECTED_TABLES)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#9.1
