@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.scripts]
-leadforge = "leadforge.lead_ingestion.cli:app"
+leadforge = "leadforge.cli:app"
 
 [dependency-groups]
 dev = [

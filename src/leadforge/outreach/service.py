@@ -14,6 +14,7 @@ for live data (14.3).
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Engine
@@ -94,6 +95,10 @@ class SearchService:
         self._engine = engine
         self._ingest = ingest
         self._settings = llm_settings(environ, config.llm)
+
+    @property
+    def outbox_path(self) -> Path:
+        return self._cfg.outbox_path
 
     @property
     def uses_model(self) -> bool:

@@ -24,4 +24,4 @@ def test_ingest_is_a_named_subcommand_not_the_app_root() -> None:
 def test_leadforge_console_script_points_at_slice_cli() -> None:
     scripts = entry_points(group="console_scripts", name="leadforge")
 
-    assert [ep.value for ep in scripts] == ["leadforge.lead_ingestion.cli:app"]
+    assert [ep.value for ep in scripts] == ["leadforge.cli:app"]

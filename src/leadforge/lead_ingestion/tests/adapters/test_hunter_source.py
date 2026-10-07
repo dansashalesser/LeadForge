@@ -1028,8 +1028,7 @@ async def test_a_verdict_on_another_address_is_withheld() -> None:
         contributions = source.normalize_checked(batch)
     assert contributions == []
     assert any(
-        log["event"] == "hunter_verdict_withheld" and log["count"] == 1
-        for log in logs
+        log["event"] == "hunter_verdict_withheld" and log["count"] == 1 for log in logs
     )
 
 

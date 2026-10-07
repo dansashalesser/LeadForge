@@ -34,6 +34,17 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         # before the search row is written (the run itself migrates again, idempotent).
         (f"{INGESTION}.database", "create_store_engine"),
         (f"{INGESTION}.store.migrate", "upgrade_to_head"),
+        # Command-line setup shared with the ``ingest`` command: env file, logging,
+        # configuration errors, the lock error, and the read-only schema check.
+        (f"{INGESTION}.database", "DatabaseConfigError"),
+        (f"{INGESTION}.env_file", "EnvFileError"),
+        (f"{INGESTION}.env_file", "load_env_file_into_process"),
+        (f"{INGESTION}.errors", "ConfigurationError"),
+        (f"{INGESTION}.ingest_runner", "RunInProgressError"),
+        (f"{INGESTION}.log_redaction", "configure_logging"),
+        (f"{INGESTION}.store.migrate", "StoreNotMigratedError"),
+        (f"{INGESTION}.store.migrate", "require_head"),
+        (f"{INGESTION}.target_profile", "load_target_profile"),
         # The shared declarative Base the four outreach tables are mapped on, and the
         # error its append-only guard raises (tables.py).
         (f"{INGESTION}.store.models", "Base"),
