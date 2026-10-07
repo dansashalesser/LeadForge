@@ -18,13 +18,13 @@ import json
 import os
 import uuid
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
 import sqlalchemy as sa
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -146,8 +146,18 @@ def _exists(url: sa.URL) -> bool:
 # --------------------------------------------------------------------- app
 
 
-def create_app(*, main_url: str | None, demo_db: Path) -> FastAPI:
-    """The UI server. ``main_url`` None means the local default store."""
+def create_app(
+    *,
+    main_url: str | None,
+    demo_db: Path,
+    extra_routers: Sequence[APIRouter] = (),
+) -> FastAPI:
+    """The UI server. ``main_url`` None means the local default store.
+
+    ``extra_routers`` are mounted as given, before the catch-all store routes, so a
+    root that composes another slice can add its own paths without this slice knowing
+    it exists.
+    """
     demo_db = demo_db.resolve()
     demo_url = local_file_url(demo_db)
     urls = {
@@ -203,6 +213,9 @@ def create_app(*, main_url: str | None, demo_db: Path) -> FastAPI:
     ) -> None:
         if x_leadforge != "1":
             raise HTTPException(403, "missing X-LeadForge header")
+
+    for router in extra_routers:
+        app.include_router(router)
 
     @app.get("/api/stores")
     def stores() -> dict[str, Any]:

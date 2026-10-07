@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LeadForge outreach</title>
+  <link rel="stylesheet" href="/outreach/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">Lead<span>Forge</span> outreach</div>
+    <a href="/">Lead store</a>
+    <label class="toggle"><input type="checkbox" id="reveal"> Reveal contacts</label>
+    <div class="spacer"></div>
+    <div class="note">Dry run: nothing is ever sent.</div>
+  </header>
+
+  <section id="search-panel" class="panel" aria-label="Search">
+    <h2>Search</h2>
+    <div class="seg" id="mode" role="tablist" aria-label="Mode">
+      <button data-mode="free_text" class="on">Free text</button>
+      <button data-mode="workers">Company workers</button>
+      <button data-mode="users">Company users</button>
+    </div>
+    <div class="row">
+      <input id="query" type="text" placeholder="Describe who you want to reach" aria-label="Query">
+      <input id="domains" type="text" class="hidden" placeholder="company domains, comma separated" aria-label="Domains">
+      <button id="preview">Preview plan</button>
+      <button id="run" disabled>Run</button>
+    </div>
+    <pre id="plan" class="plan hidden" aria-live="polite"></pre>
+    <div id="status" class="status" aria-live="polite"></div>
+  </section>
+
+  <section class="panel" aria-label="Searches">
+    <h2>Searches</h2>
+    <div id="searches"></div>
+  </section>
+
+  <section id="detail" class="panel hidden" aria-label="Search detail">
+    <div class="row">
+      <h2 id="detail-title">Leads</h2>
+      <div class="spacer"></div>
+      <label>Advance days <input id="days" type="number" min="0" step="1" value="3"></label>
+      <button id="advance">Advance</button>
+      <a id="download" download="outreach-report.md">Download report (Markdown)</a>
+    </div>
+    <div id="funnel" class="funnel"></div>
+    <div id="notes" class="notes"></div>
+    <div id="leads"></div>
+  </section>
+
+  <script src="/outreach/app.js"></script>
+</body>
+</html>
