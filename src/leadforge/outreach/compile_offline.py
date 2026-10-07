@@ -13,7 +13,7 @@ from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.outreach.errors import PlanCompileError
 from leadforge.outreach.search_plan import SearchPlan, SearchRequest
 
-__all__ = ["OfflineCompiler"]
+__all__ = ["OfflineCompiler", "phrases_of"]
 
 _ACRONYM_TITLES = re.compile(r"\b(cto|cio|ceo|coo|cfo|ciso|cdo)\b")
 _STOP = r"(?:at|in|for|who|with|and|or|on|using|running|that|of|the)"
@@ -29,7 +29,7 @@ class OfflineCompiler:
     """``SearchCompiler`` that reads a query with rules and the base profile."""
 
     def __init__(self, base: TargetProfile) -> None:
-        self._phrases = {term: _phrases_of(base, term) for term in base.terms()}
+        self._phrases = {term: phrases_of(base, term) for term in base.terms()}
 
     def compile(self, request: SearchRequest) -> SearchPlan:
         text = _words(request.query)
@@ -70,7 +70,7 @@ def _titles(text: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(found))
 
 
-def _phrases_of(base: TargetProfile, term: str) -> tuple[str, ...]:
+def phrases_of(base: TargetProfile, term: str) -> tuple[str, ...]:
     phrases = [_words(term.replace("_", " "))]
     columns = {**base.competitors, **base.technologies}.get(term, {})
     for vocabulary in columns.values():
