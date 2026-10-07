@@ -23,6 +23,7 @@ __all__ = [
     "OutreachConfig",
     "QualifyConfig",
     "QualifyWeights",
+    "SimulationConfig",
     "SourcesConfig",
     "TriggerConfig",
     "load_outreach_config",
@@ -110,7 +111,16 @@ class SourcesConfig(_Frozen):
     phrase_search: Annotated[str, Field(min_length=1)]
 
 
+class SimulationConfig(_Frozen):
+    """Synthetic invite acceptance: the same seed gives the same acceptances."""
+
+    seed: int
+    accept_rate: Unit
+    max_accept_days: Days
+
+
 class OutreachConfig(_Frozen):
+    simulation: SimulationConfig
     sources: SourcesConfig
     qualify: QualifyConfig
     triggers: TriggerConfig

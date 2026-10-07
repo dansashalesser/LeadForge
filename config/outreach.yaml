@@ -5,6 +5,9 @@
 # a company by its domains (as {domain_key: [domain, ...]}); phrase_search takes plain
 # search phrases (a company that has no entry in company_terms.yaml).
 #
+# simulation: synthetic runs decide invite acceptance from seed (same seed, same
+# acceptances): accept_rate of invites are accepted, within max_accept_days.
+#
 # qualify.weights: one weight per scoring term. A Lead's score is the weighted mean of
 # its term values (each 0..1), so it stays in 0..1 whatever the weights sum to.
 # qualify.threshold: the least score a Lead needs to be selected (0..1).
@@ -29,6 +32,11 @@ sources:
   domain_filter: apollo
   domain_key: organization_domains
   phrase_search: google_search
+
+simulation:
+  seed: 7
+  accept_rate: 0.6
+  max_accept_days: 4
 
 qualify:
   weights:

@@ -78,6 +78,7 @@ def test_a_changed_value_changes_the_setting_with_no_code_change(
         ("messages.max_hook_facts", 0),
         ("llm.timeout_s", 0),
         ("llm.compile_retries", -1),
+        ("simulation.accept_rate", 2),
         ("qualify.customer_stages", [""]),
         ("sources.domain_filter", ""),
     ],
