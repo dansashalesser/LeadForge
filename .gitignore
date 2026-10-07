@@ -16,3 +16,8 @@ dist/
 
 # Local default SQLite database (task 6.3)
 .leadforge/
+
+# Local secrets: copy of .env.example with real values
+.env
+.env.*
+!.env.example
