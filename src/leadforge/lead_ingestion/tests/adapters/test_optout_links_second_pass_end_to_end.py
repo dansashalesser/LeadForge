@@ -247,7 +247,13 @@ async def test_opt_outs_follow_links_and_hubspot_asks_again_what_was_found_later
     assert all(r.outcome.status is SourceStatus.OK for r in outcome.results)
     # Hunter's finder was asked about Pat's LinkedIn-only record, and found PAT.
     assert len(calls("hunter", "email_finder")) == 1
-    assert sorted(str(c["email"]) for c in calls("hunter", "email_verifier")) == [ROLE]
+    # Its rerun (user decision 2026-10-07) verifies the addresses Apollo's matches
+    # found; Pat, pruned before Apollo, is never asked again.
+    assert sorted(str(c["email"]) for c in calls("hunter", "email_verifier")) == [
+        ADA,
+        GRACE,
+        ROLE,
+    ]
 
     # Decision 1: Apollo's paid match is never asked about Pat (his LinkedIn-only and
     # info@ records follow his opt-out); Quinn, at the same info@, still is.

@@ -11,13 +11,26 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Connection, create_engine
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from sqlalchemy import Connection, Engine, create_engine
 
-__all__ = ["MIGRATIONS_DIR", "alembic_config", "downgrade_to_base", "upgrade_to_head"]
+__all__ = [
+    "MIGRATIONS_DIR",
+    "StoreNotMigratedError",
+    "alembic_config",
+    "downgrade_to_base",
+    "require_head",
+    "upgrade_to_head",
+]
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 
 type MigrationTarget = str | Connection
+
+
+class StoreNotMigratedError(RuntimeError):
+    """The store's schema is not at the newest revision (or was never created)."""
 
 
 def alembic_config(target: MigrationTarget) -> Config:
@@ -40,6 +53,22 @@ def upgrade_to_head(target: MigrationTarget) -> None:
 def downgrade_to_base(target: MigrationTarget) -> None:
     """Revert every revision (test and local-reset use)."""
     _run(target, lambda cfg: command.downgrade(cfg, "base"))
+
+
+def require_head(engine: Engine) -> None:
+    """Raise `StoreNotMigratedError` unless `engine`'s schema is at the newest revision.
+
+    Readers call this instead of migrating: only ``ingest`` writes schema.
+    """
+    head = ScriptDirectory(str(MIGRATIONS_DIR)).get_current_head()
+    with engine.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_revision()
+    if current != head:
+        found = "no schema" if current is None else f"revision {current}"
+        raise StoreNotMigratedError(
+            f"lead store has {found}, expected revision {head}; "
+            "run `leadforge ingest` against this database first"
+        )
 
 
 def _run(target: MigrationTarget, action: Callable[[Config], None]) -> None:

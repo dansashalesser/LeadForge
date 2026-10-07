@@ -1,0 +1,2160 @@
+{
+ "provider": "hubspot",
+ "api_version": "2026-09",
+ "docs": [
+  "https://developers.hubspot.com/docs/api-reference/latest/crm/search-the-crm"
+ ],
+ "generated_on": "2026-10-07",
+ "contacts": [
+  {
+   "id": "51011",
+   "properties": {
+    "createdate": "2025-04-11T00:03:48.306Z",
+    "email": "hamish.jablonski@tidelark.dev",
+    "firstname": "Hamish",
+    "lastname": "Jablonski",
+    "jobtitle": "CTO",
+    "company": "Tidelark",
+    "website": "tidelark.dev",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51011",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-02-09T17:14:17.425Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-02-09T17:14:17.425Z"
+   },
+   "createdAt": "2025-04-11T00:03:48.306Z",
+   "updatedAt": "2026-02-09T17:14:17.425Z",
+   "archived": false
+  },
+  {
+   "id": "51089",
+   "properties": {
+    "createdate": "2025-05-18T15:58:28.682Z",
+    "email": "dmitri@mail.kestrelyn.ai",
+    "firstname": "Dmitri",
+    "lastname": "Ibarguen",
+    "jobtitle": "Principal Site Reliability Engineer",
+    "company": "Kestrelyn",
+    "website": "kestrelyn.ai",
+    "hs_additional_emails": "dmitri@kestrelyn.ai",
+    "hs_email_optout": "false",
+    "hs_object_id": "51089",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-05-18T18:27:43.500Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-05-18T18:27:43.500Z"
+   },
+   "createdAt": "2025-05-18T15:58:28.682Z",
+   "updatedAt": "2026-05-18T18:27:43.500Z",
+   "archived": false
+  },
+  {
+   "id": "51111",
+   "properties": {
+    "createdate": "2025-04-19T07:52:01.625Z",
+    "email": "ayarborough@lumenstead.ai",
+    "firstname": "Anouk",
+    "lastname": "Yarborough",
+    "jobtitle": "Engineering Manager, Storage",
+    "company": "Lumenstead",
+    "website": "lumenstead.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51111",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-01-23T20:35:48.578Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-01-23T20:35:48.578Z"
+   },
+   "createdAt": "2025-04-19T07:52:01.625Z",
+   "updatedAt": "2026-01-23T20:35:48.578Z",
+   "archived": false
+  },
+  {
+   "id": "51126",
+   "properties": {
+    "createdate": "2025-05-28T06:57:27.693Z",
+    "email": "ulric.galbraith@marrowgate.dev",
+    "firstname": "Ulric",
+    "lastname": "Galbraith",
+    "jobtitle": "Engineering Manager, Storage",
+    "company": "Marrowgate",
+    "website": "marrowgate.dev",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51126",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-06-22T15:09:41.069Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-06-22T15:09:41.069Z"
+   },
+   "createdAt": "2025-05-28T06:57:27.693Z",
+   "updatedAt": "2026-06-22T15:09:41.069Z",
+   "archived": false
+  },
+  {
+   "id": "51142",
+   "properties": {
+    "createdate": "2025-05-06T11:30:19.164Z",
+    "email": "aholloway@quorvia.co",
+    "firstname": "Anouk",
+    "lastname": "Holloway",
+    "jobtitle": "VP Engineering",
+    "company": "Quorvia",
+    "website": "quorvia.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51142",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-09-16T16:38:22.184Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-09-16T16:38:22.184Z"
+   },
+   "createdAt": "2025-05-06T11:30:19.164Z",
+   "updatedAt": "2026-09-16T16:38:22.184Z",
+   "archived": false
+  },
+  {
+   "id": "51147",
+   "properties": {
+    "createdate": "2025-04-06T23:56:27.551Z",
+    "email": "greta@mail.driftwell.tech",
+    "firstname": "Greta",
+    "lastname": "Fairbairn",
+    "jobtitle": "Director of Infrastructure",
+    "company": "Driftwell",
+    "website": "driftwell.tech",
+    "hs_additional_emails": "greta.fairbairn@driftwell.tech",
+    "hs_email_optout": "false",
+    "hs_object_id": "51147",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-02-25T13:26:37.341Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-02-25T13:26:37.341Z"
+   },
+   "createdAt": "2025-04-06T23:56:27.551Z",
+   "updatedAt": "2026-02-25T13:26:37.341Z",
+   "archived": false
+  },
+  {
+   "id": "51169",
+   "properties": {
+    "createdate": "2025-05-22T13:21:30.804Z",
+    "email": "hhargreaves@salviohealth.io",
+    "firstname": "Hollis",
+    "lastname": "Hargreaves",
+    "jobtitle": "Head of Data Platform",
+    "company": "Salvio Health",
+    "website": "salviohealth.io",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51169",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-05-24T09:25:17.124Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-05-24T09:25:17.124Z"
+   },
+   "createdAt": "2025-05-22T13:21:30.804Z",
+   "updatedAt": "2026-05-24T09:25:17.124Z",
+   "archived": false
+  },
+  {
+   "id": "51206",
+   "properties": {
+    "createdate": "2025-03-23T18:37:00.710Z",
+    "email": "dwhitcombe@vantorin.com",
+    "firstname": "Dariusz",
+    "lastname": "Whitcombe",
+    "jobtitle": "Principal Site Reliability Engineer",
+    "company": "Vantorin",
+    "website": "vantorin.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51206",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-08-28T15:53:35.732Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-08-28T15:53:35.732Z"
+   },
+   "createdAt": "2025-03-23T18:37:00.710Z",
+   "updatedAt": "2026-08-28T15:53:35.732Z",
+   "archived": false
+  },
+  {
+   "id": "51239",
+   "properties": {
+    "createdate": "2025-04-07T07:44:10.113Z",
+    "email": "cosima.fitzgerald@foxgloveretail.ai",
+    "firstname": "Cosima",
+    "lastname": "Fitzgerald",
+    "jobtitle": "CTO",
+    "company": "Foxglove Retail",
+    "website": "foxgloveretail.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51239",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-08-24T23:32:20.068Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-08-24T23:32:20.068Z"
+   },
+   "createdAt": "2025-04-07T07:44:10.113Z",
+   "updatedAt": "2026-08-24T23:32:20.068Z",
+   "archived": false
+  },
+  {
+   "id": "51305",
+   "properties": {
+    "createdate": "2025-03-07T13:00:59.134Z",
+    "email": "boyelaran@corvantis.co",
+    "firstname": "Bram",
+    "lastname": "Oyelaran",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Corvantis",
+    "website": "corvantis.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51305",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-07-24T03:34:16.436Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-07-24T03:34:16.436Z"
+   },
+   "createdAt": "2025-03-07T13:00:59.134Z",
+   "updatedAt": "2026-07-24T03:34:16.436Z",
+   "archived": false
+  },
+  {
+   "id": "51339",
+   "properties": {
+    "createdate": "2025-08-17T08:39:41.115Z",
+    "email": "boyelaran@corvantis.co",
+    "firstname": "Bram",
+    "lastname": "Oyelaran",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Corvantis",
+    "website": "corvantis.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51339",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-06-22T06:06:03.468Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-06-22T06:06:03.468Z"
+   },
+   "createdAt": "2025-08-17T08:39:41.115Z",
+   "updatedAt": "2026-06-22T06:06:03.468Z",
+   "archived": false
+  },
+  {
+   "id": "51367",
+   "properties": {
+    "createdate": "2025-07-02T22:09:05.782Z",
+    "email": "farrah@hexmoor.ai",
+    "firstname": "Farrah",
+    "lastname": "Fairbairn",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Hexmoor",
+    "website": "hexmoor.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51367",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-08-03T10:08:35.684Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-08-03T10:08:35.684Z"
+   },
+   "createdAt": "2025-07-02T22:09:05.782Z",
+   "updatedAt": "2026-08-03T10:08:35.684Z",
+   "archived": false
+  },
+  {
+   "id": "51402",
+   "properties": {
+    "createdate": "2025-03-18T09:56:58.564Z",
+    "email": "joaquin.fitzgerald@ombrafield.tech",
+    "firstname": "Joaquin",
+    "lastname": "Fitzgerald",
+    "jobtitle": "Head of Data Platform",
+    "company": "Ombrafield",
+    "website": "ombrafield.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51402",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-07-22T14:19:24.577Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-07-22T14:19:24.577Z"
+   },
+   "createdAt": "2025-03-18T09:56:58.564Z",
+   "updatedAt": "2026-07-22T14:19:24.577Z",
+   "archived": false
+  },
+  {
+   "id": "51412",
+   "properties": {
+    "createdate": "2025-08-13T21:43:05.644Z",
+    "email": "dariusz@kestrelyn.ai",
+    "firstname": "Dariusz",
+    "lastname": "Hargreaves",
+    "jobtitle": "Director of Infrastructure",
+    "company": "Kestrelyn",
+    "website": "kestrelyn.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51412",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-01-28T03:31:09.220Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-01-28T03:31:09.220Z"
+   },
+   "createdAt": "2025-08-13T21:43:05.644Z",
+   "updatedAt": "2026-01-28T03:31:09.220Z",
+   "archived": false
+  },
+  {
+   "id": "51431",
+   "properties": {
+    "createdate": "2025-09-25T05:28:57.212Z",
+    "email": "ehargreaves@salviohealth.io",
+    "firstname": "Elif",
+    "lastname": "Hargreaves",
+    "jobtitle": "VP Engineering",
+    "company": "Salvio Health",
+    "website": "salviohealth.io",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51431",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-09-02T14:37:43.471Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-09-02T14:37:43.471Z"
+   },
+   "createdAt": "2025-09-25T05:28:57.212Z",
+   "updatedAt": "2026-09-02T14:37:43.471Z",
+   "archived": false
+  },
+  {
+   "id": "51453",
+   "properties": {
+    "createdate": "2025-09-21T13:06:17.605Z",
+    "email": "elif.oyelaran@larkspan.com",
+    "firstname": "Elif",
+    "lastname": "Oyelaran",
+    "jobtitle": "VP Engineering",
+    "company": "Larkspan",
+    "website": "larkspan.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51453",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-09-20T02:09:49.624Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-09-20T02:09:49.624Z"
+   },
+   "createdAt": "2025-09-21T13:06:17.605Z",
+   "updatedAt": "2026-09-20T02:09:49.624Z",
+   "archived": false
+  },
+  {
+   "id": "51463",
+   "properties": {
+    "createdate": "2025-02-23T14:05:51.835Z",
+    "email": "marisol@northvane.co",
+    "firstname": "Marisol",
+    "lastname": "Eskildsen",
+    "jobtitle": "Engineering Manager, Storage",
+    "company": "Northvane",
+    "website": "northvane.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51463",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-09-13T19:25:34.224Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-09-13T19:25:34.224Z"
+   },
+   "createdAt": "2025-02-23T14:05:51.835Z",
+   "updatedAt": "2026-09-13T19:25:34.224Z",
+   "archived": false
+  },
+  {
+   "id": "51483",
+   "properties": {
+    "createdate": "2025-07-04T05:17:09.552Z",
+    "email": "ulric@glintmere.dev",
+    "firstname": "Ulric",
+    "lastname": "Oyelaran",
+    "jobtitle": "Head of Data Platform",
+    "company": "Glintmere",
+    "website": "glintmere.dev",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51483",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-08-11T06:51:31.830Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-08-11T06:51:31.830Z"
+   },
+   "createdAt": "2025-07-04T05:17:09.552Z",
+   "updatedAt": "2026-08-11T06:51:31.830Z",
+   "archived": false
+  },
+  {
+   "id": "51489",
+   "properties": {
+    "createdate": "2025-04-14T10:14:47.634Z",
+    "email": "ulric@glintmere.dev",
+    "firstname": "Ulric",
+    "lastname": "Oyelaran",
+    "jobtitle": "Head of Data Platform",
+    "company": "Glintmere",
+    "website": "glintmere.dev",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51489",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-02-05T18:22:56.157Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-02-05T18:22:56.157Z"
+   },
+   "createdAt": "2025-04-14T10:14:47.634Z",
+   "updatedAt": "2026-02-05T18:22:56.157Z",
+   "archived": false
+  },
+  {
+   "id": "51509",
+   "properties": {
+    "createdate": "2025-08-22T00:33:36.349Z",
+    "email": "vesna@halcyra.tech",
+    "firstname": "Vesna",
+    "lastname": "Ibarguen",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Halcyra",
+    "website": "halcyra.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51509",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-09-11T11:28:27.493Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-09-11T11:28:27.493Z"
+   },
+   "createdAt": "2025-08-22T00:33:36.349Z",
+   "updatedAt": "2026-09-11T11:28:27.493Z",
+   "archived": false
+  },
+  {
+   "id": "51551",
+   "properties": {
+    "createdate": "2025-01-23T18:39:59.980Z",
+    "email": "ikowalczyk@quorvia.co",
+    "firstname": "Ines",
+    "lastname": "Kowalczyk",
+    "jobtitle": "CTO",
+    "company": "Quorvia",
+    "website": "quorvia.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51551",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-05-13T04:19:43.525Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-05-13T04:19:43.525Z"
+   },
+   "createdAt": "2025-01-23T18:39:59.980Z",
+   "updatedAt": "2026-05-13T04:19:43.525Z",
+   "archived": false
+  },
+  {
+   "id": "51585",
+   "properties": {
+    "createdate": "2025-07-19T06:29:50.875Z",
+    "email": "farrah.underhill@xyloquent.ai",
+    "firstname": "Farrah",
+    "lastname": "Underhill",
+    "jobtitle": "Head of Data Platform",
+    "company": "Xyloquent",
+    "website": "xyloquent.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51585",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-02-11T01:51:52.789Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-02-11T01:51:52.789Z"
+   },
+   "createdAt": "2025-07-19T06:29:50.875Z",
+   "updatedAt": "2026-02-11T01:51:52.789Z",
+   "archived": false
+  },
+  {
+   "id": "51650",
+   "properties": {
+    "createdate": "2025-08-11T14:36:26.481Z",
+    "email": "epemberton@duskhaven.com",
+    "firstname": "Esme",
+    "lastname": "Pemberton",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Duskhaven",
+    "website": "duskhaven.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51650",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-06-28T11:18:44.912Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-06-28T11:18:44.912Z"
+   },
+   "createdAt": "2025-08-11T14:36:26.481Z",
+   "updatedAt": "2026-06-28T11:18:44.912Z",
+   "archived": false
+  },
+  {
+   "id": "51692",
+   "properties": {
+    "createdate": "2025-02-16T23:09:36.768Z",
+    "email": "pholloway@corvantis.co",
+    "firstname": "Pavel",
+    "lastname": "Holloway",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Corvantis",
+    "website": "corvantis.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51692",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-09-24T15:00:55.166Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-09-24T15:00:55.166Z"
+   },
+   "createdAt": "2025-02-16T23:09:36.768Z",
+   "updatedAt": "2026-09-24T15:00:55.166Z",
+   "archived": false
+  },
+  {
+   "id": "51741",
+   "properties": {
+    "createdate": "2025-07-03T07:11:39.908Z",
+    "email": "rosalind@northvane.co",
+    "firstname": "Rosalind",
+    "lastname": "Underhill",
+    "jobtitle": "Engineering Manager, Storage",
+    "company": "Northvane",
+    "website": "northvane.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51741",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-01-24T18:47:04.137Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-01-24T18:47:04.137Z"
+   },
+   "createdAt": "2025-07-03T07:11:39.908Z",
+   "updatedAt": "2026-01-24T18:47:04.137Z",
+   "archived": false
+  },
+  {
+   "id": "51793",
+   "properties": {
+    "createdate": "2025-03-27T19:25:47.418Z",
+    "email": "florian@halcyra.tech",
+    "firstname": "Florian",
+    "lastname": "Kowalczyk",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Halcyra",
+    "website": "halcyra.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51793",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-08-22T15:56:37.120Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-08-22T15:56:37.120Z"
+   },
+   "createdAt": "2025-03-27T19:25:47.418Z",
+   "updatedAt": "2026-08-22T15:56:37.120Z",
+   "archived": false
+  },
+  {
+   "id": "51840",
+   "properties": {
+    "createdate": "2025-05-21T03:20:54.954Z",
+    "email": "lyarborough@lumenstead.ai",
+    "firstname": "Leopold",
+    "lastname": "Yarborough",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Lumenstead",
+    "website": "lumenstead.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51840",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-08-03T01:49:38.968Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-08-03T01:49:38.968Z"
+   },
+   "createdAt": "2025-05-21T03:20:54.954Z",
+   "updatedAt": "2026-08-03T01:49:38.968Z",
+   "archived": false
+  },
+  {
+   "id": "51882",
+   "properties": {
+    "createdate": "2025-08-16T11:29:48.205Z",
+    "email": "ulric.holloway@marrowgate.dev",
+    "firstname": "Ulric",
+    "lastname": "Holloway",
+    "jobtitle": "VP Engineering",
+    "company": "Marrowgate",
+    "website": "marrowgate.dev",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51882",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-07-20T09:45:58.113Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-07-20T09:45:58.113Z"
+   },
+   "createdAt": "2025-08-16T11:29:48.205Z",
+   "updatedAt": "2026-07-20T09:45:58.113Z",
+   "archived": false
+  },
+  {
+   "id": "51886",
+   "properties": {
+    "createdate": "2025-02-20T12:38:29.289Z",
+    "email": "dpemberton@quorvia.co",
+    "firstname": "Dariusz",
+    "lastname": "Pemberton",
+    "jobtitle": "Principal Site Reliability Engineer",
+    "company": "Quorvia",
+    "website": "quorvia.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "51886",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-02-26T23:35:10.982Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-02-26T23:35:10.982Z"
+   },
+   "createdAt": "2025-02-20T12:38:29.289Z",
+   "updatedAt": "2026-02-26T23:35:10.982Z",
+   "archived": false
+  },
+  {
+   "id": "51939",
+   "properties": {
+    "createdate": "2025-08-05T23:55:15.092Z",
+    "email": "ines@mail.ravenmoss.ai",
+    "firstname": "Ines",
+    "lastname": "Pemberton",
+    "jobtitle": "Head of Data Platform",
+    "company": "Ravenmoss",
+    "website": "ravenmoss.ai",
+    "hs_additional_emails": "ipemberton@ravenmoss.ai",
+    "hs_email_optout": "false",
+    "hs_object_id": "51939",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-09-11T08:27:31.759Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-09-11T08:27:31.759Z"
+   },
+   "createdAt": "2025-08-05T23:55:15.092Z",
+   "updatedAt": "2026-09-11T08:27:31.759Z",
+   "archived": false
+  },
+  {
+   "id": "51972",
+   "properties": {
+    "createdate": "2025-02-12T20:18:53.059Z",
+    "email": "afitzgerald@umbervale.io",
+    "firstname": "Amara",
+    "lastname": "Fitzgerald",
+    "jobtitle": "CTO",
+    "company": "Umbervale",
+    "website": "umbervale.io",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "51972",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-06-17T11:07:35.270Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-06-17T11:07:35.270Z"
+   },
+   "createdAt": "2025-02-12T20:18:53.059Z",
+   "updatedAt": "2026-06-17T11:07:35.270Z",
+   "archived": false
+  },
+  {
+   "id": "51996",
+   "properties": {
+    "createdate": "2025-05-01T04:30:36.098Z",
+    "email": "mireille@mail.zephyrant.tech",
+    "firstname": "Mireille",
+    "lastname": "Eskildsen",
+    "jobtitle": "CTO",
+    "company": "Zephyrant",
+    "website": "zephyrant.tech",
+    "hs_additional_emails": "mireille@zephyrant.tech",
+    "hs_email_optout": "false",
+    "hs_object_id": "51996",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-02-07T17:17:35.814Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-02-07T17:17:35.814Z"
+   },
+   "createdAt": "2025-05-01T04:30:36.098Z",
+   "updatedAt": "2026-02-07T17:17:35.814Z",
+   "archived": false
+  },
+  {
+   "id": "52006",
+   "properties": {
+    "createdate": "2025-02-26T19:47:21.840Z",
+    "email": "dunderhill@cobaltine.io",
+    "firstname": "Dariusz",
+    "lastname": "Underhill",
+    "jobtitle": "CTO",
+    "company": "Cobaltine",
+    "website": "cobaltine.io",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52006",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-09-20T21:25:22.938Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-09-20T21:25:22.938Z"
+   },
+   "createdAt": "2025-02-26T19:47:21.840Z",
+   "updatedAt": "2026-09-20T21:25:22.938Z",
+   "archived": false
+  },
+  {
+   "id": "52025",
+   "properties": {
+    "createdate": "2025-02-24T16:20:26.160Z",
+    "email": "kcastellanos@corvantis.co",
+    "firstname": "Kalina",
+    "lastname": "Castellanos",
+    "jobtitle": "Principal Site Reliability Engineer",
+    "company": "Corvantis",
+    "website": "corvantis.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52025",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-08-16T14:29:09.443Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-08-16T14:29:09.443Z"
+   },
+   "createdAt": "2025-02-24T16:20:26.160Z",
+   "updatedAt": "2026-08-16T14:29:09.443Z",
+   "archived": false
+  },
+  {
+   "id": "52035",
+   "properties": {
+    "createdate": "2025-05-08T05:54:42.131Z",
+    "email": "qgrisanti@pinecrestledger.com",
+    "firstname": "Quinn",
+    "lastname": "Grisanti",
+    "jobtitle": "Head of Data Platform",
+    "company": "Pinecrest Ledger",
+    "website": "pinecrestledger.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52035",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-02-04T13:36:32.270Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-02-04T13:36:32.270Z"
+   },
+   "createdAt": "2025-05-08T05:54:42.131Z",
+   "updatedAt": "2026-02-04T13:36:32.270Z",
+   "archived": false
+  },
+  {
+   "id": "52057",
+   "properties": {
+    "createdate": "2025-01-20T20:37:02.588Z",
+    "email": "leopold.rasmussen@driftwell.tech",
+    "firstname": "Leopold",
+    "lastname": "Rasmussen",
+    "jobtitle": "Head of Data Platform",
+    "company": "Driftwell",
+    "website": "driftwell.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52057",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-01-13T11:00:19.568Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-01-13T11:00:19.568Z"
+   },
+   "createdAt": "2025-01-20T20:37:02.588Z",
+   "updatedAt": "2026-01-13T11:00:19.568Z",
+   "archived": false
+  },
+  {
+   "id": "52072",
+   "properties": {
+    "createdate": "2025-09-26T22:55:31.283Z",
+    "email": "leopold.rasmussen@driftwell.tech",
+    "firstname": "Leopold",
+    "lastname": "Rasmussen",
+    "jobtitle": "Head of Data Platform",
+    "company": "Driftwell",
+    "website": "driftwell.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52072",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-07-23T16:21:56.672Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-07-23T16:21:56.672Z"
+   },
+   "createdAt": "2025-09-26T22:55:31.283Z",
+   "updatedAt": "2026-07-23T16:21:56.672Z",
+   "archived": false
+  },
+  {
+   "id": "52097",
+   "properties": {
+    "createdate": "2025-05-17T19:08:46.964Z",
+    "email": "gideon@juniperline.com",
+    "firstname": "Gideon",
+    "lastname": "Szymanski",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Juniperline",
+    "website": "juniperline.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52097",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-04-25T15:58:02.460Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-04-25T15:58:02.460Z"
+   },
+   "createdAt": "2025-05-17T19:08:46.964Z",
+   "updatedAt": "2026-04-25T15:58:02.460Z",
+   "archived": false
+  },
+  {
+   "id": "52117",
+   "properties": {
+    "createdate": "2025-08-16T09:58:28.286Z",
+    "email": "esme.abernathy@marrowgate.dev",
+    "firstname": "Esme",
+    "lastname": "Abernathy",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Marrowgate",
+    "website": "marrowgate.dev",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52117",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-06-18T21:32:20.931Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-06-18T21:32:20.931Z"
+   },
+   "createdAt": "2025-08-16T09:58:28.286Z",
+   "updatedAt": "2026-06-18T21:32:20.931Z",
+   "archived": false
+  },
+  {
+   "id": "52168",
+   "properties": {
+    "createdate": "2025-02-20T10:11:13.698Z",
+    "email": "loyelaran@umbervale.io",
+    "firstname": "Leopold",
+    "lastname": "Oyelaran",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Umbervale",
+    "website": "umbervale.io",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52168",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-07-09T07:17:54.190Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-07-09T07:17:54.190Z"
+   },
+   "createdAt": "2025-02-20T10:11:13.698Z",
+   "updatedAt": "2026-07-09T07:17:54.190Z",
+   "archived": false
+  },
+  {
+   "id": "52205",
+   "properties": {
+    "createdate": "2025-03-09T06:50:52.136Z",
+    "email": "jovan@zephyrant.tech",
+    "firstname": "Jovan",
+    "lastname": "Hargreaves",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Zephyrant",
+    "website": "zephyrant.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52205",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-06-22T02:30:33.274Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-06-22T02:30:33.274Z"
+   },
+   "createdAt": "2025-03-09T06:50:52.136Z",
+   "updatedAt": "2026-06-22T02:30:33.274Z",
+   "archived": false
+  },
+  {
+   "id": "52214",
+   "properties": {
+    "createdate": "2025-04-25T04:08:42.193Z",
+    "email": "esme.lockridge@foxgloveretail.ai",
+    "firstname": "Esme",
+    "lastname": "Lockridge",
+    "jobtitle": "VP Engineering",
+    "company": "Foxglove Retail",
+    "website": "foxgloveretail.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52214",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-06-25T17:15:38.498Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-06-25T17:15:38.498Z"
+   },
+   "createdAt": "2025-04-25T04:08:42.193Z",
+   "updatedAt": "2026-06-25T17:15:38.498Z",
+   "archived": false
+  },
+  {
+   "id": "52256",
+   "properties": {
+    "createdate": "2025-06-02T17:31:32.780Z",
+    "email": "isolde.whitcombe@brambleworks.com",
+    "firstname": "Isolde",
+    "lastname": "Whitcombe",
+    "jobtitle": "Director of Infrastructure",
+    "company": "Brambleworks",
+    "website": "brambleworks.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52256",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-02-04T03:21:53.360Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-02-04T03:21:53.360Z"
+   },
+   "createdAt": "2025-06-02T17:31:32.780Z",
+   "updatedAt": "2026-02-04T03:21:53.360Z",
+   "archived": false
+  },
+  {
+   "id": "52262",
+   "properties": {
+    "createdate": "2025-07-22T22:50:55.803Z",
+    "email": "isolde.whitcombe@brambleworks.com",
+    "firstname": "Isolde",
+    "lastname": "Whitcombe",
+    "jobtitle": "Director of Infrastructure",
+    "company": "Brambleworks",
+    "website": "brambleworks.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52262",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-01-21T01:45:09.631Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-01-21T01:45:09.631Z"
+   },
+   "createdAt": "2025-07-22T22:50:55.803Z",
+   "updatedAt": "2026-01-21T01:45:09.631Z",
+   "archived": false
+  },
+  {
+   "id": "52275",
+   "properties": {
+    "createdate": "2025-07-11T16:30:30.750Z",
+    "email": "jyarborough@corvantis.co",
+    "firstname": "Jovan",
+    "lastname": "Yarborough",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Corvantis",
+    "website": "corvantis.co",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52275",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-03-27T23:11:16.121Z",
+    "lifecyclestage": "opportunity",
+    "notes_last_updated": "2026-03-27T23:11:16.121Z"
+   },
+   "createdAt": "2025-07-11T16:30:30.750Z",
+   "updatedAt": "2026-03-27T23:11:16.121Z",
+   "archived": false
+  },
+  {
+   "id": "52296",
+   "properties": {
+    "createdate": "2025-09-27T07:41:55.343Z",
+    "email": "leopold@hexmoor.ai",
+    "firstname": "Leopold",
+    "lastname": "Marchetti",
+    "jobtitle": "Head of Data Platform",
+    "company": "Hexmoor",
+    "website": "hexmoor.ai",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52296",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-06-19T10:04:14.245Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-06-19T10:04:14.245Z"
+   },
+   "createdAt": "2025-09-27T07:41:55.343Z",
+   "updatedAt": "2026-06-19T10:04:14.245Z",
+   "archived": false
+  },
+  {
+   "id": "52299",
+   "properties": {
+    "createdate": "2025-07-09T21:43:09.939Z",
+    "email": "iibarguen@pinecrestledger.com",
+    "firstname": "Ines",
+    "lastname": "Ibarguen",
+    "jobtitle": "Staff Database Engineer",
+    "company": "Pinecrest Ledger",
+    "website": "pinecrestledger.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52299",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-01-15T02:33:43.429Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-01-15T02:33:43.429Z"
+   },
+   "createdAt": "2025-07-09T21:43:09.939Z",
+   "updatedAt": "2026-01-15T02:33:43.429Z",
+   "archived": false
+  },
+  {
+   "id": "52338",
+   "properties": {
+    "createdate": "2025-02-25T08:11:01.689Z",
+    "email": "quinn@halcyra.tech",
+    "firstname": "Quinn",
+    "lastname": "Eskildsen",
+    "jobtitle": "Director of Data Engineering",
+    "company": "Halcyra",
+    "website": "halcyra.tech",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52338",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-09-12T18:56:44.621Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-09-12T18:56:44.621Z"
+   },
+   "createdAt": "2025-02-25T08:11:01.689Z",
+   "updatedAt": "2026-09-12T18:56:44.621Z",
+   "archived": false
+  },
+  {
+   "id": "52368",
+   "properties": {
+    "createdate": "2025-05-21T14:13:38.495Z",
+    "email": "amara@achterberg-partners.com",
+    "firstname": "Amara",
+    "lastname": "Achterberg",
+    "jobtitle": "Procurement Manager",
+    "company": "Achterberg Partners",
+    "website": "achterberg-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52368",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-05-19T18:01:05.967Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-05-19T18:01:05.967Z"
+   },
+   "createdAt": "2025-05-21T14:13:38.495Z",
+   "updatedAt": "2026-05-19T18:01:05.967Z",
+   "archived": false
+  },
+  {
+   "id": "52405",
+   "properties": {
+    "createdate": "2025-02-26T08:02:39.930Z",
+    "email": "bastian@holloway-partners.com",
+    "firstname": "Bastian",
+    "lastname": "Holloway",
+    "jobtitle": "Procurement Manager",
+    "company": "Holloway Partners",
+    "website": "holloway-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52405",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-07-13T14:08:19.536Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-07-13T14:08:19.536Z"
+   },
+   "createdAt": "2025-02-26T08:02:39.930Z",
+   "updatedAt": "2026-07-13T14:08:19.536Z",
+   "archived": false
+  },
+  {
+   "id": "52432",
+   "properties": {
+    "createdate": "2025-08-15T07:20:28.881Z",
+    "email": "celine@oyelaran-partners.com",
+    "firstname": "Celine",
+    "lastname": "Oyelaran",
+    "jobtitle": "Procurement Manager",
+    "company": "Oyelaran Partners",
+    "website": "oyelaran-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52432",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-02-28T15:05:40.704Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-02-28T15:05:40.704Z"
+   },
+   "createdAt": "2025-08-15T07:20:28.881Z",
+   "updatedAt": "2026-02-28T15:05:40.704Z",
+   "archived": false
+  },
+  {
+   "id": "52437",
+   "properties": {
+    "createdate": "2025-03-08T16:10:28.037Z",
+    "email": "dmitri@valderrama-partners.com",
+    "firstname": "Dmitri",
+    "lastname": "Valderrama",
+    "jobtitle": "Procurement Manager",
+    "company": "Valderrama Partners",
+    "website": "valderrama-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52437",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-07-15T18:11:20.431Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-07-15T18:11:20.431Z"
+   },
+   "createdAt": "2025-03-08T16:10:28.037Z",
+   "updatedAt": "2026-07-15T18:11:20.431Z",
+   "archived": false
+  },
+  {
+   "id": "52475",
+   "properties": {
+    "createdate": "2025-04-22T05:14:45.559Z",
+    "email": "elif@delacroix-partners.com",
+    "firstname": "Elif",
+    "lastname": "Delacroix",
+    "jobtitle": "Procurement Manager",
+    "company": "Delacroix Partners",
+    "website": "delacroix-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52475",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-07-24T17:53:06.047Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-07-24T17:53:06.047Z"
+   },
+   "createdAt": "2025-04-22T05:14:45.559Z",
+   "updatedAt": "2026-07-24T17:53:06.047Z",
+   "archived": false
+  },
+  {
+   "id": "52493",
+   "properties": {
+    "createdate": "2025-02-02T01:06:51.388Z",
+    "email": "farrah@lockridge-partners.com",
+    "firstname": "Farrah",
+    "lastname": "Lockridge",
+    "jobtitle": "Procurement Manager",
+    "company": "Lockridge Partners",
+    "website": "lockridge-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52493",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-05-06T12:59:00.525Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-05-06T12:59:00.525Z"
+   },
+   "createdAt": "2025-02-02T01:06:51.388Z",
+   "updatedAt": "2026-05-06T12:59:00.525Z",
+   "archived": false
+  },
+  {
+   "id": "52518",
+   "properties": {
+    "createdate": "2025-01-23T23:04:55.893Z",
+    "email": "gideon@grisanti-partners.com",
+    "firstname": "Gideon",
+    "lastname": "Grisanti",
+    "jobtitle": "Procurement Manager",
+    "company": "Grisanti Partners",
+    "website": "grisanti-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52518",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-08-03T17:45:44.385Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-08-03T17:45:44.385Z"
+   },
+   "createdAt": "2025-01-23T23:04:55.893Z",
+   "updatedAt": "2026-08-03T17:45:44.385Z",
+   "archived": false
+  },
+  {
+   "id": "52551",
+   "properties": {
+    "createdate": "2025-04-04T13:23:06.713Z",
+    "email": "hollis@nakashima-partners.com",
+    "firstname": "Hollis",
+    "lastname": "Nakashima",
+    "jobtitle": "Procurement Manager",
+    "company": "Nakashima Partners",
+    "website": "nakashima-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52551",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-07-02T10:29:50.616Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-07-02T10:29:50.616Z"
+   },
+   "createdAt": "2025-04-04T13:23:06.713Z",
+   "updatedAt": "2026-07-02T10:29:50.616Z",
+   "archived": false
+  },
+  {
+   "id": "52561",
+   "properties": {
+    "createdate": "2025-07-24T12:13:57.178Z",
+    "email": "ines@underhill-partners.com",
+    "firstname": "Ines",
+    "lastname": "Underhill",
+    "jobtitle": "Procurement Manager",
+    "company": "Underhill Partners",
+    "website": "underhill-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52561",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-05-04T06:26:47.708Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-05-04T06:26:47.708Z"
+   },
+   "createdAt": "2025-07-24T12:13:57.178Z",
+   "updatedAt": "2026-05-04T06:26:47.708Z",
+   "archived": false
+  },
+  {
+   "id": "52574",
+   "properties": {
+    "createdate": "2025-06-24T13:24:21.530Z",
+    "email": "jovan@cavendish-partners.com",
+    "firstname": "Jovan",
+    "lastname": "Cavendish",
+    "jobtitle": "Procurement Manager",
+    "company": "Cavendish Partners",
+    "website": "cavendish-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52574",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-03-24T15:07:04.765Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-03-24T15:07:04.765Z"
+   },
+   "createdAt": "2025-06-24T13:24:21.530Z",
+   "updatedAt": "2026-03-24T15:07:04.765Z",
+   "archived": false
+  },
+  {
+   "id": "52613",
+   "properties": {
+    "createdate": "2025-09-08T10:21:52.487Z",
+    "email": "keiko@kensington-partners.com",
+    "firstname": "Keiko",
+    "lastname": "Kensington",
+    "jobtitle": "Procurement Manager",
+    "company": "Kensington Partners",
+    "website": "kensington-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52613",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-08-03T01:45:50.705Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-08-03T01:45:50.705Z"
+   },
+   "createdAt": "2025-09-08T10:21:52.487Z",
+   "updatedAt": "2026-08-03T01:45:50.705Z",
+   "archived": false
+  },
+  {
+   "id": "52634",
+   "properties": {
+    "createdate": "2025-06-27T17:13:36.254Z",
+    "email": "lucan@fairbairn-partners.com",
+    "firstname": "Lucan",
+    "lastname": "Fairbairn",
+    "jobtitle": "Procurement Manager",
+    "company": "Fairbairn Partners",
+    "website": "fairbairn-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52634",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-03-01T18:37:46.693Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-03-01T18:37:46.693Z"
+   },
+   "createdAt": "2025-06-27T17:13:36.254Z",
+   "updatedAt": "2026-03-01T18:37:46.693Z",
+   "archived": false
+  },
+  {
+   "id": "52665",
+   "properties": {
+    "createdate": "2025-04-26T20:49:23.724Z",
+    "email": "mireille@marchetti-partners.com",
+    "firstname": "Mireille",
+    "lastname": "Marchetti",
+    "jobtitle": "Procurement Manager",
+    "company": "Marchetti Partners",
+    "website": "marchetti-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52665",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-08-22T08:51:35.073Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-08-22T08:51:35.073Z"
+   },
+   "createdAt": "2025-04-26T20:49:23.724Z",
+   "updatedAt": "2026-08-22T08:51:35.073Z",
+   "archived": false
+  },
+  {
+   "id": "52701",
+   "properties": {
+    "createdate": "2025-05-19T15:19:41.446Z",
+    "email": "nikhil@thibodeaux-partners.com",
+    "firstname": "Nikhil",
+    "lastname": "Thibodeaux",
+    "jobtitle": "Procurement Manager",
+    "company": "Thibodeaux Partners",
+    "website": "thibodeaux-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52701",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-03-10T11:04:14.874Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-03-10T11:04:14.874Z"
+   },
+   "createdAt": "2025-05-19T15:19:41.446Z",
+   "updatedAt": "2026-03-10T11:04:14.874Z",
+   "archived": false
+  },
+  {
+   "id": "52705",
+   "properties": {
+    "createdate": "2025-07-12T05:10:50.101Z",
+    "email": "odette@brightwater-partners.com",
+    "firstname": "Odette",
+    "lastname": "Brightwater",
+    "jobtitle": "Procurement Manager",
+    "company": "Brightwater Partners",
+    "website": "brightwater-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52705",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-02-23T17:09:05.350Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-02-23T17:09:05.350Z"
+   },
+   "createdAt": "2025-07-12T05:10:50.101Z",
+   "updatedAt": "2026-02-23T17:09:05.350Z",
+   "archived": false
+  },
+  {
+   "id": "52733",
+   "properties": {
+    "createdate": "2025-01-23T16:23:19.112Z",
+    "email": "pavel@ingersoll-partners.com",
+    "firstname": "Pavel",
+    "lastname": "Ingersoll",
+    "jobtitle": "Procurement Manager",
+    "company": "Ingersoll Partners",
+    "website": "ingersoll-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52733",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-04-01T19:46:39.283Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-04-01T19:46:39.283Z"
+   },
+   "createdAt": "2025-01-23T16:23:19.112Z",
+   "updatedAt": "2026-04-01T19:46:39.283Z",
+   "archived": false
+  },
+  {
+   "id": "52772",
+   "properties": {
+    "createdate": "2025-08-20T22:09:46.654Z",
+    "email": "quinn@eskildsen-partners.com",
+    "firstname": "Quinn",
+    "lastname": "Eskildsen",
+    "jobtitle": "Procurement Manager",
+    "company": "Eskildsen Partners",
+    "website": "eskildsen-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52772",
+    "hubspot_owner_id": "9002",
+    "lastmodifieddate": "2026-01-09T17:44:19.406Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-01-09T17:44:19.406Z"
+   },
+   "createdAt": "2025-08-20T22:09:46.654Z",
+   "updatedAt": "2026-01-09T17:44:19.406Z",
+   "archived": false
+  },
+  {
+   "id": "52781",
+   "properties": {
+    "createdate": "2025-04-25T10:02:20.493Z",
+    "email": "rosalind@lindqvist-partners.com",
+    "firstname": "Rosalind",
+    "lastname": "Lindqvist",
+    "jobtitle": "Procurement Manager",
+    "company": "Lindqvist Partners",
+    "website": "lindqvist-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52781",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-06-24T19:16:39.495Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-06-24T19:16:39.495Z"
+   },
+   "createdAt": "2025-04-25T10:02:20.493Z",
+   "updatedAt": "2026-06-24T19:16:39.495Z",
+   "archived": false
+  },
+  {
+   "id": "52809",
+   "properties": {
+    "createdate": "2025-07-09T19:21:46.491Z",
+    "email": "soren@szymanski-partners.com",
+    "firstname": "Soren",
+    "lastname": "Szymanski",
+    "jobtitle": "Procurement Manager",
+    "company": "Szymanski Partners",
+    "website": "szymanski-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52809",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-02-19T11:40:26.118Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-02-19T11:40:26.118Z"
+   },
+   "createdAt": "2025-07-09T19:21:46.491Z",
+   "updatedAt": "2026-02-19T11:40:26.118Z",
+   "archived": false
+  },
+  {
+   "id": "52822",
+   "properties": {
+    "createdate": "2025-06-16T14:49:57.564Z",
+    "email": "tamsin@abernathy-partners.com",
+    "firstname": "Tamsin",
+    "lastname": "Abernathy",
+    "jobtitle": "Procurement Manager",
+    "company": "Abernathy Partners",
+    "website": "abernathy-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52822",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-08-12T13:37:13.521Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-08-12T13:37:13.521Z"
+   },
+   "createdAt": "2025-06-16T14:49:57.564Z",
+   "updatedAt": "2026-08-12T13:37:13.521Z",
+   "archived": false
+  },
+  {
+   "id": "52850",
+   "properties": {
+    "createdate": "2025-04-27T06:46:31.790Z",
+    "email": "ulric@hargreaves-partners.com",
+    "firstname": "Ulric",
+    "lastname": "Hargreaves",
+    "jobtitle": "Procurement Manager",
+    "company": "Hargreaves Partners",
+    "website": "hargreaves-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52850",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-03-06T07:54:06.160Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-03-06T07:54:06.160Z"
+   },
+   "createdAt": "2025-04-27T06:46:31.790Z",
+   "updatedAt": "2026-03-06T07:54:06.160Z",
+   "archived": false
+  },
+  {
+   "id": "52859",
+   "properties": {
+    "createdate": "2025-09-11T02:33:47.124Z",
+    "email": "vesna@drummond-partners.com",
+    "firstname": "Vesna",
+    "lastname": "Drummond",
+    "jobtitle": "Procurement Manager",
+    "company": "Drummond Partners",
+    "website": "drummond-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52859",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-06-12T16:44:54.457Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-06-12T16:44:54.457Z"
+   },
+   "createdAt": "2025-09-11T02:33:47.124Z",
+   "updatedAt": "2026-06-12T16:44:54.457Z",
+   "archived": false
+  },
+  {
+   "id": "52883",
+   "properties": {
+    "createdate": "2025-01-01T20:57:02.997Z",
+    "email": "wendell@kowalczyk-partners.com",
+    "firstname": "Wendell",
+    "lastname": "Kowalczyk",
+    "jobtitle": "Procurement Manager",
+    "company": "Kowalczyk Partners",
+    "website": "kowalczyk-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52883",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-05-10T10:40:42.830Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-05-10T10:40:42.830Z"
+   },
+   "createdAt": "2025-01-01T20:57:02.997Z",
+   "updatedAt": "2026-05-10T10:40:42.830Z",
+   "archived": false
+  },
+  {
+   "id": "52889",
+   "properties": {
+    "createdate": "2025-08-08T18:26:59.797Z",
+    "email": "xiomara@rasmussen-partners.com",
+    "firstname": "Xiomara",
+    "lastname": "Rasmussen",
+    "jobtitle": "Procurement Manager",
+    "company": "Rasmussen Partners",
+    "website": "rasmussen-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52889",
+    "hubspot_owner_id": "9017",
+    "lastmodifieddate": "2026-07-21T05:40:56.814Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-07-21T05:40:56.814Z"
+   },
+   "createdAt": "2025-08-08T18:26:59.797Z",
+   "updatedAt": "2026-07-21T05:40:56.814Z",
+   "archived": false
+  },
+  {
+   "id": "52922",
+   "properties": {
+    "createdate": "2025-01-07T00:55:12.547Z",
+    "email": "yusuf@zahradnik-partners.com",
+    "firstname": "Yusuf",
+    "lastname": "Zahradnik",
+    "jobtitle": "Procurement Manager",
+    "company": "Zahradnik Partners",
+    "website": "zahradnik-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52922",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-07-18T17:31:07.493Z",
+    "lifecyclestage": "lead",
+    "notes_last_updated": "2026-07-18T17:31:07.493Z"
+   },
+   "createdAt": "2025-01-07T00:55:12.547Z",
+   "updatedAt": "2026-07-18T17:31:07.493Z",
+   "archived": false
+  },
+  {
+   "id": "52952",
+   "properties": {
+    "createdate": "2025-08-18T01:56:10.773Z",
+    "email": "zelda@galbraith-partners.com",
+    "firstname": "Zelda",
+    "lastname": "Galbraith",
+    "jobtitle": "Procurement Manager",
+    "company": "Galbraith Partners",
+    "website": "galbraith-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "true",
+    "hs_object_id": "52952",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-02-11T21:38:34.048Z",
+    "lifecyclestage": "subscriber",
+    "notes_last_updated": "2026-02-11T21:38:34.048Z"
+   },
+   "createdAt": "2025-08-18T01:56:10.773Z",
+   "updatedAt": "2026-02-11T21:38:34.048Z",
+   "archived": false
+  },
+  {
+   "id": "52968",
+   "properties": {
+    "createdate": "2025-06-13T03:29:11.314Z",
+    "email": "anouk@castellanos-partners.com",
+    "firstname": "Anouk",
+    "lastname": "Castellanos",
+    "jobtitle": "Procurement Manager",
+    "company": "Castellanos Partners",
+    "website": "castellanos-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52968",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-06-20T05:32:08.350Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-06-20T05:32:08.350Z"
+   },
+   "createdAt": "2025-06-13T03:29:11.314Z",
+   "updatedAt": "2026-06-20T05:32:08.350Z",
+   "archived": false
+  },
+  {
+   "id": "52976",
+   "properties": {
+    "createdate": "2025-04-02T02:16:20.423Z",
+    "email": "bram@jablonski-partners.com",
+    "firstname": "Bram",
+    "lastname": "Jablonski",
+    "jobtitle": "Procurement Manager",
+    "company": "Jablonski Partners",
+    "website": "jablonski-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52976",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-03-12T00:16:32.234Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-03-12T00:16:32.234Z"
+   },
+   "createdAt": "2025-04-02T02:16:20.423Z",
+   "updatedAt": "2026-03-12T00:16:32.234Z",
+   "archived": false
+  },
+  {
+   "id": "52987",
+   "properties": {
+    "createdate": "2025-01-04T17:11:46.005Z",
+    "email": "cosima@quintanilla-partners.com",
+    "firstname": "Cosima",
+    "lastname": "Quintanilla",
+    "jobtitle": "Procurement Manager",
+    "company": "Quintanilla Partners",
+    "website": "quintanilla-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "52987",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-06-18T01:16:45.093Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-06-18T01:16:45.093Z"
+   },
+   "createdAt": "2025-01-04T17:11:46.005Z",
+   "updatedAt": "2026-06-18T01:16:45.093Z",
+   "archived": false
+  },
+  {
+   "id": "53016",
+   "properties": {
+    "createdate": "2025-03-24T07:17:15.084Z",
+    "email": "dariusz@yarborough-partners.com",
+    "firstname": "Dariusz",
+    "lastname": "Yarborough",
+    "jobtitle": "Procurement Manager",
+    "company": "Yarborough Partners",
+    "website": "yarborough-partners.com",
+    "hs_additional_emails": null,
+    "hs_email_optout": "false",
+    "hs_object_id": "53016",
+    "hubspot_owner_id": "9044",
+    "lastmodifieddate": "2026-06-28T18:27:15.198Z",
+    "lifecyclestage": "customer",
+    "notes_last_updated": "2026-06-28T18:27:15.198Z"
+   },
+   "createdAt": "2025-03-24T07:17:15.084Z",
+   "updatedAt": "2026-06-28T18:27:15.198Z",
+   "archived": false
+  }
+ ],
+ "deals": [
+  {
+   "id": "51051",
+   "properties": {
+    "amount": "12000",
+    "closedate": "2026-08-01T04:03:25.528Z",
+    "createdate": "2026-01-11T02:50:07.289Z",
+    "dealname": "Tidelark - renewal",
+    "dealstage": "closedwon",
+    "hs_is_closed": "true",
+    "hs_lastmodifieddate": "2026-09-01T13:24:37.611Z",
+    "hs_object_id": "51051",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-01-11T02:50:07.289Z",
+   "updatedAt": "2026-09-01T13:24:37.611Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51011",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51187",
+   "properties": {
+    "amount": "180000",
+    "closedate": "2026-04-15T01:34:43.912Z",
+    "createdate": "2026-02-08T03:26:52.438Z",
+    "dealname": "Salvio Health - expansion",
+    "dealstage": "contractsent",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-02-21T01:03:42.977Z",
+    "hs_object_id": "51187",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-02-08T03:26:52.438Z",
+   "updatedAt": "2026-02-21T01:03:42.977Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51169",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51274",
+   "properties": {
+    "amount": "12000",
+    "closedate": "2026-05-08T00:40:53.809Z",
+    "createdate": "2026-01-15T19:15:39.475Z",
+    "dealname": "Foxglove Retail - expansion",
+    "dealstage": "contractsent",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-05-19T15:10:03.648Z",
+    "hs_object_id": "51274",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-01-15T19:15:39.475Z",
+   "updatedAt": "2026-05-19T15:10:03.648Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51239",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51527",
+   "properties": {
+    "amount": "96000",
+    "closedate": "2026-04-01T11:55:43.970Z",
+    "createdate": "2026-04-26T02:45:45.034Z",
+    "dealname": "Halcyra - renewal",
+    "dealstage": "closedwon",
+    "hs_is_closed": "true",
+    "hs_lastmodifieddate": "2026-03-03T04:27:24.955Z",
+    "hs_object_id": "51527",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-04-26T02:45:45.034Z",
+   "updatedAt": "2026-03-03T04:27:24.955Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51509",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51613",
+   "properties": {
+    "amount": "12000",
+    "closedate": "2026-09-16T08:10:10.690Z",
+    "createdate": "2026-03-19T22:02:48.562Z",
+    "dealname": "Xyloquent - renewal",
+    "dealstage": "closedwon",
+    "hs_is_closed": "true",
+    "hs_lastmodifieddate": "2026-06-19T11:53:11.997Z",
+    "hs_object_id": "51613",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-03-19T22:02:48.562Z",
+   "updatedAt": "2026-06-19T11:53:11.997Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51585",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51664",
+   "properties": {
+    "amount": "48000",
+    "closedate": "2026-04-20T15:08:46.939Z",
+    "createdate": "2026-04-24T09:55:08.903Z",
+    "dealname": "Duskhaven - expansion",
+    "dealstage": "appointmentscheduled",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-01-11T20:59:08.141Z",
+    "hs_object_id": "51664",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-04-24T09:55:08.903Z",
+   "updatedAt": "2026-01-11T20:59:08.141Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51650",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51725",
+   "properties": {
+    "amount": "180000",
+    "closedate": "2026-06-10T03:50:01.209Z",
+    "createdate": "2026-07-04T16:54:45.495Z",
+    "dealname": "Corvantis - expansion",
+    "dealstage": "contractsent",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-04-15T12:18:21.508Z",
+    "hs_object_id": "51725",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-07-04T16:54:45.495Z",
+   "updatedAt": "2026-04-15T12:18:21.508Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51692",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51766",
+   "properties": {
+    "amount": "180000",
+    "closedate": "2026-09-28T02:36:43.478Z",
+    "createdate": "2026-06-27T23:09:40.529Z",
+    "dealname": "Northvane - renewal",
+    "dealstage": "closedwon",
+    "hs_is_closed": "true",
+    "hs_lastmodifieddate": "2026-07-26T11:02:19.055Z",
+    "hs_object_id": "51766",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-06-27T23:09:40.529Z",
+   "updatedAt": "2026-07-26T11:02:19.055Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51741",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51829",
+   "properties": {
+    "amount": "12000",
+    "closedate": "2026-05-27T03:19:58.837Z",
+    "createdate": "2026-07-03T00:18:02.095Z",
+    "dealname": "Halcyra - expansion",
+    "dealstage": "contractsent",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-05-17T09:52:13.392Z",
+    "hs_object_id": "51829",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-07-03T00:18:02.095Z",
+   "updatedAt": "2026-05-17T09:52:13.392Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51793",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51871",
+   "properties": {
+    "amount": "48000",
+    "closedate": "2026-04-22T23:22:22.113Z",
+    "createdate": "2026-05-05T07:36:15.798Z",
+    "dealname": "Lumenstead - expansion",
+    "dealstage": "appointmentscheduled",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-05-25T08:46:35.697Z",
+    "hs_object_id": "51871",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-05-05T07:36:15.798Z",
+   "updatedAt": "2026-05-25T08:46:35.697Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51840",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "51900",
+   "properties": {
+    "amount": "180000",
+    "closedate": "2026-04-16T10:15:18.614Z",
+    "createdate": "2026-02-18T18:11:44.263Z",
+    "dealname": "Quorvia - expansion",
+    "dealstage": "appointmentscheduled",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-09-01T23:32:45.581Z",
+    "hs_object_id": "51900",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-02-18T18:11:44.263Z",
+   "updatedAt": "2026-09-01T23:32:45.581Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "51886",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "52009",
+   "properties": {
+    "amount": "48000",
+    "closedate": "2026-01-08T12:01:23.829Z",
+    "createdate": "2026-04-23T17:58:53.547Z",
+    "dealname": "Cobaltine - expansion",
+    "dealstage": "appointmentscheduled",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-05-03T05:47:28.736Z",
+    "hs_object_id": "52009",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-04-23T17:58:53.547Z",
+   "updatedAt": "2026-05-03T05:47:28.736Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "52006",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "52129",
+   "properties": {
+    "amount": "12000",
+    "closedate": "2026-07-06T17:26:14.978Z",
+    "createdate": "2026-05-27T06:19:17.135Z",
+    "dealname": "Marrowgate - expansion",
+    "dealstage": "contractsent",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-03-06T14:39:21.406Z",
+    "hs_object_id": "52129",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-05-27T06:19:17.135Z",
+   "updatedAt": "2026-03-06T14:39:21.406Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "52117",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "52233",
+   "properties": {
+    "amount": "12000",
+    "closedate": "2026-02-24T07:18:32.571Z",
+    "createdate": "2026-01-27T17:16:49.704Z",
+    "dealname": "Foxglove Retail - renewal",
+    "dealstage": "closedwon",
+    "hs_is_closed": "true",
+    "hs_lastmodifieddate": "2026-09-10T05:06:24.848Z",
+    "hs_object_id": "52233",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-01-27T17:16:49.704Z",
+   "updatedAt": "2026-09-10T05:06:24.848Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "52214",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "52278",
+   "properties": {
+    "amount": "180000",
+    "closedate": "2026-06-09T14:27:31.969Z",
+    "createdate": "2026-05-05T16:06:18.231Z",
+    "dealname": "Corvantis - expansion",
+    "dealstage": "appointmentscheduled",
+    "hs_is_closed": "false",
+    "hs_lastmodifieddate": "2026-03-01T07:11:28.789Z",
+    "hs_object_id": "52278",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-05-05T16:06:18.231Z",
+   "updatedAt": "2026-03-01T07:11:28.789Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "52275",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "52312",
+   "properties": {
+    "amount": "48000",
+    "closedate": "2026-03-14T19:54:31.440Z",
+    "createdate": "2026-01-21T00:14:00.597Z",
+    "dealname": "Pinecrest Ledger - renewal",
+    "dealstage": "closedwon",
+    "hs_is_closed": "true",
+    "hs_lastmodifieddate": "2026-05-04T11:35:47.622Z",
+    "hs_object_id": "52312",
+    "pipeline": "default"
+   },
+   "createdAt": "2026-01-21T00:14:00.597Z",
+   "updatedAt": "2026-05-04T11:35:47.622Z",
+   "archived": false,
+   "associations": {
+    "contacts": {
+     "results": [
+      {
+       "id": "52299",
+       "type": "deal_to_contact"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

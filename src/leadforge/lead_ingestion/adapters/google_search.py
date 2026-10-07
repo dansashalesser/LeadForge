@@ -60,8 +60,10 @@ Completion of 14.2 (2026-10-06, user decision "option C"; see ``web_evidence``):
 
 * The adapter also runs in Enrichment. Its run-time queries are anchored: one per
   company of the work list (clustered on registrable domains, other sources only) and
-  per Target Profile term, ``"<company domain>" <first phrase of the term>``, company
-  order then term order, at most ``MAX_QUERIES``; the rest are counted in the payload
+  per Target Profile term, ``"<company domain>" <first phrase of the term>``, term
+  order then company order (coverage first, user decision 2026-10-07: every company
+  gets its first term before any gets a second, so a cap cuts the extra terms, not
+  whole companies), at most ``MAX_QUERIES``; the rest are counted in the payload
   (``unasked_queries``). ``from_run`` no longer turns phrases into unanchored
   Discovery queries, so a run spends nothing on evidence it could not attach. No term
   or no company with a usable domain: no call.
@@ -427,11 +429,12 @@ class GoogleSearchSource(BaseLeadSource):
     async def _fetch_anchored(
         self, request: EnrichmentRequest, credentials: Mapping[str, str]
     ) -> RawBatch:
-        """One query per (company, term), company order then term order (14.2)."""
+        """One query per (company, term), term order then company order (14.2)."""
+        anchors = company_anchors(request.work_list, exclude_source=self.name)
         planned = [
             (anchor, term, phrase)
-            for anchor in company_anchors(request.work_list, exclude_source=self.name)
             for term, phrase in self._terms.items()
+            for anchor in anchors
         ]
         searches: list[Mapping[str, Any]] = []
         for anchor, term, phrase in planned[:MAX_QUERIES]:

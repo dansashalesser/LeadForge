@@ -4,7 +4,9 @@ Scope (explicit, so later tasks are not broken by accident):
 
 * Scanned: every text file under ``src/`` whose suffix is in ``SCANNED_SUFFIXES``.
 * Exempt directories: ``adapters`` (tasks 12-15 add one module per provider, and a
-  module name is the provider name) and ``fixtures`` (synthetic provider payloads).
+  module name is the provider name), ``fixtures`` (synthetic provider payloads) and
+  ``demo`` (the demo dataset: provider-shaped tables, the generator that writes them
+  and the transport that serves them, plus its tests under ``tests/demo``).
   The shipped example profile and ``config/`` live outside ``src/`` (task 9.2).
 * This file is exempt: it holds the denylist.
 * There is no baseline and no allowlist: outside the exempt directories the scan must
@@ -40,7 +42,7 @@ DENYLIST = (
     "pipedrive",
 )
 SCANNED_SUFFIXES = {".py", ".yaml", ".yml", ".json", ".toml", ".md", ".txt", ".csv"}
-EXEMPT_DIRS = {"adapters", "fixtures", "__pycache__"}
+EXEMPT_DIRS = {"adapters", "fixtures", "demo", "__pycache__"}
 THIS_FILE = Path(__file__).resolve()
 
 # A name counts even inside an identifier (``apollo_client``) but not inside a longer

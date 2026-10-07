@@ -10,7 +10,7 @@ import math
 import os
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
@@ -58,6 +58,7 @@ __all__ = [
     "RateWindow",
     "RawBatch",
     "SourceRequest",
+    "TransportFactory",
     "enrichment_order",
     "enrichment_sort_key",
     "enrichment_tiers",
@@ -276,6 +277,13 @@ class BaseLeadSource(ABC):
     # after the identity-yielding sources of its cost and suppression class, so it sees
     # what they found (ADR-0006). Defaulted, so a new adapter stays one class.
     evidence_only: ClassVar[bool] = False
+    # True when the source mostly acts on a person's address or full name with a
+    # company domain, which a later paid tier may supply (an email finder before a
+    # people match). Besides its own tier it runs once more after the forward pass,
+    # only for identities first seen after its tier, as free sources do (user
+    # decision 2026-10-07). Its own tier stays in place, so its Suppression still
+    # prunes before later tiers spend.
+    rerun_for_new_identities: ClassVar[bool] = False
     # Whether the provider can run live for a demo operator (3.6). Defaulted, so a new
     # adapter stays one class; a configuration override may replace it per source.
     live_access: ClassVar[LiveAccess] = LiveAccess.AVAILABLE
@@ -662,6 +670,13 @@ class BaseLeadSource(ABC):
             for absence in contribution.absences:
                 self.validate_absence(absence)
         return contributions
+
+
+type TransportFactory = Callable[[type[BaseLeadSource], DataMode], Transport]
+"""Builds the transport a run hands one source; the default is ``build_transport``.
+
+The run's caller can substitute it (the demo dataset's routed transport) without any
+module above the contract naming a transport type."""
 
 
 def enrichment_sort_key(

@@ -790,7 +790,8 @@ async def test_every_registered_sources_fixtures_are_served_in_a_guarded_run(
     assert_pure_synthetic(pipeline, guard, frozenset(registry.names()))
     # Every source answered from its fixtures through the fixture transport: Apollo
     # search and match, Google search, both HubSpot searches, Hunter domain search and
-    # finder (the Hunter verifier has its own test below).
+    # finder, and (its rerun, user decision 2026-10-07) the verifier for the address
+    # Apollo's match found.
     assert set(served) == {
         "apollo:/api/v1/mixed_people/api_search",
         "apollo:/api/v1/people/match",
@@ -799,6 +800,7 @@ async def test_every_registered_sources_fixtures_are_served_in_a_guarded_run(
         "hubspot:/crm/objects/{version}/deals/search",
         "hunter:/v2/domain-search",
         "hunter:/v2/email-finder",
+        "hunter:/v2/email-verifier",
     }
     for result in pipeline.results:
         assert result.mode_reason.startswith(("missing credentials", "per-source"))

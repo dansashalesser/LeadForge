@@ -24,6 +24,8 @@ Names, companies and domains are printed: they are what an operator recognises a
 by. The commands log nothing about a lead, with or without ``--reveal``. There is no
 phone field in the model, so none is printed. Exit codes: one when the lead does not
 exist, two on a configuration error (and for a malformed id, Typer's usage error).
+A store whose schema ``ingest`` has not created or upgraded is a configuration error
+too: the readers never migrate, they name the command that does.
 """
 
 import asyncio
@@ -38,6 +40,7 @@ import typer
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
+from leadforge.lead_ingestion.demo.cli import demo_app
 from leadforge.lead_ingestion.env_file import EnvFileError, load_env_file_into_process
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.ingest_runner import RunInProgressError, run_ingestion
@@ -51,6 +54,8 @@ from leadforge.lead_ingestion.store.lead_reader import (
     list_leads,
     load_lead,
 )
+from leadforge.lead_ingestion.store.migrate import StoreNotMigratedError, require_head
+from leadforge.lead_ingestion.web.cli import serve
 
 EXIT_CONFIGURATION_ERROR = 2
 EXIT_RUN_IN_PROGRESS = 3
@@ -59,6 +64,8 @@ EXIT_NOT_FOUND = 1
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 leads_app = typer.Typer(no_args_is_help=True, help="Read stored leads.")
 app.add_typer(leads_app, name="leads")
+app.add_typer(demo_app, name="demo")
+app.command("web")(serve)
 
 
 @app.callback()
@@ -96,6 +103,12 @@ def _session() -> Iterator[Session]:
         configure_logging(os.environ)
         engine = create_store_engine()
     except (ConfigurationError, EnvFileError, DatabaseConfigError) as error:
+        typer.echo(f"configuration error: {error}", err=True)
+        raise typer.Exit(EXIT_CONFIGURATION_ERROR) from None
+    try:
+        require_head(engine)
+    except StoreNotMigratedError as error:
+        engine.dispose()
         typer.echo(f"configuration error: {error}", err=True)
         raise typer.Exit(EXIT_CONFIGURATION_ERROR) from None
     try:

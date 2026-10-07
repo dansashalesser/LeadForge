@@ -176,7 +176,7 @@ from leadforge.lead_ingestion.errors import (
     SourceQuotaExhausted,
     SourceRateLimited,
 )
-from leadforge.lead_ingestion.match_keys import linkedin_identity
+from leadforge.lead_ingestion.match_keys import linkedin_identity, normalize_email
 from leadforge.lead_ingestion.models import (
     ConfidenceOrigin,
     DataMode,
@@ -380,6 +380,11 @@ class HunterSource(BaseLeadSource):
     # orchestrator must not collapse a company's people to one (11.7). The per-company
     # domain search is still paid once per domain by the per-run cache in fetch_raw.
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_LEAD
+    # Discovery's people carry masked names and no address, so the first call is
+    # often handed nothing it can ask about; it runs again for the addresses and names
+    # the paid match supplied (user decision 2026-10-07). Per-run caches keep every
+    # lookup to one call.
+    rerun_for_new_identities: ClassVar[bool] = True
     # A 451 flags the person suppressed (16.6). Declaring it puts Hunter in a paid tier
     # ahead of Apollo, so the flag prunes that person before Apollo's paid match (user
     # decision, 2026-10-06; reverses the earlier "one tier with Apollo").
@@ -656,7 +661,11 @@ class HunterSource(BaseLeadSource):
                     self._restricted_addresses.add(address)
                     continue
             verifications.append(
-                {"email": address, "response": self._verified[address]}
+                {
+                    "email": address,
+                    "linkedin_url": plan.address_linkedin.get(address),
+                    "response": self._verified[address],
+                }
             )
         return RawBatch(
             source_name=self.name,
@@ -859,7 +868,10 @@ class HunterSource(BaseLeadSource):
             contributions.append(
                 _with_stated_confidence(contribution, data.get("score"))
             )
-        for response in _responses(self.name, raw, "verifications"):
+        asked = _verified_addresses(raw)
+        linkedin_of_verification = _verification_linkedin(raw)
+        mismatched = 0
+        for index, response in enumerate(_responses(self.name, raw, "verifications")):
             if response is None:
                 continue  # still running: no verdict yet
             validate_raw_payload(
@@ -868,9 +880,26 @@ class HunterSource(BaseLeadSource):
             data = response["data"]
             if _is_refused(data.get("email"), refused):
                 continue
-            contribution = normalizer.apply(data, self.VERIFIER_RULES, context)
+            if normalize_email(str(data["email"])) != asked[index]:
+                # A verdict on another address says nothing about the one asked
+                # (follow-up 2026-10-07): never store it as that address's status.
+                mismatched += 1
+                continue
+            # The requester's LinkedIn joins the verdict to its person whatever
+            # the status (follow-up 2026-10-07): only a verified address is a Match
+            # Key, so without it every other verdict was a Lead of its own.
+            url = linkedin_of_verification[index]
+            echo = {REQUEST_ECHO_KEY: {"linkedin_url": url}} if url else {}
+            rules = self.VERIFIER_RULES + (
+                (REQUEST_ECHO_RULES["linkedin_url"],) if url else ()
+            )
+            contribution = normalizer.apply({**data, **echo}, rules, context)
             contributions.append(
                 _with_stated_confidence(contribution, data.get("score"))
+            )
+        if mismatched:
+            _log.warning(
+                "hunter_verdict_withheld", reason="email_mismatch", count=mismatched
             )
         for key, fields, rules in (
             (
@@ -1011,6 +1040,34 @@ def _find_entries(provider: str, batch: RawBatch) -> list[Mapping[str, Any]]:
     return entries
 
 
+def _verification_linkedin(batch: RawBatch) -> list[str | None]:
+    """The requester LinkedIn URL each verification recorded, in batch order."""
+    payload = batch.payload
+    entries = payload.get("verifications") if isinstance(payload, Mapping) else None
+    if not isinstance(entries, list):
+        return []
+    return [
+        entry["linkedin_url"]
+        if isinstance(entry, Mapping) and isinstance(entry.get("linkedin_url"), str)
+        else None
+        for entry in entries
+    ]
+
+
+def _verified_addresses(batch: RawBatch) -> list[str | None]:
+    """The address each verification asked about, normalised, in batch order."""
+    payload = batch.payload
+    entries = payload.get("verifications") if isinstance(payload, Mapping) else None
+    if not isinstance(entries, list):
+        return []
+    return [
+        normalize_email(str(entry["email"]))
+        if isinstance(entry, Mapping) and isinstance(entry.get("email"), str)
+        else None
+        for entry in entries
+    ]
+
+
 def _responses(
     provider: str, batch: RawBatch, key: str, *, required: bool = False
 ) -> list[Mapping[str, Any] | None]:
@@ -1085,6 +1142,8 @@ class _Plan:
     domains: list[str]
     names: list["_Ask"]
     addresses: list[str]
+    # The one LinkedIn URL of the person(s) holding each address, if exactly one.
+    address_linkedin: dict[str, str | None]
 
 
 def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
@@ -1093,6 +1152,7 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
     names: dict[tuple[str, str, str], tuple[str, str, str]] = {}
     askers: dict[tuple[str, str, str], dict[str | None, str | None]] = {}
     addresses: dict[str, None] = {}
+    holders: dict[str, dict[str | None, str | None]] = {}
     person = _strong_person_labels(work_list)
     linkedin = _person_linkedin(provider, work_list, person)
     for index, contribution in enumerate(work_list):
@@ -1100,6 +1160,10 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
         address = _address_of(provider, contribution)
         if address is not None:
             addresses[address] = None
+            identity, url = _linkedin_of(provider, contribution)
+            if identity is None:
+                identity, url = linkedin.get(person[index], (None, None))
+            holders.setdefault(address, {}).setdefault(identity, url)
             continue
         first = _name_of(contribution.values.get("person.first_name"))
         last = _name_of(contribution.values.get("person.last_name"))
@@ -1123,7 +1187,15 @@ def _route(provider: str, work_list: tuple[LeadContribution, ...]) -> _Plan:
         )
         for folded in names
     ]
-    return _Plan(list(domains), asks, list(addresses))
+    # A verdict joins its requester by LinkedIn only when one identity holds the
+    # address: a shared address stays nobody's in particular.
+    address_linkedin = {
+        address: next(iter(held.values()))
+        if len(held) == 1 and None not in held
+        else None
+        for address, held in holders.items()
+    }
+    return _Plan(list(domains), asks, list(addresses), address_linkedin)
 
 
 def _person_linkedin(

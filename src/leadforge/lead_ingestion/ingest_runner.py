@@ -96,6 +96,7 @@ from leadforge.lead_ingestion.base_source import (
     LiveAccess,
     RateBucket,
     SourceRequest,
+    TransportFactory,
 )
 from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.env_file import load_env_file_into_process
@@ -120,6 +121,7 @@ from leadforge.lead_ingestion.projection import (
 )
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.remerge import Reprojection, reproject
+from leadforge.lead_ingestion.retry import RetryPolicy
 from leadforge.lead_ingestion.run_exit import RunExit, map_run_exit
 from leadforge.lead_ingestion.run_recorder import StoreRunRecorder
 from leadforge.lead_ingestion.run_report import build_run_report, render_run_report
@@ -302,6 +304,8 @@ async def run_ingestion(
     env_file_path: Path | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     tie_resolver: Callable[[], TieResolver] | None = None,
+    transport_factory: TransportFactory | None = None,
+    synthetic_retry: RetryPolicy | None = None,
 ) -> IngestionOutcome:
     """Run every enabled source, merge and persist, and report. Raises on bad config.
 
@@ -309,7 +313,9 @@ async def run_ingestion(
     own settings then replace ``sources_path``'s per-source entries, but the pool bound
     and the run timeout are still read from ``sources_path``. ``tie_resolver`` builds
     the port that may answer an exact primary-domain tie in live mode (8.18); none by
-    default, so such a tie stays the flagged fallback.
+    default, so such a tie stays the flagged fallback. ``transport_factory`` replaces
+    ``BaseLeadSource.build_transport`` (the demo dataset's routed transport);
+    ``synthetic_retry`` gives synthetic sources a retry policy (none by default).
     """
     load_env_file_into_process(env_file_path)
     if registry is None:
@@ -369,7 +375,11 @@ async def run_ingestion(
             ) -> BaseLeadSource:
                 return source_class.from_run(
                     mode,
-                    transport=source_class.build_transport(mode),
+                    transport=(
+                        source_class.build_transport(mode)
+                        if transport_factory is None
+                        else transport_factory(source_class, mode)
+                    ),
                     pacing=pacing,
                     vocabulary=(
                         None
@@ -387,6 +397,7 @@ async def run_ingestion(
                 run_recorder=recorder,
                 live_rate_limits=rate_limits,
                 identity_exclusions=exclusions,
+                synthetic_retry=synthetic_retry,
             )
             results = await orchestrator.run(SourceRequest(kind="discovery"))
             run_id = recorder.run_id

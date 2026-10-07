@@ -160,10 +160,11 @@ async def test_one_query_per_company_and_term_quoting_the_company_domain() -> No
     raw = await source.fetch_raw(work(("apollo", ACME), ("apollo", "betaco.com")))
 
     asked = [call[1]["q"] for call in transport.calls]
+    # Term order then company order: every company's first term before any second.
     assert asked == [
         ACME_QUERY,
-        f'"{ACME}" DSE',
         '"betaco.com" Apache Cassandra',
+        f'"{ACME}" DSE',
         '"betaco.com" DSE',
     ]
     payload: Any = raw.payload
@@ -172,6 +173,23 @@ async def test_one_query_per_company_and_term_quoting_the_company_domain() -> No
         "term": "cassandra",
         "corroborating_sources": 1,
     }
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#14.2
+async def test_a_query_cap_cuts_extra_terms_not_whole_companies() -> None:
+    # Coverage first (user decision 2026-10-07): with more companies x terms than the
+    # cap, every company is searched once before any is searched twice.
+    transport = responder({})
+    source = google(transport, terms={"cassandra": "Apache Cassandra", "dse": "DSE"})
+    companies = [("apollo", f"company{i}.com") for i in range(MAX_QUERIES - 10)]
+
+    raw = await source.fetch_raw(work(*companies))
+
+    asked = [str(call[1]["q"]) for call in transport.calls]
+    assert len(asked) == MAX_QUERIES
+    assert {q.split('"')[1] for q in asked} == {domain for _, domain in companies}
+    payload: Any = raw.payload
+    assert payload["unasked_queries"] == len(companies) * 2 - MAX_QUERIES
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.5

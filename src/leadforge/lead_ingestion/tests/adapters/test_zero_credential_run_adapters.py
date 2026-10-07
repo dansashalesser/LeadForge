@@ -158,16 +158,22 @@ async def test_the_real_adapters_run_in_both_phases_and_a_real_lead_is_persisted
 
 # Verifies: specs/lead-source-adapters/requirements.md#6.9
 # Verifies: specs/lead-source-adapters/requirements.md#6.10
-async def test_hunter_is_idle_and_hubspot_asks_only_what_apollo_found_gap_c(
+async def test_hunter_and_hubspot_ask_again_only_what_apollo_found_gap_c(
     clean_environment: Path, guard: SocketGuard, served: list[str]
 ) -> None:
     outcome = await run_ingestion(target_profile_path=PROFILE)
 
-    [hunter] = [r for r in outcome.results if r.source_name == "hunter"]
-    assert hunter.phase is Phase.ENRICHMENT
-    assert hunter.outcome.succeeded == 1
-    assert hunter.contributions == ()
-    assert not [s for s in served if s.startswith("hunter:")]
+    # Hunter's own tier is idle (gap c); its rerun (user decision 2026-10-07) asks
+    # the verifier about the one address Apollo's match found. The static fixture
+    # answers for another address, so that verdict is withheld: no contribution.
+    first_hunter, rerun = [r for r in outcome.results if r.source_name == "hunter"]
+    assert (first_hunter.phase, rerun.phase) == (Phase.ENRICHMENT, Phase.ENRICHMENT)
+    assert first_hunter.contributions == ()
+    assert rerun.contributions == ()
+    hunter_endpoints = DISCOVERED.source_class("hunter").endpoints
+    assert [s for s in served if s.startswith("hunter:")] == [
+        f"hunter:{hunter_endpoints['email_verifier'].path}"
+    ]
     # HubSpot's own tier is idle (gap c); its second, free pass (user decision
     # 2026-10-06) asks the one address Apollo's match found, from its fixtures.
     first, second = [r for r in outcome.results if r.source_name == "hubspot"]

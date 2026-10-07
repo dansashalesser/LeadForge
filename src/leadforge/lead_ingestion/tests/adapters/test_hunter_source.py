@@ -996,9 +996,11 @@ async def test_the_synthetic_fixtures_serve_finder_and_verifier_with_no_socket()
 ):
     transport = HunterSource.build_transport(DataMode.SYNTHETIC)
     source = HunterSource(DataMode.SYNTHETIC, transport=transport, environ={})
+    # The verifier fixture's own address: a verdict on another one is withheld.
     batch = await source.fetch_raw(
         enrich(
-            person(email="a@example.com"), person(first="Ada", last="L", domain="b.io")
+            person(email="ada.lovelace@example.com"),
+            person(first="Ada", last="L", domain="b.io"),
         )
     )
     contributions = source.normalize_checked(batch)
@@ -1013,6 +1015,22 @@ async def test_the_synthetic_fixtures_serve_finder_and_verifier_with_no_socket()
     ):
         data = json.loads((FIXTURE.parent / f"{name}.json").read_text())["data"]
         assert unmapped_raw_paths(data, rules, ignored) == []
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#16.2
+async def test_a_verdict_on_another_address_is_withheld() -> None:
+    # The static verifier fixture answers for its own address whatever was asked;
+    # that verdict says nothing about the address asked (follow-up 2026-10-07).
+    transport = HunterSource.build_transport(DataMode.SYNTHETIC)
+    source = HunterSource(DataMode.SYNTHETIC, transport=transport, environ={})
+    with capture_logs() as logs:
+        batch = await source.fetch_raw(enrich(person(email="a@example.com")))
+        contributions = source.normalize_checked(batch)
+    assert contributions == []
+    assert any(
+        log["event"] == "hunter_verdict_withheld" and log["count"] == 1
+        for log in logs
+    )
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#16.8

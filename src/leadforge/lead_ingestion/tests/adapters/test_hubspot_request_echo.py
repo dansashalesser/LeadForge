@@ -328,13 +328,22 @@ async def test_the_echo_is_recorded_in_the_raw_batch_and_an_older_batch_has_none
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#13.1
-async def test_an_unknown_address_carries_no_echo() -> None:
-    # Its ``email`` is the question, not an address HubSpot holds: joining it would
-    # let the question count as agreement on the requester's address.
+async def test_an_unknown_address_joins_its_requester_without_its_question() -> None:
+    # The echo puts "not in the CRM" on the person asked; the record's ``email`` is
+    # the question, not an address HubSpot holds, so it is dropped: it must not count
+    # as agreement on the requester's address.
     transport = Contacts([])
     [found] = await answer(
         transport, requester(person__email=ADA, person__linkedin_url=ADA_LINKEDIN)
     )
+    assert echoed(found) == {"person.linkedin_url": ADA_LINKEDIN}
+    assert "email" not in found.values
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#13.1
+async def test_an_unknown_address_with_nothing_to_echo_keeps_its_question() -> None:
+    transport = Contacts([])
+    [found] = await answer(transport, requester(person__email=ADA))
     assert echoed(found) == {}
     assert found.values == {"email": ADA}
 

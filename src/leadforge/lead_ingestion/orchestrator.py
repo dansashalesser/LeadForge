@@ -664,6 +664,7 @@ class IngestionOrchestrator:
         max_concurrent_sources: int,
         run_timeout_s: float,
         retry_policy: RetryPolicy | None = None,
+        synthetic_retry: RetryPolicy | None = None,
         run_recorder: RunRecorder | None = None,
         live_rate_limits: Mapping[str, Mapping[str, RateBucket]] | None = None,
         identity_exclusions: IdentityExclusions | None = None,
@@ -690,6 +691,9 @@ class IngestionOrchestrator:
         self._max_concurrent_sources = max_concurrent_sources
         self._run_timeout_s = run_timeout_s
         self._retry_policy = retry_policy
+        # A synthetic source has no pacing and so, by default, no retry; a caller
+        # that scripts provider errors (the demo dataset) can hand one here.
+        self._synthetic_retry = synthetic_retry
         self._run_recorder = run_recorder
         self._live_rate_limits = dict(live_rate_limits or {})
         self._identity_exclusions = identity_exclusions
@@ -776,7 +780,8 @@ class IngestionOrchestrator:
         for source in sources:
             pacing = pacings[source.name]
             ledgers[source.name] = SourceCallLedger(
-                source.name, retry=None if pacing is None else pacing.retry
+                source.name,
+                retry=self._synthetic_retry if pacing is None else pacing.retry,
             )
         finished: dict[tuple[str, Phase], SourceResult] = {}
 
@@ -858,6 +863,7 @@ class IngestionOrchestrator:
         # The second, free pass (user decision 2026-10-06): each free tier with the
         # identities its first call was handed, and the results of its second call.
         free_tiers: list[tuple[list[BaseLeadSource], frozenset[Identity]]] = []
+        rerun_tiers: list[tuple[list[BaseLeadSource], frozenset[Identity]]] = []
         second_pass: list[BaseLeadSource] = []
         second: dict[tuple[str, Phase], SourceResult] = {}
         try:
@@ -900,9 +906,41 @@ class IngestionOrchestrator:
                         reports,
                         exclusions=self._identity_exclusions,
                     )
+                    # What it was handed or answered itself is not new to it.
+                    seen = _identities_of((*tier_list, *added))
                     if tier[0].cost_class is CostClass.FREE:
-                        # What it was handed or answered itself is not new to it.
-                        free_tiers.append((tier, _identities_of((*tier_list, *added))))
+                        free_tiers.append((tier, seen))
+                    elif all(s.rerun_for_new_identities for s in tier):
+                        rerun_tiers.append((tier, seen))
+                # Then each rerun tier once more (user decision 2026-10-07), only for
+                # what it was never handed: the identities later paid tiers supplied.
+                # Its findings feed the work list, so the free pass below sees them.
+                for tier, seen in rerun_tiers:
+                    fresh = tuple(c for c in work_list if not identities(c) <= seen)
+                    if not fresh:
+                        continue
+                    second_pass.extend(tier)
+                    await run_phase(
+                        tier,
+                        Phase.ENRICHMENT,
+                        EnrichmentRequest(
+                            kind="enrich", work_list=_tier_work_list(tier, fresh)
+                        ),
+                        second,
+                    )
+                    rerun = tuple(
+                        contribution
+                        for s in tier
+                        for contribution in (
+                            second[(s.name, Phase.ENRICHMENT)].contributions or ()
+                        )
+                    )
+                    reports = (*reports, *rerun)
+                    work_list = prune_flagged(
+                        (*work_list, *rerun),
+                        reports,
+                        exclusions=self._identity_exclusions,
+                    )
                 # Then each free tier once more, only for what it was never handed: it
                 # costs nothing and no paid tier runs after it, so no spend moves.
                 for tier, seen in free_tiers:

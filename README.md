@@ -72,7 +72,8 @@ uv run leadforge ingest
 ```
 
 One run: discovery, then enrichment in a fixed order (HubSpot → Hunter → Apollo →
-Google, then a second free HubSpot pass), then the merge and the save. It prints a
+Google, then Hunter again for the people Apollo filled in, then a second free HubSpot
+pass), then the merge and the save. It prints a
 report per source (mode, calls, credits, failures). Exit code 0 if at least one source
 succeeded, 1 if none did.
 
@@ -96,6 +97,40 @@ A lead that was merged into another shows as retired, with a pointer to its succ
 
 In Python: `load_lead`, `list_leads` and `find_lead` (by email or LinkedIn URL) in
 `leadforge.lead_ingestion.store.lead_reader`.
+
+### Web UI
+
+```bash
+uv run leadforge web              # http://127.0.0.1:8710, opens a browser
+uv run leadforge web --port 9000 --no-open
+```
+
+One page over both stores (your store and the demo store): run an ingestion or the
+demo (`fresh`, `faults`), regenerate the demo tables, browse and filter leads (field
+provenance, web evidence, signals, opt-outs, flagged domain ties), see every run's
+per-source figures, and read the demo scorecard down to each person's checks. Before a
+run on your store it lists which sources go live and may spend credits. Contacts are
+masked until you tick "Reveal contacts". It binds to localhost only and has no login.
+
+### Demo dataset
+
+A larger synthetic dataset (40 companies, 250 people) shaped like each provider's
+documented responses, with an answer key of what the pipeline should do per person:
+
+```bash
+uv run leadforge demo run --fresh   # every source synthetic, into .leadforge/demo.db
+uv run leadforge demo score         # stored leads vs the answer key, per scenario
+uv run leadforge demo generate      # rewrite the tables from the fixed seed
+DATABASE_URL=sqlite:///.leadforge/demo.db uv run leadforge leads list
+```
+
+Scenarios cover verified, unverified and missing emails, Apollo no-match and
+low-confidence answers, HubSpot opt-outs, open deals, customers and duplicate
+contacts, role and shared inboxes, duplicate Apollo records, same-name colleagues,
+oversized or instruction-carrying titles, and Hunter verdicts (found, invalid,
+accept-all, 451, SMTP failure). The first Apollo match is answered with a 429 that the
+run retries. `--faults` also serves a failed SerpApi search. The tables live in `src/leadforge/lead_ingestion/demo/data/`; to change an
+expectation, edit the generator's scenario table, never the key.
 
 ## Tests and checks
 
@@ -129,6 +164,7 @@ local development only.
 src/leadforge/lead_ingestion/   the ingestion slice
   adapters/                     Apollo, HubSpot, Hunter, Google Search (+ SerpApi backend)
   fixtures/                     synthetic-mode sample data, checked against provider docs
+  demo/                         demo dataset: generator, routed transport, scorecard
   store/                        SQLAlchemy models, migrations, lead reader
   tests/                        the test suite
 config/target_profile.yaml      what to search for

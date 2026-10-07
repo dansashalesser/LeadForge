@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.14",
     "email-validator>=2.3.0",
+    "fastapi>=0.115",
     "httpx>=0.28",
     "psycopg[binary]>=3.3.6",
     "pydantic>=2",
@@ -19,6 +20,7 @@ dependencies = [
     # snapshot bundled in the locked release is consulted (no runtime fetch).
     "tldextract>=5",
     "typer>=0.15",
+    "uvicorn>=0.32",
 ]
 
 [project.scripts]
@@ -26,6 +28,7 @@ leadforge = "leadforge.lead_ingestion.cli:app"
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.13.1",
     "mypy>=1.13",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",

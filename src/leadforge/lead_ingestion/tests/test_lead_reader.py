@@ -18,6 +18,7 @@ import uuid
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -947,6 +948,22 @@ def test_leads_show_an_unknown_or_malformed_id_fails_cleanly(
     assert unknown.exit_code == 1
     assert "no lead" in unknown.stderr
     assert malformed.exit_code == 2
+
+
+def test_leads_commands_on_a_store_ingest_never_set_up_name_the_fix(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, restore_structlog: None
+) -> None:
+    """A fresh database has no tables; the readers say so instead of a SQL trace."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("LEADFORGE_ENV_FILE", raising=False)
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'empty.db'}")
+    runner = CliRunner()
+    for args in (["leads", "list"], ["leads", "show", str(uuid.uuid4())]):
+        result = runner.invoke(cli.app, args)
+        assert result.exit_code == cli.EXIT_CONFIGURATION_ERROR, result.output
+        assert "no schema" in result.stderr
+        assert "leadforge ingest" in result.stderr
+        assert result.exception is None or isinstance(result.exception, SystemExit)
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#22.1

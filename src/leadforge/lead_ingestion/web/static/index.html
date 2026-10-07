@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LeadForge</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">Lead<span>Forge</span></div>
+    <div class="seg" id="store-switch" role="tablist" aria-label="Store">
+      <button data-store="demo">Demo dataset</button>
+      <button data-store="main">My store</button>
+    </div>
+    <label class="toggle" title="Show full emails and LinkedIn URLs">
+      <input type="checkbox" id="reveal"> Reveal contacts
+    </label>
+    <div class="spacer"></div>
+    <div id="actions" class="actions"></div>
+  </header>
+
+  <section id="job" class="job hidden" aria-live="polite"></section>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="overview">Overview</button>
+    <button data-tab="leads">Leads</button>
+    <button data-tab="runs">Runs</button>
+    <button data-tab="scorecard">Scorecard</button>
+  </nav>
+
+  <main id="view"></main>
+
+  <aside id="drawer" class="drawer hidden" aria-label="Lead detail"></aside>
+  <div id="scrim" class="scrim hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

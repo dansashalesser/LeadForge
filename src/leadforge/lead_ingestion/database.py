@@ -46,6 +46,7 @@ __all__ = [
     "DatabaseConfigError",
     "create_store_engine",
     "database_now",
+    "local_file_url",
     "redact_url",
     "resolve_database_url",
 ]
@@ -103,6 +104,19 @@ def create_store_engine(
     if resolved.get_backend_name() == "sqlite":
         return _sqlite_engine(resolved)
     return _create(resolved)
+
+
+def local_file_url(path: Path) -> str:
+    """The ``DATABASE_URL`` of a local file store at ``path`` (made absolute)."""
+    return URL.create("sqlite", database=str(path.resolve())).render_as_string()
+
+
+def local_file_path(url: URL) -> Path | None:
+    """The file of a local file store; None for a server or in-memory store."""
+    if url.get_backend_name() != "sqlite" or _is_in_memory(url):
+        return None
+    assert url.database is not None
+    return None if url.database.startswith("file:") else Path(url.database)
 
 
 def _base(base_dir: Path | None) -> Path:

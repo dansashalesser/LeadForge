@@ -453,7 +453,9 @@ BELOW_CONTRACT_MODULES = {
     "mcp_transport.py": "the MCP transport",
     "auth.py": "the OAuth token fetch goes through a Transport",
 }
-BELOW_CONTRACT_DIRS = ("adapters",)
+# demo/: the demo dataset's routed transport serves synthetic answers, as
+# transport.py's fixture transport does.
+BELOW_CONTRACT_DIRS = ("adapters", "demo")
 """Slice modules and directories on or below the contract (20.1), each with its reason.
 Every other production module is above it and may name no transport type; a module
 added later is held to the rule until it is declared here."""

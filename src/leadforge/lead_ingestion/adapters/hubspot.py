@@ -67,11 +67,14 @@ joins the person it was asked about, with no change to the merge rules.
   (``email_mismatch``) or absent (``email_unconfirmed``). Such records still carry
   HubSpot's own fields, flags included, as before. The contact search therefore also
   requests the ``email`` property.
-* An address unknown to HubSpot gets no echo: its record's ``email`` is the question
-  itself (raw path ``lookup``), not an address HubSpot holds, so joining it would let
-  the question count as agreement on the requester's address. It stays a record of its
-  own, as before. A confirmed contact's ``email`` equals the contact's own address, so
-  it is HubSpot's observation and does count.
+* An address unknown to HubSpot gets the echo too, but its record drops ``email``: that
+  value is the question itself (raw path ``lookup``), not an address HubSpot holds, so
+  it must not count as agreement on the requester's address. The echo joins the
+  "not in the CRM" Negative Evidence to the person asked (follow-up, user decision
+  2026-10-07: without it every lead missing from the CRM got an email-only twin).
+  With no echo the record keeps ``email`` and stays a record of its own. A confirmed
+  contact's ``email`` equals the contact's own address, so it is HubSpot's observation
+  and does count.
 
 Provider facts checked on 2026-10-06 (HubSpot's public OpenAPI specs,
 https://github.com/HubSpot/HubSpot-public-api-spec-collection, latest date-versioned
@@ -191,6 +194,7 @@ _CONTACT_PROPERTIES = (
     "hs_email_optout",
 )
 _OPT_OUT_RAW = "contact.properties.hs_email_optout"
+_LOOKUP = "lookup"
 
 
 class _Properties(BaseModel):
@@ -302,7 +306,7 @@ class HubSpotSource(BaseLeadSource):
     base_url: ClassVar[str] = "https://api.hubapi.com"
 
     RULES: ClassVar[tuple[FieldRule, ...]] = (
-        FieldRule("email", "lookup"),
+        FieldRule("email", _LOOKUP),
         FieldRule("crm.contact_exists", "contact.id", transform=_exists),
         FieldRule(
             "crm.lifecycle_stage", "contact.properties.lifecyclestage", transform=_text
@@ -565,10 +569,14 @@ class HubSpotSource(BaseLeadSource):
         contributions: list[LeadContribution] = []
         withheld: Counter[str] = Counter()
         for record in self._records(lookups, withheld):
-            rules = self.RULES + tuple(
-                rule
-                for key, rule in _ECHO_RULES.items()
-                if key in record.get(REQUEST_ECHO_KEY, {})
+            echoed = record.get(REQUEST_ECHO_KEY, {})
+            own = self.RULES
+            if record.get("contact") is None and echoed:
+                # The asked address is the question, not an observation: on a record
+                # that joins its requester it must not count as agreement.
+                own = tuple(r for r in own if r.raw_field_path != _LOOKUP)
+            rules = own + tuple(
+                rule for key, rule in _ECHO_RULES.items() if key in echoed
             )
             checked = validate_raw_payload(self.name, _Record, record, rules)
             context = (
@@ -653,7 +661,8 @@ class HubSpotSource(BaseLeadSource):
                     self.name, raw_field_path="lookups", canonical_path="<unmapped>"
                 )
             if not contacts:
-                records.append({"lookup": lookup, "contact": None})
+                echo = {REQUEST_ECHO_KEY: dict(asked)} if asked else {}
+                records.append({"lookup": lookup, "contact": None, **echo})
             if not all(isinstance(found, Mapping) for found in contacts):
                 raise NormalizationError(
                     self.name, raw_field_path="contacts", canonical_path="<unmapped>"
