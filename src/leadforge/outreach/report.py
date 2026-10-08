@@ -9,6 +9,7 @@ synthetic or offline (14.3).
 
 import json
 import uuid
+from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
@@ -26,6 +27,7 @@ from leadforge.outreach.tables import (
 )
 
 __all__ = [
+    "EvidenceItem",
     "Funnel",
     "LeadRow",
     "Report",
@@ -52,11 +54,25 @@ class Funnel(_Frozen):
     manual_review: int
 
 
+class EvidenceItem(_Frozen):
+    """One cited finding. ``quote`` is untrusted page text: escape it wherever shown."""
+
+    section: str  # "company_usage" or "person_fit"
+    evidence_class: str
+    source: str
+    url: str
+    observed_on: date | None
+    quote: str
+    relationship: str
+
+
 class LeadRow(_Frozen):
     lead_id: uuid.UUID
     status: str
     score: Decimal
     reasons: tuple[str, ...]
+    verdict: str | None = None
+    evidence: tuple[EvidenceItem, ...] = ()
     sequence: str
     name: str | None
     email: str | None
@@ -93,7 +109,7 @@ def build_report(
         query=search.query,
         notes=_notes(session, search),
         funnel=_funnel(session, search_id),
-        leads=tuple(_row(session, d, reveal) for d in decisions),
+        leads=tuple(_row(session, d, reveal, search.mode) for d in decisions),
         revealed=reveal,
     )
 
@@ -131,6 +147,9 @@ def render_markdown(report: Report) -> str:
         if row.name:
             out.append(f"- name: {row.name}")
         out.append("- reasons: " + (", ".join(row.reasons) or "none"))
+        if row.verdict is not None:
+            out.append(f"- verdict: {row.verdict}")
+        out += _evidence_lines(row.evidence)
         if row.invite is not None:
             out += ["", "Invite:", "", _quote(row.invite)]
         if row.email_body is not None:
@@ -141,6 +160,32 @@ def render_markdown(report: Report) -> str:
                 _quote(row.email_body),
             ]
     return "\n".join(out) + "\n"
+
+
+_SECTIONS = (("company_usage", "Company Usage"), ("person_fit", "Person Fit"))
+
+
+def _evidence_lines(items: tuple[EvidenceItem, ...]) -> list[str]:
+    out: list[str] = []
+    for section, title in _SECTIONS:
+        chosen = [i for i in items if i.section == section]
+        if not chosen:
+            continue
+        out += ["", f"{title} evidence:"]
+        for i in chosen:
+            when = f", {i.observed_on}" if i.observed_on else ""
+            link = (
+                f"<{i.url}>"
+                if i.url.lower().startswith(("http://", "https://"))
+                else "no link"
+            )
+            out += [
+                "",
+                f"- {i.evidence_class} ({i.relationship}{when}) via {i.source}: {link}",
+                "",
+                _quote(i.quote),
+            ]
+    return out
 
 
 def _quote(text: str) -> str:
@@ -230,7 +275,9 @@ def _notes(session: Session, search: OutreachSearch) -> tuple[str, ...]:
     return tuple(notes)
 
 
-def _row(session: Session, decision: OutreachDecision, reveal: bool) -> LeadRow:
+def _row(
+    session: Session, decision: OutreachDecision, reveal: bool, mode: str
+) -> LeadRow:
     messages = {
         m.variant: m
         for m in session.scalars(
@@ -259,6 +306,8 @@ def _row(session: Session, decision: OutreachDecision, reveal: bool) -> LeadRow:
         status=decision.status,
         score=Decimal(decision.score_milli) / 1000,
         reasons=tuple(_reason(r) for r in decision.reasons),
+        verdict=_verdict(decision.reasons) if mode == "users" else None,
+        evidence=_evidence(decision.reasons) if mode == "users" else (),
         sequence=" > ".join(kinds) or "not started",
         name=stored.lead.full_name if reveal and stored is not None else None,
         email=email if reveal else _mask_email(email),
@@ -267,6 +316,40 @@ def _row(session: Session, decision: OutreachDecision, reveal: bool) -> LeadRow:
         email_subject=None if mail is None else mail.subject,
         email_body=None if mail is None else mail.body,
     )
+
+
+def _verdict(reasons: list[dict[str, object]]) -> str | None:
+    """The verdict reason code: first in a users-mode Decision, ahead of score terms."""
+    first = reasons[0] if reasons else {}
+    if first.get("value") is None and first.get("weight") is None:
+        return str(first["code"]) if "code" in first else None
+    return None
+
+
+def _evidence(reasons: list[dict[str, object]]) -> tuple[EvidenceItem, ...]:
+    items: list[EvidenceItem] = []
+    for reason in reasons:
+        for ref in reason.get("evidence_refs") or []:  # type: ignore[attr-defined]
+            kind = str(ref["class"])
+            observed = ref.get("observed_on")
+            items.append(
+                EvidenceItem(
+                    section=(
+                        "person_fit"
+                        if kind == "person_self_stated"
+                        else "company_usage"
+                    ),
+                    evidence_class=kind,
+                    source=str(ref["source"]),
+                    url=str(ref["url"]),
+                    observed_on=None
+                    if observed is None
+                    else date.fromisoformat(observed),
+                    quote=str(ref["quote"]),
+                    relationship=str(ref["relationship"]),
+                )
+            )
+    return tuple(items)
 
 
 def _reason(reason: dict[str, object]) -> str:

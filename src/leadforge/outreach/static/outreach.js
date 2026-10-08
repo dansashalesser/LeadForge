@@ -170,9 +170,35 @@ async function openSearch(id) {
   $("leads").replaceChildren(table);
 }
 
+// Quotes are untrusted page text: textContent only. A URL is a link only if http(s).
+function safeLink(url) {
+  let parsed;
+  try { parsed = new URL(url); } catch { return el("span", { class: "note", text: "no link" }); }
+  if (!/^https?:$/.test(parsed.protocol)) return el("span", { class: "note", text: "no link" });
+  return el("a", { href: parsed.href, target: "_blank", rel: "noopener noreferrer", text: parsed.href });
+}
+
+function evidenceBlocks(items) {
+  const blocks = [];
+  for (const [section, title] of [["company_usage", "Company Usage"], ["person_fit", "Person Fit"]]) {
+    const chosen = items.filter((i) => i.section === section);
+    if (!chosen.length) continue;
+    blocks.push(el("b", { text: `${title} evidence` }));
+    for (const i of chosen) {
+      const when = i.observed_on ? `, ${i.observed_on}` : "";
+      blocks.push(
+        el("div", { class: "note" }, `${i.evidence_class} (${i.relationship}${when}) via ${i.source}: `, safeLink(i.url)),
+        el("div", { class: "msg", text: i.quote }));
+    }
+  }
+  return blocks;
+}
+
 function leadDetail(lead) {
   const box = el("div");
   box.append(el("div", { text: `Email: ${lead.email || "none"} · LinkedIn: ${lead.linkedin_url || "none"}` }));
+  if (lead.verdict) box.append(el("div", {}, el("b", { text: "Verdict: " }), lead.verdict));
+  box.append(...evidenceBlocks(lead.evidence || []));
   if (lead.invite !== null) {
     box.append(el("b", { text: "LinkedIn invite" }), el("div", { class: "msg", text: lead.invite }));
   }

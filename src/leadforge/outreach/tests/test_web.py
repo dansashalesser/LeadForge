@@ -269,3 +269,15 @@ def test_the_page_builds_its_filters_from_the_api(client: TestClient) -> None:
     assert "vendor:" in script
     assert "products" in script
     assert "newco" not in page + script
+
+
+# Verifies: specs/user-recognition/requirements.md#8.4
+def test_the_page_renders_evidence_with_escaped_text_and_safe_links(
+    client: TestClient,
+) -> None:
+    script = client.get("/outreach/app.js").text
+
+    assert "evidence" in script
+    assert "noopener noreferrer" in script
+    assert "https?:" in script
+    assert not re.search(r"innerHTML\s*=", script)
