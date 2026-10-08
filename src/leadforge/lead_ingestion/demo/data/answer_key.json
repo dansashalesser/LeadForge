@@ -36,167 +36,564 @@
  "companies": {
   "quillstack.io": {
    "name": "Quillstack",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "brambleworks.com": {
    "name": "Brambleworks",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "corvantis.co": {
    "name": "Corvantis",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "hexmoor.ai": {
    "name": "Hexmoor",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "tidelark.dev": {
    "name": "Tidelark",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "ombrafield.tech": {
    "name": "Ombrafield",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "velloria.io": {
    "name": "Velloria",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "pinecrestledger.com": {
    "name": "Pinecrest Ledger",
-   "web_profile": "unrelated"
+   "web_profile": "unrelated",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "ashgroveanalytics.co": {
    "name": "Ashgrove Analytics",
-   "web_profile": "empty"
+   "web_profile": "empty",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "kestrelyn.ai": {
    "name": "Kestrelyn",
-   "web_profile": "injection"
+   "web_profile": "injection",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "murmurlabs.dev": {
    "name": "Murmur Labs",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "driftwell.tech": {
    "name": "Driftwell",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "salviohealth.io": {
    "name": "Salvio Health",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "larkspan.com": {
    "name": "Larkspan",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "northvane.co": {
    "name": "Northvane",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "ferrowind.ai": {
    "name": "Ferrowind",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "glintmere.dev": {
    "name": "Glintmere",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "halcyra.tech": {
    "name": "Halcyra",
-   "web_profile": "unrelated"
+   "web_profile": "unrelated",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "ironloom.io": {
    "name": "Ironloom",
-   "web_profile": "empty"
+   "web_profile": "empty",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "juniperline.com": {
    "name": "Juniperline",
-   "web_profile": "injection"
+   "web_profile": "injection",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "kovalta.co": {
    "name": "Kovalta",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "lumenstead.ai": {
    "name": "Lumenstead",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "marrowgate.dev": {
    "name": "Marrowgate",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "nimbusk.tech": {
    "name": "Nimbusk",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "orchelle.io": {
    "name": "Orchelle",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "pallisadepay.com": {
    "name": "Pallisade Pay",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "quorvia.co": {
    "name": "Quorvia",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "ravenmoss.ai": {
    "name": "Ravenmoss",
-   "web_profile": "unrelated"
+   "web_profile": "unrelated",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "sablecore.dev": {
    "name": "Sablecore",
-   "web_profile": "empty"
+   "web_profile": "empty",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "thistlebay.tech": {
    "name": "Thistlebay",
-   "web_profile": "injection"
+   "web_profile": "injection",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "umbervale.io": {
    "name": "Umbervale",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "vantorin.com": {
    "name": "Vantorin",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "wrenhollow.co": {
    "name": "Wrenhollow",
-   "web_profile": "strong"
+   "web_profile": "strong",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "xyloquent.ai": {
    "name": "Xyloquent",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "yarrowfin.dev": {
    "name": "Yarrowfin",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "zephyrant.tech": {
    "name": "Zephyrant",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "cobaltine.io": {
    "name": "Cobaltine",
-   "web_profile": "third_party"
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "duskhaven.com": {
    "name": "Duskhaven",
-   "web_profile": "unrelated"
+   "web_profile": "unrelated",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "emberlynfreight.co": {
    "name": "Emberlyn Freight",
-   "web_profile": "empty"
+   "web_profile": "empty",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": []
+   }
   },
   "foxgloveretail.ai": {
    "name": "Foxglove Retail",
-   "web_profile": "injection"
+   "web_profile": "injection",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
   },
   "datastax.com": {
    "name": "DataStax",
-   "web_profile": "own_site"
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "vendor",
+    "evidence": [
+     {
+      "class": "own_domain_content",
+      "observed_on": "2026-10-07",
+      "relationship": "vendor_or_partner"
+     }
+    ]
+   }
   }
  },
  "people": [
@@ -216,7 +613,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -231,7 +633,12 @@
    "company": "brambleworks.com",
    "apollo_id": "06b68bb639db671022009b21",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -253,7 +660,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -277,7 +689,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -301,7 +718,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -315,7 +737,12 @@
    "company": "ombrafield.tech",
    "apollo_id": "8bfbbc7e2e8df7dbf22e88c4",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -337,7 +764,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -361,7 +793,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -385,7 +822,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -409,7 +851,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -433,7 +880,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -457,7 +909,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -481,7 +938,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -505,7 +967,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -529,7 +996,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -553,7 +1025,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -577,7 +1054,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -601,7 +1083,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -625,7 +1112,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -649,7 +1141,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -673,7 +1170,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -697,7 +1199,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -720,7 +1227,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -744,7 +1256,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -768,7 +1285,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -792,7 +1314,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -816,7 +1343,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -830,7 +1362,12 @@
    "company": "ravenmoss.ai",
    "apollo_id": "1d49a1bf0892c979ea2183aa",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -852,7 +1389,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -876,7 +1418,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -900,7 +1447,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -924,7 +1476,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -948,7 +1505,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -972,7 +1534,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -996,7 +1563,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1020,7 +1592,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1044,7 +1621,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1068,7 +1650,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1092,7 +1679,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1116,7 +1708,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1140,7 +1737,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1164,7 +1766,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1179,7 +1786,12 @@
    "company": "corvantis.co",
    "apollo_id": "dbbdc1b78ed4f96d907fdbb2",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -1201,7 +1813,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1216,7 +1833,12 @@
    "company": "tidelark.dev",
    "apollo_id": "96211805830eeeae72868081",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -1238,7 +1860,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1253,7 +1880,12 @@
    "company": "velloria.io",
    "apollo_id": "3116e912bf8b45f90e6667e0",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -1275,7 +1907,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1299,7 +1936,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1323,7 +1965,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1338,7 +1985,12 @@
    "company": "murmurlabs.dev",
    "apollo_id": "f97f95c818292f01ccf03715",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -1360,7 +2012,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1384,7 +2041,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -1407,7 +2069,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1422,7 +2089,12 @@
    "company": "northvane.co",
    "apollo_id": "fda551aacd5f81766082ff91",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -1444,7 +2116,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1468,7 +2145,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1492,7 +2174,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1516,7 +2203,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1540,7 +2232,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1564,7 +2261,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1588,7 +2290,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1612,7 +2319,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1636,7 +2348,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1660,7 +2377,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1684,7 +2406,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1708,7 +2435,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1732,7 +2464,12 @@
     "opt_out": false,
     "suppressed": true,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -1755,7 +2492,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1779,7 +2521,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1803,7 +2550,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1827,7 +2579,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1851,7 +2608,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1875,7 +2637,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1899,7 +2666,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1923,7 +2695,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1947,7 +2724,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -1972,6 +2754,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "title_bounded": true
    },
    "outreach": {
@@ -1996,7 +2783,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2020,7 +2812,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2043,7 +2840,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2067,7 +2869,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2091,7 +2898,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2114,7 +2926,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2137,7 +2954,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2161,7 +2983,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2184,7 +3011,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2208,7 +3040,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2232,7 +3069,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2256,7 +3098,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2279,7 +3126,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2303,7 +3155,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2327,7 +3184,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2350,7 +3212,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2374,7 +3241,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2397,7 +3269,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2421,7 +3298,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2444,7 +3326,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2467,7 +3354,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2491,7 +3383,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2515,7 +3412,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2539,7 +3441,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2563,7 +3470,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2587,7 +3499,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2611,7 +3528,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2635,7 +3557,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2659,7 +3586,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2682,7 +3614,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2706,7 +3643,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2730,7 +3672,12 @@
     "opt_out": false,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2753,7 +3700,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2777,7 +3729,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2801,7 +3758,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2825,7 +3787,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2848,7 +3815,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2872,7 +3844,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2896,7 +3873,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2920,7 +3902,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -2943,7 +3930,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2967,7 +3959,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -2991,7 +3988,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3015,7 +4017,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3039,7 +4046,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3062,7 +4074,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3086,7 +4103,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3110,7 +4132,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3134,7 +4161,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3158,7 +4190,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3173,7 +4210,12 @@
    "company": "ashgroveanalytics.co",
    "apollo_id": "069783184f3c9ace7ddb53a8",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -3195,7 +4237,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3219,7 +4266,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3243,7 +4295,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3267,7 +4324,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3291,7 +4353,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3315,7 +4382,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3338,7 +4410,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3362,7 +4439,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3386,7 +4468,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3409,7 +4496,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3433,7 +4525,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3457,7 +4554,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3481,7 +4583,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3504,7 +4611,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3528,7 +4640,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3552,7 +4669,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3576,7 +4698,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3600,7 +4727,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3623,7 +4755,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3647,7 +4784,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3671,7 +4813,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3695,7 +4842,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3718,7 +4870,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3742,7 +4899,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3766,7 +4928,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3790,7 +4957,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3814,7 +4986,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3838,7 +5015,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -3861,7 +5043,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3885,7 +5072,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3909,7 +5101,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3933,7 +5130,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3948,7 +5150,12 @@
    "company": "brambleworks.com",
    "apollo_id": "a6a7b91d920338586bf5050d",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -3970,7 +5177,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -3994,7 +5206,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4018,7 +5235,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4042,7 +5264,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4066,7 +5293,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4090,7 +5322,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4113,7 +5350,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4137,7 +5379,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4161,7 +5408,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4185,7 +5437,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4208,7 +5465,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4232,7 +5494,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4256,7 +5523,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4280,7 +5552,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4304,7 +5581,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4328,7 +5610,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4352,7 +5639,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4376,7 +5668,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4399,7 +5696,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4423,7 +5725,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4447,7 +5754,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4470,7 +5782,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4494,7 +5811,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4518,7 +5840,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4542,7 +5869,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4566,7 +5898,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4581,7 +5918,12 @@
    "company": "sablecore.dev",
    "apollo_id": "08bd17b95f1ea1f9cb32831a",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -4603,7 +5945,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4627,7 +5974,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4652,6 +6004,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "title_bounded": true
    },
    "outreach": {
@@ -4676,7 +6033,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4691,7 +6053,12 @@
    "company": "xyloquent.ai",
    "apollo_id": "18ebf6b1815f794657b9d126",
    "expect": {
-    "lead": "absent"
+    "lead": "absent",
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "absent"
@@ -4713,7 +6080,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4737,7 +6109,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4760,7 +6137,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4784,7 +6166,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4808,7 +6195,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4832,7 +6224,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4855,7 +6252,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4879,7 +6281,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4902,7 +6309,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": true
+    "crm_open_deal": true,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -4925,7 +6337,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4949,7 +6366,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4973,7 +6395,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -4997,7 +6424,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5021,7 +6453,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -5044,7 +6481,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5068,7 +6510,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5092,7 +6539,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5116,7 +6568,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5140,7 +6597,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5164,7 +6626,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5188,7 +6655,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5212,7 +6684,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5236,7 +6713,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "third_party_mention",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5260,7 +6742,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5284,7 +6771,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "none",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5308,7 +6800,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5332,7 +6829,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5356,7 +6858,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5381,6 +6888,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "different_lead_from": "p224"
    },
    "outreach": {
@@ -5406,6 +6918,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "different_lead_from": "p223"
    },
    "outreach": {
@@ -5431,6 +6948,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "different_lead_from": "p226"
    },
    "outreach": {
@@ -5456,6 +6978,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "different_lead_from": "p225"
    },
    "outreach": {
@@ -5481,6 +7008,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "same_lead_as": "p228"
    },
    "outreach": {
@@ -5506,6 +7038,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "same_lead_as": "p227"
    },
    "outreach": {
@@ -5531,6 +7068,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "same_lead_as": "p230"
    },
    "outreach": {
@@ -5556,6 +7098,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "same_lead_as": "p229"
    },
    "outreach": {
@@ -5581,6 +7128,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "same_lead_as": "p232"
    },
    "outreach": {
@@ -5606,6 +7158,11 @@
     "suppressed": false,
     "web_evidence": "third_party_mention",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "same_lead_as": "p231"
    },
    "outreach": {
@@ -5631,6 +7188,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "same_lead_as": "p234"
    },
    "outreach": {
@@ -5656,6 +7218,11 @@
     "suppressed": false,
     "web_evidence": "none",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "same_lead_as": "p233"
    },
    "outreach": {
@@ -5680,6 +7247,11 @@
     "opt_out": false,
     "suppressed": false,
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "same_lead_as": "p236",
     "primary_domain_tie": true
    },
@@ -5705,6 +7277,11 @@
     "opt_out": false,
     "suppressed": false,
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "same_lead_as": "p235",
     "primary_domain_tie": true
    },
@@ -5731,6 +7308,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "different_lead_from": "p238"
    },
    "outreach": {
@@ -5756,6 +7338,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "different_lead_from": "p237"
    },
    "outreach": {
@@ -5781,6 +7368,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "different_lead_from": "p240"
    },
    "outreach": {
@@ -5806,6 +7398,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "different_lead_from": "p239"
    },
    "outreach": {
@@ -5831,6 +7428,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    },
     "different_lead_from": "p242"
    },
    "outreach": {
@@ -5856,6 +7458,11 @@
     "suppressed": false,
     "web_evidence": "own_domain",
     "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    },
     "different_lead_from": "p241"
    },
    "outreach": {
@@ -5880,7 +7487,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5904,7 +7516,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5928,7 +7545,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5952,7 +7574,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -5976,7 +7603,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -6000,7 +7632,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "selected",
@@ -6024,7 +7661,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "needs_enrichment",
@@ -6047,7 +7689,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "needs_enrichment",
@@ -6070,7 +7717,12 @@
     "opt_out": true,
     "suppressed": true,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",
@@ -6093,7 +7745,12 @@
     "opt_out": false,
     "suppressed": false,
     "web_evidence": "own_domain",
-    "crm_open_deal": false
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
    },
    "outreach": {
     "decision": "rejected",

@@ -209,6 +209,19 @@ _TITLES = (
     ("Principal Site Reliability Engineer", "senior", "engineering_technical"),
     ("Director of Data Engineering", "director", "data_science"),
 )
+# Person Fit for each title above: roles on the data store are core, the executives
+# over it adjacent. The two junk-title scenarios are data engineers, so core.
+_TITLE_FIT = {
+    "VP Engineering": "adjacent",
+    "Head of Data Platform": "core",
+    "Director of Infrastructure": "core",
+    "Staff Database Engineer": "core",
+    "Engineering Manager, Storage": "core",
+    "CTO": "adjacent",
+    "Principal Site Reliability Engineer": "core",
+    "Director of Data Engineering": "core",
+}
+_JUNK_TITLE_SCENARIOS = ("oversized_title", "prompt_injection_title")
 _THIRD_PARTY_HOSTS = ("dbweekly-news.com", "stackradar.io", "infra-digest.com")
 
 # Scenario -> how many people get it. Pair scenarios count people, two per pair.
@@ -314,6 +327,9 @@ class Company:
     web: str
     pattern: str
     accept_all: bool
+    # What the world holds about this company using the product (user-recognition
+    # requirements 1.1): the true grade and the proof that exists, with dates.
+    usage: Json | None = None
 
 
 @dataclass
@@ -395,9 +411,38 @@ def _companies(rng: random.Random, ids: _Ids) -> list[Company]:
                 web=_WEB_PROFILES[index % len(_WEB_PROFILES)],
                 pattern=rng.choice(("{first}.{last}", "{f}{last}", "{first}")),
                 accept_all=False,
+                usage=_base_usage(techs),
             )
         )
     return out
+
+
+def _base_usage(technologies: list[str]) -> Json:
+    """The 40 base companies publish nothing about Cassandra or DataStax: an Apollo tag
+    is all there is, and a tag alone proves nothing."""
+    if {"cassandra", "datastax"} & set(technologies):
+        evidence = [
+            {"class": "technographic", "observed_on": None, "relationship": "uses_now"}
+        ]
+        return {
+            "grade": "unverified",
+            "reason": "technographic_only",
+            "evidence": evidence,
+        }
+    return {"grade": "unverified", "reason": "no_evidence", "evidence": []}
+
+
+def _usage_expectation(p: Person) -> Json:
+    """``is_user`` is true only for a person with a role on the product at a company
+    that really uses it now; the vendor's own staff never are."""
+    assert p.company.usage is not None, p.company.domain
+    grade = p.company.usage["grade"]
+    fit = "core" if p.scenario in _JUNK_TITLE_SCENARIOS else _TITLE_FIT[p.title]
+    return {
+        "company_usage": grade,
+        "person_fit": fit,
+        "is_user": grade in ("verified", "likely") and fit != "irrelevant",
+    }
 
 
 def _scenario_slots(rng: random.Random) -> list[str]:
@@ -1175,7 +1220,7 @@ def _expected_status(p: Person) -> str:
 def _expectation(p: Person) -> Json:
     s = p.scenario
     if s == "apollo_no_match":
-        return {"lead": "absent"}
+        return {"lead": "absent", "usage": _usage_expectation(p)}
     email = p.email or p.hunter_email
     expect: Json = {
         "lead": "present",
@@ -1194,6 +1239,7 @@ def _expectation(p: Person) -> Json:
             "third_party": "third_party_mention",
         }.get(p.company.web, "none"),
         "crm_open_deal": s == "hubspot_open_deal",
+        "usage": _usage_expectation(p),
     }
     if s in ("duplicate_apollo_records", "duplicate_with_domain_conflict"):
         expect["same_lead_as"] = p.twin
@@ -1218,7 +1264,8 @@ def build(seed: int = SEED) -> dict[str, Json]:
         "seed": seed,
         "scenarios": SCENARIO_NOTES,
         "companies": {
-            c.domain: {"name": c.name, "web_profile": c.web} for c in companies
+            c.domain: {"name": c.name, "web_profile": c.web, "usage": c.usage}
+            for c in companies
         },
         "people": [
             {

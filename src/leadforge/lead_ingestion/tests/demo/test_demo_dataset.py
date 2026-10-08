@@ -93,6 +93,40 @@ def test_the_answer_key_covers_every_scenario() -> None:
     assert len(key["companies"]) == 41  # the 40 of the base set and DataStax
 
 
+# Verifies: specs/user-recognition/requirements.md#1.1
+def test_every_person_is_labelled_for_usage() -> None:
+    key = generator.load(generator.ANSWER_KEY)
+    for person in key["people"]:
+        usage = person["expect"]["usage"]
+        assert set(usage) == {"company_usage", "person_fit", "is_user"}, person[
+            "subject"
+        ]
+        assert usage["company_usage"] in (
+            "verified",
+            "likely",
+            "unverified",
+            "negative",
+        )
+        assert usage["person_fit"] in ("core", "adjacent", "irrelevant")
+        assert isinstance(usage["is_user"], bool)
+        if person["scenario"] == "duplicate_with_domain_conflict":
+            continue  # its second domain is an alias, not a company of its own
+        profile = key["companies"][person["company"]]["usage"]
+        assert profile["grade"] == usage["company_usage"]
+        for record in profile["evidence"]:
+            assert set(record) == {"class", "observed_on", "relationship"}
+
+
+# Verifies: specs/user-recognition/requirements.md#1.1
+def test_the_vendor_is_not_a_user_of_its_own_product() -> None:
+    key = generator.load(generator.ANSWER_KEY)
+    workers = [p for p in key["people"] if p["company"] == outreach_data.TARGET_DOMAIN]
+    assert workers
+    assert all(not p["expect"]["usage"]["is_user"] for p in workers)
+    profile = key["companies"][outreach_data.TARGET_DOMAIN]["usage"]
+    assert {r["relationship"] for r in profile["evidence"]} == {"vendor_or_partner"}
+
+
 def _transport(
     source: type[ApolloSource]
     | type[HubSpotSource]

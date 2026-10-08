@@ -50,6 +50,19 @@ _REJECTED = frozenset(
         "worker_customer",
     }
 )
+# DataStax is the vendor: its own pages are vendor_or_partner proof, which never counts
+# toward usage, so its staff are not users of the product.
+_VENDOR_USAGE: g.Json = {
+    "grade": "unverified",
+    "reason": "vendor",
+    "evidence": [
+        {
+            "class": "own_domain_content",
+            "observed_on": g.GENERATED_ON,
+            "relationship": "vendor_or_partner",
+        }
+    ],
+}
 WORKER_NOTES = {
     "worker_accepts": "A DataStax worker; the invite is accepted, then the email fires",
     "worker_ignores": "A DataStax worker; ignored invite, a Verified Email falls back",
@@ -80,6 +93,7 @@ def extend(tables: dict[str, g.Json]) -> None:
         web="own_site",
         pattern="{first}.{last}",
         accept_all=False,
+        usage=_VENDOR_USAGE,
     )
     taken = {p["name"] for p in key["people"]}
     people = _workers(rng, ids, company, taken, start=len(key["people"]) + 1)
@@ -115,7 +129,11 @@ def extend(tables: dict[str, g.Json]) -> None:
                 )
             )
 
-    key["companies"][company.domain] = {"name": company.name, "web_profile": "own_site"}
+    key["companies"][company.domain] = {
+        "name": company.name,
+        "web_profile": "own_site",
+        "usage": company.usage,
+    }
     key["scenarios"] = {**key["scenarios"], **WORKER_NOTES}
     for p in people:
         entry = {
