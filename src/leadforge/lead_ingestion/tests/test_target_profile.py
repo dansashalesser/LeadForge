@@ -13,16 +13,15 @@ from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 
 import pytest
+import yaml
 
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.target_profile import (
-    DEFAULT_TARGET_PROFILE_PATH,
     TargetProfile,
     check_against_registry,
     effective_vocabulary,
-    load_target_profile,
 )
 
 PROFILE = """
@@ -40,9 +39,17 @@ keyword_templates:
   - "switching from {term}"
 """
 
-SECRET = "sk_live_NOT_FOR_LOGS_123"
-
 Write = Callable[[str], Path]
+
+
+def load_target_profile(path: Path) -> TargetProfile:
+    """Test-only: a profile from YAML text (production builds them from the catalog)."""
+    document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return TargetProfile(
+        technologies=document.get("technologies") or {},
+        competitors=document.get("competitors") or {},
+        keyword_templates=tuple(document.get("keyword_templates") or ()),
+    )
 
 
 @pytest.fixture
@@ -227,138 +234,6 @@ def test_a_profile_without_templates_or_competitors_is_valid(write: Write) -> No
     assert profile.render_keywords("tech_alpha") == ()
 
 
-# Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_default_path_is_config_target_profile_relative_to_cwd(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    assert Path("config/target_profile.yaml") == DEFAULT_TARGET_PROFILE_PATH
-    (tmp_path / "config").mkdir()
-    (tmp_path / "config" / "target_profile.yaml").write_text(PROFILE)
-    monkeypatch.chdir(tmp_path)
-
-    assert load_target_profile().terms()[0] == "tech_alpha"
-
-
-BAD_PROFILES: list[tuple[str, str, str]] = [
-    # (id, yaml text, key path the error must name)
-    ("not-a-mapping", "- a\n- b\n", ""),
-    ("empty-document", "", ""),
-    ("comment-only", "# nothing\n", ""),
-    ("unknown-top-level", f"technologes:\n  t: {{}}\nx: {SECRET}\n", "technologes"),
-    ("technologies-not-mapping", f"technologies: {SECRET}\n", "technologies"),
-    ("no-terms", "technologies: {}\ncompetitors: {}\n", ""),
-    ("only-templates", 'keyword_templates: ["{term}"]\n', ""),
-    (
-        "term-not-mapping",
-        f"technologies:\n  tech_alpha: [{SECRET}]\n",
-        "technologies.tech_alpha",
-    ),
-    ("numeric-term-name", f"technologies:\n  1:\n    p: {SECRET}\n", "technologies"),
-    ("null-term-name", f"technologies:\n  ~:\n    p: {SECRET}\n", "technologies"),
-    ("blank-term-name", f"technologies:\n  ' ':\n    p: {SECRET}\n", "technologies"),
-    (
-        "padded-term-name",
-        f"technologies:\n  ' tech_alpha':\n    p: {SECRET}\n",
-        "technologies",
-    ),
-    (
-        "bool-provider-name",
-        f"technologies:\n  tech_alpha:\n    yes: {SECRET}\n",
-        "technologies.tech_alpha",
-    ),
-    (
-        "blank-provider-name",
-        f"technologies:\n  tech_alpha:\n    '': {SECRET}\n",
-        "technologies.tech_alpha",
-    ),
-    (
-        "duplicate-term-across-sections",
-        f"technologies:\n  t: {{p: {SECRET}}}\ncompetitors:\n  t: {{p: x}}\n",
-        "competitors.t",
-    ),
-    (
-        "duplicate-key",
-        f"technologies:\n  t:\n    p: {SECRET}\n  t:\n    p: y\n",
-        "technologies.t",
-    ),
-    (
-        "duplicate-provider-key",
-        f"technologies:\n  t:\n    p: {SECRET}\n    p: y\n",
-        "technologies.t.p",
-    ),
-    (
-        "duplicate-top-level",
-        f"technologies:\n  t: {{}}\ntechnologies:\n  u: {{p: {SECRET}}}\n",
-        "technologies",
-    ),
-    (
-        "templates-not-list",
-        f"technologies:\n  t: {{}}\nkeyword_templates: {SECRET}\n",
-        "keyword_templates",
-    ),
-    (
-        "template-not-str",
-        f"technologies:\n  t: {{}}\nkeyword_templates: [{{k: {SECRET}}}]\n",
-        "keyword_templates[0]",
-    ),
-    (
-        "template-blank",
-        "technologies:\n  t: {}\nkeyword_templates: ['ok {term}', '  ']\n",
-        "keyword_templates[1]",
-    ),
-    (
-        "unsafe-tag",
-        "technologies:\n  t:\n    p: !!python/object/apply:os.getcwd []\n",
-        "",
-    ),
-    ("syntax-error", f"technologies: [unclosed {SECRET}\n", ""),
-]
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#23.1
-@pytest.mark.parametrize(
-    ("text", "key_path"),
-    [pytest.param(t, k, id=i) for i, t, k in BAD_PROFILES],
-)
-def test_invalid_profile_raises_a_named_error_naming_file_and_key_never_the_value(
-    write: Write, text: str, key_path: str
-) -> None:
-    path = write(text)
-
-    with pytest.raises(ConfigurationError) as caught:
-        load_target_profile(path)
-
-    err = caught.value
-    assert err.path == str(path)
-    assert str(path) in str(err)
-    if key_path:
-        assert err.key_path == key_path
-        assert key_path in str(err)
-    assert SECRET not in str(err)
-    assert SECRET not in repr(err)
-    assert SECRET not in "".join(map(str, err.args))
-    assert err.__cause__ is None or SECRET not in str(err.__cause__)
-    assert err.__suppress_context__ or err.__context__ is None
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_missing_file_and_directory_and_bad_encoding_are_named_errors(
-    tmp_path: Path,
-) -> None:
-    with pytest.raises(ConfigurationError) as missing:
-        load_target_profile(tmp_path / "absent.yaml")
-    assert str(tmp_path / "absent.yaml") in str(missing.value)
-
-    with pytest.raises(ConfigurationError):
-        load_target_profile(tmp_path)
-
-    bad = tmp_path / "bad.yaml"
-    bad.write_bytes(b"technologies:\n  t:\n    p: \xff\xfe\n")
-    with pytest.raises(ConfigurationError) as encoding:
-        load_target_profile(bad)
-    assert str(bad) in str(encoding.value)
-
-
 def test_configuration_error_round_trips_through_pickle_and_copy() -> None:
     error = ConfigurationError("config/x.yaml", key_path="a.b", detail="bad")
 
@@ -367,20 +242,6 @@ def test_configuration_error_round_trips_through_pickle_and_copy() -> None:
         assert str(clone) == str(error)
         assert clone.key_path == "a.b"
     assert "key=<document>" in str(ConfigurationError("p", key_path="", detail="d"))
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_yaml_tags_cannot_execute_code(write: Write, tmp_path: Path) -> None:
-    marker = tmp_path / "ran"
-    text = (
-        "technologies:\n  t:\n    p: !!python/object/apply:pathlib.Path.touch "
-        f"[!!python/object/apply:pathlib.Path [{marker}]]\n"
-    )
-
-    with pytest.raises(ConfigurationError):
-        load_target_profile(write(text))
-
-    assert not marker.exists()
 
 
 # ---- registry interplay: unregistered columns warn; contradictions fail ----------
@@ -719,30 +580,3 @@ def test_alias_bomb_is_frozen_in_linear_time(write: Write) -> None:
     profile = load_target_profile(write(text))
 
     assert profile.vocabulary("provider_one", "tech_alpha") is not None
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_recursive_alias_is_a_named_error(write: Write) -> None:
-    path = write("technologies:\n  tech_alpha:\n    provider_one: &a [*a]\n")
-
-    with pytest.raises(ConfigurationError) as caught:
-        load_target_profile(path)
-
-    assert caught.value.key_path == "technologies.tech_alpha.provider_one"
-    assert str(path) in str(caught.value)
-
-
-# Verifies: specs/lead-source-adapters/requirements.md#23.1
-def test_absurdly_deep_nesting_is_a_named_error_not_a_crash(write: Write) -> None:
-    depth = 5000
-    path = write(
-        "technologies:\n  tech_alpha:\n    provider_one: "
-        + "[" * depth
-        + "]" * depth
-        + "\n"
-    )
-
-    with pytest.raises(ConfigurationError) as caught:
-        load_target_profile(path)
-
-    assert str(path) in str(caught.value)

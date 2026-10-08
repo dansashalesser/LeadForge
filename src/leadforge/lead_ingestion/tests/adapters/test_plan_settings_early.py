@@ -25,10 +25,11 @@ from leadforge.lead_ingestion.match_key_digest import MATCH_KEY_SECRET_ENV
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.tests.fixtures.profile_support import fixture_profile
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
-PROFILE = REPO_ROOT / "config" / "target_profile.yaml"
+PROFILE = fixture_profile()
 DISCOVERED = SourceRegistry.discover()
 
 
@@ -105,7 +106,7 @@ async def test_a_bad_plan_setting_fails_before_any_run_record(
         structlog.testing.capture_logs() as logs,
         pytest.raises(ConfigurationError) as caught,
     ):
-        await run_ingestion(target_profile_path=PROFILE)
+        await run_ingestion(target_profile=PROFILE)
     assert PLAN_SENTINELS[source][0] in str(caught.value)
     assert bad not in repr(caught.value) + str(caught.value)
     assert bad not in json.dumps(logs, default=repr)
@@ -122,7 +123,7 @@ async def test_a_bad_plan_setting_is_not_read_for_a_synthetic_source(
 ) -> None:
     variable, bad = PLAN_SENTINELS[source]
     monkeypatch.setenv(variable, bad)  # no credential: the source resolves synthetic
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
     assert outcome.exit.exit_code == 0
 
 

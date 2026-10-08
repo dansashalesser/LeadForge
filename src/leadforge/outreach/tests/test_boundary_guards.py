@@ -44,7 +44,6 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.log_redaction", "configure_logging"),
         (f"{INGESTION}.store.migrate", "StoreNotMigratedError"),
         (f"{INGESTION}.store.migrate", "require_head"),
-        (f"{INGESTION}.target_profile", "load_target_profile"),
         # The shared declarative Base the four outreach tables are mapped on, and the
         # error its append-only guard raises (tables.py).
         (f"{INGESTION}.store.models", "Base"),

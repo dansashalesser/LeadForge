@@ -15,7 +15,8 @@ from leadforge.lead_ingestion.base_source import BaseLeadSource
 from leadforge.lead_ingestion.catalog import Catalog
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.store import models as m
-from leadforge.lead_ingestion.target_profile import TargetProfile, load_target_profile
+from leadforge.lead_ingestion.target_profile import TargetProfile
+from leadforge.lead_ingestion.tests.fixtures.profile_support import fixture_profile
 from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # noqa: F401 - fixtures
     Backend,
     backend,
@@ -79,9 +80,7 @@ async def test_the_search_is_stored_and_linked_before_the_first_provider_call(
     composed: Backend,
 ) -> None:
     config = load_outreach_config(CONFIG / "outreach.yaml")
-    profile = plan_to_profile(
-        _plan(), load_target_profile(CONFIG / "target_profile.yaml"), config.sources
-    )
+    profile = plan_to_profile(_plan(), fixture_profile(), config.sources)
     with Session(composed.engine) as session, session.begin():
         search_id = start_search(session, _plan(), now=NOW)
     events: list[tuple[str, uuid.UUID | None]] = []

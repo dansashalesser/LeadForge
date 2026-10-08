@@ -239,9 +239,7 @@ async def test_opt_outs_follow_links_and_hubspot_asks_again_what_was_found_later
         SOURCES, {s.name: SourceSettings(mode=DataMode.SYNTHETIC) for s in SOURCES}
     )
 
-    outcome = await run_ingestion(
-        registry=registry, target_profile_path=profile(tmp_path)
-    )
+    outcome = await run_ingestion(registry=registry, target_profile=profile(tmp_path))
 
     assert outcome.exit.exit_code == 0
     assert all(r.outcome.status is SourceStatus.OK for r in outcome.results)

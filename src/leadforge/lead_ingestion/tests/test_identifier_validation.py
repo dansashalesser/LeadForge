@@ -77,7 +77,7 @@ async def check(
     lookup: Lookup, mode: DataMode = DataMode.LIVE, profile: TargetProfile = PROFILE
 ) -> tuple[UnrecognisedIdentifier, ...]:
     return await validate_identifiers(
-        profile, REGISTRY, {"issuer": lookup}, mode, path="config/target_profile.yaml"
+        profile, REGISTRY, {"issuer": lookup}, mode, path="<profile>"
     )
 
 

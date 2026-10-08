@@ -53,11 +53,12 @@ from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.tests.adapters.test_synthetic_zero_sockets import (
     make_lead,
 )
+from leadforge.lead_ingestion.tests.fixtures.profile_support import fixture_profile
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 from leadforge.lead_ingestion.transport import FixtureTransport, TransportResponse
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
-PROFILE = REPO_ROOT / "config" / "target_profile.yaml"
+PROFILE = fixture_profile()
 DISCOVERED = SourceRegistry.discover()
 PROVIDERS = {"apollo", "google_search", "hubspot", "hunter"}
 
@@ -110,7 +111,7 @@ async def test_the_real_adapters_run_in_both_phases_and_a_real_lead_is_persisted
 ) -> None:
     assert set(DISCOVERED.names()) >= PROVIDERS
 
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     phases = {(r.source_name, r.phase) for r in outcome.results}
     assert phases >= {
@@ -161,7 +162,7 @@ async def test_the_real_adapters_run_in_both_phases_and_a_real_lead_is_persisted
 async def test_hunter_and_hubspot_ask_again_only_what_apollo_found_gap_c(
     clean_environment: Path, guard: SocketGuard, served: list[str]
 ) -> None:
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     # Hunter's own tier is idle (gap c); its rerun (user decision 2026-10-07) asks
     # the verifier about the one address Apollo's match found. The static fixture
@@ -262,7 +263,7 @@ async def test_a_lead_that_reaches_this_adapter_persists_its_datetime_and_tuple(
     the merge write persists its datetime / tuple value (it once rolled back)."""
     outcome = await run_ingestion(
         registry=with_stand_in(without=frozenset({other})),
-        target_profile_path=PROFILE,
+        target_profile=PROFILE,
     )
 
     assert outcome.exit.exit_code == 0
@@ -303,7 +304,7 @@ async def test_every_source_that_runs_failing_exits_non_zero_naming_each_class(
 
     monkeypatch.setattr(FixtureTransport, "send", send)
 
-    outcome = await run_ingestion(registry=registry, target_profile_path=PROFILE)
+    outcome = await run_ingestion(registry=registry, target_profile=PROFILE)
 
     assert outcome.exit.exit_code != 0
     lines = outcome.exit.summary.splitlines()

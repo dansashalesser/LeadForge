@@ -62,10 +62,14 @@ from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.run_exit import RunExit
 from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.store.contributions import contribution_sha
+from leadforge.lead_ingestion.tests.fixtures.profile_support import (
+    fixture_profile,
+    ingest_args,
+)
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-PROFILE = REPO_ROOT / "config" / "target_profile.yaml"
+PROFILE = fixture_profile()
 DISCOVERED = SourceRegistry.discover()
 
 
@@ -153,7 +157,7 @@ def canonical_leads(database: Path) -> int:
 async def test_an_empty_environment_runs_every_registered_source_and_persists_a_lead(
     clean_environment: Path, guard: SocketGuard
 ) -> None:
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     assert outcome.exit.exit_code == 0
     assert {r.source_name for r in outcome.results} == set(DISCOVERED.names())
@@ -172,7 +176,7 @@ async def test_an_empty_environment_runs_every_registered_source_and_persists_a_
 async def test_the_run_reports_attempted_succeeded_and_failed_per_source(
     clean_environment: Path, guard: SocketGuard
 ) -> None:
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     latest = {r.source_name: r.outcome for r in outcome.results}
     assert set(latest) == set(DISCOVERED.names())
@@ -192,7 +196,7 @@ async def test_the_run_reports_attempted_succeeded_and_failed_per_source(
 async def test_the_report_comes_from_the_database_and_names_every_source(
     clean_environment: Path, guard: SocketGuard
 ) -> None:
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     engine = store(clean_environment)
     try:
@@ -220,9 +224,7 @@ async def test_one_failing_source_still_yields_every_other_sources_results(
 ) -> None:
     broken = scripted("broken", error=lambda name: SourceTransient(name, status=503))
 
-    outcome = await run_ingestion(
-        registry=real_plus(broken), target_profile_path=PROFILE
-    )
+    outcome = await run_ingestion(registry=real_plus(broken), target_profile=PROFILE)
 
     assert outcome.exit.exit_code == 0
     by_name = {r.source_name: r.outcome for r in outcome.results}
@@ -304,9 +306,7 @@ async def test_each_failure_class_of_one_source_leaves_the_others_results(
 ) -> None:
     broken = scripted("broken", error=FAILURES[status])
 
-    outcome = await run_ingestion(
-        registry=real_plus(broken), target_profile_path=PROFILE
-    )
+    outcome = await run_ingestion(registry=real_plus(broken), target_profile=PROFILE)
 
     assert outcome.exit.exit_code == 0
     by_name = {r.source_name: r.outcome for r in outcome.results}
@@ -396,7 +396,7 @@ async def test_cancelling_the_run_propagates_and_marks_it_aborted(
 async def test_no_lead_data_reaches_the_summary_or_the_report(
     clean_environment: Path, guard: SocketGuard
 ) -> None:
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     personal = {
         str(value)
@@ -419,9 +419,9 @@ async def test_no_lead_data_reaches_the_summary_or_the_report(
 def test_the_ingest_command_runs_the_zero_credential_ingestion_and_exits_zero(
     clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Adapters carry no vocabulary (2.7): the run needs the Target Profile in reach.
+    # Adapters carry no vocabulary (2.7): the run needs a catalog selection.
     monkeypatch.chdir(REPO_ROOT)
-    result = CliRunner().invoke(cli.app, ["ingest"])
+    result = CliRunner().invoke(cli.app, ingest_args(monkeypatch))
 
     assert result.exit_code == 0, result.output
     for name in DISCOVERED.names():
@@ -433,11 +433,9 @@ def test_the_ingest_command_runs_the_zero_credential_ingestion_and_exits_zero(
 def test_the_ingest_command_output_carries_no_lead_data(
     clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.chdir(
-        REPO_ROOT
-    )  # the shipped Target Profile: fixtures with an email flow
+    monkeypatch.chdir(REPO_ROOT)
 
-    result = CliRunner().invoke(cli.app, ["ingest"])
+    result = CliRunner().invoke(cli.app, ingest_args(monkeypatch))
 
     assert result.exit_code == 0, result.output
     engine = store(clean_environment)
@@ -572,7 +570,7 @@ async def test_without_a_secret_the_run_warns_once_and_reports_per_run_digests(
     clean_environment: Path, guard: SocketGuard
 ) -> None:
     with structlog.testing.capture_logs() as logs:
-        outcome = await run_ingestion(target_profile_path=PROFILE)
+        outcome = await run_ingestion(target_profile=PROFILE)
     absent = [e for e in logs if e["event"] == "match_key_secret_absent"]
     assert len(absent) == 1
     assert absent[0]["log_level"] == "warning"
@@ -589,7 +587,7 @@ async def test_a_keyed_run_logs_digests_per_merge_and_never_the_secret(
 ) -> None:
     monkeypatch.setenv(MATCH_KEY_SECRET_ENV, MATCH_SENTINEL)
     with structlog.testing.capture_logs() as logs:
-        outcome = await run_ingestion(target_profile_path=PROFILE)
+        outcome = await run_ingestion(target_profile=PROFILE)
     assert not [e for e in logs if e["event"] == "match_key_secret_absent"]
     assert (
         "match-key digests: keyed, comparable across runs with the same secret"
@@ -615,7 +613,7 @@ async def test_a_too_short_secret_fails_the_run_before_it_starts(
         structlog.testing.capture_logs() as logs,
         pytest.raises(ConfigurationError) as caught,
     ):
-        await run_ingestion(target_profile_path=PROFILE)
+        await run_ingestion(target_profile=PROFILE)
     assert MATCH_KEY_SECRET_ENV in str(caught.value)
     assert short not in repr(caught.value) + json.dumps(logs, default=repr)
     assert runs_recorded(clean_environment) == 0
@@ -625,7 +623,7 @@ async def test_a_too_short_secret_fails_the_run_before_it_starts(
 async def test_a_synthetic_run_records_fetched_per_source_and_spends_no_credit(
     clean_environment: Path, guard: SocketGuard
 ) -> None:
-    outcome = await run_ingestion(target_profile_path=PROFILE)
+    outcome = await run_ingestion(target_profile=PROFILE)
 
     ran = {r.source_name for r in outcome.results if r.batch is not None}
     engine = store(clean_environment)
@@ -737,7 +735,7 @@ async def test_exclusions_without_a_stable_secret_fail_before_the_run_starts(
         structlog.testing.capture_logs() as logs,
         pytest.raises(ConfigurationError) as caught,
     ):
-        await run_ingestion(target_profile_path=PROFILE, exclusions_path=exclusions)
+        await run_ingestion(target_profile=PROFILE, exclusions_path=exclusions)
     assert MATCH_KEY_SECRET_ENV in str(caught.value)
     shown = repr(caught.value) + str(caught.value) + json.dumps(logs, default=repr)
     assert EXCLUDED_EMAIL not in shown
@@ -751,7 +749,5 @@ async def test_exclusions_with_a_stable_secret_run(
     monkeypatch.setenv(MATCH_KEY_SECRET_ENV, MATCH_SENTINEL)
     exclusions = clean_environment.parent / "exclusions.yaml"
     exclusions.write_text(f"emails:\n  - {EXCLUDED_EMAIL}\n", encoding="utf-8")
-    outcome = await run_ingestion(
-        target_profile_path=PROFILE, exclusions_path=exclusions
-    )
+    outcome = await run_ingestion(target_profile=PROFILE, exclusions_path=exclusions)
     assert outcome.exit.exit_code == 0

@@ -62,11 +62,11 @@ def _count(backend: Backend, model: type[m.Base]) -> int:
 async def test_running_twice_on_the_same_data_grows_no_lead_on_each_engine(
     composed: Backend,
 ) -> None:
-    first = await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+    first = await ingest_runner.run_ingestion(target_profile=PROFILE)
     leads = _active(composed)
     identities = _count(composed, m.LeadIdentity)
     contributions = _count(composed, m.SourceContribution)
-    again = await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+    again = await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     assert leads > 0
     assert _active(composed) == leads

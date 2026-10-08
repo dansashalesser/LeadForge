@@ -30,11 +30,12 @@ from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import Phase, SourceStatus
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.tests.fixtures.profile_support import fixture_profile
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
-PROFILE = REPO_ROOT / "config" / "target_profile.yaml"
+PROFILE = fixture_profile()
 DISCOVERED = SourceRegistry.discover()
 FAILING = GoogleSearchSource.name
 
@@ -100,7 +101,7 @@ async def test_a_real_adapter_failing_alone_leaves_every_other_source_complete(
 
     outcome = await run_ingestion(
         registry=_registry_with_failing_google(transport),
-        target_profile_path=PROFILE,
+        target_profile=PROFILE,
     )
 
     assert transport.calls >= 1  # the real adapter really reached its provider

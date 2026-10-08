@@ -50,6 +50,7 @@ from leadforge.lead_ingestion.orchestrator import Phase, SourceStatus
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.run_report import build_run_report
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.lead_ingestion.tests.adapters.test_synthetic_zero_sockets import (
     make_lead,
 )
@@ -261,13 +262,10 @@ def guard(database: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     blocked.assert_clean()
 
 
-def profile(tmp_path: Path) -> Path:
-    path = tmp_path / "target_profile.yaml"
-    path.write_text(
-        f"technologies:\n  datastax:\n    apollo: [datastax]\n"
-        f'    google_search:\n      - "{TERM}"\n'
+def profile(tmp_path: Path) -> TargetProfile:
+    return TargetProfile(
+        technologies={"datastax": {"apollo": ["datastax"], "google_search": [TERM]}}
     )
-    return path
 
 
 def calls(provider: str, name: str | None = None) -> list[dict[str, object]]:
@@ -304,9 +302,7 @@ async def test_each_tier_feeds_the_next_through_a_real_run(
         SOURCES, {s.name: SourceSettings(mode=DataMode.SYNTHETIC) for s in SOURCES}
     )
 
-    outcome = await run_ingestion(
-        registry=registry, target_profile_path=profile(tmp_path)
-    )
+    outcome = await run_ingestion(registry=registry, target_profile=profile(tmp_path))
 
     assert outcome.exit.exit_code == 0
     assert all(r.outcome.status is SourceStatus.OK for r in outcome.results)

@@ -55,6 +55,7 @@ from leadforge.lead_ingestion.projection import ProjectionResult, project_lead
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.retry import RetryPolicy
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.lead_ingestion.tests.adapters.test_synthetic_zero_sockets import (
     make_lead,
 )
@@ -700,10 +701,9 @@ async def test_run_ingestion_joins_hubspot_contacts_to_the_asked_people(
     registry = SourceRegistry(
         SOURCES, {s.name: SourceSettings(mode=DataMode.SYNTHETIC) for s in SOURCES}
     )
-    target = tmp_path / "target_profile.yaml"
-    target.write_text("technologies:\n  datastax:\n    apollo: [datastax]\n")
+    target = TargetProfile(technologies={"datastax": {"apollo": ["datastax"]}})
 
-    outcome = await run_ingestion(registry=registry, target_profile_path=target)
+    outcome = await run_ingestion(registry=registry, target_profile=target)
 
     assert outcome.exit.exit_code == 0
     engine = create_store_engine(f"sqlite:///{database}")

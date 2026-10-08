@@ -47,6 +47,7 @@ from leadforge.lead_ingestion.store.raw_responses import (
 )
 from leadforge.lead_ingestion.store.run_records import RunRecordRepository
 from leadforge.lead_ingestion.store.transactions import StoreWriter
+from leadforge.lead_ingestion.tests.fixtures.profile_support import fixture_profile
 from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # noqa: F401 - fixtures
     NOW,
     T0,
@@ -59,7 +60,7 @@ from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # no
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-PROFILE = REPO_ROOT / "config" / "target_profile.yaml"
+PROFILE = fixture_profile()
 SENTINEL_EMAIL = "lifecycle-sentinel@example.com"
 
 
@@ -312,7 +313,7 @@ async def test_a_merge_write_failure_marks_the_run_aborted_on_each_engine(
     monkeypatch.setattr(ingest_runner, "persist_merge", write_then_fail)
 
     with pytest.raises(RuntimeError):
-        await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+        await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     run = _only_run(composed)
     assert (run.status, run.exit_code) == ("aborted", None)
@@ -331,7 +332,7 @@ async def test_a_merge_write_failure_marks_the_run_aborted_on_each_engine(
 async def test_a_composed_run_completes_only_with_its_merge_and_counts(
     composed: Backend,
 ) -> None:
-    outcome = await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+    outcome = await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     run = _only_run(composed)
     assert (run.status, run.exit_code, run.failure_reason) == ("completed", 0, None)
@@ -358,13 +359,13 @@ async def test_a_composed_run_completes_only_with_its_merge_and_counts(
 async def test_the_projection_version_is_stamped_and_bumped_on_each_engine(
     composed: Backend, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    first = await ingest_runner.run_ingestion(target_profile_path=PROFILE)
-    again = await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+    first = await ingest_runner.run_ingestion(target_profile=PROFILE)
+    again = await ingest_runner.run_ingestion(target_profile=PROFILE)
     monkeypatch.setenv(MATCH_KEY_SECRET_ENV, "lifecycle-stable-secret-" + "s" * 32)
     exclusions = tmp_path / "exclusions.yaml"
     exclusions.write_text("emails:\n  - nobody@example.org\n", encoding="utf-8")
     bumped = await ingest_runner.run_ingestion(
-        target_profile_path=PROFILE, exclusions_path=exclusions
+        target_profile=PROFILE, exclusions_path=exclusions
     )
 
     with Session(composed.engine) as s:
@@ -420,7 +421,7 @@ async def test_the_runs_identity_exclusions_reach_suppression_pruning(
     exclusions = tmp_path / "exclusions.yaml"
     exclusions.write_text("emails:\n  - nobody@example.org\n", encoding="utf-8")
     await ingest_runner.run_ingestion(
-        target_profile_path=PROFILE, exclusions_path=exclusions
+        target_profile=PROFILE, exclusions_path=exclusions
     )
 
     assert seen
@@ -462,7 +463,7 @@ async def test_a_failure_at_any_completing_write_rolls_the_whole_merge_back(
     monkeypatch.setattr(RunRecordRepository, step, fail_after)
 
     with pytest.raises(RuntimeError):
-        await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+        await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     run = _only_run(composed)
     assert (run.status, run.exit_code) == ("aborted", None)
@@ -495,7 +496,7 @@ async def test_a_merge_failure_before_the_write_is_aborted_as_merge(
     monkeypatch.setattr(remerge, "cluster_contributions", fail)
 
     with pytest.raises(_MergeBrokeError):
-        await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+        await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     run = _only_run(composed)
     assert (run.status, run.failure_reason) == ("aborted", "merge: _MergeBrokeError")
@@ -519,7 +520,7 @@ async def test_a_failing_abort_marker_never_hides_the_original_error(
     monkeypatch.setattr(RunRecordRepository, "finish", no_abort)
 
     with pytest.raises(_MergeBrokeError) as caught:
-        await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+        await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     assert any("could not be marked aborted" in n for n in caught.value.__notes__)
     # The marker's own transaction rolled back: the record is left running (a crash).

@@ -1,0 +1,12 @@
+vendor: {key: acme, name: Acme, domains: [acme.example], partner_domains: []}
+products:
+  - key: widget
+    name: Widget
+    aliases: [{text: "Acme Widget"}, {text: "Acme Widget Cloud"}]
+    technology_uids: [acme_widget]
+    packages: ["com.acme.widget"]
+    customer_paths: ["/customers"]
+ecosystem:
+  - key: gizmo
+    aliases: [{text: "Gizmo"}, {text: "Gizmo database"}]
+    technology_uids: [gizmo]

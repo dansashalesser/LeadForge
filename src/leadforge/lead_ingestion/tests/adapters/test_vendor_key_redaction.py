@@ -42,6 +42,7 @@ from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.tests.adapters.test_synthetic_zero_sockets import (
     make_lead,
 )
+from leadforge.lead_ingestion.tests.fixtures.profile_support import fixture_profile
 from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_mode
 from leadforge.lead_ingestion.transport import (
     FixtureTransport,
@@ -50,7 +51,7 @@ from leadforge.lead_ingestion.transport import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
-PROFILE = REPO_ROOT / "config" / "target_profile.yaml"
+PROFILE = fixture_profile()
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 DISCOVERED = SourceRegistry.discover()
 
@@ -230,7 +231,7 @@ def test_no_provider_key_reaches_a_log_the_report_or_the_config_snapshot(
     outcomes: list[IngestionOutcome] = []
 
     async def with_registry() -> IngestionOutcome:
-        outcome = await run_ingestion(registry=registry, target_profile_path=PROFILE)
+        outcome = await run_ingestion(registry=registry, target_profile=PROFILE)
         outcomes.append(outcome)
         return outcome
 

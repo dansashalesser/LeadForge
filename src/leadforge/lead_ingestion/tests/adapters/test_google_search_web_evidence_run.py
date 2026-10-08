@@ -33,6 +33,7 @@ from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.orchestrator import Phase, SourceStatus
 from leadforge.lead_ingestion.registry import SourceRegistry, SourceSettings
 from leadforge.lead_ingestion.store import models as m
+from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.lead_ingestion.transport import Transport
 
 from .test_google_search_attachment import organic, page, responder
@@ -108,12 +109,10 @@ def database(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     return path
 
 
-def profile(tmp_path: Path) -> Path:
-    path = tmp_path / "target_profile.yaml"
-    path.write_text(
-        'technologies:\n  cassandra:\n    google_search:\n      - "Apache Cassandra"\n'
+def profile(tmp_path: Path) -> TargetProfile:
+    return TargetProfile(
+        technologies={"cassandra": {"google_search": ["Apache Cassandra"]}}
     )
-    return path
 
 
 def stored_google(database: Path) -> tuple[list[dict[str, Any]], int, list[Any]]:
@@ -156,9 +155,7 @@ async def test_a_real_run_attaches_web_evidence_by_agreement_and_creates_no_lead
         },
     )
 
-    outcome = await run_ingestion(
-        registry=registry, target_profile_path=profile(tmp_path)
-    )
+    outcome = await run_ingestion(registry=registry, target_profile=profile(tmp_path))
 
     google = [r for r in outcome.results if r.source_name == "google_search"]
     enrichment = [r for r in google if r.phase is Phase.ENRICHMENT]

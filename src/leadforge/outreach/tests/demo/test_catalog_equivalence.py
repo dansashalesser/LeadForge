@@ -1,41 +1,42 @@
-"""Shipped catalog equals target_profile.yaml (Req 2.1, 2.7).
+"""Shipped catalog: frozen profile expectation, UIDs, roles (Req 2.1, 2.7, 7.1).
 
 Lives under ``tests/demo``: it names vendors, which the neutrality guard exempts there.
 """
 
-from pathlib import Path
-
 from leadforge.lead_ingestion.catalog import load_catalog, load_roles
-from leadforge.lead_ingestion.target_profile import load_target_profile
 
-CONFIG = Path(__file__).resolve().parents[5] / "config"
 SOURCES = {"uid_source": "apollo", "alias_source": "google_search"}
 
+# Frozen expectation of the shipped catalog's profile (it replaced the old profile
+# file): term -> source -> vocabulary.
+EXPECTED_TECHNOLOGIES = {
+    "datastax": {
+        "apollo": ("datastax",),
+        "google_search": ("DataStax", "DataStax Astra"),
+    },
+    "apache_cassandra": {
+        "apollo": ("cassandra",),
+        "google_search": ("Apache Cassandra", "Cassandra database"),
+    },
+}
+EXPECTED_COMPETITORS = {
+    "mongodb": {
+        "apollo": ("mongodb_atlas", "mongodb_realm"),
+        "google_search": ("MongoDB", "MongoDB Atlas"),
+    },
+    "couchbase": {"apollo": ("couchbase",), "google_search": ("Couchbase",)},
+}
 
-def _old():
-    return load_target_profile(CONFIG / "target_profile.yaml")
 
-
-def _new():
-    return load_catalog().to_profile(
+# Verifies: specs/user-recognition/requirements.md#2.1
+def test_to_profile_has_the_expected_terms_and_per_source_vocabulary() -> None:
+    profile = load_catalog().to_profile(
         "datastax", competitors=("mongodb", "couchbase"), **SOURCES
     )
-
-
-# Verifies: specs/user-recognition/requirements.md#2.1
-def test_to_profile_has_the_same_terms_as_the_current_profile() -> None:
-    assert set(_new().terms()) == set(_old().terms())
-    assert set(_new().technologies) == set(_old().technologies)
-    assert set(_new().competitors) == set(_old().competitors)
-
-
-# Verifies: specs/user-recognition/requirements.md#2.1
-def test_to_profile_has_the_same_per_source_vocabulary() -> None:
-    old, new = _old(), _new()
-    assert set(new.providers()) == set(old.providers())
-    for term in old.terms():
-        for provider in old.providers():
-            assert new.vocabulary(provider, term) == old.vocabulary(provider, term)
+    technologies = {t: dict(c) for t, c in profile.technologies.items()}
+    competitors = {t: dict(c) for t, c in profile.competitors.items()}
+    assert technologies == EXPECTED_TECHNOLOGIES
+    assert competitors == EXPECTED_COMPETITORS
 
 
 # Verifies: specs/user-recognition/requirements.md#2.7

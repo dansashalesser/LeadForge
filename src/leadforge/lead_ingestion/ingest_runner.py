@@ -149,11 +149,9 @@ from leadforge.lead_ingestion.store.run_lock import (
 from leadforge.lead_ingestion.store.run_records import RunRecordRepository
 from leadforge.lead_ingestion.store.transactions import StoreWriter
 from leadforge.lead_ingestion.target_profile import (
-    DEFAULT_TARGET_PROFILE_PATH,
     TargetProfile,
     check_against_registry,
     effective_vocabulary,
-    load_target_profile,
 )
 from leadforge.lead_ingestion.tie_resolution import TieResolver
 
@@ -295,22 +293,13 @@ def live_rate_limits(
 
 
 def _read_profile(
-    registry: SourceRegistry, path: Path | None, given: TargetProfile | None = None
+    registry: SourceRegistry, given: TargetProfile | None
 ) -> TargetProfile | None:
-    """The Target Profile, or ``None`` when none was given and none is in reach.
-
-    A ready ``given`` profile is used as is; a path (or the default file) is loaded.
-    """
-    if given is not None:
-        profile = given
-        path = DEFAULT_TARGET_PROFILE_PATH
-    else:
-        if path is None:
-            if not DEFAULT_TARGET_PROFILE_PATH.is_file():
-                return None
-            path = DEFAULT_TARGET_PROFILE_PATH
-        profile = load_target_profile(path)
-    unregistered = check_against_registry(profile, registry, path=path)
+    """The Target Profile the caller built (from the catalog), or ``None``."""
+    if given is None:
+        return None
+    profile = given
+    unregistered = check_against_registry(profile, registry, path="<profile>")
     if unregistered:
         _log.warning("target_profile_names_unregistered_sources", sources=unregistered)
     return profile
@@ -320,7 +309,6 @@ async def run_ingestion(
     *,
     registry: SourceRegistry | None = None,
     sources_path: Path | None = None,
-    target_profile_path: Path | None = None,
     target_profile: TargetProfile | None = None,
     exclusions_path: Path | None = None,
     env_file_path: Path | None = None,
@@ -339,24 +327,18 @@ async def run_ingestion(
     default, so such a tie stays the flagged fallback. ``transport_factory`` replaces
     ``BaseLeadSource.build_transport`` (the demo dataset's routed transport);
     ``synthetic_retry`` gives synthetic sources a retry policy (none by default).
-    ``target_profile`` is a ready profile used instead of a file; giving it together
-    with ``target_profile_path`` is a ``ConfigurationError``. ``on_run_started`` is
+    ``target_profile`` is the ready profile (built from the catalog); none means no
+    profile. ``on_run_started`` is
     called with the run id once the run record exists and before any source is built or
     called, so a caller can link its own record to the run; if it raises, the run is
     marked aborted (``on_run_started: <exception class>``) and the exception propagates.
     """
-    if target_profile is not None and target_profile_path is not None:
-        raise ConfigurationError(
-            "run_ingestion",
-            key_path="target_profile",
-            detail="give a profile object or a profile path, not both",
-        )
     load_env_file_into_process(env_file_path)
     if registry is None:
         registry = SourceRegistry.discover(config=load_source_settings(sources_path))
     pool = load_max_concurrent_sources(sources_path)
     timeout = load_run_timeout_s(sources_path)
-    profile = _read_profile(registry, target_profile_path, target_profile)
+    profile = _read_profile(registry, target_profile)
     exclusions = load_identity_exclusions(exclusions_path)
     global_mode = _global_mode()
     digester = match_key_digester_from_environ(os.environ)

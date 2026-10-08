@@ -87,7 +87,7 @@ def test_list_leads_is_scoped_to_the_leads_a_run_contributed_to(
 
 # Verifies: design risk R2 (CRM fields reachable in the stored fixtures)
 async def test_crm_fields_are_reachable_after_a_fixture_run(composed: Backend) -> None:
-    outcome = await ingest_runner.run_ingestion(target_profile_path=PROFILE)
+    outcome = await ingest_runner.run_ingestion(target_profile=PROFILE)
 
     with Session(composed.engine) as session:
         leads = list_leads(session, run_id=outcome.run_id, limit=500)

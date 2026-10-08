@@ -16,6 +16,7 @@ import httpx
 import pytest
 
 from leadforge.lead_ingestion.adapters import apollo
+from leadforge.lead_ingestion.catalog import load_catalog
 from leadforge.lead_ingestion.errors import NormalizationError
 
 REPO = Path(__file__).parents[5]
@@ -82,9 +83,9 @@ def test_every_configured_apollo_uid_is_in_the_excerpt_and_nothing_else() -> Non
 
 # Verifies: specs/lead-source-adapters/requirements.md#12.13
 def test_mongodb_maps_to_both_of_apollos_mongodb_technologies() -> None:
-    from leadforge.lead_ingestion.target_profile import load_target_profile
-
-    profile = load_target_profile(REPO / "config" / "target_profile.yaml")
+    profile = load_catalog().to_profile(
+        "mongodb", uid_source="apollo", alias_source="google_search"
+    )
     vocabulary = profile.vocabulary_for("apollo")
     assert apollo.uids_of({"mongodb": vocabulary["mongodb"]}) == (
         "mongodb_atlas",

@@ -1,33 +1,20 @@
-"""Target Profile: what we are looking for, read from configuration (task 9.1).
+"""Target Profile: what we are looking for, built from the Product Catalog.
 
 Requirement 23: the targeting definition is data, never code. A profile names
 *terms* (technologies and competitors) and, for each term, the vocabulary every
 provider uses to express it, because providers use mutually incompatible
-identifiers for one technology. The file is ``config/target_profile.yaml``::
+identifiers for one technology. ``Catalog.to_profile`` builds it; there is no
+profile file::
 
-    technologies:
-      <term>:
-        <source name>: <opaque vocabulary: id, phrase, list of either, or mapping>
-    competitors:
-      <term>:
-        <source name>: ...
-    keyword_templates:
-      - "<text containing {term}>"
+    technologies / competitors -> <term> -> <source name> -> <opaque vocabulary>
 
-Adding a term is one block in this file. Adding a source is one adapter module plus
-one ``<source name>:`` line under each term it can express. A term with no line for
-a source, or an empty one, is Not Applicable for that source (3.3), never "no match",
-unless the adapter declares a default for that term (see ``effective_vocabulary``).
+A term with no entry for a source, or an empty one, is Not Applicable for that
+source (3.3), never "no match".
 
-Provisional decisions (see choices.md, task 9.1):
-
-* The path is ``DEFAULT_TARGET_PROFILE_PATH`` (relative to the working directory) or
-  an explicit argument; there is no environment override.
-* Source names are checked exactly (no case folding), like ``config/sources.yaml``.
+* Source names are checked exactly (no case folding).
 * A column for a source that is not registered is a warning the caller prints
   (deferred providers keep their columns); an empty column over a term the source
   declares answerable is a ``ConfigurationError``.
-* The adapter's ``target_vocabulary`` is a default; a column replaces it per term.
 * Keyword rendering is plain ``{term}`` substitution with ``str.replace``.
 """
 
@@ -44,27 +31,20 @@ from leadforge.lead_ingestion.base_source import (
     _is_empty_vocabulary,
 )
 from leadforge.lead_ingestion.config_file import (
-    check_name,
     freeze,
     join_path,
-    read_yaml_document,
 )
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.registry import SourceRegistry
 
 __all__ = [
-    "DEFAULT_TARGET_PROFILE_PATH",
     "TargetProfile",
     "check_against_registry",
     "effective_vocabulary",
-    "load_target_profile",
 ]
-
-DEFAULT_TARGET_PROFILE_PATH = Path("config/target_profile.yaml")
 
 TERM_PLACEHOLDER = "{term}"
 _SECTIONS = ("technologies", "competitors")
-_KNOWN_KEYS = (*_SECTIONS, "keyword_templates")
 
 # term -> source name -> opaque vocabulary
 Vocabularies = Mapping[str, Mapping[str, object]]
@@ -135,93 +115,6 @@ class TargetProfile:
         """Columns naming a source that is not registered, in profile order."""
         known = set(registered)
         return tuple(p for p in self.providers() if p not in known)
-
-
-def load_target_profile(path: str | Path | None = None) -> TargetProfile:
-    """Read and validate the Target Profile; raises ``ConfigurationError``."""
-    file = Path(path) if path is not None else DEFAULT_TARGET_PROFILE_PATH
-    document = read_yaml_document(file)
-    if document is None:
-        raise ConfigurationError(str(file), key_path="", detail="file is empty")
-    if not isinstance(document, Mapping):
-        raise ConfigurationError(
-            str(file), key_path="", detail="top level must be a mapping"
-        )
-    for key in document:
-        if key not in _KNOWN_KEYS:
-            _reject_unknown_key(file, key)
-    sections = {name: _read_terms(file, name, document.get(name)) for name in _SECTIONS}
-    shared = set(sections["technologies"]) & set(sections["competitors"])
-    if shared:
-        term = next(t for t in sections["competitors"] if t in shared)
-        raise ConfigurationError(
-            str(file),
-            key_path=join_path("competitors", term),
-            detail="term is already declared under technologies",
-        )
-    if not sections["technologies"] and not sections["competitors"]:
-        raise ConfigurationError(
-            str(file), key_path="", detail="no technologies or competitors declared"
-        )
-    return TargetProfile(
-        technologies=sections["technologies"],
-        competitors=sections["competitors"],
-        keyword_templates=_read_templates(file, document.get("keyword_templates")),
-    )
-
-
-def _reject_unknown_key(file: Path, key: object) -> None:
-    named = key if isinstance(key, str) else ""
-    raise ConfigurationError(
-        str(file),
-        key_path=named,
-        detail=f"unknown top-level key; expected one of {', '.join(_KNOWN_KEYS)}",
-    )
-
-
-def _read_terms(file: Path, section: str, raw: object) -> dict[str, dict[str, object]]:
-    if raw is None:
-        return {}
-    if not isinstance(raw, Mapping):
-        raise ConfigurationError(
-            str(file), key_path=section, detail="must be a mapping of term to columns"
-        )
-    terms: dict[str, dict[str, object]] = {}
-    for key, columns in raw.items():
-        term = check_name(file, section, key)
-        term_path = join_path(section, term)
-        if columns is None:
-            columns = {}
-        if not isinstance(columns, Mapping):
-            raise ConfigurationError(
-                str(file),
-                key_path=term_path,
-                detail="must be a mapping of source name to vocabulary",
-            )
-        terms[term] = {
-            check_name(file, term_path, source): freeze(
-                file, join_path(term_path, source), vocabulary
-            )
-            for source, vocabulary in columns.items()
-        }
-    return terms
-
-
-def _read_templates(file: Path, raw: object) -> tuple[str, ...]:
-    if raw is None:
-        return ()
-    if not isinstance(raw, list):
-        raise ConfigurationError(
-            str(file), key_path="keyword_templates", detail="must be a list of text"
-        )
-    for index, template in enumerate(raw):
-        if not isinstance(template, str) or not template.strip():
-            raise ConfigurationError(
-                str(file),
-                key_path=f"keyword_templates[{index}]",
-                detail="must be non-blank text",
-            )
-    return tuple(raw)
 
 
 def effective_vocabulary(

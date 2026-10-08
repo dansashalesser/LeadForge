@@ -1,0 +1,8 @@
+vendor: {key: rival, name: Rival, domains: [rival.example], partner_domains: []}
+products:
+  - key: rival
+    name: Rival
+    aliases: [{text: "Rival"}, {text: "Rival Cloud"}]
+    technology_uids: [rival_cloud, rival_core]
+    packages: ["com.rival.client"]
+    customer_paths: ["/customers"]
