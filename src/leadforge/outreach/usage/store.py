@@ -3,7 +3,8 @@
 Tables of migration ``0013`` on the Lead Store's ``Base``. ``usage_evidence`` is
 append-only (an ORM update or delete raises ``AppendOnlyViolationError``, as for the
 outreach Messages) and the repository exposes insert and read only. The cache is
-keyed by the classifier's input hash: the same hash is answered from here, with no LLM call.
+keyed by the classifier's input hash: the same hash is answered from here, with no
+LLM call.
 """
 
 import uuid
