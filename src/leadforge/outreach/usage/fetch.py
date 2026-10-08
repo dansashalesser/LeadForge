@@ -145,8 +145,11 @@ class PageFetcher:
     def fetch_passages(self, url: str, aliases: list[str]) -> Passages | Skipped:
         if url in self._cache:
             return self._cache[url]
-        if _is_linkedin(urlsplit(url).hostname or ""):
+        parts = urlsplit(url)
+        if _is_linkedin(parts.hostname or ""):
             return self._skip(url, "linkedin")
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            return self._skip(url, "http_error")  # no host to judge, no request
         names = [a for a in aliases if a]
         if not names:
             return self._skip(url, "no_alias")
