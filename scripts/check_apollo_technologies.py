@@ -29,6 +29,7 @@ from leadforge.lead_ingestion.adapters.apollo import (
     technology_rows,
     uids_of,
 )
+from leadforge.lead_ingestion.catalog import unknown_technology_uids
 from leadforge.lead_ingestion.errors import NormalizationError
 from leadforge.lead_ingestion.target_profile import (
     effective_vocabulary,
@@ -54,7 +55,7 @@ def configured_uids(profile: Path = DEFAULT_PROFILE) -> frozenset[str]:
 
 def missing(listed: Rows, configured: frozenset[str]) -> list[str]:
     """Configured UIDs absent from Apollo's list, sorted."""
-    return sorted(configured - listed.keys())
+    return unknown_technology_uids(listed, configured)
 
 
 def excerpt(listed: Rows, configured: frozenset[str]) -> str:
