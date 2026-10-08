@@ -11,7 +11,7 @@
       "schema_verified_on": "2026-10-06",
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in; not a capture. Every field (search_metadata.status, search_information.total_results, organic_results[] position, title, link, snippet) matched the example at https://serpapi.com/search-api, read in full on 2026-10-06."
+      "note": "Hand-made stand-in; not a capture. Every field (search_metadata.status, search_information.total_results, organic_results[] position, title, link, snippet, date, snippet_highlighted_words) matched the example at https://serpapi.com/search-api, read in full on 2026-10-06."
     },
     {
       "file": "no_results/search.json",

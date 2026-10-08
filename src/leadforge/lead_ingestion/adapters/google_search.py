@@ -79,6 +79,19 @@ Completion of 14.2 (2026-10-06, user decision "option C"; see ``web_evidence``):
 * One ``google_search_web_evidence`` log line per normalize with anchored searches:
   attached, unattached, duplicate and unasked counts only.
 * Constructor ``queries`` (unanchored) still work for direct use, unchanged.
+
+Answer boxes (follow-up, provider facts re-checked on 2026-10-08):
+
+* An answer box has no single shape: its fields depend on its own ``type``, and only
+  ``organic_result`` carries a result's ``link``, ``title`` and ``snippet``. The other
+  documented types (``calculator_result``, ``weather_result``, ``dictionary_results``,
+  ``finance_results``, ...) hold their own fields and no web evidence, so a box naming
+  one of them is skipped and counted (``google_search_answer_box_skipped``), never
+  read. A box naming no type at all is an unknown shape rather than a documented
+  non-evidence one, so it still goes through the strict check like any other block.
+* Several boxes arrive under ``answer_box_list`` instead of ``answer_box``; both hold
+  the same shapes, so both are read the same way. Source for the per-type field sets
+  and the list: https://serpapi.com/direct-answer-box-api, read 2026-10-08.
 """
 
 import math
@@ -158,6 +171,8 @@ _TEXT_KEYS = {
     "answer_box": ("link", "title", "snippet"),
     "knowledge_graph": ("website", "title", "description"),
 }
+# The one answer-box type whose fields are a result's link, title and snippet.
+_EVIDENCE_ANSWER_BOX = "organic_result"
 
 _log = structlog.get_logger(__name__)
 
@@ -166,9 +181,14 @@ class _Organic(BaseModel):
     link: StrictStr
     title: StrictStr | None = None
     snippet: StrictStr | None = None
+    date: StrictStr | None = None
+    snippet_highlighted_words: list[StrictStr] | None = None
 
 
 class _AnswerBox(BaseModel):
+    # The box's own discriminator, read to tell evidence shapes apart, never
+    # contributed.
+    type: StrictStr | None = None
     link: StrictStr | None = None
     title: StrictStr | None = None
     snippet: StrictStr | None = None
@@ -204,6 +224,20 @@ def _unmapped(source: str, raw_field_path: str) -> NormalizationError:
     )
 
 
+def _is_evidence_box(raw: object) -> bool:
+    """Whether an answer box is a shape this adapter reads as evidence.
+
+    A box naming a type other than ``organic_result`` is a documented non-evidence
+    shape and is skipped. One naming no type is an unknown shape, so it goes to the
+    strict check like any other block: a wrong field type still raises, and absent
+    fields still contribute nothing.
+    """
+    if not isinstance(raw, Mapping):
+        return True
+    kind = raw.get("type")
+    return not isinstance(kind, str) or kind == _EVIDENCE_ANSWER_BOX
+
+
 class GoogleSearchSource(BaseLeadSource):
     name: ClassVar[str] = "google_search"
     capabilities: ClassVar[frozenset[Capability]] = frozenset(
@@ -232,13 +266,19 @@ class GoogleSearchSource(BaseLeadSource):
         FieldRule(_EVIDENCE + "block", "block"),
         FieldRule(_EVIDENCE + "retrieved_on", "retrieved_on"),
     )
-    ORGANIC_RULES: ClassVar[tuple[FieldRule, ...]] = (
+    _TEXT_RULES: ClassVar[tuple[FieldRule, ...]] = (
         *_CONTEXT_RULES,
         FieldRule(_EVIDENCE + "url", "result.link"),
         FieldRule(_EVIDENCE + "title", "result.title", untrusted=True),
         FieldRule(_EVIDENCE + "snippet", "result.snippet", untrusted=True),
     )
-    ANSWER_BOX_RULES: ClassVar[tuple[FieldRule, ...]] = ORGANIC_RULES
+    # Only organic results carry the provider's date and highlighted words (3.4).
+    ORGANIC_RULES: ClassVar[tuple[FieldRule, ...]] = (
+        *_TEXT_RULES,
+        FieldRule(_EVIDENCE + "date", "result.date"),
+        FieldRule(_EVIDENCE + "highlighted_words", "result.snippet_highlighted_words"),
+    )
+    ANSWER_BOX_RULES: ClassVar[tuple[FieldRule, ...]] = _TEXT_RULES
     KNOWLEDGE_GRAPH_RULES: ClassVar[tuple[FieldRule, ...]] = (
         *_CONTEXT_RULES,
         FieldRule(_EVIDENCE + "url", "result.website"),
@@ -257,10 +297,16 @@ class GoogleSearchSource(BaseLeadSource):
         FieldRule(_EVIDENCE + "signal_kind", "attribution.signal_kind"),
         FieldRule(_EVIDENCE + "signal_label", "attribution.signal_label"),
     )
-    # Fields of a result that are neither contributed nor needed (rank and display only;
-    # a result's own publication date is not the retrieval date).
+    # Fields of a result that are neither contributed nor needed (rank, display).
     IGNORED: ClassVar[frozenset[str]] = frozenset(
-        {"result.position", "result.displayed_link", "result.source", "result.date"}
+        {
+            "result.position",
+            "result.displayed_link",
+            "result.source",
+            # An answer box's and a knowledge graph's own kind: read to tell shapes
+            # apart (``_is_evidence_box``), never contributed.
+            "result.type",
+        }
     )
 
     # Page-level fields beside the result blocks: the engine's own status and counts,
@@ -505,7 +551,12 @@ class GoogleSearchSource(BaseLeadSource):
             answerable_surfaces=self.answerable_surfaces,
         )
         contributions: list[LeadContribution] = []
-        counts = {"attached": 0, "unattached": 0, "duplicates": 0}
+        counts = {
+            "attached": 0,
+            "unattached": 0,
+            "duplicates": 0,
+            "answer_boxes_skipped": 0,
+        }
         anchored = False
         for search in searches:
             query = search.get("query") if isinstance(search, Mapping) else None
@@ -525,8 +576,13 @@ class GoogleSearchSource(BaseLeadSource):
                 continue
             for page in pages:
                 contributions.extend(
-                    self._page_evidence(page, query, retrieved.date(), context)
+                    self._page_evidence(page, query, retrieved.date(), context, counts)
                 )
+        if counts["answer_boxes_skipped"]:
+            _log.info(
+                "google_search_answer_box_skipped",
+                count=counts["answer_boxes_skipped"],
+            )
         if anchored:
             unasked = payload.get("unasked_queries", 0)
             if not isinstance(unasked, int) or isinstance(unasked, bool):
@@ -573,6 +629,7 @@ class GoogleSearchSource(BaseLeadSource):
         kept: list[tuple[Mapping[str, object], tuple[FieldRule, ...], Attachment]] = []
         hosts: set[str] = set()
         for page in pages:
+            counts["answer_boxes_skipped"] += self._skipped_boxes(page)
             for block, result, model, rules in self._blocks_of(page):
                 checked = self._checked(
                     block, result, model, rules, query, retrieved_on
@@ -636,14 +693,40 @@ class GoogleSearchSource(BaseLeadSource):
             ("organic_results", item, _OrganicRecord, cls.ORGANIC_RULES)
             for item in organic or []
         ]
-        optional: tuple[tuple[str, type[BaseModel], tuple[FieldRule, ...]], ...] = (
-            ("answer_box", _AnswerBoxRecord, cls.ANSWER_BOX_RULES),
-            ("knowledge_graph", _KnowledgeGraphRecord, cls.KNOWLEDGE_GRAPH_RULES),
-        )
-        for block, model, rules in optional:
-            if page.get(block) is not None:
-                blocks.append((block, page[block], model, rules))
+        blocks += [
+            ("answer_box", box, _AnswerBoxRecord, cls.ANSWER_BOX_RULES)
+            for box in cls._answer_boxes(page)
+            if _is_evidence_box(box)
+        ]
+        graph = page.get("knowledge_graph")
+        if graph is not None:
+            blocks.append(
+                (
+                    "knowledge_graph",
+                    graph,
+                    _KnowledgeGraphRecord,
+                    cls.KNOWLEDGE_GRAPH_RULES,
+                )
+            )
         return blocks
+
+    @classmethod
+    def _answer_boxes(cls, page: Mapping[str, Any]) -> list[Any]:
+        """Every answer box of a page: ``answer_box``, then ``answer_box_list``."""
+        boxes: list[Any] = []
+        if page.get("answer_box") is not None:
+            boxes.append(page["answer_box"])
+        listed = page.get("answer_box_list")
+        if listed is None:
+            return boxes
+        if not isinstance(listed, list):
+            raise _unmapped(cls.name, "answer_box_list")
+        return boxes + listed
+
+    @classmethod
+    def _skipped_boxes(cls, page: Mapping[str, Any]) -> int:
+        """Answer boxes of a page whose own type says they carry no evidence."""
+        return sum(1 for box in cls._answer_boxes(page) if not _is_evidence_box(box))
 
     @classmethod
     def _checked(
@@ -700,7 +783,12 @@ class GoogleSearchSource(BaseLeadSource):
         if not isinstance(body, Mapping):
             raise _unmapped(cls.name, "<response>")
         blocks = cls._blocks_of(body)
-        read = {"organic_results", "answer_box", "knowledge_graph"}
+        read = {
+            "organic_results",
+            "answer_box",
+            "answer_box_list",
+            "knowledge_graph",
+        }
         envelope = {k: v for k, v in body.items() if k not in read}
         found = unmapped_raw_paths(envelope, (), cls.ENVELOPE_IGNORED)
         for block, result, _, rules in blocks:
@@ -718,11 +806,14 @@ class GoogleSearchSource(BaseLeadSource):
         query: str,
         retrieved_on: date,
         context: NormalizationContext,
+        counts: dict[str, int],
     ) -> list[LeadContribution]:
         """Evidence records of one result page: organic results, then optional blocks.
 
-        An absent or null block is no evidence; a block of the wrong shape raises.
+        An absent or null block is no evidence; a block of the wrong shape raises. An
+        answer box whose own type carries no evidence is counted, not read.
         """
+        counts["answer_boxes_skipped"] += self._skipped_boxes(page)
         blocks = self._blocks_of(page)
         normalizer = Normalizer()
         found: list[LeadContribution] = []

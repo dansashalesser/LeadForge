@@ -6,7 +6,9 @@
       "position": 1,
       "title": "Senior Data Engineer - Example Corp",
       "link": "https://jobs.example.test/senior-data-engineer",
-      "snippet": "Hand-made stand-in result text."
+      "snippet": "Hand-made stand-in result text.",
+      "date": "Oct 1, 2026",
+      "snippet_highlighted_words": ["stand-in"]
     },
     {
       "position": 2,

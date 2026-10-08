@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from structlog.testing import capture_logs
 
 from leadforge.lead_ingestion.adapters.google_search import GoogleSearchSource
 from leadforge.lead_ingestion.base_source import (
@@ -73,6 +74,8 @@ def test_each_result_is_an_evidence_record_with_query_url_snippet_and_date() -> 
         P + "url": "https://jobs.example.test/senior-data-engineer",
         P + "title": "Senior Data Engineer - Example Corp",
         P + "snippet": "Hand-made stand-in result text.",
+        P + "date": "Oct 1, 2026",
+        P + "highlighted_words": ["stand-in"],
         P + "retrieved_on": first.values[P + "retrieved_on"],
     }
     retrieved = first.provenance[0].fetched_at.date().isoformat()
@@ -92,6 +95,8 @@ def test_provenance_names_the_raw_field_path_of_every_populated_field() -> None:
         P + "url": "result.link",
         P + "title": "result.title",
         P + "snippet": "result.snippet",
+        P + "date": "result.date",
+        P + "highlighted_words": "result.snippet_highlighted_words",
         P + "retrieved_on": "retrieved_on",
     }
     assert all(p.source_name == "google_search" for p in first.provenance)
@@ -229,6 +234,72 @@ def test_answer_box_and_knowledge_graph_are_read_when_present() -> None:
 
 # Verifies: specs/lead-source-adapters/requirements.md#14.4
 @pytest.mark.parametrize(
+    "box",
+    [
+        {"type": "weather_result", "temperature": "70", "location": "Austin, TX"},
+        {"type": "calculator_result", "problem": "2+2", "result": "4"},
+        {"type": "dictionary_results", "syllables": "ex-am-ple"},
+    ],
+)
+def test_an_answer_box_of_a_non_evidence_type_is_skipped_and_counted(
+    box: dict[str, Any],
+) -> None:
+    """Only ``organic_result`` carries a link, title and snippet; the rest are not read.
+
+    The skip is counted and logged, so a page whose answer box this adapter cannot
+    read is never silently dropped.
+    """
+    page = page_with(
+        organic_results=[{"link": "https://a.test", "title": "t", "snippet": "s"}],
+        answer_box=box,
+    )
+    with capture_logs() as logs:
+        results = source().normalize_checked(batch_of(page))
+    assert [plain(c.values[P + "block"]) for c in results] == ["organic_results"]
+    skipped = [e for e in logs if e["event"] == "google_search_answer_box_skipped"]
+    assert [e["count"] for e in skipped] == [1]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#14.4
+def test_answer_box_list_entries_are_read_like_an_answer_box() -> None:
+    """SerpApi puts several boxes under ``answer_box_list``, holding the same shapes."""
+    page = page_with(
+        answer_box={
+            "type": "organic_result",
+            "link": "https://answer.test/one",
+            "title": "One",
+            "snippet": "First",
+        },
+        answer_box_list=[
+            {
+                "type": "organic_result",
+                "link": "https://answer.test/two",
+                "title": "Two",
+                "snippet": "Second",
+            },
+            {"type": "calculator_result", "problem": "2+2", "result": "4"},
+        ],
+    )
+    results = source().normalize_checked(batch_of(page))
+    assert [plain(c.values[P + "block"]) for c in results] == ["answer_box"] * 2
+    assert [plain(c.values[P + "url"]) for c in results] == [
+        "https://answer.test/one",
+        "https://answer.test/two",
+    ]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#14.4
+def test_an_answer_box_naming_no_type_is_still_checked_strictly() -> None:
+    """An untyped box is an unknown shape, not a documented non-evidence one."""
+    page = page_with(answer_box={"link": "https://answer.test/a", "title": "t"})
+    with capture_logs() as logs:
+        [contribution] = source().normalize_checked(batch_of(page))
+    assert plain(contribution.values[P + "url"]) == "https://answer.test/a"
+    assert not [e for e in logs if e["event"] == "google_search_answer_box_skipped"]
+
+
+# Verifies: specs/lead-source-adapters/requirements.md#14.4
+@pytest.mark.parametrize(
     "page",
     [
         {},
@@ -313,6 +384,12 @@ async def test_a_fetched_batch_normalizes_end_to_end() -> None:
             "result.snippet",
             P + "snippet",
         ),
+        ({"answer_box_list": "nope"}, "answer_box_list", "<unmapped>"),
+        (
+            {"answer_box_list": [{"snippet": 3}]},
+            "result.snippet",
+            P + "snippet",
+        ),
         ({"knowledge_graph": ["nope"]}, "knowledge_graph", "<unmapped>"),
         (
             {"knowledge_graph": {"website": 3}},
@@ -379,3 +456,37 @@ def test_an_empty_batch_yields_nothing_and_results_never_raise() -> None:
     assert adapter.normalize(batch_of()) == []
     contributions: list[LeadContribution] = adapter.normalize(batch_of(fixture_page()))
     assert len(contributions) == 2
+
+
+# Verifies: specs/user-recognition/requirements.md#3.4
+def test_result_date_and_highlighted_words_are_kept_as_plain_values() -> None:
+    page = page_with(
+        organic_results=[
+            {
+                "link": "https://a.test",
+                "date": "3 days ago",
+                "snippet_highlighted_words": ["alpha", "beta"],
+            }
+        ]
+    )
+    [contribution] = source().normalize(batch_of(page))
+    assert contribution.values[P + "date"] == "3 days ago"
+    assert contribution.values[P + "highlighted_words"] == ["alpha", "beta"]
+    assert not isinstance(contribution.values[P + "date"], UntrustedText)
+
+
+# Verifies: specs/user-recognition/requirements.md#3.4
+def test_a_result_without_date_or_highlights_contributes_neither() -> None:
+    page = page_with(organic_results=[{"link": "https://a.test"}])
+    [contribution] = source().normalize(batch_of(page))
+    assert P + "date" not in contribution.values
+    assert P + "highlighted_words" not in contribution.values
+
+
+# Verifies: specs/user-recognition/requirements.md#3.4
+def test_highlighted_words_of_the_wrong_type_are_refused() -> None:
+    page = page_with(
+        organic_results=[{"link": "https://a.test", "snippet_highlighted_words": "x"}]
+    )
+    with pytest.raises(NormalizationError):
+        source().normalize(batch_of(page))
