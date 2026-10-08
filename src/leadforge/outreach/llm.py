@@ -69,10 +69,14 @@ class ModelInvoker(Protocol):
 
 
 class StructuredModel:
-    """``ModelInvoker`` over a LangChain chat model's structured output."""
+    """``ModelInvoker`` over a LangChain chat model's structured output.
+
+    ``json_schema`` asks the provider for schema-constrained output. LangChain's
+    default, a forced tool call, is rejected by newer Claude models (Sonnet 5.5,
+    Opus 5.5)."""
 
     def __init__(self, chat: BaseChatModel, schema: type[BaseModel]) -> None:
-        self._structured = chat.with_structured_output(schema)
+        self._structured = chat.with_structured_output(schema, method="json_schema")
 
     def invoke(self, messages: Sequence[tuple[str, str]]) -> object:
         return self._structured.invoke(list(messages))

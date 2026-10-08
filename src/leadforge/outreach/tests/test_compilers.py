@@ -1,5 +1,6 @@
 """Free-text compilers: offline rules and the model, with retries (2.1-2.4, 14.2)."""
 
+import warnings
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -262,3 +263,23 @@ def test_the_langchain_model_is_built_from_settings_and_opens_no_connection(
 
     assert isinstance(chat, BaseChatModel)
     assert isinstance(StructuredModel(chat, PlanDraft), StructuredModel)
+
+
+# Verifies: outreach requirements 14.2
+def test_structured_output_does_not_force_a_tool_call(
+    offline_guard: SocketGuard,
+) -> None:
+    # Sonnet 5.5 answers a forced tool call with HTTP 400; LangChain warns when asked
+    # for one, and the warning is an error here.
+    environ = {
+        PROVIDER_ENV: "anthropic",
+        MODEL_ENV: "claude-sonnet-5-5",
+        "ANTHROPIC_API_KEY": "test-key",
+    }
+    settings = llm_settings(environ, LLM)
+    assert settings is not None
+    chat = build_chat_model(settings, environ)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        StructuredModel(chat, PlanDraft)
