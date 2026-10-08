@@ -6,7 +6,7 @@ explain is a Lead nobody should contact.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Annotated, Literal
 
@@ -19,6 +19,7 @@ from leadforge.outreach.tables import OutreachDecision
 __all__ = [
     "Decision",
     "DecisionStatus",
+    "EvidenceRef",
     "Reason",
     "load_decisions",
     "milli",
@@ -33,6 +34,19 @@ class _Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class EvidenceRef(_Frozen):
+    """One cited piece of usage evidence, as stored in a Reason (design: Qualify)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+
+    evidence_class: Annotated[str, Field(min_length=1, alias="class")]
+    source: str
+    url: Annotated[str, Field(min_length=1)]
+    observed_on: date | None = None
+    quote: str
+    relationship: str
+
+
 class Reason(_Frozen):
     """One thing that decided or scored a Lead.
 
@@ -45,6 +59,7 @@ class Reason(_Frozen):
     value: Decimal | None = None
     weight: Decimal | None = None
     note: str | None = None
+    evidence_refs: tuple[EvidenceRef, ...] = ()
 
 
 class Decision(_Frozen):
@@ -57,6 +72,15 @@ class Decision(_Frozen):
 def milli(value: Decimal) -> int:
     """``value`` in thousandths, rounded half to even."""
     return int((value / _MILLI).to_integral_value(ROUND_HALF_EVEN))
+
+
+def _stored(reason: Reason) -> dict[str, object]:
+    """The reason as JSON; ``evidence_refs`` only where there are some, so reasons
+    without citations are stored exactly as before."""
+    out = reason.model_dump(mode="json", by_alias=True)
+    if not reason.evidence_refs:
+        del out["evidence_refs"]
+    return out
 
 
 def record_decisions(
@@ -73,7 +97,7 @@ def record_decisions(
             lead_id=d.lead_id,
             status=d.status,
             score_milli=milli(d.score),
-            reasons=[r.model_dump(mode="json") for r in d.reasons],
+            reasons=[_stored(r) for r in d.reasons],
             decided_at=now,
         )
         for d in decisions

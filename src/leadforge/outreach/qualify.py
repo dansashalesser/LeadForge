@@ -15,6 +15,12 @@ intent, contactability and source agreement. A term that does not apply is left 
 the mean and said so in the reasons, so a workers search is not marked down for having
 no competitor evidence. Weights and threshold come from ``QualifyConfig``.
 
+In users mode the usage verdict gates and the score only ranks: a ``rejected`` or
+``manual_review`` verdict is that status whatever the score, ``selected`` passes on to
+rule 2 with no threshold, and the competitor-evidence and intent terms are left out of
+the score. ``decide_all`` given verdicts fails on a users Lead that has none; given
+none (workers, free text, and a users plan before the usage stage) nothing is gated.
+
 A role address (``info@``) is not a person's contact: it adds nothing to
 contactability.
 """
@@ -26,16 +32,22 @@ from decimal import Decimal
 from leadforge.lead_ingestion.models import CanonicalLead, EmailStatus, Employment
 from leadforge.lead_ingestion.store.lead_reader import CrmState, StoredLead
 from leadforge.outreach.config import QualifyConfig
-from leadforge.outreach.decisions import Decision, Reason
+from leadforge.outreach.decisions import Decision, EvidenceRef, Reason
 from leadforge.outreach.search_plan import SearchPlan
+from leadforge.outreach.usage.verdict import UsageVerdict, VerdictStatus
 
-__all__ = ["decide", "decide_all"]
+__all__ = ["MissingVerdictError", "decide", "decide_all"]
 
 _ZERO = Decimal(0)
 _ONE = Decimal(1)
 _HALF = Decimal("0.5")
 _QUARTER = Decimal("0.25")
 _PLACES = Decimal("0.001")
+_RANK_ONLY = "not used in users mode: the usage verdict decides, the score ranks"
+
+
+class MissingVerdictError(ValueError):
+    """Verdicts were given for a users search but not for one of its Leads."""
 
 
 def decide_all(
@@ -44,13 +56,26 @@ def decide_all(
     plan: SearchPlan,
     cfg: QualifyConfig,
     labels: Collection[str] = (),
+    verdicts: Mapping[uuid.UUID, UsageVerdict] | None = None,
 ) -> tuple[Decision, ...]:
     """Exactly one Decision per gathered Lead, in lead-id order."""
     ordered = sorted(leads, key=lambda s: s.lead_id)
     if len({s.lead_id for s in ordered}) != len(ordered):
         raise ValueError("a Lead was gathered twice")
+    if verdicts is not None and plan.mode == "users":
+        missing = [s.lead_id for s in ordered if s.lead_id not in verdicts]
+        if missing:
+            raise MissingVerdictError(f"no usage verdict for Lead {missing[0]}")
     return tuple(
-        decide(s, crm.get(s.lead_id, CrmState()), plan, cfg, labels) for s in ordered
+        decide(
+            s,
+            crm.get(s.lead_id, CrmState()),
+            plan,
+            cfg,
+            labels,
+            (verdicts or {}).get(s.lead_id),
+        )
+        for s in ordered
     )
 
 
@@ -60,15 +85,32 @@ def decide(
     plan: SearchPlan,
     cfg: QualifyConfig,
     labels: Collection[str] = (),
+    verdict: UsageVerdict | None = None,
 ) -> Decision:
     """The Decision for one Lead. ``labels`` are the names the plan's terms go by in
-    technology evidence (see ``compile_offline.phrases_of``)."""
+    technology evidence (see ``compile_offline.phrases_of``). ``verdict`` gates the
+    Lead when the plan is for users; it is ignored in any other mode."""
+    gated = plan.mode == "users" and verdict is not None
     rejected = _hard_rejections(stored, crm, cfg)
     if rejected:
         return Decision(
             lead_id=stored.lead_id, status="rejected", score=_ZERO, reasons=rejected
         )
-    score, terms = _score(stored, plan, cfg, labels)
+    score, terms = _score(stored, plan, cfg, labels, users=gated)
+    if verdict is not None and gated:
+        if verdict.status is not VerdictStatus.SELECTED:
+            status = (
+                "manual_review"
+                if verdict.status is VerdictStatus.MANUAL_REVIEW
+                else "rejected"
+            )
+            return Decision(
+                lead_id=stored.lead_id,
+                status=status,
+                score=score,
+                reasons=(_verdict_reason(verdict), *terms),
+            )
+        terms = (_verdict_reason(verdict), *terms)
     if stored.lead.linkedin_url is None:
         reason = Reason(code="no_linkedin_url", note="LinkedIn is the first contact")
         return Decision(
@@ -77,7 +119,7 @@ def decide(
             score=score,
             reasons=(reason, *terms),
         )
-    if score >= cfg.threshold:
+    if gated or score >= cfg.threshold:
         return Decision(
             lead_id=stored.lead_id, status="selected", score=score, reasons=terms
         )
@@ -87,6 +129,21 @@ def decide(
     return Decision(
         lead_id=stored.lead_id, status="rejected", score=score, reasons=(below, *terms)
     )
+
+
+def _verdict_reason(verdict: UsageVerdict) -> Reason:
+    refs = tuple(
+        EvidenceRef(
+            evidence_class=r.evidence_class.value,
+            source=r.source,
+            url=r.url,
+            observed_on=r.observed_on,
+            quote=r.quote,
+            relationship=r.relationship.value,
+        )
+        for r in verdict.evidence_refs
+    )
+    return Reason(code=verdict.reason, evidence_refs=refs)
 
 
 def _hard_rejections(
@@ -105,7 +162,12 @@ def _hard_rejections(
 
 
 def _score(
-    stored: StoredLead, plan: SearchPlan, cfg: QualifyConfig, labels: Collection[str]
+    stored: StoredLead,
+    plan: SearchPlan,
+    cfg: QualifyConfig,
+    labels: Collection[str],
+    *,
+    users: bool = False,
 ) -> tuple[Decimal, tuple[Reason, ...]]:
     weights = cfg.weights
     values: tuple[tuple[str, Decimal, Decimal | None, str | None], ...] = (
@@ -125,6 +187,13 @@ def _score(
             None,
         ),
     )
+    if users:
+        values = tuple(
+            (code, weight, None, _RANK_ONLY)
+            if code in ("competitor_evidence", "intent")
+            else (code, weight, value, note)
+            for code, weight, value, note in values
+        )
     reasons = tuple(
         Reason(code=code, value=value, weight=weight, note=note)
         for code, weight, value, note in values
