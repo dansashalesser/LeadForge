@@ -934,7 +934,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -1241,7 +1241,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -1270,7 +1270,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -1559,7 +1559,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -1617,7 +1617,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -1636,7 +1636,7 @@
     "lead": "absent",
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -1924,7 +1924,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -2766,7 +2766,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -3458,7 +3458,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -3486,7 +3486,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -4147,7 +4147,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -4770,7 +4770,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -4885,7 +4885,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -5346,7 +5346,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -5424,7 +5424,7 @@
     "lead": "absent",
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -6143,7 +6143,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -6498,7 +6498,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -6755,7 +6755,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -7045,7 +7045,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -7103,7 +7103,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -7611,7 +7611,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     },
     "different_lead_from": "p237"
@@ -7671,7 +7671,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     },
     "different_lead_from": "p239"
@@ -7731,7 +7731,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     },
     "different_lead_from": "p241"
@@ -8515,7 +8515,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -8687,7 +8687,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },
@@ -8772,7 +8772,7 @@
     "crm_open_deal": false,
     "usage": {
      "company_usage": "unverified",
-     "person_fit": "adjacent",
+     "person_fit": "core",
      "is_user": false
     }
    },

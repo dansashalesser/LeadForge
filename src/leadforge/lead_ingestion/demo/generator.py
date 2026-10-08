@@ -218,10 +218,11 @@ _TITLES = (
     ("Principal Site Reliability Engineer", "senior", "engineering_technical"),
     ("Director of Data Engineering", "director", "data_science"),
 )
-# Person Fit for each title above: roles on the data store are core, the executives
-# over it adjacent. The two junk-title scenarios are data engineers, so core.
+# Person Fit for each title above: roles on the data store are core (a VP of
+# Engineering included, Req 7.1), the CTO over it adjacent.
+# The two junk-title scenarios are data engineers, so core.
 _TITLE_FIT = {
-    "VP Engineering": "adjacent",
+    "VP Engineering": "core",
     "Head of Data Platform": "core",
     "Director of Infrastructure": "core",
     "Staff Database Engineer": "core",

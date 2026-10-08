@@ -50,8 +50,9 @@ Provisional decisions (choices.md, 16.5):
   (task 16.9, ``companies``), and ``domains`` is that set, so ``www.x.com`` and
   ``x.com`` are one id with one content. A Lead whose company has no usable domain gets
   an id derived from its own cluster id, never from the name (no merge by name alone).
-  ``is_current`` stays ``None``: no canonical path states it. With no organization name
-  or usable domain there is no Employment and the title stays in
+  ``is_current`` is ``False`` when the provider's employment history states every job
+  at that company as over, else ``None`` (nothing else states it). With no
+  organization name or usable domain there is no Employment and the title stays in
   provenance only.
 * Signals are evidence, not competing values: every ``TechSignal`` and
   ``IntentSignal`` found in any candidate of any path is carried, one per (kind,
@@ -162,6 +163,7 @@ _FIRST_NAME = "person.first_name"
 _LAST_NAME = "person.last_name"
 _TITLE = "person.title"
 _COMPANY_NAME = "company.name"
+_EMPLOYMENT_HISTORY = "person.employment_history"
 _TECHNOLOGIES = "company.technologies"
 _COMPANY_DOMAIN = "company.domain"
 _OPT_OUT = "opt_out"  # both are in ``COMPLIANCE_FLAGS``
@@ -633,8 +635,30 @@ def _employments(
         domains=domains,
     )
     return (
-        Employment(company=company, title=_text(_winner_value(resolution, _TITLE))),
+        Employment(
+            company=company,
+            title=_text(_winner_value(resolution, _TITLE)),
+            is_current=_still_employed(resolution, name),
+        ),
     )
+
+
+def _still_employed(resolution: ClusterResolution, company: str | None) -> bool | None:
+    """Whether the employment history, where a provider gave one, has the person at the
+    company now: ``False`` only when every job there is stated as over, else unknown."""
+    history = _winner_value(resolution, _EMPLOYMENT_HISTORY)
+    if company is None or not isinstance(history, list):
+        return None
+    wanted = company.casefold()
+    stated = [
+        job.get("current")
+        for job in history
+        if isinstance(job, Mapping)
+        and str(job.get("organization_name", "")).casefold() == wanted
+    ]
+    if not stated or any(flag is not False for flag in stated):
+        return None
+    return False
 
 
 def _lead_company_id(cluster_id: str) -> str:

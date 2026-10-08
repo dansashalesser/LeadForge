@@ -1,14 +1,12 @@
 """The users search for DataStax, scored on `is_user` end to end (1.4, 8.3).
 
-The executable spec of the feature: red until the usage stage and the qualify gate land
-(task 9 of specs/user-recognition).
+The executable spec of the feature.
 """
 
 # ruff: noqa: F811 - fixtures imported from the ingestion tests
 
 from typing import Any
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -47,10 +45,6 @@ def _cited_classes(reasons: list[Any]) -> set[str]:
 
 # Verifies: specs/user-recognition/requirements.md#1.4
 # Verifies: specs/user-recognition/requirements.md#8.3
-@pytest.mark.xfail(
-    strict=True,
-    reason="user-recognition: red until task 9 (usage stage + qualify gate)",
-)
 async def test_a_demo_users_search_for_datastax_is_precise_and_every_selection_is_cited(
     composed: Backend, tmp_path: Any
 ) -> None:

@@ -13,6 +13,11 @@ families:
       - sre
       - devops engineer
       - architect
+      - data platform
+      - infrastructure
+      - storage
+      - data engineering
+      - vp engineering
     adjacent:
       - data scientist
       - data analyst
@@ -20,7 +25,6 @@ families:
       - engineering manager
       - product manager
       - cto
-      - vp engineering
       - head of engineering
       - director of engineering
     irrelevant:

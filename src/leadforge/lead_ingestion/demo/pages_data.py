@@ -43,7 +43,7 @@ _VENDOR_HOST = "www.datastax.com"
 _ECOSYSTEM = "Apache Cassandra"
 _PRODUCT = "DataStax Astra DB"
 
-Page = tuple[str, str, str, str]  # url, title, snippet, body text (paragraphs)
+Page = tuple[str, str, str, str, str | None]  # url, title, snippet, body, date
 
 
 def _html(title: str, paragraphs: list[str]) -> str:
@@ -61,7 +61,7 @@ def _product(usage: g.Json) -> str:
 def _vendor_customer(name: str, slug: str, date: str, rel: str, usage: g.Json) -> Page:
     url = f"https://{_VENDOR_HOST}/customers/{slug}"
     title = f"{name} | DataStax customer story"
-    line = f"{name} runs its customer platform on {_PRODUCT}."
+    line = f"{name} customer platform is powered by {_PRODUCT}."
     return (
         url,
         title,
@@ -75,6 +75,7 @@ def _vendor_customer(name: str, slug: str, date: str, rel: str, usage: g.Json) -
                 "workloads.",
             ],
         ),
+        date,
     )
 
 
@@ -95,6 +96,7 @@ def _job_posting(name: str, slug: str, date: str, rel: str, usage: g.Json) -> Pa
                 f"Requirements: operating {product} clusters, data modelling, on-call.",
             ],
         ),
+        date,
     )
 
 
@@ -114,6 +116,7 @@ def _code(name: str, slug: str, date: str, rel: str, usage: g.Json) -> Page:
                 f"&lt;dependency&gt; {line} &lt;/dependency&gt;",
             ],
         ),
+        date,
     )
 
 
@@ -149,7 +152,7 @@ def _own_content(
         body = [when, line, "Dashboards, pipelines and the odd myth."]
     else:
         raise ValueError(f"no own-site page for {name}: {rel}, {usage['reason']}")
-    return f"https://www.{domain}{path}", title, line, _html(title, body)
+    return f"https://www.{domain}{path}", title, line, _html(title, body), date
 
 
 def _linkedin_company(name: str, slug: str, company: g.Json) -> g.Json:
@@ -160,13 +163,16 @@ def _linkedin_company(name: str, slug: str, company: g.Json) -> g.Json:
     }
 
 
-def _result(position: int, title: str, link: str, snippet: str) -> g.Json:
+def _result(
+    position: int, title: str, link: str, snippet: str, date: str | None = None
+) -> g.Json:
     host = link.replace("https://", "").split("/")[0]
     return {
         "position": position,
         "title": title,
         "link": link,
         "snippet": snippet,
+        "date": date,
         "redirect_link": f"https://www.google.com/url?q={link}",
         "displayed_link": host,
         "favicon": None,
@@ -213,8 +219,8 @@ def extend(tables: dict[str, g.Json]) -> None:
             pages.update({page[0]: page[3] for page in chosen})
             if chosen:
                 results[family] = [
-                    _result(i + 1, title, url, snippet)
-                    for i, (url, title, snippet, _) in enumerate(chosen)
+                    _result(i + 1, title, url, snippet, date)
+                    for i, (url, title, snippet, _, date) in enumerate(chosen)
                 ]
         results["linkedin_public"] = _linkedin(name, slug, domain, people)
         entries[domain] = {"name": name, "results": results}
@@ -234,7 +240,7 @@ def _private_page(name: str) -> Page:
     url = "https://stackradar.io/private/wide-column-buyers-guide"
     title = "Buyer's guide to wide-column databases"
     line = "Compare DataStax Astra DB and ScyllaDB pricing for wide-column workloads."
-    return url, title, line, _html(title, [line, "Pricing tables follow."])
+    return url, title, line, _html(title, [line, "Pricing tables follow."]), None
 
 
 def _linkedin(name: str, slug: str, domain: str, people: list[g.Json]) -> list[g.Json]:

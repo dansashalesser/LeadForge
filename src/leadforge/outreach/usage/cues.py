@@ -24,6 +24,7 @@ class UsageCues(BaseModel):
     uses_now: tuple[str, ...] = (
         "we use", "we run", "we rely on", "powered by", "built on", "migrated to",
         "moved to", "switched to", "runs on", "in production", "our stack",
+        "dependency",
     )  # fmt: skip
     injection: tuple[str, ...] = (
         "ignore previous", "ignore all", "ignore the above", "disregard",
