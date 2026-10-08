@@ -56,12 +56,52 @@ HubSpot needs a private-app token with the `crm.objects.contacts.read` and
 Bad values (an unknown plan, a short secret, a non-number limit) stop the run before
 anything is recorded or spent, and the error never echoes the value.
 
-**Targeting:** `config/target_profile.yaml` lists the competitor technologies to
-search for. Apollo's names are its own technology IDs (e.g. `mongodb_atlas`). Before
-changing them, check them against Apollo's live list:
+**Usage settings:** the optional `usage:` section of `config/outreach.yaml`. Every key
+is optional; the defaults are in `UsageConfig` (`src/leadforge/outreach/config.py`):
+
+| Key | Default |
+|---|---|
+| `budget.searches` / `budget.fetches` / `budget.llm_calls` | 200 / 300 / 300 paid calls per users search |
+| `max_evidence_age_days` | 730 |
+| `strictness` | `verified_plus_likely` (or `verified_only`) |
+| `include_ecosystem` | `false` |
+| `fetch.max_bytes` / `fetch.passage_chars` | 1000000 / 600 |
+| `classifier.effort` / `classifier.prompt` | `low` / `usage_v1` |
+| `class_strengths` | per evidence class `strong`, `medium` or `weak`; defaults: `vendor_customer_ref`, `job_posting`, `code_dependency` strong, `third_party_content` weak, the rest medium |
+| `cues` | polarity phrase lists for the offline classifier (`vendor_or_partner`, `used_past`, `evaluating`, `uses_now`, `injection`) |
+
+The LLM classifier uses the same provider and key as the compilers
+(`LEADFORGE_LLM_PROVIDER`, `LEADFORGE_LLM_MODEL`, `<PROVIDER>_API_KEY`). The synthetic
+flow uses the offline classifier: no network, no model. A live flow with no key raises
+`UsageClassifierUnavailableError` before any provider call and never falls back to the
+offline classifier.
+
+**Targeting:** the product catalog is the only source: `config/catalog/<vendor>.yaml`
+per vendor plus `config/catalog/roles.yaml` (role families and seniority), loaded by
+`lead_ingestion/catalog.py`. `LEADFORGE_CATALOG_DIR` points it at another directory.
+There is no `target_profile.yaml`; a profile is built from the catalog
+(`Catalog.to_profile`). A vendor file holds:
+
+- `vendor`: `key`, `name`, `domains`, `partner_domains`;
+- `products`: each with `key`, `name`, `aliases` (`text` plus `co_terms`),
+  `technology_uids` (Apollo's technology IDs, e.g. `mongodb_atlas`), `packages` and
+  `customer_paths`;
+- `ecosystem`: the same shape, searched only with `include_ecosystem`.
+
+Unknown keys are errors. A drafted entry for an unknown vendor is written to
+`config/catalog/drafts/<key>.yaml` and no search may use it until approved
+(`UnapprovedDraftError`):
+
+```bash
+uv run leadforge outreach catalog approve <key>
+# or POST /api/catalog/drafts/<key>/approve on the web server
+```
+
+Before changing `technology_uids`, check them against Apollo's live list:
 
 ```bash
 APOLLO_API_KEY=... uv run python scripts/check_apollo_technologies.py
+APOLLO_API_KEY=... uv run python scripts/check_apollo_technologies.py --catalog DIR
 uv run python scripts/check_apollo_technologies.py --help
 ```
 
@@ -80,6 +120,42 @@ succeeded, 1 if none did.
 - Only one run at a time: a second concurrent run stops before spending anything.
 - A rerun with no new data changes nothing.
 - No personal data is written to logs or the report.
+
+To search the catalog's products, name the vendor and the source columns the catalog
+fills (`--uid-source` takes technology UIDs, `--alias-source` alias phrases; or set
+`LEADFORGE_UID_SOURCE` / `LEADFORGE_ALIAS_SOURCE`). Every other vendor becomes a
+competitor:
+
+```bash
+uv run leadforge ingest --vendor <key> --product <key> --uid-source <src> --alias-source <src>
+```
+
+### Finding users of a product
+
+```bash
+uv run leadforge outreach search users --product <key> [--product <key> ...]
+uv run leadforge outreach search users --vendor <key> --include-ecosystem --usage-budget 50
+uv run leadforge outreach report --search <search-id>   # md (default) or --format json
+uv run leadforge outreach usage-eval [--cases PATH] [--classifier offline|llm]
+```
+
+`usage-eval` scores a classifier against human-labelled cases (default seed set:
+`src/leadforge/outreach/usage/eval_cases.yaml`); `offline` is the default and needs no
+key. The web page (`leadforge web`) fills its vendor and product dropdowns from
+`GET /api/catalog`. The report shows each person's verdict, Company Usage, Person Fit
+and the quoted evidence, each linked to its URL.
+
+**How a Lead is judged.** Evidence from several families of pages (vendor customer
+pages, job postings, code dependencies, the company's own site, third-party content,
+public LinkedIn search snippets, technographics, the person's own words) is classified
+per quote (uses now, used in the past, evaluating, vendor or partner). Independent
+evidence classes grade the company's usage: `verified`, `likely`, `unverified` or
+`negative`. The person's role grades their fit: `core`, `adjacent` or `irrelevant`.
+The two give the verdict: `selected`, `manual_review` or `rejected`. Exclusions
+(`vendor_staff`, `vendor_partner`, `left_company`) reject first. In users mode the
+verdict gates qualification and the score only ranks. LinkedIn is reached only through
+public search snippets: its pages are never fetched and no LinkedIn credentials are
+accepted.
 
 ### Reading leads
 
@@ -140,8 +216,13 @@ uv run ruff check src scripts
 uv run mypy
 ```
 
+The strict demo spec, `src/leadforge/outreach/tests/demo/test_demo_users_search.py`,
+runs a users search over the synthetic dataset and requires precision >= 0.98, recall
+>= 0.85, zero adversarial selections and at least 2 evidence classes cited per
+selection.
+
 No test calls a real provider. The Postgres leg of the persistence tests is required:
-it **fails rather than skips** without a server.
+it **fails rather than skips** without a server (set `LEADFORGE_TEST_POSTGRES_URL`, see below).
 
 ## Postgres
 
@@ -158,6 +239,64 @@ With `LEADFORGE_TEST_POSTGRES_URL` unset, the tests start a throwaway cluster fr
 locally installed PostgreSQL server binaries instead. The compose credentials are for
 local development only.
 
+## LinkedIn data: what we use, and why we don't scrape it
+
+LinkedIn holds the signals we care most about: a person's headline, their current
+role, their job history, and what their company posts. LeadForge uses those
+signals, but it **never logs in to LinkedIn, never automates a LinkedIn session,
+and never fetches linkedin.com pages itself.** This section records why, so the
+decision is not reopened without the reasoning in front of us.
+
+### Why not scrape
+
+1. **The terms forbid it, and LinkedIn enforces them.**
+   - LinkedIn's User Agreement bans using bots, scripts, crawlers or browser
+     add-ons to scrape the service or copy profiles.
+   - *hiQ Labs v. LinkedIn* is often cited as "scraping public data is legal".
+     It held only that scraping public pages is probably not computer hacking
+     under US federal law. In 2022 the same court found hiQ had breached
+     LinkedIn's User Agreement. hiQ settled, accepted a permanent injunction and
+     agreed to delete the data.
+   - In 2025 LinkedIn sued Proxycurl, a LinkedIn-data API, which then shut down.
+   - The legal risk is contract liability and an injunction, not a criminal
+     charge. It lands on whoever runs the scraper.
+2. **It would put our outreach channel at risk.** LinkedIn is the first contact in
+   every sequence (`specs/hunter-outreach/`). LinkedIn detects automated activity
+   and restricts or bans the accounts behind it. A scraper tied to an operator's
+   account risks the account we send invitations from.
+3. **Privacy law still applies to public profiles.**
+   - Under GDPR, collecting personal data about people in the EU needs a lawful
+     basis (Art. 6), and people must be told when data about them is collected
+     from somewhere other than themselves (Art. 14). Scraping at scale makes the
+     second duty hard to meet.
+   - Regulators have fined companies for building profiles from public sources
+     without telling the people concerned. Poland's data protection authority
+     fined Bisnode in 2019 for exactly this.
+4. **It is fragile.** Login walls, rate limits and frequent markup changes mean a
+   scraper needs constant repair. Silent breakage would quietly lower lead quality,
+   the opposite of what users-mode recognition is for.
+
+### What we use instead
+
+| Route | What it gives | Where |
+|---|---|---|
+| Data providers under their own licence | Apollo: headline, title, seniority, departments, employment history, LinkedIn URL. Hunter: LinkedIn URL per email. | Apollo and Hunter adapters |
+| Search-engine results for public LinkedIn pages | Title and snippet of `linkedin.com/in`, `/company` and `/posts` results. These often contain the headline, or a post naming a technology. The snippet is read; the page is never fetched. | Google Search (SerpApi) adapter, evidence class `linkedin_public` |
+| Licensed LinkedIn-data provider (optional) | Full profile fields, under that provider's contract | A source adapter, when one is configured |
+| Operator's own LinkedIn use | Reading a profile before sending an invite, by a person | Outside the app |
+
+Signals from these routes count as evidence like any other: they are classified,
+quoted and cited on the Lead (`specs/user-recognition/`, Requirement 9).
+
+### Revisiting this decision
+
+Only reopen this with one of these in hand:
+- a licensed data source;
+- LinkedIn partner API access;
+- legal advice that covers the specific use.
+
+Record the outcome here. This section is an engineering rationale, not legal advice.
+
 ## Project layout
 
 ```
@@ -166,8 +305,14 @@ src/leadforge/lead_ingestion/   the ingestion slice
   fixtures/                     synthetic-mode sample data, checked against provider docs
   demo/                         demo dataset: generator, routed transport, scorecard
   store/                        SQLAlchemy models, migrations, lead reader
+                                (migration 0013: usage_evidence, append-only;
+                                usage_classification_cache; usage_company_grades)
+  catalog.py                    the product catalog loader
   tests/                        the test suite
-config/target_profile.yaml      what to search for
+src/leadforge/outreach/usage/   user recognition: budget, classify, cues, demo_wiring,
+                                drafts, eval, eval_cases.yaml, fetch, flow, grade,
+                                person, queries, records, serp, stage, store, verdict
+config/catalog/                 vendor YAML, roles.yaml, drafts/
 scripts/                        dev tools (Apollo technology check)
 specs/lead-source-adapters/     requirements, design, ADRs, tasks, and every decision
                                 made where the spec was silent (choices.md)
