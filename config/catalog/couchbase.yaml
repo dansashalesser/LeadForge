@@ -1,0 +1,8 @@
+vendor: {key: couchbase, name: Couchbase, domains: [couchbase.com], partner_domains: []}
+products:
+  - key: couchbase
+    name: Couchbase
+    aliases: [{text: "Couchbase"}]
+    technology_uids: [couchbase]
+    packages: ["com.couchbase.client", "couchbase"]
+    customer_paths: ["/customers", "/resources/case-studies"]

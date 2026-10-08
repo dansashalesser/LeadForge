@@ -1,0 +1,8 @@
+vendor: {key: mongodb, name: MongoDB, domains: [mongodb.com], partner_domains: []}
+products:
+  - key: mongodb
+    name: MongoDB
+    aliases: [{text: "MongoDB"}, {text: "MongoDB Atlas"}]
+    technology_uids: [mongodb_atlas, mongodb_realm]
+    packages: ["pymongo", "mongoose", "mongodb-driver-sync"]
+    customer_paths: ["/customers", "/solutions/customer-case-studies"]

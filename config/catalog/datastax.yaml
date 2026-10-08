@@ -1,0 +1,15 @@
+vendor: {key: datastax, name: DataStax, domains: [datastax.com], partner_domains: []}
+products:
+  - key: datastax
+    name: DataStax
+    aliases: [{text: "DataStax"}, {text: "DataStax Astra"}]
+    technology_uids: [datastax]
+    packages: ["com.datastax.oss", "cassandra-driver", "gocql"]
+    customer_paths: ["/customers", "/resources/case-study"]
+ecosystem:
+  - key: apache_cassandra
+    name: Apache Cassandra
+    aliases:
+      - {text: "Apache Cassandra"}
+      - {text: "Cassandra database", co_terms: [Apache, CQL, nodetool, keyspace, NoSQL, DataStax]}
+    technology_uids: [cassandra]

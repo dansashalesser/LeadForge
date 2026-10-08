@@ -7,13 +7,14 @@ keys are errors. ``roles.yaml`` and subdirectories (``drafts/``) are not vendor 
 """
 
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from leadforge.lead_ingestion.errors import ConfigurationError
+from leadforge.lead_ingestion.target_profile import TargetProfile
 
 __all__ = [
     "Alias",
@@ -21,10 +22,13 @@ __all__ = [
     "CatalogError",
     "CatalogProduct",
     "CatalogVendor",
+    "RoleFamily",
+    "Roles",
     "UnknownCatalogKeyError",
     "UnknownTechnologyUidError",
     "default_catalog_dir",
     "load_catalog",
+    "load_roles",
     "unknown_technology_uids",
 ]
 
@@ -120,6 +124,49 @@ class Catalog:
                 uids.update(dict.fromkeys(entry.technology_uids))
         return tuple(uids)
 
+    def to_profile(
+        self,
+        vendor_key: str,
+        *,
+        product_keys: Sequence[str] | None = None,
+        competitors: Sequence[str] = (),
+        uid_source: str,
+        alias_source: str,
+    ) -> TargetProfile:
+        """The only constructor of a profile outside tests.
+
+        ``vendor_key``'s selected products (all if ``product_keys`` is None) plus its
+        ecosystem become technologies; every product of each vendor in ``competitors``
+        becomes a competitor. Per term, ``uid_source`` gets the technology UIDs and
+        ``alias_source`` the alias texts; an empty UID list yields no column.
+        """
+        vendor = self.vendor(vendor_key)
+        if product_keys is None:
+            chosen = vendor.products
+        else:
+            chosen = tuple(self.product(vendor_key, key) for key in product_keys)
+        rivals = [
+            p
+            for key in competitors
+            if key != vendor_key
+            for p in self.vendor(key).products
+        ]
+
+        def column(entries: Sequence[CatalogProduct]) -> dict[str, dict[str, object]]:
+            out: dict[str, dict[str, object]] = {}
+            for entry in entries:
+                cols: dict[str, object] = {}
+                if entry.technology_uids:
+                    cols[uid_source] = list(entry.technology_uids)
+                cols[alias_source] = [a.text for a in entry.aliases]
+                out[entry.key] = cols
+            return out
+
+        return TargetProfile(
+            technologies=column((*chosen, *vendor.ecosystem)),
+            competitors=column(rivals),
+        )
+
 
 def default_catalog_dir() -> Path:
     """``LEADFORGE_CATALOG_DIR`` or ``config/catalog`` resolved from this package."""
@@ -189,3 +236,47 @@ def load_catalog(
         if absent:
             raise UnknownTechnologyUidError(absent)
     return catalog
+
+
+class RoleFamily(_Model):
+    key: str
+    core: tuple[str, ...] = ()
+    adjacent: tuple[str, ...] = ()
+    irrelevant: tuple[str, ...] = ()
+
+
+class Roles(_Model):
+    """``roles.yaml``: role families plus seniority tokens (Req 7.1)."""
+
+    families: tuple[RoleFamily, ...]
+    seniority: tuple[str, ...] = ()
+
+    @property
+    def core(self) -> tuple[str, ...]:
+        return tuple(t for f in self.families for t in f.core)
+
+    @property
+    def adjacent(self) -> tuple[str, ...]:
+        return tuple(t for f in self.families for t in f.adjacent)
+
+    @property
+    def irrelevant(self) -> tuple[str, ...]:
+        return tuple(t for f in self.families for t in f.irrelevant)
+
+
+def load_roles(directory: Path | None = None) -> Roles:
+    """Read and validate ``roles.yaml`` from the catalog directory."""
+    root = default_catalog_dir() if directory is None else directory
+    path = root / ROLES_FILE
+    try:
+        return Roles.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ConfigurationError(
+            str(path), key_path="", detail=type(exc).__name__
+        ) from None
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        key_path = ".".join(str(part) for part in first["loc"])
+        raise ConfigurationError(
+            str(path), key_path=key_path, detail=first["type"]
+        ) from None

@@ -1,0 +1,38 @@
+# Role families for Person Fit (word-boundary phrase match). Irrelevant wins over core.
+families:
+  - key: data_engineering
+    core:
+      - data engineer
+      - database engineer
+      - database administrator
+      - dba
+      - platform engineer
+      - backend engineer
+      - software engineer
+      - site reliability engineer
+      - sre
+      - devops engineer
+      - architect
+    adjacent:
+      - data scientist
+      - data analyst
+      - analytics engineer
+      - engineering manager
+      - product manager
+      - cto
+      - vp engineering
+      - head of engineering
+      - director of engineering
+    irrelevant:
+      - recruiter
+      - talent acquisition
+      - sales
+      - account executive
+      - marketing
+      - customer success
+      - human resources
+      - finance
+      - legal
+      - sales engineer
+      - solutions engineer
+seniority: [intern, junior, senior, staff, principal, lead, manager, director, vp, head, chief, cto]

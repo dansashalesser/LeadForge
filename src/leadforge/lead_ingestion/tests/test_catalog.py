@@ -130,3 +130,45 @@ def test_env_var_overrides_the_default_directory(
         path
         == Path(catalog_module.__file__).resolve().parents[3] / "config" / "catalog"
     )
+
+
+# Verifies: specs/user-recognition/requirements.md#2.1
+def test_to_profile_maps_selection_to_terms_and_source_vocabulary(
+    tmp_path: Path,
+) -> None:
+    catalog = load_catalog(_dir(tmp_path))
+    profile = catalog.to_profile("acme", uid_source="uids", alias_source="web")
+    assert profile.terms() == ("widget", "gizmo")
+    assert profile.vocabulary("uids", "widget") == ("acme_widget",)
+    assert profile.vocabulary("web", "widget") == ("Acme Widget", "Widget")
+    assert profile.vocabulary("web", "gizmo") == ("Gizmo",)
+    assert profile.vocabulary("uids", "gizmo") == ("gizmo",)
+
+
+# Verifies: specs/user-recognition/requirements.md#2.1
+def test_to_profile_unknown_vendor_or_product_is_an_error(tmp_path: Path) -> None:
+    catalog = load_catalog(_dir(tmp_path))
+    with pytest.raises(UnknownCatalogKeyError):
+        catalog.to_profile("nope", uid_source="u", alias_source="w")
+    with pytest.raises(UnknownCatalogKeyError):
+        catalog.to_profile(
+            "acme", product_keys=("nope",), uid_source="u", alias_source="w"
+        )
+
+
+# Verifies: specs/user-recognition/requirements.md#7.1
+def test_load_roles_validates_the_file(tmp_path: Path) -> None:
+    from leadforge.lead_ingestion.catalog import load_roles
+
+    (tmp_path / "roles.yaml").write_text(
+        "families:\n"
+        "  - {key: eng, core: [data engineer], adjacent: [analyst],"
+        " irrelevant: [recruiter]}\n"
+        "seniority: [director]\n"
+    )
+    roles = load_roles(tmp_path)
+    assert roles.core == ("data engineer",)
+    assert roles.seniority == ("director",)
+    (tmp_path / "roles.yaml").write_text("families: []\nbogus: 1\n")
+    with pytest.raises(ConfigurationError):
+        load_roles(tmp_path)
