@@ -7,6 +7,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal
 
+from leadforge.outreach.usage.records import EvidenceRecord
+
 PersonGrade = Literal["core", "adjacent", "irrelevant"]
 
 _WORD = re.compile(r"[a-z0-9]+")
@@ -25,6 +27,7 @@ class RoleVocabulary:
 class PersonFit:
     grade: PersonGrade
     boosted: bool = False
+    boost: EvidenceRecord | None = None  # record backing the boost, if cited
 
 
 def _words(text: str) -> tuple[str, ...]:
