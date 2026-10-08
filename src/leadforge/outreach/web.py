@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.catalog import (
+    CatalogError,
     UnknownCatalogKeyError,
     load_catalog,
     load_roles,
@@ -49,6 +50,11 @@ from leadforge.outreach.runtime import build_service
 from leadforge.outreach.search_plan import SearchPlan, parse_request
 from leadforge.outreach.tables import OutreachSearch
 from leadforge.outreach.tick import tick
+from leadforge.outreach.usage.drafts import (
+    DraftExistsError,
+    DraftNotFoundError,
+    approve_draft,
+)
 from leadforge.outreach.usage.verdict import Strictness
 
 __all__ = ["create_router"]
@@ -62,6 +68,7 @@ _NAMED_ERRORS = (
     PlanCompileError,
     MessageGenerationError,
     UnknownCatalogKeyError,
+    CatalogError,
     ValidationError,
 )
 
@@ -159,6 +166,22 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
             "max_evidence_age_days": usage.max_evidence_age_days,
             "budget": usage.budget.model_dump(),
         }
+
+    @router.post(
+        "/api/catalog/drafts/{key}/approve",
+        dependencies=[Depends(_require_write_header)],
+    )
+    def approve(key: str) -> dict[str, str]:
+        """Move a drafted vendor into the catalog so searches may use it."""
+        try:
+            approve_draft(key)
+        except DraftNotFoundError as error:
+            raise HTTPException(404, str(error)) from None
+        except DraftExistsError as error:
+            raise HTTPException(409, str(error)) from None
+        except (CatalogError, ConfigurationError) as error:
+            raise cleanly(error) from None
+        return {"approved": key}
 
     @router.post("/api/outreach/plan", dependencies=[Depends(_require_write_header)])
     def plan(request: PlanRequest) -> dict[str, Any]:

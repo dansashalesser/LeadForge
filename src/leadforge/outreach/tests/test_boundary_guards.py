@@ -62,6 +62,14 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         # usage/eval.py: eval cases declare their own aliases in the catalog shape.
         (f"{INGESTION}.catalog", "Alias"),
         (f"{INGESTION}.catalog", "CatalogVendor"),
+        # usage/drafts.py: drafts are validated by the catalog schema, never trusted.
+        (f"{INGESTION}.catalog", "CatalogError"),
+        (f"{INGESTION}.catalog", "DRAFTS_DIR"),
+        (f"{INGESTION}.catalog", "UnknownTechnologyUidError"),
+        (f"{INGESTION}.catalog", "VendorDocument"),
+        (f"{INGESTION}.catalog", "default_catalog_dir"),
+        (f"{INGESTION}.catalog", "parse_vendor_file"),
+        (f"{INGESTION}.catalog", "unknown_technology_uids"),
         (f"{INGESTION}.adapters.search_backends", "SearchBackend"),
         (f"{INGESTION}.throttle", "SourceThrottle"),
         (f"{INGESTION}.transport", "Transport"),

@@ -25,7 +25,7 @@ import typer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from leadforge.lead_ingestion.catalog import UnknownCatalogKeyError
+from leadforge.lead_ingestion.catalog import CatalogError, UnknownCatalogKeyError
 from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
 from leadforge.lead_ingestion.env_file import EnvFileError, load_env_file_into_process
 from leadforge.lead_ingestion.errors import ConfigurationError
@@ -55,6 +55,7 @@ from leadforge.outreach.search_plan import Mode, SearchPlan, parse_request
 from leadforge.outreach.service import SearchSummary
 from leadforge.outreach.tables import OutreachDecision, OutreachSearch
 from leadforge.outreach.tick import tick
+from leadforge.outreach.usage.drafts import approve_draft
 from leadforge.outreach.usage.eval import (
     DEFAULT_CASES,
     EvalCaseError,
@@ -80,6 +81,8 @@ EXIT_RUN_IN_PROGRESS = 3
 outreach_app = typer.Typer(no_args_is_help=True, help="Search, message and report.")
 search_app = typer.Typer(no_args_is_help=True, help="Run a search in one mode.")
 outreach_app.add_typer(search_app, name="search")
+catalog_app = typer.Typer(no_args_is_help=True, help="Catalog drafts.")
+outreach_app.add_typer(catalog_app, name="catalog")
 
 _ESCAPE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 _REVEAL = typer.Option("--reveal", help="Print emails, URLs and names whole.")
@@ -118,6 +121,7 @@ def _failing_cleanly() -> Iterator[None]:
         PlanCompileError,
         MessageGenerationError,
         UnknownCatalogKeyError,
+        CatalogError,
     ) as error:
         typer.echo(f"error: {error}", err=True)
         raise typer.Exit(EXIT_FAILED) from None
@@ -227,6 +231,17 @@ def users(
         include_ecosystem=True if include_ecosystem else None,
         usage_budget=usage_budget,
     )
+
+
+@catalog_app.command("approve")
+def catalog_approve(
+    key: Annotated[str, typer.Argument(help="The drafted vendor's key.")],
+) -> None:
+    """Approve a drafted vendor so searches may use it."""
+    _setup()
+    with _failing_cleanly():
+        path = approve_draft(key)
+    typer.echo(f"approved {key}: {path}")
 
 
 @outreach_app.command("tick")

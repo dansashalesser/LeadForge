@@ -319,3 +319,31 @@ def test_an_unknown_vendor_is_a_clean_error_not_a_traceback(workdir: Path) -> No
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+# Verifies: specs/user-recognition/requirements.md#2.5
+def test_a_draft_is_refused_by_a_search_until_it_is_approved(
+    workdir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    catalog = workdir / "config" / "catalog"
+    monkeypatch.setenv("LEADFORGE_CATALOG_DIR", str(catalog))
+    (catalog / "drafts").mkdir()
+    (catalog / "drafts" / "newco.yaml").write_text(
+        "vendor: {key: newco, name: NewCo}\n"
+        "products:\n  - key: widget\n    aliases: [{text: NewCo Widget}]\n",
+        encoding="utf-8",
+    )
+
+    refused = runner.invoke(
+        app,
+        ["outreach", "search", "users", "--vendor", "newco", "--product", "widget"],
+    )
+    assert refused.exit_code == 1
+    assert "unapproved draft" in refused.output
+
+    approved = runner.invoke(app, ["outreach", "catalog", "approve", "newco"])
+    assert approved.exit_code == 0, approved.output
+    assert (catalog / "newco.yaml").is_file()
+
+    again = runner.invoke(app, ["outreach", "catalog", "approve", "newco"])
+    assert again.exit_code == 1

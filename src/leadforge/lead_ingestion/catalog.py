@@ -17,6 +17,7 @@ from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.target_profile import TargetProfile
 
 __all__ = [
+    "DRAFTS_DIR",
     "Alias",
     "Catalog",
     "CatalogError",
@@ -24,16 +25,20 @@ __all__ = [
     "CatalogVendor",
     "RoleFamily",
     "Roles",
+    "UnapprovedDraftError",
     "UnknownCatalogKeyError",
     "UnknownTechnologyUidError",
+    "VendorDocument",
     "default_catalog_dir",
     "load_catalog",
     "load_roles",
+    "parse_vendor_file",
     "unknown_technology_uids",
 ]
 
 CATALOG_DIR_ENV = "LEADFORGE_CATALOG_DIR"
 ROLES_FILE = "roles.yaml"
+DRAFTS_DIR = "drafts"
 
 
 class CatalogError(Exception):
@@ -42,6 +47,10 @@ class CatalogError(Exception):
 
 class UnknownCatalogKeyError(CatalogError):
     """A vendor or product key is not in the catalog."""
+
+
+class UnapprovedDraftError(UnknownCatalogKeyError):
+    """The vendor exists only as an unapproved draft: no search may use it (Req 2.5)."""
 
 
 class UnknownTechnologyUidError(CatalogError):
@@ -83,6 +92,9 @@ class _VendorFile(_Model):
     ecosystem: tuple[CatalogProduct, ...] = ()
 
 
+VendorDocument = _VendorFile  # the on-disk shape, also the schema of a drafted entry
+
+
 class CatalogVendor(_Model):
     key: str
     name: str
@@ -95,8 +107,11 @@ class CatalogVendor(_Model):
 class Catalog:
     """Loaded vendors, looked up by key."""
 
-    def __init__(self, vendors: Mapping[str, CatalogVendor]) -> None:
+    def __init__(
+        self, vendors: Mapping[str, CatalogVendor], drafts: Sequence[str] = ()
+    ) -> None:
         self._vendors = dict(sorted(vendors.items()))
+        self._drafts = frozenset(drafts) - self._vendors.keys()
 
     def vendor_keys(self) -> tuple[str, ...]:
         return tuple(self._vendors)
@@ -108,6 +123,10 @@ class Catalog:
         try:
             return self._vendors[key]
         except KeyError:
+            if key in self._drafts:
+                raise UnapprovedDraftError(
+                    f"vendor {key} is an unapproved draft: approve it first"
+                ) from None
             raise UnknownCatalogKeyError(f"unknown vendor: {key}") from None
 
     def product(self, vendor_key: str, product_key: str) -> CatalogProduct:
@@ -183,6 +202,11 @@ def unknown_technology_uids(
     return sorted(configured - listed.keys())
 
 
+def parse_vendor_file(path: Path) -> CatalogVendor:
+    """Read and validate one vendor file (a draft or an approved entry)."""
+    return _parse(path)
+
+
 def _parse(path: Path) -> CatalogVendor:
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -228,7 +252,8 @@ def load_catalog(
                 str(path), key_path="vendor.key", detail="duplicate vendor"
             )
         vendors[vendor.key] = vendor
-    catalog = Catalog(vendors)
+    drafts = sorted(p.stem for p in (root / DRAFTS_DIR).glob("*.yaml"))
+    catalog = Catalog(vendors, drafts)
     if listed_technologies is not None:
         absent = unknown_technology_uids(
             listed_technologies, frozenset(catalog.technology_uids())

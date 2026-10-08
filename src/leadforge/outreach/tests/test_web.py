@@ -281,3 +281,43 @@ def test_the_page_renders_evidence_with_escaped_text_and_safe_links(
     assert "noopener noreferrer" in script
     assert "https?:" in script
     assert not re.search(r"innerHTML\s*=", script)
+
+
+def _draft_file(tmp_path: Path, key: str = "newco") -> Path:
+    path = tmp_path / "config" / "catalog" / "drafts" / f"{key}.yaml"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(
+        f"vendor: {{key: {key}, name: NewCo}}\n"
+        "products:\n  - key: widget\n    aliases: [{text: NewCo Widget}]\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+# Verifies: specs/user-recognition/requirements.md#2.5
+def test_a_draft_is_refused_by_a_search_until_approved(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("LEADFORGE_CATALOG_DIR", str(tmp_path / "config" / "catalog"))
+    _draft_file(tmp_path)
+    body = {
+        "mode": "users",
+        "query": "newco",
+        "vendor": "newco",
+        "products": ["widget"],
+    }
+
+    refused = client.post("/api/outreach/plan", json=body, headers=WRITE)
+    assert refused.status_code == 400
+    assert "unapproved draft" in refused.text
+    assert client.post("/api/catalog/drafts/newco/approve").status_code in (401, 403)
+
+    approved = client.post("/api/catalog/drafts/newco/approve", headers=WRITE)
+    assert approved.status_code == 200, approved.text
+    assert (
+        client.post("/api/outreach/plan", json=body, headers=WRITE).status_code == 200
+    )
+    assert (
+        client.post("/api/catalog/drafts/newco/approve", headers=WRITE).status_code
+        == 404
+    )
