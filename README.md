@@ -357,24 +357,67 @@ specificity, tone and clarity** (`judge.py`). It only measures: it never decides
 a message is stored, a bad call raises a named error rather than inventing a score, and
 with no key the summary reads `judge: off`.
 
-The next section covers what the writer was allowed to know about the person in the
-first place.
+[How the messages are personalized](#how-the-messages-are-personalized) covers what the
+writer was allowed to know about the person in the first place, and [What would actually be
+sent](#what-would-actually-be-sent) shows the messages themselves.
 
-### The sequence, and what gets sent
+### Trigger logic: what fires, when, and why it is a fold
 
-Sequence state is a fold over stored events — there is no status column (`triggers.py`):
+A Lead's place in its sequence is not stored anywhere. There is no `status` column to
+update and no job that marks a Lead "emailed". `due` (`triggers.py`) is a pure function
+over four inputs — the Lead's recorded events, the current time, the trigger config, and
+three contact facts — and it returns the actions owed right now. The first matching rule
+wins:
 
-1. halted → nothing, ever
-2. opted out or suppressed → halt
-3. no invite yet → **LinkedIn invite** (always first)
-4. invite accepted → email, `accept_delay_days` (2) later
-5. invite unanswered after `invite_timeout_days` (5) → fallback email if there is a
-   verified non-role address, else `stalled`
+| # | Condition | Action | Why it sits there |
+|---|---|---|---|
+| 1 | a `halted` event exists | nothing, ever | a halt is final; no later event can un-halt a Lead |
+| 2 | opted out, or suppressed | `halted` | consent outranks every pending step, and it is re-read on every tick rather than cached at selection time |
+| 3 | an `email`, `fallback_email` or `stalled` event exists | nothing | each is terminal: one sequence, one ending, no second chances loop |
+| 4 | no `invite` event yet | **LinkedIn invite** | LinkedIn is always first contact — the cheapest and most reversible touch, and the one the person can ignore at no cost |
+| 5 | `accepted`, and `accept_delay_days` (2) have passed | **email** | an accepted invite is permission; the two-day wait is what keeps the email from reading as an automation that was watching |
+| 6 | invite unanswered for `invite_timeout_days` (5) | **fallback email** if the Lead has a usable address, else `stalled` | silence is not a no, but it is not a yes either: exactly one fallback, then stop |
+| 7 | anything else | nothing | waiting is a legitimate state and needs no row |
 
-The same events and the same time always produce the same actions, so `outreach tick` is
-safe to run repeatedly and delays are testable. **Dispatch is dry-run only:** a database
-event, a console line and a JSONL line in `outbox/dry_run.jsonl`. The module imports no
-transport, so nothing can leave the machine.
+"Usable address" is narrow on purpose (`ContactFacts.usable_email`): an email that is
+present, Hunter-**verified**, and not a role address. An accept-all or unverified address
+never gets the fallback, and `info@` never gets it at all — a bounce or a shared inbox is a
+worse outcome than no second touch.
+
+Writing the sequence as a fold rather than a state machine with a status column buys four
+things:
+
+- **Idempotence.** `outreach tick` can run twice, or fifty times, at the same `now` and
+  nothing new fires, because what is owed is derived from what is recorded. Cron
+  overlapping itself is not an incident.
+- **No drift.** A status column and an event log eventually disagree, and then neither can
+  be trusted. Here the events are the only record, so there is nothing to reconcile.
+- **Testable time.** Delays are arguments, not sleeps: pass a different `now` and assert
+  the action. `--days 3` in the CLI is the same lever.
+- **Auditability.** Every action has the events that caused it, so "why did this person get
+  a fallback email on the 9th" is answerable from rows rather than from reasoning.
+
+In synthetic and demo runs, invite acceptance comes from the `simulation:` block (seed 7,
+`accept_rate` 0.6, within `max_accept_days` 4) via `SeededAcceptance`, so the same seed
+replays the same acceptances and a timeline can be asserted in a test. A worked example of
+rules 4, 5 and 3, with `--days` advancing the clock:
+
+| Day | Events on the Lead | What `due` returns |
+|---|---|---|
+| 0 | — | `invite` |
+| 2 | `invite` | nothing (accepted, but the delay has not passed) |
+| 4 | `invite`, `accepted` (day 2) | `email` |
+| 7 | `invite`, `accepted`, `email` | nothing — terminal |
+
+Had the invite gone unanswered instead, day 4 would still return nothing and day 5 would
+return `fallback_email` — or `stalled`, if the only address on file were unverified or a
+shared inbox. Both endings are terminal, so day 7 returns nothing either way.
+
+**Dispatch is dry-run only.** Firing a Message writes one `OutreachTriggerEvent` row, one
+console line and one JSONL line in `outbox/dry_run.jsonl`, all with the same values. The
+Message row's `state` is `dry_run` and can be nothing else, and `dispatch.py` imports no
+transport, so nothing can leave the machine. [What would actually be
+sent](#what-would-actually-be-sent) shows all three outputs for one invite.
 
 ### Where the model is used, and what contains it
 
@@ -420,6 +463,53 @@ A personalized message here is **one true, specific, cited thing about this pers
 work** — not a template with the blanks filled in. The design question is therefore not
 "how do we make it sound personal" but "what is this person's record actually entitled to
 say", and every mechanism below exists to keep those two the same thing.
+
+### The write loop: what the model decides, and what it may not
+
+Personalization here is a model writing prose inside a loop that code controls. The
+division of labour is the whole point, and it is worth stating in one table:
+
+| Step | Who does it | Why there |
+|---|---|---|
+| Choose which facts exist at all | code (`facts.build_facts`) | a writer that can choose its own evidence can choose convenient evidence |
+| Order them strongest-first | code (`facts._usage`) | the hook is a consequence of what was proved, not of what reads well |
+| Turn facts into sentences | the model (`invite_v2`, `email_v2`) | language is the one part a rule cannot do well |
+| Decide whether that message is allowed | code (`message_checks.py`) | the writer of a claim is the worst judge of it |
+| Decide what happens next | code (`service.py`, `triggers.py`) | a model that can set status can talk itself into a send |
+| Say how good it reads | the model (`judge.py`) | a measurement, with no authority over the outcome |
+
+One model call writes one Message. The answer comes back as structured output —
+`WrittenMessage`, with `extra="forbid"`, so a subject, a body and a list of claims and no
+other field — and becomes a `Draft`. The Draft then faces the same four checks an offline
+Draft faces. If any fails, the failed check names and details go back to the model inside
+an escaped `<failed_checks>` block and it writes again, up to `max_regenerations` (3) more
+attempts. If none passes, the Lead goes to `manual_review` with no Message at all.
+
+Three properties of that loop are deliberate:
+
+- **The feedback names the defect, not the verdict.** A model told "try again" rewords; a
+  model told `grounding: not in the Lead record: ['40']` has one way to pass. See
+  [What would actually be sent](#what-would-actually-be-sent) for that exact exchange.
+- **The checks never soften.** The loop has no path that accepts a failing draft, so the
+  only way out is a message that is more defensible than the last one. A retry budget with
+  a relaxing standard is just a slower hallucination.
+- **The pair is atomic.** The invite and the email are written in one `write()` call, and a
+  failing email withholds a passing invite. A first touch with no follow-up is worse than
+  no touch, so the sequence never starts half-built.
+
+The model itself is configuration, not code: `llm:` in `config/outreach.yaml` sets the
+provider, model, timeout and reasoning effort, and `LEADFORGE_LLM_PROVIDER` /
+`LEADFORGE_LLM_MODEL` override them, so switching provider is an environment change.
+Prompts are versioned files under `prompt_files/` — changed wording is a new file, so the
+exact text behind any stored Message is still on disk months later. That is what makes the
+judge's scores comparable at all: `invite_v1` against `invite_v2` is a real comparison
+because both prompts still exist.
+
+With a key set, the judge scores every stored Message 1–5 on **personalization,
+specificity, tone and clarity**, and the scores land on the Message row. It is
+instrumentation, not a gate — a judge that could block a send would be a second,
+unauditable standard sitting beside the four checks, and a model grading a model is not
+evidence. A failed judge call is a named error and a missing score, never an invented one.
 
 ### The fact set: the only thing a writer ever sees
 
@@ -553,6 +643,208 @@ Drafts are stamped `generator: offline`, `model: offline`.
 
 On top of that, the demo spec requires at least 2 evidence classes cited per selection, so
 a selected Lead always has more than one independent thing it can truthfully say.
+
+## What would actually be sent
+
+Every send is a dry run, so "what would go out" is something you can read rather than
+guess at. This section is one Lead's worth of real output: the facts the writer saw, the
+pair it wrote, the same pair with no model key, what happens when a draft fails, and the
+three places a fired Message lands.
+
+The Lead is subject `p261` of the demo dataset, scenario `verified_user`: a Head of Data
+Platform at a company whose Greenhouse ad and whose vendor case study both name the
+product. `leadforge outreach search users --product datastax --demo` selects him, and
+`leadforge outreach messages --search <id> --demo` prints the pair.
+
+### What the writer was given
+
+The entire prompt input, as `render_facts` builds it and `delimit` escapes it:
+
+```
+<lead_facts>
+[name] Bastian Lindqvist
+[title] Head Data Platform
+[company] Kestrel Health
+[tech:DataStax] DataStax
+[tech:Amazon AWS] Amazon AWS
+[tech:Kubernetes] Kubernetes
+[product:datastax] (uses_now) DataStax
+[usage:0] (vendor_customer_ref, uses_now, 2026-06-02) Kestrel Health customer platform powered by DataStax Astra DB.
+[usage:1] (job_posting, uses_now, 2026-08-14) Kestrel Health hiring Staff Database Engineer. You will run DataStax Astra DB in production.
+</lead_facts>
+```
+
+That is all of it, and each line carries on its `Fact` row the field it was read from. No
+CRM lifecycle stage, no email address, no LinkedIn URL, no company description, nothing
+from the model's own training, and no fourth technology signal — `max_hook_facts` is 3 per
+kind. The company's third piece of evidence, an Apollo technographic fingerprint, produced
+the `product` fact but no quotable sentence: a machine-made string is not words anybody
+wrote, so there is nothing in it to retell.
+
+The notes in parentheses say what a value proves. The prompt forbids stating them, so
+`job_posting` and the dates never reach the reader — they are there so the model knows that
+somebody in recruiting wrote that sentence, not Bastian.
+
+### The LinkedIn invite, as the model writes it
+
+`generator: llm`, `model: claude-sonnet-5-5`, `prompt_version: invite_v2`, 171 of 300
+characters:
+
+> Hi Bastian — you run DataStax Astra DB in production. That is the thing I spend my days
+> on, and I would rather hear how it is going from someone doing it than guess at it.
+
+Stored beside it, the claims that make it checkable:
+
+```json
+{"claims": [{"fact_id": "name", "text": "Bastian"},
+            {"fact_id": "usage:1", "text": "you run DataStax Astra DB in production"}]}
+```
+
+What it does *not* do is where the design shows:
+
+- **It does not read his title and employer back to him.** He knows where he works, and
+  "Head of Data Platform at Kestrel Health" is the tell of a mail merge. With a product
+  hook present, both the prompt and the offline writer drop the role line.
+- **It does not quote the job ad.** Somebody in recruiting wrote that sentence, about the
+  company — quotation marks would read like surveillance, and attributing it to Bastian
+  would be false. "You will run DataStax Astra DB in production" is retold as "you run
+  DataStax Astra DB in production": the same claim, from his side, in the message's own
+  voice, and every word of it is a word the quote holds.
+- **It does not pitch, link, ask for a call, or announce that it noticed something.** The
+  one specific thing carries the note; the connection request already says we want to
+  connect.
+- **It cannot say anything the record cannot answer for.** Every capitalised word in it —
+  Bastian, DataStax, Astra, DB — appears in a fact value, which is what the grounding check
+  demands. A sentence about his "40 million writes a day" would be refused before it was
+  ever stored, however plausible it sounded.
+
+### The follow-up email
+
+Fires only after the invite is accepted, `accept_delay_days` later. `prompt_version:
+email_v2`, 30 of 80 subject characters and 349 of 1200 body characters:
+
+> **Subject:** Running Astra DB in production
+>
+> Hi Bastian,
+>
+> You run DataStax Astra DB in production, and that is the part of the stack I work on
+> every day.
+>
+> I am writing because I would like to hear how that is holding up for you — what is
+> smooth, and what you have had to work around. If twenty minutes is worth it to you, I am
+> glad to find a time; if not, no hard feelings.
+>
+> Thanks for reading.
+
+The subject is the thing itself rather than a sales line: no colon-and-buzzword
+construction, no question mark fishing for a reply. The ask is one sentence, bounded in
+minutes, and explicitly easy to decline — the cheapest way to keep a channel open is to
+make saying no cost nothing.
+
+### The same Lead with no model key
+
+The offline writer gets the same fact set and passes the same four checks, with no network
+and no model. `generator: offline`, `model: offline`, `prompt_version: invite_offline_v2`:
+
+> Hi Bastian — Kestrel Health runs DataStax, and that is what I work on day to day. Happy
+> to connect.
+
+> **Subject:** Quick note, Bastian
+>
+> Hi Bastian,
+>
+> Kestrel Health runs DataStax, and that is what I work on day to day.
+>
+> If you are open to it, I would welcome twenty minutes to compare notes. If not, no hard
+> feelings.
+>
+> Thanks for reading.
+
+Plainer, and deliberately so. A template cannot read the job ad, so it is never handed the
+quote — it names the product the evidence proves and stops. It also states the product by
+its catalog **name**, "DataStax", never by the key `datastax`: a key is an identifier, not
+something to put in front of a person. The honest floor of a no-model run is a short, true,
+specific sentence, not a fluent one that implies reading we did not do.
+
+A Lead with a thinner record degrades visibly rather than silently. A `workers` search runs
+no usage stage, so there is no product fact at all, the role line comes back and the hook
+falls to a technology signal:
+
+> Hi Pavel — Staff Database Engineer at Ingleby Payments is close to the corner I work in.
+> Running DataStax well is harder than it looks from outside. Happy to connect.
+
+That is the signal to look at the evidence, not at the copy. And a Lead with nothing at all
+to say produces drafts the checks refuse, which is the intended outcome: no message is a
+better result than a generic one, because a generic message spends the one first
+impression we get on nothing.
+
+### When a draft fails
+
+Say the model reaches for a figure nobody gave it:
+
+> Hi Bastian — you run DataStax Astra DB in production across 40 million writes a day.
+
+The grounding check pulls every capitalised token and every number out of the draft and
+finds `40` in no fact value, so the draft never becomes a Message. The failed check is
+named back to the model in its own escaped block:
+
+```
+Your previous attempt failed these checks, so write it again:
+<failed_checks>
+grounding: not in the Lead record: ['40']
+</failed_checks>
+```
+
+Naming the defect matters more than retrying. "Try again" invites a reword; "`40` is not
+in the record" has exactly one fix. The checks are never relaxed to let an attempt
+through, so the loop can only end by the message getting more honest, and it is bounded:
+`max_regenerations` (3) more attempts, then the Lead goes to `manual_review` with no
+Message at all. One hallucinated figure in a cold email cannot be taken back, so an
+unchecked message never ships.
+
+### What a fired Message looks like
+
+`leadforge outreach tick --search <id> --days 3` writes the same values to three places
+and sends nothing. A console line:
+
+```
+[dry-run] 2026-09-02T09:00:00+00:00 invite via linkedin decision=4b1f0c2e-7a65-4f1d-9c3e-2a7d5e8b1140 (171 chars, not sent)
+```
+
+A line appended to `outbox/dry_run.jsonl`, which is the file to diff when a prompt version
+changes:
+
+```json
+{"at": "2026-09-02T09:00:00+00:00", "decision_id": "4b1f0c2e-7a65-4f1d-9c3e-2a7d5e8b1140", "message_id": "c9a7f0d1-3b62-4e08-8a55-6f2c1d94ab77", "kind": "invite", "channel": "linkedin", "subject": null, "body": "Hi Bastian — you run DataStax Astra DB in production. That is the thing I spend my days on, and I would rather hear how it is going from someone doing it than guess at it.", "state": "dry_run"}
+```
+
+And an `OutreachTriggerEvent` row, which is what the next `tick` reads to decide what is
+owed. Reading the pair back:
+
+```
+$ leadforge outreach messages --search 7d1a9f44-02c5-4b7e-9f31-55a0c1e6d2b8 --demo
+4b1f0c2e-7a65-4f1d-9c3e-2a7d5e8b1140 linkedin [dry_run] llm/claude-sonnet-5-5/invite_v2
+  Hi Bastian — you run DataStax Astra DB in production. That is the thing I spend my days on, and I would rather hear how it is going from someone doing it than guess at it.
+4b1f0c2e-7a65-4f1d-9c3e-2a7d5e8b1140 email [dry_run] llm/claude-sonnet-5-5/email_v2
+  subject: Running Astra DB in production
+  Hi Bastian,
+  ...
+2 message(s)
+```
+
+This Lead never accepts the invite in the demo's seeded simulation, so what actually fires
+on day 5 is the fallback email rather than the accepted-path email — the sequence is
+`fallback_email`, which the scorecard checks against the answer key.
+
+Every Message row keeps its `state` at `dry_run` and can hold nothing else, and
+`dispatch.py` imports no transport at all. Nothing can leave the machine because there is
+nothing in the process that could carry it.
+
+That is a deliberate stopping point rather than an unfinished feature. A generated message
+is a draft until a human has read a few of them, and the cost of being wrong is
+asymmetric: a bad send burns the only cold channel the person has given us, while a bad
+draft in a JSONL file costs a diff. Adding a real transport means writing one adapter and
+flipping `state` — we have left that to the point where someone owns the sending account.
 
 ## Configuration
 
