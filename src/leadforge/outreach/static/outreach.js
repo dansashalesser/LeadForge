@@ -255,7 +255,18 @@
     const table = el("table", {},
       el("thead", {}, el("tr", {}, ...["Lead", "Status", "Score", "Sequence", "Reasons"].map((h) => el("th", { text: h })))));
     const body = el("tbody");
-    for (const lead of report.leads) {
+    // Filter by status and by text (name, email, company, reasons); selected first.
+    const statuses = [...new Set(report.leads.map((l) => l.status))].sort();
+    const statusPick = el("select", {},
+      el("option", { value: "", text: `All statuses (${report.leads.length})` }),
+      ...statuses.map((s) => el("option", {
+        value: s, text: `${s} (${report.leads.filter((l) => l.status === s).length})`,
+      })));
+    const textPick = el("input", { type: "search", placeholder: "Filter by name, email domain, verdict or reason" });
+    const shown = el("span", { class: "note" });
+    const rows = [];
+    const order = (l) => (l.status === "selected" ? 0 : l.status === "manual_review" ? 1 : 2);
+    for (const lead of [...report.leads].sort((a, b) => order(a) - order(b))) {
       const row = el("tr", { class: "lead" },
         el("td", { text: lead.name || lead.email || lead.lead_id.slice(0, 8) }),
         el("td", {}, el("span", { class: `badge ${lead.status}`, text: lead.status })),
@@ -264,10 +275,28 @@
         el("td", { text: lead.reasons.join(", ") }));
       const more = el("tr", { class: "hidden" }, el("td", { colspan: "5" }, leadDetail(lead)));
       row.addEventListener("click", () => more.classList.toggle("hidden"));
+      const haystack = [lead.name, lead.email, lead.verdict, lead.company_usage, lead.person_fit, ...lead.reasons]
+        .filter(Boolean).join(" ").toLowerCase();
+      rows.push({ lead, row, more, haystack });
       body.append(row, more);
     }
+    function applyFilter() {
+      const status = statusPick.value;
+      const text = textPick.value.trim().toLowerCase();
+      let count = 0;
+      for (const r of rows) {
+        const keep = (!status || r.lead.status === status) && (!text || r.haystack.includes(text));
+        r.row.classList.toggle("hidden", !keep);
+        if (!keep) r.more.classList.add("hidden");
+        if (keep) count += 1;
+      }
+      shown.textContent = `${count} shown`;
+    }
+    statusPick.addEventListener("change", applyFilter);
+    textPick.addEventListener("input", applyFilter);
     table.append(body);
-    leadsBox.replaceChildren(table);
+    leadsBox.replaceChildren(el("div", { class: "row" }, statusPick, textPick, shown), table);
+    applyFilter();
   }
 
   // Quotes are untrusted page text: textContent only. A URL is a link only if http(s).
