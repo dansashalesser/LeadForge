@@ -5,7 +5,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from leadforge.lead_ingestion.adapters.search_backends.serpapi import SerpApiBackend
+from leadforge.lead_ingestion.adapters.search_backends import select_backend
 from leadforge.lead_ingestion.throttle import SourceThrottle
 from leadforge.lead_ingestion.transport import TransportResponse
 from leadforge.outreach.usage.budget import BUDGET_EXHAUSTED, UsageBudget
@@ -30,7 +30,7 @@ class FakeTransport:
 
 
 def _client(transport, searches=5):
-    backend = SerpApiBackend()
+    backend = select_backend("serpapi")()
     return SerpClient(
         backend,
         transport,

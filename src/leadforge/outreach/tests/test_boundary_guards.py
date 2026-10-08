@@ -51,6 +51,13 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.store.models", "AppendOnlyViolationError"),
         # The report says which sources ran synthetic, read from the run's own rows.
         (f"{INGESTION}.store.models", "SourceRun"),
+        # The usage slice (user-recognition): catalog types for product/vendor lookup,
+        # the SERP backend contract, the shared throttle and the injected transport.
+        (f"{INGESTION}.catalog", "CatalogProduct"),
+        (f"{INGESTION}.catalog", "CatalogVendor"),
+        (f"{INGESTION}.adapters.search_backends", "SearchBackend"),
+        (f"{INGESTION}.throttle", "SourceThrottle"),
+        (f"{INGESTION}.transport", "Transport"),
     }
 )
 
@@ -79,6 +86,14 @@ FORBIDDEN_TRANSPORTS = frozenset(
         f"{INGESTION}.adapters",
     }
 )
+
+# Narrow per-file exceptions to the ban above, keyed by path relative to the slice.
+# usage/fetch.py reads public web pages (GET) with httpx; usage/serp.py sends search
+# queries through the injected ingestion Transport (read-only SerpApi lookups).
+NETWORK_ALLOWED: dict[str, frozenset[str]] = {
+    "usage/fetch.py": frozenset({"httpx"}),
+    "usage/serp.py": frozenset({f"{INGESTION}.transport", f"{INGESTION}.adapters"}),
+}
 
 
 def _modules(root: Path) -> list[Path]:
@@ -132,17 +147,29 @@ def _outside_the_allowlist(root: Path) -> list[str]:
     return bad
 
 
-def _transports(root: Path) -> list[str]:
+def _forbidden_hits(path: Path) -> list[tuple[int, str, str, str]]:
+    """(line, module, name, forbidden entry) for each banned import in ``path``."""
+    hits: list[tuple[int, str, str, str]] = []
+    for line, module, name in _imports(path):
+        reached = [module, f"{module}.{name}" if name else module]
+        for f in sorted(FORBIDDEN_TRANSPORTS):
+            if any(r == f or r.startswith(f"{f}.") for r in reached):
+                hits.append((line, module, name, f))
+                break
+    return hits
+
+
+def _transports(
+    root: Path, allowed: dict[str, frozenset[str]] | None = None
+) -> list[str]:
+    allowed = NETWORK_ALLOWED if allowed is None else allowed
     bad: list[str] = []
     for path in _modules(root):
-        for line, module, name in _imports(path):
-            reached = [module, f"{module}.{name}" if name else module]
-            if any(
-                r == f or r.startswith(f"{f}.")
-                for r in reached
-                for f in FORBIDDEN_TRANSPORTS
-            ):
-                bad.append(f"{path.name}:{line} {module} {name}".rstrip())
+        rel = path.relative_to(root).as_posix()
+        for line, module, name, forbidden in _forbidden_hits(path):
+            if forbidden in allowed.get(rel, frozenset()):
+                continue
+            bad.append(f"{path.name}:{line} {module} {name}".rstrip())
     return bad
 
 
@@ -220,3 +247,18 @@ def test_the_transport_scan_accepts_plain_imports(tmp_path: Path) -> None:
 def test_a_scan_over_no_modules_fails_loudly(tmp_path: Path) -> None:
     with pytest.raises(AssertionError, match="no modules"):
         _modules(tmp_path)
+
+
+# Verifies: outreach requirements 9.3 (the exception table cannot go stale or widen)
+def test_the_network_allowance_names_only_existing_files_and_imports_they_use() -> None:
+    for rel, forbidden in NETWORK_ALLOWED.items():
+        path = SLICE_ROOT / rel
+        assert path.is_file(), f"{rel} no longer exists: drop its allowance"
+        used = {hit[3] for hit in _forbidden_hits(path)}
+        assert used == set(forbidden), f"{rel} allowance differs from imports: {used}"
+
+
+def test_a_file_outside_the_allowance_is_still_flagged(tmp_path: Path) -> None:
+    (tmp_path / "usage").mkdir()
+    (tmp_path / "usage" / "other.py").write_text("import httpx\n", encoding="utf-8")
+    assert _transports(tmp_path)

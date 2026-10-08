@@ -14,6 +14,15 @@ from pathlib import Path
 from leadforge.lead_ingestion.send_prohibition import send_capable_reason
 
 RAW_SCHEMA_PACKAGE = "leadforge.lead_ingestion.adapters"
+_BACKENDS = "leadforge.lead_ingestion.adapters.search_backends"
+RAW_SCHEMA_ALLOWED: Mapping[tuple[str, str], tuple[str, ...]] = {
+    # The usage SERP client and its test take the backend contract and registry
+    # (SearchBackend, select_backend) from the search_backends package; no provider
+    # module (serpapi.py) is imported.
+    ("usage", "serp.py"): (_BACKENDS, f"{_BACKENDS}.SearchBackend"),
+    ("tests", "test_usage_serp.py"): (_BACKENDS, f"{_BACKENDS}.select_backend"),
+}
+"""(parent dir, file) outside the slice -> the exact adapter modules it may import."""
 
 
 @dataclass(frozen=True)
@@ -53,7 +62,12 @@ def find_raw_schema_imports_outside_slice(
                 )
             if not isinstance(node, ast.Import | ast.ImportFrom):
                 continue
-            raw = [m for m in _imported_modules(node, package) if _is_raw_schema(m)]
+            raw = [
+                m
+                for m in _imported_modules(node, package)
+                if _is_raw_schema(m)
+                and m not in RAW_SCHEMA_ALLOWED.get((path.parent.name, path.name), ())
+            ]
             if raw:  # one violation per import statement, not per imported name
                 violations.append(RawSchemaImport(path, node.lineno, raw[0]))
     return violations
@@ -205,6 +219,9 @@ TRANSPORT_SEND_MODULES = frozenset(
 )
 """Slice modules that may call ``Transport.send``: the contract's single dispatch
 point, the transports themselves, the MCP fallback, and the OAuth token fetch."""
+TRANSPORT_SEND_EXTERNAL = frozenset({("usage", "serp.py")})
+"""(parent dir, file) outside the slice that may call ``Transport.send``: the usage
+SERP client sends read-only search queries through the injected ingestion transport."""
 
 
 @dataclass(frozen=True)
@@ -362,6 +379,8 @@ def find_direct_transport_sends(src_root: Path) -> list[EndpointViolation]:
     violations: list[EndpointViolation] = []
     for path, tree in _parsed(src_root):
         if path.name in TRANSPORT_SEND_MODULES and path.parent.name == "lead_ingestion":
+            continue
+        if (path.parent.name, path.name) in TRANSPORT_SEND_EXTERNAL:
             continue
         for node in ast.walk(tree):
             if (
