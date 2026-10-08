@@ -14,15 +14,22 @@ for live data (14.3).
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from leadforge.lead_ingestion.catalog import Catalog
+from leadforge.lead_ingestion.catalog import (
+    Catalog,
+    CatalogVendor,
+    UnknownCatalogKeyError,
+    load_roles,
+)
 from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.ingest_runner import IngestionOutcome, run_ingestion
+from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.store.lead_reader import (
     StoredLead,
     crm_state,
@@ -37,6 +44,7 @@ from leadforge.outreach.compile_offline import OfflineCompiler, phrases_of
 from leadforge.outreach.config import OutreachConfig
 from leadforge.outreach.decisions import Decision, Reason, record_decisions
 from leadforge.outreach.dispatch import DryRunDispatcher
+from leadforge.outreach.errors import UsageClassifierUnavailableError
 from leadforge.outreach.facts import build_facts
 from leadforge.outreach.judge import Judge, RubricScores
 from leadforge.outreach.llm import StructuredModel, build_chat_model, llm_settings
@@ -51,11 +59,33 @@ from leadforge.outreach.search_plan import SearchPlan, SearchRequest
 from leadforge.outreach.searches import finish_search, link_hook, start_search
 from leadforge.outreach.tables import OutreachDecision
 from leadforge.outreach.tick import tick
+from leadforge.outreach.usage.budget import UsageBudget
+from leadforge.outreach.usage.classify import OfflineClassifier
+from leadforge.outreach.usage.demo_wiring import demo_usage_deps
+from leadforge.outreach.usage.grade import CompanyGrade, CompanyUsage
+from leadforge.outreach.usage.person import PersonFit, RoleVocabulary
+from leadforge.outreach.usage.stage import (
+    StageConfig,
+    StageDeps,
+    StageLead,
+    run_usage_stage,
+)
+from leadforge.outreach.usage.store import UsageStore
+from leadforge.outreach.usage.verdict import UsageVerdict, VerdictStatus
 
 __all__ = ["SearchService", "SearchSummary"]
 
 Ingest = Callable[..., Awaitable[IngestionOutcome]]
 _PAGE = 200
+
+
+class _UsageClassifier(Protocol):
+    def classify(self, target: Any, product: Any, passages: Any) -> Any: ...
+    def stamp(self, target: Any, product: Any, passages: Any) -> Any: ...
+
+
+# Builds the stage's SERP client and page fetcher around the run's budget.
+UsageDeps = Callable[[UsageBudget], tuple[Any, Any]]
 
 
 @dataclass(frozen=True)
@@ -82,6 +112,8 @@ class SearchService:
         dispatcher: DryRunDispatcher,
         engine: Engine | None = None,
         ingest: Ingest = run_ingestion,
+        usage_deps: UsageDeps | None = None,
+        usage_classifier: _UsageClassifier | None = None,
     ) -> None:
         self._cfg = config
         self._catalog = catalog
@@ -92,6 +124,8 @@ class SearchService:
         self._dispatcher = dispatcher
         self._engine = engine
         self._ingest = ingest
+        self._usage_deps = usage_deps
+        self._usage_classifier = usage_classifier
         self._settings = llm_settings(environ, config.llm)
 
     @property
@@ -140,7 +174,7 @@ class SearchService:
             outcome = await self._ingest(
                 target_profile=profile, on_run_started=link_hook(engine, search_id)
             )
-            summary = self._after_ingestion(engine, search_id, plan, outcome)
+            summary = await self._after_ingestion(engine, search_id, plan, outcome)
         except BaseException:
             with Session(engine) as session, session.begin():
                 finish_search(session, search_id, "failed")
@@ -149,7 +183,7 @@ class SearchService:
             finish_search(session, search_id, "done")
         return summary
 
-    def _after_ingestion(
+    async def _after_ingestion(
         self,
         engine: Engine,
         search_id: uuid.UUID,
@@ -162,10 +196,14 @@ class SearchService:
         )
         writer = self._writer()
         judge = self._judge()
-        with Session(engine) as session, session.begin():
+        with Session(engine) as session:
             leads = _gather(session, outcome.run_id)
+        verdicts = await self._usage_verdicts(engine, search_id, plan, outcome, leads)
+        with Session(engine) as session, session.begin():
             crm = crm_state(session, [s.lead_id for s in leads])
-            decisions = decide_all(leads, crm, plan, self._cfg.qualify, labels)
+            decisions = decide_all(
+                leads, crm, plan, self._cfg.qualify, labels, verdicts=verdicts
+            )
             by_id = {s.lead_id: s for s in leads}
             final: list[Decision] = []
             drafts: dict[uuid.UUID, list[tuple[Draft, tuple[Check, ...], Any]]] = {}
@@ -209,6 +247,71 @@ class SearchService:
         )
 
     # ------------------------------------------------------------- helpers
+
+    async def _usage_verdicts(
+        self,
+        engine: Engine,
+        search_id: uuid.UUID,
+        plan: SearchPlan,
+        outcome: IngestionOutcome,
+        leads: list[StoredLead],
+    ) -> dict[uuid.UUID, UsageVerdict] | None:
+        """Usage verdicts for a users plan; None for any other mode (no gate)."""
+        if plan.mode != "users":
+            return None
+        synthetic = all(r.resolved_mode is DataMode.SYNTHETIC for r in outcome.results)
+        cfg = self._cfg.usage
+        classifier = self._usage_classifier
+        if classifier is None:
+            if not synthetic:
+                raise UsageClassifierUnavailableError
+            classifier = OfflineClassifier(cfg.cues)
+        build = self._usage_deps
+        if build is None:
+            if not synthetic:
+                raise UsageClassifierUnavailableError
+            build = partial(
+                demo_usage_deps,
+                max_bytes=cfg.fetch.max_bytes,
+                passage_chars=cfg.fetch.passage_chars,
+            )
+        budget = UsageBudget(
+            searches=cfg.budget.searches,
+            fetches=cfg.budget.fetches,
+            llm_calls=cfg.budget.llm_calls,
+        )
+        serp, fetcher = build(budget)
+        roles = load_roles()
+        stage_cfg = StageConfig(
+            grade=cfg.grade_config(),
+            strictness=cfg.strictness,
+            include_ecosystem=cfg.include_ecosystem,
+            roles=RoleVocabulary(roles.core, roles.adjacent, roles.irrelevant),
+        )
+        deps = StageDeps(
+            serp=serp,
+            fetcher=fetcher,
+            classifier=classifier,
+            store=UsageStore(engine),
+            budget=budget,
+            search_id=search_id,
+            today=self._clock.now().date(),
+        )
+        got = await run_usage_stage(
+            [_stage_lead(s) for s in leads],
+            self._vendor(plan),
+            plan.terms,
+            deps,
+            stage_cfg,
+        )
+        # The stage walks companies; a Lead with no employer has none to grade.
+        return {s.lead_id: got.get(s.lead_id) or no_employer_verdict() for s in leads}
+
+    def _vendor(self, plan: SearchPlan) -> CatalogVendor:
+        for vendor in self._catalog.vendors():
+            if vendor.name == plan.company:
+                return vendor
+        raise UnknownCatalogKeyError(f"unknown vendor: {plan.company}")
 
     def _writer(self) -> LlmWriter | OfflineWriter:
         if self._settings is None:
@@ -274,6 +377,29 @@ def _gather(session: Session, run_id: uuid.UUID) -> list[StoredLead]:
         if len(page) < _PAGE:
             return leads
         after = page[-1].lead_id
+
+
+def no_employer_verdict() -> UsageVerdict:
+    """A Lead with no employer cannot be shown to use the product: rejected."""
+    return UsageVerdict(
+        status=VerdictStatus.REJECTED,
+        reason="no_employer",
+        company_usage=CompanyUsage(
+            grade=CompanyGrade.UNVERIFIED, reason="no_employer", records=()
+        ),
+        person_fit=PersonFit("irrelevant"),
+        evidence_refs=(),
+    )
+
+
+def _stage_lead(stored: StoredLead) -> StageLead:
+    lead = stored.lead
+    return StageLead(
+        lead_id=stored.lead_id,
+        lead=lead,
+        role_fields=tuple(e.title for e in lead.employments if e.title),
+        matched_uids=tuple(sorted({t.uid for t in lead.tech_signals if t.uid})),
+    )
 
 
 def _manual_review(decision: Decision) -> Decision:

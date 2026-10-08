@@ -12,9 +12,13 @@ from pathlib import Path
 from typing import Annotated
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from leadforge.outreach.errors import OutreachConfigError
+from leadforge.outreach.usage.cues import UsageCues
+from leadforge.outreach.usage.grade import GradeConfig
+from leadforge.outreach.usage.records import EvidenceClass, Strength
+from leadforge.outreach.usage.verdict import Strictness
 
 __all__ = [
     "DEFAULT_OUTREACH_CONFIG_PATH",
@@ -26,6 +30,10 @@ __all__ = [
     "SimulationConfig",
     "SourcesConfig",
     "TriggerConfig",
+    "UsageBudgetConfig",
+    "UsageClassifierConfig",
+    "UsageConfig",
+    "UsageFetchConfig",
     "load_outreach_config",
     "read_yaml_mapping",
 ]
@@ -119,6 +127,56 @@ class SimulationConfig(_Frozen):
     max_accept_days: Days
 
 
+class UsageBudgetConfig(_Frozen):
+    """Paid calls one users search may make (Req 4.5)."""
+
+    searches: Annotated[int, Field(ge=0)] = 200
+    fetches: Annotated[int, Field(ge=0)] = 300
+    llm_calls: Annotated[int, Field(ge=0)] = 300
+
+
+class UsageFetchConfig(_Frozen):
+    max_bytes: Count = 1_000_000
+    passage_chars: Count = 600
+
+
+class UsageClassifierConfig(_Frozen):
+    effort: Annotated[str, Field(min_length=1)] = "low"
+    prompt: Annotated[str, Field(min_length=1)] = "usage_v1"
+
+
+def _default_strengths() -> dict[EvidenceClass, Strength]:
+    return dict(GradeConfig().class_strengths)
+
+
+class UsageConfig(_Frozen):
+    """The ``usage:`` section; every key is optional (design defaults)."""
+
+    budget: UsageBudgetConfig = Field(default_factory=UsageBudgetConfig)
+    max_evidence_age_days: Annotated[int, Field(gt=0)] = 730
+    class_strengths: dict[EvidenceClass, Strength] = Field(
+        default_factory=_default_strengths
+    )
+    strictness: Strictness = Strictness.VERIFIED_PLUS_LIKELY
+    include_ecosystem: bool = False
+    fetch: UsageFetchConfig = Field(default_factory=UsageFetchConfig)
+    classifier: UsageClassifierConfig = Field(default_factory=UsageClassifierConfig)
+    cues: UsageCues = Field(default_factory=UsageCues)
+
+    @field_validator("class_strengths")
+    @classmethod
+    def _complete(
+        cls, given: dict[EvidenceClass, Strength]
+    ) -> dict[EvidenceClass, Strength]:
+        return {**_default_strengths(), **given}
+
+    def grade_config(self) -> GradeConfig:
+        return GradeConfig(
+            max_evidence_age_days=self.max_evidence_age_days,
+            class_strengths=self.class_strengths,
+        )
+
+
 class OutreachConfig(_Frozen):
     simulation: SimulationConfig
     sources: SourcesConfig
@@ -127,6 +185,7 @@ class OutreachConfig(_Frozen):
     messages: MessageConfig
     llm: LlmConfig
     outbox_path: Path
+    usage: UsageConfig = Field(default_factory=UsageConfig)
 
 
 def read_yaml_mapping(path: str | Path) -> dict[str, object]:

@@ -63,6 +63,17 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.adapters.search_backends", "SearchBackend"),
         (f"{INGESTION}.throttle", "SourceThrottle"),
         (f"{INGESTION}.transport", "Transport"),
+        # Person Fit's role families (config/catalog/roles.yaml), read by the service.
+        (f"{INGESTION}.catalog", "load_roles"),
+        # usage/demo_wiring.py: the synthetic flow's SERP and pages come from the demo
+        # dataset's own transport and page table (no socket); _Tables is the demo's
+        # table index that both need, with no public constructor yet.
+        (f"{INGESTION}.adapters.search_backends", "select_backend"),
+        (f"{INGESTION}.demo.generator", "DATA_DIR"),
+        (f"{INGESTION}.demo.transport", "DemoLog"),
+        (f"{INGESTION}.demo.transport", "DemoPages"),
+        (f"{INGESTION}.demo.transport", "DemoTransport"),
+        (f"{INGESTION}.demo.transport", "_Tables"),
     }
 )
 
@@ -98,6 +109,10 @@ FORBIDDEN_TRANSPORTS = frozenset(
 NETWORK_ALLOWED: dict[str, frozenset[str]] = {
     "usage/fetch.py": frozenset({"httpx"}),
     "usage/serp.py": frozenset({f"{INGESTION}.transport", f"{INGESTION}.adapters"}),
+    # The demo flow builds httpx.Response objects from the demo page table (no client,
+    # no socket) and picks the
+    # SERP backend class from the adapters package.
+    "usage/demo_wiring.py": frozenset({"httpx", f"{INGESTION}.adapters"}),
 }
 
 

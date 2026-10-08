@@ -63,3 +63,13 @@ class MessageGenerationError(RuntimeError):
 
 class MessageValidationError(ValueError):
     """A Message that failed its checks was offered for storage."""
+
+
+class UsageClassifierUnavailableError(RuntimeError):
+    """A live users search has no classifier. There is no silent offline fallback."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "a live users search needs a usage classifier (an LLM key); "
+            "it does not fall back to the offline classifier"
+        )

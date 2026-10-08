@@ -130,3 +130,39 @@ def test_a_missing_file_and_a_non_mapping_document_are_named_errors(
     broken.write_text("a: [unclosed", encoding="utf-8")
     with pytest.raises(OutreachConfigError, match="not valid YAML"):
         load_outreach_config(broken)
+
+
+# Verifies: specs/user-recognition/requirements.md#4.5
+def test_the_usage_section_is_optional_and_defaults_to_the_design_values() -> None:
+    document = _document()
+    document.pop("usage", None)
+    cfg = OutreachConfig.model_validate(document)
+
+    assert cfg.usage.budget.searches == 200
+    assert cfg.usage.budget.fetches == 300
+    assert cfg.usage.budget.llm_calls == 300
+    assert cfg.usage.max_evidence_age_days == 730
+    assert cfg.usage.strictness.value == "verified_plus_likely"
+    assert cfg.usage.include_ecosystem is False
+    assert cfg.usage.fetch.max_bytes == 1_000_000
+    assert cfg.usage.fetch.passage_chars == 600
+    assert cfg.usage.classifier.prompt == "usage_v1"
+    assert cfg.usage.cues.used_past
+
+
+# Verifies: specs/user-recognition/requirements.md#4.5
+def test_a_usage_section_overrides_defaults_and_unknown_keys_are_refused(
+    tmp_path: Path,
+) -> None:
+    ok = _with(
+        _document(), "usage", {"budget": {"searches": 7}, "include_ecosystem": True}
+    )
+    cfg = load_outreach_config(_write(tmp_path, ok))
+    assert cfg.usage.budget.searches == 7
+    assert cfg.usage.budget.fetches == 300
+    assert cfg.usage.include_ecosystem is True
+
+    bad = _with(_document(), "usage", {"budget": {"searchez": 7}})
+    with pytest.raises(OutreachConfigError) as raised:
+        load_outreach_config(_write(tmp_path, bad))
+    assert raised.value.key_path == "usage.budget.searchez"
