@@ -215,7 +215,17 @@ class Signal(_Entity):
 
 
 class TechSignal(Signal):
-    """Technographic evidence."""
+    """Technographic evidence.
+
+    ``source`` names the provider that stated it, ``current`` says whether the provider
+    states the technology is in use now, and ``uid`` is the provider's technology id
+    (all ``None`` when a signal does not state them). They live in the signal's JSON,
+    so the store needs no new column.
+    """
+
+    source: NonBlank | None = None
+    current: bool | None = None
+    uid: NonBlank | None = None
 
 
 class IntentSignal(Signal):

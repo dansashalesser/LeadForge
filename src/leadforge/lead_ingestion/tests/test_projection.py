@@ -617,3 +617,67 @@ def test_conflicts_ignore_contribution_order() -> None:
         for p in itertools.permutations(members)
     }
     assert len(seen) == 1
+
+
+# Verifies: specs/user-recognition/requirements.md#3.2
+def test_provider_technologies_become_tech_signals_with_source_and_current_flag() -> (
+    None
+):
+    techs = [
+        {"uid": "u_alpha", "name": "Tech Alpha", "category": "Databases"},
+        {"uid": "u_aws", "name": "AWS"},
+    ]
+    out = project(
+        contrib("vendor_a", {"person.full_name": "Ann", "company.technologies": techs}),
+    )
+    assert out.lead is not None
+    by_label = {s.label: s for s in out.lead.tech_signals}
+    assert set(by_label) == {"Tech Alpha", "AWS"}
+    cass = by_label["Tech Alpha"]
+    assert (cass.source, cass.current, cass.uid) == ("vendor_a", True, "u_alpha")
+
+
+# Verifies: specs/user-recognition/requirements.md#3.2
+def test_technologies_from_two_contributions_combine_one_signal_per_name() -> None:
+    out = project(
+        contrib(
+            "vendor_a",
+            {
+                "person.full_name": "Ann",
+                "company.technologies": [{"uid": "u1", "name": "Redis"}],
+            },
+        ),
+        contrib(
+            "vendor_a",
+            {
+                "company.technologies": [
+                    {"uid": "u1", "name": "Redis"},
+                    {"uid": "u2", "name": "Kafka"},
+                ]
+            },
+        ),
+    )
+    assert out.lead is not None
+    assert [s.label for s in out.lead.tech_signals] == ["Kafka", "Redis"]
+
+
+# Verifies: specs/user-recognition/requirements.md#3.2
+def test_malformed_technologies_are_skipped_plain_signals_keep_no_source() -> None:
+    out = project(
+        contrib(
+            "vendor_a",
+            {
+                "person.full_name": "Ann",
+                "company.technologies": [{"uid": "u1"}, "oops", {"name": "  "}],
+                "company.signals": (TechSignal(label="aws", strength=0.4),),
+            },
+        ),
+    )
+    assert out.lead is not None
+    (only,) = out.lead.tech_signals
+    assert (only.label, only.source, only.current, only.uid) == (
+        "aws",
+        None,
+        None,
+        None,
+    )

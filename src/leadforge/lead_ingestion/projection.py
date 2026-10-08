@@ -56,9 +56,9 @@ Provisional decisions (choices.md, 16.5):
 * Signals are evidence, not competing values: every ``TechSignal`` and
   ``IntentSignal`` found in any candidate of any path is carried, one per (kind,
   label), the first in candidate order (path, winner, agreeing, superseded) keeping
-  its strength, so Signal Strength never decides anything (24.4). Flat adapter values
-  that are not ``Signal`` objects (the flat ``company.technologies`` list) are not
-  turned into Signals here.
+  its strength, so Signal Strength never decides anything (24.4). The flat
+  ``company.technologies`` list (``{uid, name}`` entries) becomes ``TechSignal``s that
+  carry source, a current flag and the provider uid (user-recognition 3.2).
 * The log line of 21.4 is derived from the result (task 16.12, ``merge_log``):
   ``match_keys`` is the cluster's ``merged_by`` (kinds that linked it, strongest first)
   and ``conflicts`` lists, per path with a losing value, the winning source, the number
@@ -162,6 +162,7 @@ _FIRST_NAME = "person.first_name"
 _LAST_NAME = "person.last_name"
 _TITLE = "person.title"
 _COMPANY_NAME = "company.name"
+_TECHNOLOGIES = "company.technologies"
 _COMPANY_DOMAIN = "company.domain"
 _OPT_OUT = "opt_out"  # both are in ``COMPLIANCE_FLAGS``
 _SUPPRESSED = "suppressed"
@@ -652,6 +653,8 @@ def _signals(
     for f in resolution.fields:
         for candidate in (f.winner, *f.agreeing, *f.superseded):
             for item in _flatten(candidate.value):
+                if f.canonical_path == _TECHNOLOGIES:
+                    item = _provider_tech(item, candidate.source_name)
                 if isinstance(item, TechSignal):
                     tech.setdefault(item.label, item)
                 elif isinstance(item, IntentSignal):
@@ -659,6 +662,28 @@ def _signals(
     return (
         tuple(tech[k] for k in sorted(tech)),
         tuple(intent[k] for k in sorted(intent)),
+    )
+
+
+def _provider_tech(item: object, source: str) -> TechSignal | None:
+    """A provider-stated ``{uid, name}`` technology as a ``TechSignal``.
+
+    The list holds the provider's current technologies, so each is ``current`` unless
+    the entry says otherwise; the stated fact has full strength. An entry without a
+    usable name is skipped.
+    """
+    if not isinstance(item, dict):
+        return None
+    name = _text(item.get("name"))
+    if name is None:
+        return None
+    current = item.get("current")
+    return TechSignal(
+        label=name.strip(),
+        strength=1.0,
+        source=source,
+        current=current if isinstance(current, bool) else True,
+        uid=_text(item.get("uid")),
     )
 
 
