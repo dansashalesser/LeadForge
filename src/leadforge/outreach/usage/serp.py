@@ -1,7 +1,7 @@
-"""The usage SERP client: one family query through the ingestion search backend (Req 4.1).
+"""The usage SERP client: one family query via the ingestion backend (Req 4.1).
 
 Reuses ingestion's backend (request shape), transport and throttle; spends one search
-from the run budget per query. Exhausted budget raises ``SearchBudgetExhausted`` so the
+from the run budget per query. Exhausted budget raises ``SearchBudgetExhaustedError`` so the
 stage stops and grades the company ``unverified`` with ``BUDGET_EXHAUSTED``.
 """
 
@@ -15,10 +15,15 @@ from leadforge.lead_ingestion.transport import Transport
 from leadforge.outreach.usage.budget import BUDGET_EXHAUSTED, UsageBudget
 from leadforge.outreach.usage.queries import QuerySpec
 
-__all__ = ["SearchBudgetExhausted", "SearchFailed", "SearchResult", "SerpClient"]
+__all__ = [
+    "SearchBudgetExhaustedError",
+    "SearchFailedError",
+    "SearchResult",
+    "SerpClient",
+]
 
 
-class SearchBudgetExhausted(Exception):
+class SearchBudgetExhaustedError(Exception):
     """The run's search budget is spent (reason ``BUDGET_EXHAUSTED``)."""
 
     reason = BUDGET_EXHAUSTED
@@ -27,7 +32,7 @@ class SearchBudgetExhausted(Exception):
         super().__init__(BUDGET_EXHAUSTED)
 
 
-class SearchFailed(Exception):
+class SearchFailedError(Exception):
     """The search backend answered with an error or an unreadable body."""
 
 
@@ -62,7 +67,7 @@ class SerpClient:
 
     async def search(self, spec: QuerySpec) -> list[SearchResult]:
         if not self.budget.spend("searches"):
-            raise SearchBudgetExhausted
+            raise SearchBudgetExhaustedError
         endpoint = self._backend.endpoint
         call = self._backend.build_call(spec.query, 0, self._credentials)
         await self._throttle.bucket(endpoint.bucket).acquire()
@@ -71,12 +76,12 @@ class SerpClient:
         )
         body = response.body
         if response.status >= 400 or not isinstance(body, Mapping):
-            raise SearchFailed(f"search answered status {response.status}")
+            raise SearchFailedError(f"search answered status {response.status}")
         if self._backend.failed_search(body):
-            raise SearchFailed("search backend reported a failed search")
+            raise SearchFailedError("search backend reported a failed search")
         rows = body.get("organic_results", [])
         if not isinstance(rows, list):
-            raise SearchFailed("organic results are not a list")
+            raise SearchFailedError("organic results are not a list")
         out: list[SearchResult] = []
         for row in rows:
             if not isinstance(row, Mapping) or not (url := _text(row, "link")):

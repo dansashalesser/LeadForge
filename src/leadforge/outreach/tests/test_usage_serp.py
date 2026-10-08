@@ -11,8 +11,8 @@ from leadforge.lead_ingestion.transport import TransportResponse
 from leadforge.outreach.usage.budget import BUDGET_EXHAUSTED, UsageBudget
 from leadforge.outreach.usage.queries import QuerySpec
 from leadforge.outreach.usage.serp import (
-    SearchBudgetExhausted,
-    SearchFailed,
+    SearchBudgetExhaustedError,
+    SearchFailedError,
     SearchResult,
     SerpClient,
 )
@@ -67,7 +67,7 @@ def test_returns_typed_results_and_spends_one_search() -> None:
 def test_budget_exhausted_raises_without_calling() -> None:
     t = FakeTransport({"organic_results": []})
     c = _client(t, searches=0)
-    with pytest.raises(SearchBudgetExhausted, match=BUDGET_EXHAUSTED):
+    with pytest.raises(SearchBudgetExhaustedError, match=BUDGET_EXHAUSTED):
         _run(c.search(SPEC))
     assert t.calls == []
 
@@ -77,16 +77,16 @@ def test_empty_page_is_empty_list() -> None:
 
 
 @pytest.mark.parametrize(
-    "body,status",
+    ("body", "status"),
     [("junk", 200), ({"error": "boom"}, 200), ({"organic_results": []}, 500)],
 )
 def test_failures_are_named(body: object, status: int) -> None:
-    with pytest.raises(SearchFailed):
+    with pytest.raises(SearchFailedError):
         _run(_client(FakeTransport(body, status)).search(SPEC))
 
 
 def test_malformed_results_raise() -> None:
-    with pytest.raises(SearchFailed):
+    with pytest.raises(SearchFailedError):
         _run(_client(FakeTransport({"organic_results": "x"})).search(SPEC))
 
 
