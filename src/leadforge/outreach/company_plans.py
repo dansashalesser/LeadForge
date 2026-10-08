@@ -51,7 +51,9 @@ def workers_plan(request: SearchRequest, catalog: Catalog) -> SearchPlan:
     )
 
 
-def users_plan(request: SearchRequest, catalog: Catalog) -> SearchPlan:
+def users_plan(
+    request: SearchRequest, catalog: Catalog, *, include_ecosystem: bool = False
+) -> SearchPlan:
     if not request.products:
         raise NoProductSelectedError
     vendor = (
@@ -65,7 +67,11 @@ def users_plan(request: SearchRequest, catalog: Catalog) -> SearchPlan:
         mode="users",
         query=request.query,
         company=vendor.name,
-        terms=request.products,
+        terms=(
+            (*request.products, *(e.key for e in vendor.ecosystem))
+            if include_ecosystem
+            else request.products
+        ),
         compiler="offline",
     )
 

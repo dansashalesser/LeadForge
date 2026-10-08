@@ -255,3 +255,67 @@ def test_a_users_search_with_no_product_exits_cleanly_before_any_provider_call(
     assert result.exit_code != 0
     assert "catalog product" in result.output
     assert "plan (" not in result.output  # no plan shown, so nothing was spent
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_include_ecosystem_adds_the_vendors_ecosystem_terms_to_the_plan(
+    workdir: Path,
+) -> None:
+    from leadforge.lead_ingestion.catalog import load_catalog
+
+    vendor = next(v for v in load_catalog().vendors() if v.ecosystem)
+    base = [
+        *("outreach", "search", "users"),
+        *("--vendor", vendor.key, "--product", vendor.products[0].key),
+    ]
+    ecosystem_key = f'"{vendor.ecosystem[0].key}"'
+
+    without = runner.invoke(app, base)
+    with_eco = runner.invoke(app, [*base, "--include-ecosystem"])
+
+    assert without.exit_code == 0, without.output
+    assert with_eco.exit_code == 0, with_eco.output
+    assert ecosystem_key not in without.output
+    assert ecosystem_key in with_eco.output
+
+
+# Verifies: specs/user-recognition/requirements.md#4.5
+def test_usage_budget_overrides_the_config_search_budget_for_one_run(
+    workdir: Path,
+) -> None:
+    from leadforge.outreach.config import load_outreach_config
+    from leadforge.outreach.runtime import with_usage_overrides
+
+    config = load_outreach_config()
+
+    changed = with_usage_overrides(config, include_ecosystem=True, usage_budget=7)
+
+    assert changed.usage.budget.searches == 7
+    assert changed.usage.budget.fetches == config.usage.budget.fetches
+    assert changed.usage.include_ecosystem is True
+    assert with_usage_overrides(config) is config
+    with pytest.raises(ValueError, match="usage-budget"):
+        with_usage_overrides(config, usage_budget=-1)
+
+
+# Verifies: specs/user-recognition/requirements.md#4.5
+def test_a_negative_usage_budget_is_a_clean_cli_error(workdir: Path) -> None:
+    result = runner.invoke(
+        app,
+        ["outreach", "search", "users", "--product", "mongodb", "--usage-budget", "-1"],
+    )
+
+    assert result.exit_code != 0
+    assert "usage-budget" in result.output
+    assert "plan (" not in result.output
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_an_unknown_vendor_is_a_clean_error_not_a_traceback(workdir: Path) -> None:
+    result = runner.invoke(
+        app, ["outreach", "search", "users", "--vendor", "nope", "--product", "x"]
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)

@@ -143,7 +143,11 @@ class SearchService:
         if request.mode == "workers":
             return workers_plan(request, self._catalog)
         if request.mode == "users":
-            return users_plan(request, self._catalog)
+            return users_plan(
+                request,
+                self._catalog,
+                include_ecosystem=self._cfg.usage.include_ecosystem,
+            )
         compiler = self._free_text_compiler()
         return compiler.compile(request)
 

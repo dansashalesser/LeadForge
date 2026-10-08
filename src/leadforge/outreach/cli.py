@@ -155,10 +155,14 @@ def _search(
     *,
     vendor: str | None = None,
     products: list[str] | None = None,
+    include_ecosystem: bool | None = None,
+    usage_budget: int | None = None,
 ) -> None:
     with _failing_cleanly():
         _setup()
-        service = build_service(os.environ)
+        service = build_service(
+            os.environ, include_ecosystem=include_ecosystem, usage_budget=usage_budget
+        )
         plan = service.plan(
             parse_request(mode, query, domains, vendor=vendor, products=products or [])
         )
@@ -193,6 +197,17 @@ def users(
         str | None,
         typer.Option("--vendor", help="Catalog vendor key; its product names it."),
     ] = None,
+    include_ecosystem: Annotated[
+        bool,
+        typer.Option(
+            "--include-ecosystem",
+            help="Also search the vendor's ecosystem technologies.",
+        ),
+    ] = False,
+    usage_budget: Annotated[
+        int | None,
+        typer.Option("--usage-budget", min=0, help="Usage-search budget for this run."),
+    ] = None,
 ) -> None:
     """Search the people and companies that use a vendor's catalog products."""
     _search(
@@ -201,6 +216,8 @@ def users(
         [],
         vendor=vendor,
         products=product,
+        include_ecosystem=True if include_ecosystem else None,
+        usage_budget=usage_budget,
     )
 
 
