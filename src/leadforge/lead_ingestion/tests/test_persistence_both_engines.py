@@ -83,6 +83,10 @@ OUTREACH_TABLES = frozenset(
         "outreach_decision",
         "outreach_message",
         "outreach_trigger_event",
+        # migration 0013 (user-recognition usage evidence)
+        "usage_evidence",
+        "usage_classification_cache",
+        "usage_company_grades",
     }
 )
 MODEL_TABLES = set(m.Base.metadata.tables) | OUTREACH_TABLES
