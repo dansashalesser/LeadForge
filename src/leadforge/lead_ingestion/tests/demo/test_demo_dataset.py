@@ -21,7 +21,7 @@ from leadforge.lead_ingestion.adapters.hubspot import HubSpotSource
 from leadforge.lead_ingestion.adapters.hunter import HunterSource
 from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.demo import generator, outreach_data
-from leadforge.lead_ingestion.demo.cli import DEMO_RETRY, PROFILE
+from leadforge.lead_ingestion.demo.cli import DEMO_RETRY, demo_profile
 from leadforge.lead_ingestion.demo.scorecard import load_active_leads, render, score
 from leadforge.lead_ingestion.demo.transport import (
     DemoLog,
@@ -305,7 +305,7 @@ async def test_a_demo_run_meets_the_answer_key(
     factory, log = demo_transport_factory()
 
     outcome = await run_ingestion(
-        target_profile_path=PROFILE,
+        target_profile=demo_profile(),
         transport_factory=factory,
         synthetic_retry=DEMO_RETRY,
     )

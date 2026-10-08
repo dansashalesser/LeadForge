@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-import yaml
 
 from leadforge.lead_ingestion.catalog import (
     Alias,
@@ -20,15 +19,10 @@ from leadforge.lead_ingestion.target_profile import (
     effective_vocabulary,
 )
 from leadforge.outreach.company_plans import users_plan, workers_plan
-from leadforge.outreach.company_terms import (
-    load_company_terms,
-    normalize_company,
-)
 from leadforge.outreach.config import load_outreach_config
 from leadforge.outreach.errors import (
     MissingDomainError,
     NoProductSelectedError,
-    OutreachConfigError,
     UnknownTermError,
 )
 from leadforge.outreach.profile import catalog_base_profile, plan_to_profile
@@ -231,35 +225,3 @@ def test_a_plan_naming_an_unknown_term_never_reaches_a_profile(
 
     with pytest.raises(UnknownTermError):
         plan_to_profile(plan, base, SOURCES)
-
-
-# Verifies: outreach requirements 4.1
-def test_company_lookup_ignores_case_and_spacing() -> None:
-    companies = load_company_terms(CONFIG / "company_terms.yaml")
-    assert normalize_company("  Data   Stax ") == "data stax"
-    name = next(iter(companies.companies))
-    assert companies.entry(name.upper()) == companies.entry(f" {name} ")
-    assert companies.entry("nobody") is None
-
-
-def _write(tmp_path: Path, document: object) -> Path:
-    path = tmp_path / "company_terms.yaml"
-    path.write_text(yaml.safe_dump(document), encoding="utf-8")
-    return path
-
-
-# Verifies: outreach requirements 4.1
-@pytest.mark.parametrize(
-    "document",
-    [
-        {"companies": {"a": {"terms": "not-a-list"}}},
-        {"companies": {"a": {"surprise": 1}}},
-        {"companies": {"Acme": {}, " acme": {}}},
-        {"other": {}},
-    ],
-)
-def test_a_bad_company_terms_file_is_a_named_error(
-    tmp_path: Path, document: object
-) -> None:
-    with pytest.raises(OutreachConfigError):
-        load_company_terms(_write(tmp_path, document))

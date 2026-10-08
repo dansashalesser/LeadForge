@@ -39,8 +39,6 @@ from leadforge.lead_ingestion.target_profile import TargetProfile
 EXIT_CONFIGURATION_ERROR = 2
 EXIT_RUN_IN_PROGRESS = 3
 DEFAULT_DB = Path(".leadforge") / "demo.db"
-# Superseded by ``demo_profile`` (removed with the file in task 3.5).
-PROFILE = Path(__file__).parent / "target_profile.yaml"
 _KEYWORD_TEMPLATES = (
     "{term} migration",
     "hiring {term} engineer",
