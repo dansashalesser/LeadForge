@@ -9,6 +9,7 @@ synthetic and quick); the UI shows a busy state until it returns.
 """
 
 import asyncio
+import hashlib
 import os
 import uuid
 from collections.abc import Iterator, Mapping
@@ -84,6 +85,25 @@ _TAB_SCRIPT = (
     '<script src="/outreach/app.js"></script>\n  <script src="/static/app.js">'
 )
 _TAB_STYLE = '<link rel="stylesheet" href="/outreach/app.css">\n</head>'
+
+
+def _versioned(html: str) -> str:
+    """Tag each dashboard asset URL with a digest of its file.
+
+    The server sends no cache headers, so a browser may keep an old ``app.js`` that
+    ignores the Search tab; a URL that changes with the file cannot be stale."""
+    assets = {
+        "/static/app.js": DASHBOARD_STATIC / "app.js",
+        "/static/app.css": DASHBOARD_STATIC / "app.css",
+        "/outreach/app.js": STATIC / "outreach.js",
+        "/outreach/app.css": STATIC / "outreach.css",
+    }
+    for url, path in assets.items():
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+        html = html.replace(f'"{url}"', f'"{url}?v={digest}"')
+    return html
+
+
 _NAMED_ERRORS = (
     UnknownModeError,
     UnknownTermError,
@@ -414,7 +434,7 @@ def create_router(
         html = (DASHBOARD_STATIC / "index.html").read_text(encoding="utf-8")
         html = html.replace('<script src="/static/app.js">', _TAB_SCRIPT, 1)
         html = html.replace("</head>", _TAB_STYLE, 1)
-        return HTMLResponse(html)
+        return HTMLResponse(_versioned(html), headers={"Cache-Control": "no-store"})
 
     @router.get("/outreach")
     def page() -> RedirectResponse:

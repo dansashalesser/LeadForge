@@ -318,3 +318,20 @@ def test_a_draft_is_refused_by_a_search_until_approved(
         client.post("/api/catalog/drafts/newco/approve", headers=WRITE).status_code
         == 404
     )
+
+
+# The dashboard's scripts are versioned by file content, so a browser that cached an
+# older app.js (the server sends no cache headers) cannot run it without the Search tab.
+def test_the_dashboard_versions_its_scripts_and_is_never_cached(
+    client: TestClient,
+) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert '<script src="/outreach/app.js?v=' in response.text
+    assert '<script src="/static/app.js?v=' in response.text
+    assert '<link rel="stylesheet" href="/static/app.css?v=' in response.text
+    assert '<link rel="stylesheet" href="/outreach/app.css?v=' in response.text
+    # The version changes when the file does, so a new build is fetched.
+    assert client.get("/").text == response.text
