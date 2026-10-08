@@ -12,7 +12,7 @@ The output names outcomes and counts only, never a Lead's values.
 
 import uuid
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,7 +22,19 @@ from sqlalchemy.orm import Session
 from leadforge.lead_ingestion.store.lead_reader import load_lead
 from leadforge.outreach.tables import OutreachDecision, OutreachTriggerEvent
 
-__all__ = ["OutcomeRow", "Scorecard", "render", "score_decisions"]
+__all__ = [
+    "ConfusionRow",
+    "OutcomeRow",
+    "Scorecard",
+    "UserVerdict",
+    "UsersScorecard",
+    "render",
+    "render_users",
+    "score_decisions",
+    "score_users",
+    "score_users_search",
+    "users_verdicts",
+]
 
 _FINAL = ("email", "fallback_email", "stalled")
 
@@ -148,3 +160,125 @@ def _identifiers(email: object, linkedin: object) -> list[str]:
     if email:
         out.append(f"email:{str(email).lower()}")
     return out
+
+
+@dataclass
+class ConfusionRow:
+    true_positive: int = 0
+    false_positive: int = 0
+    false_negative: int = 0
+    true_negative: int = 0
+
+
+@dataclass(frozen=True)
+class UserVerdict:
+    """One key person: the scenario, the label, and the decision status.
+
+    `status` is None for a person the search did not gather.
+    """
+
+    scenario: str
+    is_user: bool
+    status: str | None
+
+    @property
+    def selected(self) -> bool:
+        # manual_review, rejected, needs_enrichment, not gathered: not selected.
+        return self.status == "selected"
+
+
+@dataclass
+class UsersScorecard:
+    """Users-mode accuracy on `is_user`.
+
+    A metric whose denominator is zero is None, never a made-up 0.0: precision is
+    None when nothing was selected, recall when the key has no true user, F1 when
+    either is None or both are 0.
+    """
+
+    scenarios: dict[str, ConfusionRow]
+
+    def _total(self, attr: str) -> int:
+        return sum(getattr(r, attr) for r in self.scenarios.values())
+
+    @property
+    def precision(self) -> float | None:
+        tp, fp = self._total("true_positive"), self._total("false_positive")
+        return tp / (tp + fp) if tp + fp else None
+
+    @property
+    def recall(self) -> float | None:
+        tp, fn = self._total("true_positive"), self._total("false_negative")
+        return tp / (tp + fn) if tp + fn else None
+
+    @property
+    def f1(self) -> float | None:
+        p, r = self.precision, self.recall
+        if p is None or r is None or p + r == 0:
+            return None
+        return 2 * p * r / (p + r)
+
+
+def score_users(verdicts: Iterable[UserVerdict]) -> UsersScorecard:
+    scenarios: dict[str, ConfusionRow] = {}
+    for v in verdicts:
+        row = scenarios.setdefault(v.scenario, ConfusionRow())
+        if v.is_user and v.selected:
+            row.true_positive += 1
+        elif v.is_user:
+            row.false_negative += 1
+        elif v.selected:
+            row.false_positive += 1
+        else:
+            row.true_negative += 1
+    return UsersScorecard(scenarios)
+
+
+def users_verdicts(
+    session: Session, search_id: uuid.UUID, key: Mapping[str, Any]
+) -> list[UserVerdict]:
+    """One verdict per labelled key person, from the search's stored Decisions."""
+    people = _index(key)
+    status: dict[str, str] = {}
+    for decision in session.scalars(
+        select(OutreachDecision).where(OutreachDecision.search_id == search_id)
+    ):
+        person = _person(session, decision.lead_id, people)
+        if person is not None:
+            status[person["subject"]] = decision.status
+    labelled = {p["subject"]: p for p in people.values() if "usage" in p["expect"]}
+    return [
+        UserVerdict(
+            scenario=p["scenario"],
+            is_user=bool(p["expect"]["usage"]["is_user"]),
+            status=status.get(subject),
+        )
+        for subject, p in labelled.items()
+    ]
+
+
+def score_users_search(
+    session: Session, search_id: uuid.UUID, key: Mapping[str, Any]
+) -> UsersScorecard:
+    return score_users(users_verdicts(session, search_id, key))
+
+
+def render_users(card: UsersScorecard) -> str:
+    lines = ["Users mode against the answer key (is_user)", ""]
+    lines += [
+        f"precision: {_ratio(card.precision)}",
+        f"recall: {_ratio(card.recall)}",
+        f"f1: {_ratio(card.f1)}",
+        "",
+        f"{'scenario':<22} tp  fp  fn  tn",
+    ]
+    for name, r in sorted(card.scenarios.items()):
+        lines.append(
+            f"{name:<22} {r.true_positive:>2}  {r.false_positive:>2}  "
+            f"{r.false_negative:>2}  {r.true_negative:>2}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _ratio(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.3f}"
