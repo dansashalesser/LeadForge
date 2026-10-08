@@ -90,7 +90,8 @@ def test_the_answer_key_covers_every_scenario() -> None:
     seen = {p["scenario"] for p in key["people"]}
     assert seen == set(generator.SCENARIO_NOTES) | set(outreach_data.WORKER_NOTES)
     assert len(key["people"]) >= 240
-    assert len(key["companies"]) == 41  # the 40 of the base set and DataStax
+    # the 40 of the base set, DataStax, and the 12 of the usage scenarios
+    assert len(key["companies"]) == 53
 
 
 # Verifies: specs/user-recognition/requirements.md#1.1
@@ -125,6 +126,66 @@ def test_the_vendor_is_not_a_user_of_its_own_product() -> None:
     assert all(not p["expect"]["usage"]["is_user"] for p in workers)
     profile = key["companies"][outreach_data.TARGET_DOMAIN]["usage"]
     assert {r["relationship"] for r in profile["evidence"]} == {"vendor_or_partner"}
+
+
+ADVERSARIAL_SCENARIOS = (
+    "vendor_staff",
+    "non_technical_role",
+    "migrated_away",
+    "cassandra_name",
+    "technographic_only",
+    "injection_page",
+    "stale_evidence",
+    "ecosystem_only",
+    "left_company",
+    "vendor_partner",
+)
+
+
+# Verifies: specs/user-recognition/requirements.md#1.2
+def test_each_adversarial_scenario_appears_twice_and_is_never_a_user() -> None:
+    key = generator.load(generator.ANSWER_KEY)
+    for name in ADVERSARIAL_SCENARIOS:
+        people = [p for p in key["people"] if p["scenario"] == name]
+        assert len(people) >= 2, name
+        assert all(not p["expect"]["usage"]["is_user"] for p in people), name
+        assert generator.SCENARIO_NOTES[name], name
+        assert key["scenarios"][name] == generator.SCENARIO_NOTES[name], name
+
+
+# Verifies: specs/user-recognition/requirements.md#1.2
+def test_the_adversarial_people_sit_at_companies_that_explain_them() -> None:
+    key = generator.load(generator.ANSWER_KEY)
+
+    def profile(name: str) -> dict:
+        domains = {p["company"] for p in key["people"] if p["scenario"] == name}
+        assert len(domains) == 1, name
+        return key["companies"][domains.pop()]["usage"]
+
+    assert profile("vendor_staff")["reason"] == "vendor"
+    assert profile("migrated_away")["grade"] == "negative"
+    assert profile("technographic_only")["reason"] == "technographic_only"
+    assert profile("ecosystem_only")["reason"] == "ecosystem_only"
+    assert (
+        profile("vendor_partner")["evidence"][0]["relationship"] == "vendor_or_partner"
+    )
+    assert profile("non_technical_role")["grade"] == "verified"
+    assert profile("left_company")["grade"] == "verified"
+    stale = profile("stale_evidence")
+    assert min(r["observed_on"] for r in stale["evidence"] if r["observed_on"]) < "2024"
+    # A name is not usage; nor is a page that tells the reader what to think.
+    assert profile("cassandra_name")["grade"] == "unverified"
+    assert profile("injection_page")["grade"] == "unverified"
+    names = [p["name"] for p in key["people"] if p["scenario"] == "cassandra_name"]
+    assert all(n.startswith("Cassandra ") for n in names)
+
+
+# Verifies: specs/user-recognition/requirements.md#1.2
+def test_the_key_holds_real_users_so_precision_and_recall_mean_something() -> None:
+    key = generator.load(generator.ANSWER_KEY)
+    users = [p for p in key["people"] if p["expect"]["usage"]["is_user"]]
+    assert {p["scenario"] for p in users} == {"verified_user"}
+    assert len(users) >= 4
 
 
 def _transport(

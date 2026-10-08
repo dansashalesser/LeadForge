@@ -80,6 +80,7 @@ def test_the_target_company_has_workers_of_every_kind() -> None:
         "worker_no_linkedin",
         "worker_opted_out",
         "worker_customer",
+        "vendor_staff",
     }
     no_linkedin = [p for p in workers if p["scenario"] == "worker_no_linkedin"]
     assert no_linkedin
@@ -158,11 +159,11 @@ async def test_the_scorecard_prints_a_mismatch_count_per_outcome_and_workers_mat
     assert f"mismatches: {card.mismatches}" in text
     assert card.decisions["needs_enrichment"].gathered == 2
     assert card.decisions["rejected"].gathered == 2
-    assert card.decisions["selected"].gathered == 6
+    assert card.decisions["selected"].gathered == 8  # six workers, two vendor_staff
     assert card.mismatches == 0, text
     assert {k: v.gathered for k, v in card.sequences.items()} == {
         "email": 3,
-        "fallback_email": 2,
+        "fallback_email": 4,  # two worker_ignores, two vendor_staff
         "stalled": 1,
     }
 

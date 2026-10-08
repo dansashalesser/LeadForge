@@ -220,8 +220,12 @@ _TITLE_FIT = {
     "CTO": "adjacent",
     "Principal Site Reliability Engineer": "core",
     "Director of Data Engineering": "core",
+    "VP of Sales": "irrelevant",
+    "Head of Marketing": "irrelevant",
 }
 _JUNK_TITLE_SCENARIOS = ("oversized_title", "prompt_injection_title")
+# Right role, right company, but the employment has ended: never a user.
+_LEFT_SCENARIOS = ("left_company",)
 _THIRD_PARTY_HOSTS = ("dbweekly-news.com", "stackradar.io", "infra-digest.com")
 
 # Scenario -> how many people get it. Pair scenarios count people, two per pair.
@@ -292,6 +296,21 @@ SCENARIO_NOTES: dict[str, str] = {
     "hunter_accept_all": "Apollo says verified; Hunter says the domain accepts all",
     "hunter_claimed_email": "Hunter answers 451: the person asked not to be processed",
     "hunter_smtp_failure": "Hunter answers 222 (SMTP failure): Apollo's status stands",
+    # The usage scenarios (user-recognition 1.2): none is a user of the product.
+    "vendor_staff": "Works at the vendor itself: its own staff are never users",
+    "non_technical_role": (
+        "Sales or marketing at a company that does use the product: wrong role"
+    ),
+    "migrated_away": "The company used the product, then published that it moved off",
+    "cassandra_name": "'Cassandra' is the person's first name, not the database",
+    "technographic_only": "Only an Apollo technology tag, no page names the product",
+    "injection_page": "The company page tells the reader to mark every lead qualified",
+    "stale_evidence": "The only proof is a job posting from years ago",
+    "ecosystem_only": "Uses Apache Cassandra, not the vendor's product",
+    "left_company": "At a user company, but the person's employment there has ended",
+    "vendor_partner": "Works at a vendor partner: its pages praise the product",
+    # The positive side, so precision and recall are measured on something.
+    "verified_user": "A core role at a company with two independent proofs of use",
 }
 _ROLE_LOCALS = ("info", "sales", "contact", "hello", "team", "support")
 _WEB_PROFILES = (
@@ -433,15 +452,18 @@ def _base_usage(technologies: list[str]) -> Json:
 
 
 def _usage_expectation(p: Person) -> Json:
-    """``is_user`` is true only for a person with a role on the product at a company
-    that really uses it now; the vendor's own staff never are."""
+    """``is_user`` is true only for a current core-role person at a ``verified``
+    company. A ``likely`` company needs a person boost the demo never gives, so it is
+    review material, not a user; the vendor's staff and a person who left never are."""
     assert p.company.usage is not None, p.company.domain
     grade = p.company.usage["grade"]
     fit = "core" if p.scenario in _JUNK_TITLE_SCENARIOS else _TITLE_FIT[p.title]
     return {
         "company_usage": grade,
         "person_fit": fit,
-        "is_user": grade in ("verified", "likely") and fit != "irrelevant",
+        "is_user": grade == "verified"
+        and fit == "core"
+        and p.scenario not in _LEFT_SCENARIOS,
     }
 
 
@@ -1286,10 +1308,12 @@ def build(seed: int = SEED) -> dict[str, Json]:
         "google_search": _google_table(rng, companies),
         ANSWER_KEY: key,
     }
-    # The outreach people come last, from their own random generator, so every record
-    # above is the same as before they existed.
+    # The usage people and the outreach people come last, each from a random generator
+    # of its own, so every record above is the same as before they existed.
     from leadforge.lead_ingestion.demo.outreach_data import extend
+    from leadforge.lead_ingestion.demo.usage_data import extend as extend_usage
 
+    extend_usage(tables)
     extend(tables)
     return tables
 

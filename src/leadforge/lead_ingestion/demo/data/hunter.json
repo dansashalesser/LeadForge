@@ -8617,93 +8617,37 @@
     }
    }
   },
-  "datastax.com": {
+  "brackenridgeretail.com": {
    "data": {
-    "domain": "datastax.com",
+    "domain": "brackenridgeretail.com",
     "disposable": false,
     "webmail": false,
     "accept_all": false,
     "pattern": "{first}.{last}",
-    "organization": "DataStax",
+    "organization": "Brackenridge Retail",
     "linked_domains": [],
     "emails": [
      {
-      "value": "zelda.cavendish@datastax.com",
+      "value": "cosima.hargreaves@brackenridgeretail.com",
       "type": "personal",
-      "confidence": 78,
+      "confidence": 91,
       "sources": [
        {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-02-14",
-        "last_seen_on": "2026-07-17",
+        "domain": "brackenridgeretail.com",
+        "uri": "https://brackenridgeretail.com/about/team",
+        "extracted_on": "2025-05-28",
+        "last_seen_on": "2026-03-28",
         "still_on_page": true
        }
       ],
-      "first_name": "Zelda",
-      "last_name": "Cavendish",
-      "position": "Director of Infrastructure",
-      "position_raw": "Director of Infrastructure",
-      "seniority": "senior",
-      "department": "it",
-      "decision_maker": false,
-      "linkedin": "http://www.linkedin.com/in/zelda-cavendish-450a",
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "nils.lockridge@datastax.com",
-      "type": "personal",
-      "confidence": 86,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-08-16",
-        "last_seen_on": "2026-07-03",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Nils",
-      "last_name": "Lockridge",
-      "position": "Staff Database Engineer",
-      "position_raw": "Staff Database Engineer",
-      "seniority": "senior",
-      "department": "it",
-      "decision_maker": false,
-      "linkedin": "http://www.linkedin.com/in/nils-lockridge-d43e",
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "isolde.thibodeaux@datastax.com",
-      "type": "personal",
-      "confidence": 66,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-01-22",
-        "last_seen_on": "2026-06-27",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Isolde",
-      "last_name": "Thibodeaux",
-      "position": "VP Engineering",
-      "position_raw": "VP Engineering",
+      "first_name": "Cosima",
+      "last_name": "Hargreaves",
+      "position": "VP of Sales",
+      "position_raw": "VP of Sales",
       "seniority": "executive",
       "department": "it",
       "decision_maker": true,
-      "linkedin": "http://www.linkedin.com/in/isolde-thibodeaux-f6ef",
+      "linkedin": "http://www.linkedin.com/in/cosima-hargreaves-026c",
       "twitter": null,
       "phone_number": null,
       "verification": {
@@ -8712,110 +8656,26 @@
       }
      },
      {
-      "value": "odette.nakashima@datastax.com",
+      "value": "gideon.lindqvist@brackenridgeretail.com",
       "type": "personal",
-      "confidence": 83,
+      "confidence": 68,
       "sources": [
        {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-02-01",
-        "last_seen_on": "2026-07-04",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Odette",
-      "last_name": "Nakashima",
-      "position": "Principal Site Reliability Engineer",
-      "position_raw": "Principal Site Reliability Engineer",
-      "seniority": "senior",
-      "department": "it",
-      "decision_maker": false,
-      "linkedin": "http://www.linkedin.com/in/odette-nakashima-9a6f",
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "nils.rasmussen@datastax.com",
-      "type": "personal",
-      "confidence": 92,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-01-13",
-        "last_seen_on": "2026-01-19",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Nils",
-      "last_name": "Rasmussen",
-      "position": "Director of Infrastructure",
-      "position_raw": "Director of Infrastructure",
-      "seniority": "senior",
-      "department": "it",
-      "decision_maker": false,
-      "linkedin": "http://www.linkedin.com/in/nils-rasmussen-2a8b",
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "celine.underhill@datastax.com",
-      "type": "personal",
-      "confidence": 73,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-06-14",
-        "last_seen_on": "2026-01-03",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Celine",
-      "last_name": "Underhill",
-      "position": "Engineering Manager, Storage",
-      "position_raw": "Engineering Manager, Storage",
-      "seniority": "senior",
-      "department": "it",
-      "decision_maker": false,
-      "linkedin": null,
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "gideon.pemberton@datastax.com",
-      "type": "personal",
-      "confidence": 77,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-07-23",
-        "last_seen_on": "2026-07-01",
+        "domain": "brackenridgeretail.com",
+        "uri": "https://brackenridgeretail.com/about/team",
+        "extracted_on": "2025-03-22",
+        "last_seen_on": "2026-06-18",
         "still_on_page": true
        }
       ],
       "first_name": "Gideon",
-      "last_name": "Pemberton",
-      "position": "Director of Infrastructure",
-      "position_raw": "Director of Infrastructure",
+      "last_name": "Lindqvist",
+      "position": "Head of Marketing",
+      "position_raw": "Head of Marketing",
       "seniority": "senior",
       "department": "it",
       "decision_maker": false,
-      "linkedin": null,
+      "linkedin": "http://www.linkedin.com/in/gideon-lindqvist-2459",
       "twitter": null,
       "phone_number": null,
       "verification": {
@@ -8824,71 +8684,15 @@
       }
      },
      {
-      "value": "joaquin.valderrama@datastax.com",
-      "type": "personal",
-      "confidence": 62,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-07-15",
-        "last_seen_on": "2026-06-25",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Joaquin",
-      "last_name": "Valderrama",
-      "position": "VP Engineering",
-      "position_raw": "VP Engineering",
-      "seniority": "executive",
-      "department": "it",
-      "decision_maker": true,
-      "linkedin": "http://www.linkedin.com/in/joaquin-valderrama-9def",
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "tamsin.valderrama@datastax.com",
-      "type": "personal",
-      "confidence": 85,
-      "sources": [
-       {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-01-18",
-        "last_seen_on": "2026-06-20",
-        "still_on_page": true
-       }
-      ],
-      "first_name": "Tamsin",
-      "last_name": "Valderrama",
-      "position": "Director of Data Engineering",
-      "position_raw": "Director of Data Engineering",
-      "seniority": "senior",
-      "department": "it",
-      "decision_maker": false,
-      "linkedin": "http://www.linkedin.com/in/tamsin-valderrama-cc74",
-      "twitter": null,
-      "phone_number": null,
-      "verification": {
-       "date": "2026-09-02",
-       "status": "valid"
-      }
-     },
-     {
-      "value": "info@datastax.com",
+      "value": "info@brackenridgeretail.com",
       "type": "generic",
       "confidence": 91,
       "sources": [
        {
-        "domain": "datastax.com",
-        "uri": "https://datastax.com/about/team",
-        "extracted_on": "2025-01-13",
-        "last_seen_on": "2026-05-04",
+        "domain": "brackenridgeretail.com",
+        "uri": "https://brackenridgeretail.com/about/team",
+        "extracted_on": "2025-01-23",
+        "last_seen_on": "2026-03-23",
         "still_on_page": true
        }
       ],
@@ -8910,7 +8714,1591 @@
     ]
    },
    "meta": {
-    "results": 10,
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "brackenridgeretail.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "callowaylogistics.com": {
+   "data": {
+    "domain": "callowaylogistics.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Calloway Logistics",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "greta.holloway@callowaylogistics.com",
+      "type": "personal",
+      "confidence": 80,
+      "sources": [
+       {
+        "domain": "callowaylogistics.com",
+        "uri": "https://callowaylogistics.com/about/team",
+        "extracted_on": "2025-07-14",
+        "last_seen_on": "2026-07-24",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Greta",
+      "last_name": "Holloway",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/greta-holloway-6ed9",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "yusuf.quintanilla@callowaylogistics.com",
+      "type": "personal",
+      "confidence": 65,
+      "sources": [
+       {
+        "domain": "callowaylogistics.com",
+        "uri": "https://callowaylogistics.com/about/team",
+        "extracted_on": "2025-09-26",
+        "last_seen_on": "2026-08-19",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Yusuf",
+      "last_name": "Quintanilla",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/yusuf-quintanilla-9288",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@callowaylogistics.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "callowaylogistics.com",
+        "uri": "https://callowaylogistics.com/about/team",
+        "extracted_on": "2025-07-16",
+        "last_seen_on": "2026-06-11",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "callowaylogistics.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "dunmoredesign.io": {
+   "data": {
+    "domain": "dunmoredesign.io",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Dunmore Design",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "cassandra.bellweather@dunmoredesign.io",
+      "type": "personal",
+      "confidence": 62,
+      "sources": [
+       {
+        "domain": "dunmoredesign.io",
+        "uri": "https://dunmoredesign.io/about/team",
+        "extracted_on": "2025-03-20",
+        "last_seen_on": "2026-05-22",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Cassandra",
+      "last_name": "Bellweather",
+      "position": "Engineering Manager, Storage",
+      "position_raw": "Engineering Manager, Storage",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/cassandra-bellweather-553e",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "cassandra.eskildsen@dunmoredesign.io",
+      "type": "personal",
+      "confidence": 75,
+      "sources": [
+       {
+        "domain": "dunmoredesign.io",
+        "uri": "https://dunmoredesign.io/about/team",
+        "extracted_on": "2025-08-04",
+        "last_seen_on": "2026-03-05",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Cassandra",
+      "last_name": "Eskildsen",
+      "position": "Engineering Manager, Storage",
+      "position_raw": "Engineering Manager, Storage",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/cassandra-eskildsen-1aa5",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@dunmoredesign.io",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "dunmoredesign.io",
+        "uri": "https://dunmoredesign.io/about/team",
+        "extracted_on": "2025-02-10",
+        "last_seen_on": "2026-08-10",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "dunmoredesign.io",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "eastgatefreight.com": {
+   "data": {
+    "domain": "eastgatefreight.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Eastgate Freight",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "nils.yarborough@eastgatefreight.com",
+      "type": "personal",
+      "confidence": 78,
+      "sources": [
+       {
+        "domain": "eastgatefreight.com",
+        "uri": "https://eastgatefreight.com/about/team",
+        "extracted_on": "2025-07-07",
+        "last_seen_on": "2026-05-01",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Nils",
+      "last_name": "Yarborough",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/nils-yarborough-b72d",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "dmitri.achterberg@eastgatefreight.com",
+      "type": "personal",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "eastgatefreight.com",
+        "uri": "https://eastgatefreight.com/about/team",
+        "extracted_on": "2025-06-07",
+        "last_seen_on": "2026-05-19",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Dmitri",
+      "last_name": "Achterberg",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/dmitri-achterberg-61df",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@eastgatefreight.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "eastgatefreight.com",
+        "uri": "https://eastgatefreight.com/about/team",
+        "extracted_on": "2025-03-05",
+        "last_seen_on": "2026-06-26",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "eastgatefreight.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "fenwickanalytics.io": {
+   "data": {
+    "domain": "fenwickanalytics.io",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Fenwick Analytics",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "bram.ellsworth@fenwickanalytics.io",
+      "type": "personal",
+      "confidence": 75,
+      "sources": [
+       {
+        "domain": "fenwickanalytics.io",
+        "uri": "https://fenwickanalytics.io/about/team",
+        "extracted_on": "2025-09-19",
+        "last_seen_on": "2026-03-20",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Bram",
+      "last_name": "Ellsworth",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/bram-ellsworth-ac7b",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "florian.kensington@fenwickanalytics.io",
+      "type": "personal",
+      "confidence": 97,
+      "sources": [
+       {
+        "domain": "fenwickanalytics.io",
+        "uri": "https://fenwickanalytics.io/about/team",
+        "extracted_on": "2025-01-17",
+        "last_seen_on": "2026-01-21",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Florian",
+      "last_name": "Kensington",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/florian-kensington-aadf",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@fenwickanalytics.io",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "fenwickanalytics.io",
+        "uri": "https://fenwickanalytics.io/about/team",
+        "extracted_on": "2025-01-26",
+        "last_seen_on": "2026-03-28",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "fenwickanalytics.io",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "garrowbymedia.com": {
+   "data": {
+    "domain": "garrowbymedia.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Garrowby Media",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "ines.whitcombe@garrowbymedia.com",
+      "type": "personal",
+      "confidence": 78,
+      "sources": [
+       {
+        "domain": "garrowbymedia.com",
+        "uri": "https://garrowbymedia.com/about/team",
+        "extracted_on": "2025-03-20",
+        "last_seen_on": "2026-01-11",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Ines",
+      "last_name": "Whitcombe",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/ines-whitcombe-df5a",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "isolde.pemberton@garrowbymedia.com",
+      "type": "personal",
+      "confidence": 94,
+      "sources": [
+       {
+        "domain": "garrowbymedia.com",
+        "uri": "https://garrowbymedia.com/about/team",
+        "extracted_on": "2025-07-23",
+        "last_seen_on": "2026-03-05",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Isolde",
+      "last_name": "Pemberton",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/isolde-pemberton-eabd",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@garrowbymedia.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "garrowbymedia.com",
+        "uri": "https://garrowbymedia.com/about/team",
+        "extracted_on": "2025-02-24",
+        "last_seen_on": "2026-01-09",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "garrowbymedia.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "hollistelecom.com": {
+   "data": {
+    "domain": "hollistelecom.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Hollis Telecom",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "hamish.castellanos@hollistelecom.com",
+      "type": "personal",
+      "confidence": 84,
+      "sources": [
+       {
+        "domain": "hollistelecom.com",
+        "uri": "https://hollistelecom.com/about/team",
+        "extracted_on": "2025-01-28",
+        "last_seen_on": "2026-01-22",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Hamish",
+      "last_name": "Castellanos",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/hamish-castellanos-e60f",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "zelda.kowalczyk@hollistelecom.com",
+      "type": "personal",
+      "confidence": 65,
+      "sources": [
+       {
+        "domain": "hollistelecom.com",
+        "uri": "https://hollistelecom.com/about/team",
+        "extracted_on": "2025-04-01",
+        "last_seen_on": "2026-04-16",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Zelda",
+      "last_name": "Kowalczyk",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/zelda-kowalczyk-fb80",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@hollistelecom.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "hollistelecom.com",
+        "uri": "https://hollistelecom.com/about/team",
+        "extracted_on": "2025-09-12",
+        "last_seen_on": "2026-06-13",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "hollistelecom.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "inglebypayments.com": {
+   "data": {
+    "domain": "inglebypayments.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Ingleby Payments",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "mireille.holloway@inglebypayments.com",
+      "type": "personal",
+      "confidence": 74,
+      "sources": [
+       {
+        "domain": "inglebypayments.com",
+        "uri": "https://inglebypayments.com/about/team",
+        "extracted_on": "2025-06-12",
+        "last_seen_on": "2026-09-28",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Mireille",
+      "last_name": "Holloway",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/mireille-holloway-86a2",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "pavel.jablonski@inglebypayments.com",
+      "type": "personal",
+      "confidence": 85,
+      "sources": [
+       {
+        "domain": "inglebypayments.com",
+        "uri": "https://inglebypayments.com/about/team",
+        "extracted_on": "2025-09-22",
+        "last_seen_on": "2026-08-10",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Pavel",
+      "last_name": "Jablonski",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/pavel-jablonski-305a",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@inglebypayments.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "inglebypayments.com",
+        "uri": "https://inglebypayments.com/about/team",
+        "extracted_on": "2025-06-19",
+        "last_seen_on": "2026-07-19",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "inglebypayments.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "jessopdatapartners.com": {
+   "data": {
+    "domain": "jessopdatapartners.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Jessop Data Partners",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "soren.thibodeaux@jessopdatapartners.com",
+      "type": "personal",
+      "confidence": 98,
+      "sources": [
+       {
+        "domain": "jessopdatapartners.com",
+        "uri": "https://jessopdatapartners.com/about/team",
+        "extracted_on": "2025-09-06",
+        "last_seen_on": "2026-03-08",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Soren",
+      "last_name": "Thibodeaux",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/soren-thibodeaux-066f",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "xiomara.fairbairn@jessopdatapartners.com",
+      "type": "personal",
+      "confidence": 67,
+      "sources": [
+       {
+        "domain": "jessopdatapartners.com",
+        "uri": "https://jessopdatapartners.com/about/team",
+        "extracted_on": "2025-09-25",
+        "last_seen_on": "2026-02-12",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Xiomara",
+      "last_name": "Fairbairn",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/xiomara-fairbairn-89af",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@jessopdatapartners.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "jessopdatapartners.com",
+        "uri": "https://jessopdatapartners.com/about/team",
+        "extracted_on": "2025-06-19",
+        "last_seen_on": "2026-02-21",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "jessopdatapartners.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "kestrelhealth.com": {
+   "data": {
+    "domain": "kestrelhealth.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Kestrel Health",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "bastian.lindqvist@kestrelhealth.com",
+      "type": "personal",
+      "confidence": 66,
+      "sources": [
+       {
+        "domain": "kestrelhealth.com",
+        "uri": "https://kestrelhealth.com/about/team",
+        "extracted_on": "2025-02-19",
+        "last_seen_on": "2026-06-28",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Bastian",
+      "last_name": "Lindqvist",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/bastian-lindqvist-1477",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "vesna.valderrama@kestrelhealth.com",
+      "type": "personal",
+      "confidence": 67,
+      "sources": [
+       {
+        "domain": "kestrelhealth.com",
+        "uri": "https://kestrelhealth.com/about/team",
+        "extracted_on": "2025-06-12",
+        "last_seen_on": "2026-06-13",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Vesna",
+      "last_name": "Valderrama",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/vesna-valderrama-7ea7",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@kestrelhealth.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "kestrelhealth.com",
+        "uri": "https://kestrelhealth.com/about/team",
+        "extracted_on": "2025-04-03",
+        "last_seen_on": "2026-02-14",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "kestrelhealth.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "lindqvistenergy.io": {
+   "data": {
+    "domain": "lindqvistenergy.io",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Lindqvist Energy",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "vesna.eskildsen@lindqvistenergy.io",
+      "type": "personal",
+      "confidence": 80,
+      "sources": [
+       {
+        "domain": "lindqvistenergy.io",
+        "uri": "https://lindqvistenergy.io/about/team",
+        "extracted_on": "2025-06-25",
+        "last_seen_on": "2026-02-24",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Vesna",
+      "last_name": "Eskildsen",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/vesna-eskildsen-4098",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "vesna.szymanski@lindqvistenergy.io",
+      "type": "personal",
+      "confidence": 93,
+      "sources": [
+       {
+        "domain": "lindqvistenergy.io",
+        "uri": "https://lindqvistenergy.io/about/team",
+        "extracted_on": "2025-07-22",
+        "last_seen_on": "2026-08-03",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Vesna",
+      "last_name": "Szymanski",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/vesna-szymanski-4907",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@lindqvistenergy.io",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "lindqvistenergy.io",
+        "uri": "https://lindqvistenergy.io/about/team",
+        "extracted_on": "2025-06-24",
+        "last_seen_on": "2026-06-24",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "lindqvistenergy.io",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "marlowegaming.com": {
+   "data": {
+    "domain": "marlowegaming.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Marlowe Gaming",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "tamsin.yarborough@marlowegaming.com",
+      "type": "personal",
+      "confidence": 92,
+      "sources": [
+       {
+        "domain": "marlowegaming.com",
+        "uri": "https://marlowegaming.com/about/team",
+        "extracted_on": "2025-02-15",
+        "last_seen_on": "2026-04-26",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Tamsin",
+      "last_name": "Yarborough",
+      "position": "Head of Data Platform",
+      "position_raw": "Head of Data Platform",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/tamsin-yarborough-a6aa",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "cosima.thibodeaux@marlowegaming.com",
+      "type": "personal",
+      "confidence": 84,
+      "sources": [
+       {
+        "domain": "marlowegaming.com",
+        "uri": "https://marlowegaming.com/about/team",
+        "extracted_on": "2025-09-20",
+        "last_seen_on": "2026-02-25",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Cosima",
+      "last_name": "Thibodeaux",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/cosima-thibodeaux-5042",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@marlowegaming.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "marlowegaming.com",
+        "uri": "https://marlowegaming.com/about/team",
+        "extracted_on": "2025-04-09",
+        "last_seen_on": "2026-06-10",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 3,
+    "results_approximate": false,
+    "limit": 100,
+    "offset": 0,
+    "params": {
+     "domain": "marlowegaming.com",
+     "company": null,
+     "type": null,
+     "seniority": null,
+     "department": null,
+     "decision_maker": null
+    }
+   }
+  },
+  "datastax.com": {
+   "data": {
+    "domain": "datastax.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "DataStax",
+    "linked_domains": [],
+    "emails": [
+     {
+      "value": "zelda.cavendish@datastax.com",
+      "type": "personal",
+      "confidence": 89,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-06-25",
+        "last_seen_on": "2026-06-01",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Zelda",
+      "last_name": "Cavendish",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/zelda-cavendish-450a",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "nils.lockridge@datastax.com",
+      "type": "personal",
+      "confidence": 84,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-05-21",
+        "last_seen_on": "2026-06-18",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Nils",
+      "last_name": "Lockridge",
+      "position": "Staff Database Engineer",
+      "position_raw": "Staff Database Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/nils-lockridge-d43e",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "isolde.thibodeaux@datastax.com",
+      "type": "personal",
+      "confidence": 81,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-04-20",
+        "last_seen_on": "2026-03-04",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Isolde",
+      "last_name": "Thibodeaux",
+      "position": "VP Engineering",
+      "position_raw": "VP Engineering",
+      "seniority": "executive",
+      "department": "it",
+      "decision_maker": true,
+      "linkedin": "http://www.linkedin.com/in/isolde-thibodeaux-f6ef",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "odette.nakashima@datastax.com",
+      "type": "personal",
+      "confidence": 98,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-07-03",
+        "last_seen_on": "2026-04-28",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Odette",
+      "last_name": "Nakashima",
+      "position": "Principal Site Reliability Engineer",
+      "position_raw": "Principal Site Reliability Engineer",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/odette-nakashima-9a6f",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "nils.rasmussen@datastax.com",
+      "type": "personal",
+      "confidence": 67,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-09-08",
+        "last_seen_on": "2026-06-06",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Nils",
+      "last_name": "Rasmussen",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/nils-rasmussen-2a8b",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "celine.underhill@datastax.com",
+      "type": "personal",
+      "confidence": 93,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-04-18",
+        "last_seen_on": "2026-02-14",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Celine",
+      "last_name": "Underhill",
+      "position": "Engineering Manager, Storage",
+      "position_raw": "Engineering Manager, Storage",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "gideon.pemberton@datastax.com",
+      "type": "personal",
+      "confidence": 84,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-07-17",
+        "last_seen_on": "2026-02-23",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Gideon",
+      "last_name": "Pemberton",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "joaquin.valderrama@datastax.com",
+      "type": "personal",
+      "confidence": 63,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-03-20",
+        "last_seen_on": "2026-08-04",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Joaquin",
+      "last_name": "Valderrama",
+      "position": "VP Engineering",
+      "position_raw": "VP Engineering",
+      "seniority": "executive",
+      "department": "it",
+      "decision_maker": true,
+      "linkedin": "http://www.linkedin.com/in/joaquin-valderrama-9def",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "tamsin.valderrama@datastax.com",
+      "type": "personal",
+      "confidence": 87,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-09-13",
+        "last_seen_on": "2026-07-28",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Tamsin",
+      "last_name": "Valderrama",
+      "position": "Director of Data Engineering",
+      "position_raw": "Director of Data Engineering",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/tamsin-valderrama-cc74",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "anouk.abernathy@datastax.com",
+      "type": "personal",
+      "confidence": 62,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-06-22",
+        "last_seen_on": "2026-03-07",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Anouk",
+      "last_name": "Abernathy",
+      "position": "Director of Infrastructure",
+      "position_raw": "Director of Infrastructure",
+      "seniority": "senior",
+      "department": "it",
+      "decision_maker": false,
+      "linkedin": "http://www.linkedin.com/in/anouk-abernathy-0dd9",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "pavel.fitzgerald@datastax.com",
+      "type": "personal",
+      "confidence": 84,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-04-27",
+        "last_seen_on": "2026-07-24",
+        "still_on_page": true
+       }
+      ],
+      "first_name": "Pavel",
+      "last_name": "Fitzgerald",
+      "position": "VP Engineering",
+      "position_raw": "VP Engineering",
+      "seniority": "executive",
+      "department": "it",
+      "decision_maker": true,
+      "linkedin": "http://www.linkedin.com/in/pavel-fitzgerald-c077",
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     },
+     {
+      "value": "info@datastax.com",
+      "type": "generic",
+      "confidence": 91,
+      "sources": [
+       {
+        "domain": "datastax.com",
+        "uri": "https://datastax.com/about/team",
+        "extracted_on": "2025-02-01",
+        "last_seen_on": "2026-03-21",
+        "still_on_page": true
+       }
+      ],
+      "first_name": null,
+      "last_name": null,
+      "position": null,
+      "position_raw": null,
+      "seniority": null,
+      "department": null,
+      "decision_maker": false,
+      "linkedin": null,
+      "twitter": null,
+      "phone_number": null,
+      "verification": {
+       "date": "2026-09-02",
+       "status": "valid"
+      }
+     }
+    ]
+   },
+   "meta": {
+    "results": 12,
     "results_approximate": false,
     "limit": 100,
     "offset": 0,
@@ -18036,10 +19424,922 @@
   },
   {
    "data": {
+    "first_name": "Cosima",
+    "last_name": "Hargreaves",
+    "email": "cosima.hargreaves@brackenridgeretail.com",
+    "score": 80,
+    "domain": "brackenridgeretail.com",
+    "accept_all": false,
+    "position": "VP of Sales",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/cosima-hargreaves-026c",
+    "phone_number": null,
+    "company": "Brackenridge Retail",
+    "sources": [
+     {
+      "domain": "brackenridgeretail.com",
+      "uri": "https://brackenridgeretail.com/about/team",
+      "extracted_on": "2025-01-03",
+      "last_seen_on": "2026-09-18",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Cosima",
+     "last_name": "Hargreaves",
+     "full_name": null,
+     "domain": "brackenridgeretail.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Gideon",
+    "last_name": "Lindqvist",
+    "email": "gideon.lindqvist@brackenridgeretail.com",
+    "score": 97,
+    "domain": "brackenridgeretail.com",
+    "accept_all": false,
+    "position": "Head of Marketing",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/gideon-lindqvist-2459",
+    "phone_number": null,
+    "company": "Brackenridge Retail",
+    "sources": [
+     {
+      "domain": "brackenridgeretail.com",
+      "uri": "https://brackenridgeretail.com/about/team",
+      "extracted_on": "2025-09-08",
+      "last_seen_on": "2026-08-03",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Gideon",
+     "last_name": "Lindqvist",
+     "full_name": null,
+     "domain": "brackenridgeretail.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Greta",
+    "last_name": "Holloway",
+    "email": "greta.holloway@callowaylogistics.com",
+    "score": 78,
+    "domain": "callowaylogistics.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/greta-holloway-6ed9",
+    "phone_number": null,
+    "company": "Calloway Logistics",
+    "sources": [
+     {
+      "domain": "callowaylogistics.com",
+      "uri": "https://callowaylogistics.com/about/team",
+      "extracted_on": "2025-09-02",
+      "last_seen_on": "2026-08-14",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Greta",
+     "last_name": "Holloway",
+     "full_name": null,
+     "domain": "callowaylogistics.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Yusuf",
+    "last_name": "Quintanilla",
+    "email": "yusuf.quintanilla@callowaylogistics.com",
+    "score": 98,
+    "domain": "callowaylogistics.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/yusuf-quintanilla-9288",
+    "phone_number": null,
+    "company": "Calloway Logistics",
+    "sources": [
+     {
+      "domain": "callowaylogistics.com",
+      "uri": "https://callowaylogistics.com/about/team",
+      "extracted_on": "2025-03-15",
+      "last_seen_on": "2026-03-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Yusuf",
+     "last_name": "Quintanilla",
+     "full_name": null,
+     "domain": "callowaylogistics.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Cassandra",
+    "last_name": "Bellweather",
+    "email": "cassandra.bellweather@dunmoredesign.io",
+    "score": 93,
+    "domain": "dunmoredesign.io",
+    "accept_all": false,
+    "position": "Engineering Manager, Storage",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/cassandra-bellweather-553e",
+    "phone_number": null,
+    "company": "Dunmore Design",
+    "sources": [
+     {
+      "domain": "dunmoredesign.io",
+      "uri": "https://dunmoredesign.io/about/team",
+      "extracted_on": "2025-05-25",
+      "last_seen_on": "2026-08-15",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Cassandra",
+     "last_name": "Bellweather",
+     "full_name": null,
+     "domain": "dunmoredesign.io",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Cassandra",
+    "last_name": "Eskildsen",
+    "email": "cassandra.eskildsen@dunmoredesign.io",
+    "score": 75,
+    "domain": "dunmoredesign.io",
+    "accept_all": false,
+    "position": "Engineering Manager, Storage",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/cassandra-eskildsen-1aa5",
+    "phone_number": null,
+    "company": "Dunmore Design",
+    "sources": [
+     {
+      "domain": "dunmoredesign.io",
+      "uri": "https://dunmoredesign.io/about/team",
+      "extracted_on": "2025-04-01",
+      "last_seen_on": "2026-05-13",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Cassandra",
+     "last_name": "Eskildsen",
+     "full_name": null,
+     "domain": "dunmoredesign.io",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Nils",
+    "last_name": "Yarborough",
+    "email": "nils.yarborough@eastgatefreight.com",
+    "score": 86,
+    "domain": "eastgatefreight.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/nils-yarborough-b72d",
+    "phone_number": null,
+    "company": "Eastgate Freight",
+    "sources": [
+     {
+      "domain": "eastgatefreight.com",
+      "uri": "https://eastgatefreight.com/about/team",
+      "extracted_on": "2025-02-15",
+      "last_seen_on": "2026-08-19",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Nils",
+     "last_name": "Yarborough",
+     "full_name": null,
+     "domain": "eastgatefreight.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Dmitri",
+    "last_name": "Achterberg",
+    "email": "dmitri.achterberg@eastgatefreight.com",
+    "score": 98,
+    "domain": "eastgatefreight.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/dmitri-achterberg-61df",
+    "phone_number": null,
+    "company": "Eastgate Freight",
+    "sources": [
+     {
+      "domain": "eastgatefreight.com",
+      "uri": "https://eastgatefreight.com/about/team",
+      "extracted_on": "2025-04-01",
+      "last_seen_on": "2026-02-10",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Dmitri",
+     "last_name": "Achterberg",
+     "full_name": null,
+     "domain": "eastgatefreight.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Bram",
+    "last_name": "Ellsworth",
+    "email": "bram.ellsworth@fenwickanalytics.io",
+    "score": 95,
+    "domain": "fenwickanalytics.io",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/bram-ellsworth-ac7b",
+    "phone_number": null,
+    "company": "Fenwick Analytics",
+    "sources": [
+     {
+      "domain": "fenwickanalytics.io",
+      "uri": "https://fenwickanalytics.io/about/team",
+      "extracted_on": "2025-05-19",
+      "last_seen_on": "2026-02-12",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Bram",
+     "last_name": "Ellsworth",
+     "full_name": null,
+     "domain": "fenwickanalytics.io",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Florian",
+    "last_name": "Kensington",
+    "email": "florian.kensington@fenwickanalytics.io",
+    "score": 77,
+    "domain": "fenwickanalytics.io",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/florian-kensington-aadf",
+    "phone_number": null,
+    "company": "Fenwick Analytics",
+    "sources": [
+     {
+      "domain": "fenwickanalytics.io",
+      "uri": "https://fenwickanalytics.io/about/team",
+      "extracted_on": "2025-06-19",
+      "last_seen_on": "2026-02-27",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Florian",
+     "last_name": "Kensington",
+     "full_name": null,
+     "domain": "fenwickanalytics.io",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Ines",
+    "last_name": "Whitcombe",
+    "email": "ines.whitcombe@garrowbymedia.com",
+    "score": 96,
+    "domain": "garrowbymedia.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/ines-whitcombe-df5a",
+    "phone_number": null,
+    "company": "Garrowby Media",
+    "sources": [
+     {
+      "domain": "garrowbymedia.com",
+      "uri": "https://garrowbymedia.com/about/team",
+      "extracted_on": "2025-06-03",
+      "last_seen_on": "2026-01-14",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Ines",
+     "last_name": "Whitcombe",
+     "full_name": null,
+     "domain": "garrowbymedia.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Isolde",
+    "last_name": "Pemberton",
+    "email": "isolde.pemberton@garrowbymedia.com",
+    "score": 76,
+    "domain": "garrowbymedia.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/isolde-pemberton-eabd",
+    "phone_number": null,
+    "company": "Garrowby Media",
+    "sources": [
+     {
+      "domain": "garrowbymedia.com",
+      "uri": "https://garrowbymedia.com/about/team",
+      "extracted_on": "2025-01-02",
+      "last_seen_on": "2026-03-12",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Isolde",
+     "last_name": "Pemberton",
+     "full_name": null,
+     "domain": "garrowbymedia.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Hamish",
+    "last_name": "Castellanos",
+    "email": "hamish.castellanos@hollistelecom.com",
+    "score": 80,
+    "domain": "hollistelecom.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/hamish-castellanos-e60f",
+    "phone_number": null,
+    "company": "Hollis Telecom",
+    "sources": [
+     {
+      "domain": "hollistelecom.com",
+      "uri": "https://hollistelecom.com/about/team",
+      "extracted_on": "2025-04-26",
+      "last_seen_on": "2026-05-12",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Hamish",
+     "last_name": "Castellanos",
+     "full_name": null,
+     "domain": "hollistelecom.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Zelda",
+    "last_name": "Kowalczyk",
+    "email": "zelda.kowalczyk@hollistelecom.com",
+    "score": 83,
+    "domain": "hollistelecom.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/zelda-kowalczyk-fb80",
+    "phone_number": null,
+    "company": "Hollis Telecom",
+    "sources": [
+     {
+      "domain": "hollistelecom.com",
+      "uri": "https://hollistelecom.com/about/team",
+      "extracted_on": "2025-02-02",
+      "last_seen_on": "2026-03-11",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Zelda",
+     "last_name": "Kowalczyk",
+     "full_name": null,
+     "domain": "hollistelecom.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Mireille",
+    "last_name": "Holloway",
+    "email": "mireille.holloway@inglebypayments.com",
+    "score": 78,
+    "domain": "inglebypayments.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/mireille-holloway-86a2",
+    "phone_number": null,
+    "company": "Ingleby Payments",
+    "sources": [
+     {
+      "domain": "inglebypayments.com",
+      "uri": "https://inglebypayments.com/about/team",
+      "extracted_on": "2025-07-01",
+      "last_seen_on": "2026-08-12",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Mireille",
+     "last_name": "Holloway",
+     "full_name": null,
+     "domain": "inglebypayments.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Pavel",
+    "last_name": "Jablonski",
+    "email": "pavel.jablonski@inglebypayments.com",
+    "score": 83,
+    "domain": "inglebypayments.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/pavel-jablonski-305a",
+    "phone_number": null,
+    "company": "Ingleby Payments",
+    "sources": [
+     {
+      "domain": "inglebypayments.com",
+      "uri": "https://inglebypayments.com/about/team",
+      "extracted_on": "2025-02-06",
+      "last_seen_on": "2026-03-21",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Pavel",
+     "last_name": "Jablonski",
+     "full_name": null,
+     "domain": "inglebypayments.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Soren",
+    "last_name": "Thibodeaux",
+    "email": "soren.thibodeaux@jessopdatapartners.com",
+    "score": 98,
+    "domain": "jessopdatapartners.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/soren-thibodeaux-066f",
+    "phone_number": null,
+    "company": "Jessop Data Partners",
+    "sources": [
+     {
+      "domain": "jessopdatapartners.com",
+      "uri": "https://jessopdatapartners.com/about/team",
+      "extracted_on": "2025-02-06",
+      "last_seen_on": "2026-06-13",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Soren",
+     "last_name": "Thibodeaux",
+     "full_name": null,
+     "domain": "jessopdatapartners.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Xiomara",
+    "last_name": "Fairbairn",
+    "email": "xiomara.fairbairn@jessopdatapartners.com",
+    "score": 71,
+    "domain": "jessopdatapartners.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/xiomara-fairbairn-89af",
+    "phone_number": null,
+    "company": "Jessop Data Partners",
+    "sources": [
+     {
+      "domain": "jessopdatapartners.com",
+      "uri": "https://jessopdatapartners.com/about/team",
+      "extracted_on": "2025-04-09",
+      "last_seen_on": "2026-05-28",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Xiomara",
+     "last_name": "Fairbairn",
+     "full_name": null,
+     "domain": "jessopdatapartners.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Bastian",
+    "last_name": "Lindqvist",
+    "email": "bastian.lindqvist@kestrelhealth.com",
+    "score": 87,
+    "domain": "kestrelhealth.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/bastian-lindqvist-1477",
+    "phone_number": null,
+    "company": "Kestrel Health",
+    "sources": [
+     {
+      "domain": "kestrelhealth.com",
+      "uri": "https://kestrelhealth.com/about/team",
+      "extracted_on": "2025-01-17",
+      "last_seen_on": "2026-09-24",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Bastian",
+     "last_name": "Lindqvist",
+     "full_name": null,
+     "domain": "kestrelhealth.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Vesna",
+    "last_name": "Valderrama",
+    "email": "vesna.valderrama@kestrelhealth.com",
+    "score": 92,
+    "domain": "kestrelhealth.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/vesna-valderrama-7ea7",
+    "phone_number": null,
+    "company": "Kestrel Health",
+    "sources": [
+     {
+      "domain": "kestrelhealth.com",
+      "uri": "https://kestrelhealth.com/about/team",
+      "extracted_on": "2025-06-14",
+      "last_seen_on": "2026-01-20",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Vesna",
+     "last_name": "Valderrama",
+     "full_name": null,
+     "domain": "kestrelhealth.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Vesna",
+    "last_name": "Eskildsen",
+    "email": "vesna.eskildsen@lindqvistenergy.io",
+    "score": 86,
+    "domain": "lindqvistenergy.io",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/vesna-eskildsen-4098",
+    "phone_number": null,
+    "company": "Lindqvist Energy",
+    "sources": [
+     {
+      "domain": "lindqvistenergy.io",
+      "uri": "https://lindqvistenergy.io/about/team",
+      "extracted_on": "2025-09-28",
+      "last_seen_on": "2026-04-06",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Vesna",
+     "last_name": "Eskildsen",
+     "full_name": null,
+     "domain": "lindqvistenergy.io",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Vesna",
+    "last_name": "Szymanski",
+    "email": "vesna.szymanski@lindqvistenergy.io",
+    "score": 94,
+    "domain": "lindqvistenergy.io",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/vesna-szymanski-4907",
+    "phone_number": null,
+    "company": "Lindqvist Energy",
+    "sources": [
+     {
+      "domain": "lindqvistenergy.io",
+      "uri": "https://lindqvistenergy.io/about/team",
+      "extracted_on": "2025-03-21",
+      "last_seen_on": "2026-04-02",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Vesna",
+     "last_name": "Szymanski",
+     "full_name": null,
+     "domain": "lindqvistenergy.io",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Tamsin",
+    "last_name": "Yarborough",
+    "email": "tamsin.yarborough@marlowegaming.com",
+    "score": 82,
+    "domain": "marlowegaming.com",
+    "accept_all": false,
+    "position": "Head of Data Platform",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/tamsin-yarborough-a6aa",
+    "phone_number": null,
+    "company": "Marlowe Gaming",
+    "sources": [
+     {
+      "domain": "marlowegaming.com",
+      "uri": "https://marlowegaming.com/about/team",
+      "extracted_on": "2025-07-12",
+      "last_seen_on": "2026-08-01",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Tamsin",
+     "last_name": "Yarborough",
+     "full_name": null,
+     "domain": "marlowegaming.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Cosima",
+    "last_name": "Thibodeaux",
+    "email": "cosima.thibodeaux@marlowegaming.com",
+    "score": 87,
+    "domain": "marlowegaming.com",
+    "accept_all": false,
+    "position": "Staff Database Engineer",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/cosima-thibodeaux-5042",
+    "phone_number": null,
+    "company": "Marlowe Gaming",
+    "sources": [
+     {
+      "domain": "marlowegaming.com",
+      "uri": "https://marlowegaming.com/about/team",
+      "extracted_on": "2025-01-09",
+      "last_seen_on": "2026-06-24",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Cosima",
+     "last_name": "Thibodeaux",
+     "full_name": null,
+     "domain": "marlowegaming.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
     "first_name": "Zelda",
     "last_name": "Cavendish",
     "email": "zelda.cavendish@datastax.com",
-    "score": 89,
+    "score": 81,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Director of Infrastructure",
@@ -18051,8 +20351,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-09-13",
-      "last_seen_on": "2026-01-19",
+      "extracted_on": "2025-09-22",
+      "last_seen_on": "2026-01-23",
       "still_on_page": true
      }
     ],
@@ -18077,7 +20377,7 @@
     "first_name": "Nils",
     "last_name": "Lockridge",
     "email": "nils.lockridge@datastax.com",
-    "score": 90,
+    "score": 94,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Staff Database Engineer",
@@ -18089,8 +20389,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-02-17",
-      "last_seen_on": "2026-07-26",
+      "extracted_on": "2025-07-25",
+      "last_seen_on": "2026-06-26",
       "still_on_page": true
      }
     ],
@@ -18115,7 +20415,7 @@
     "first_name": "Isolde",
     "last_name": "Thibodeaux",
     "email": "isolde.thibodeaux@datastax.com",
-    "score": 83,
+    "score": 88,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "VP Engineering",
@@ -18127,8 +20427,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-05-24",
-      "last_seen_on": "2026-09-02",
+      "extracted_on": "2025-08-24",
+      "last_seen_on": "2026-02-10",
       "still_on_page": true
      }
     ],
@@ -18153,7 +20453,7 @@
     "first_name": "Odette",
     "last_name": "Nakashima",
     "email": "odette.nakashima@datastax.com",
-    "score": 76,
+    "score": 94,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Principal Site Reliability Engineer",
@@ -18165,8 +20465,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-08-04",
-      "last_seen_on": "2026-07-17",
+      "extracted_on": "2025-05-01",
+      "last_seen_on": "2026-02-27",
       "still_on_page": true
      }
     ],
@@ -18191,7 +20491,7 @@
     "first_name": "Nils",
     "last_name": "Rasmussen",
     "email": "nils.rasmussen@datastax.com",
-    "score": 89,
+    "score": 88,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Director of Infrastructure",
@@ -18203,8 +20503,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-03-07",
-      "last_seen_on": "2026-06-07",
+      "extracted_on": "2025-07-10",
+      "last_seen_on": "2026-05-01",
       "still_on_page": true
      }
     ],
@@ -18256,7 +20556,7 @@
     "first_name": "Celine",
     "last_name": "Underhill",
     "email": "celine.underhill@datastax.com",
-    "score": 98,
+    "score": 96,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Engineering Manager, Storage",
@@ -18268,8 +20568,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-03-21",
-      "last_seen_on": "2026-06-18",
+      "extracted_on": "2025-01-23",
+      "last_seen_on": "2026-06-11",
       "still_on_page": true
      }
     ],
@@ -18294,7 +20594,7 @@
     "first_name": "Gideon",
     "last_name": "Pemberton",
     "email": "gideon.pemberton@datastax.com",
-    "score": 85,
+    "score": 98,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Director of Infrastructure",
@@ -18306,8 +20606,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-05-23",
-      "last_seen_on": "2026-02-04",
+      "extracted_on": "2025-05-06",
+      "last_seen_on": "2026-04-24",
       "still_on_page": true
      }
     ],
@@ -18332,7 +20632,7 @@
     "first_name": "Joaquin",
     "last_name": "Valderrama",
     "email": "joaquin.valderrama@datastax.com",
-    "score": 76,
+    "score": 93,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "VP Engineering",
@@ -18344,8 +20644,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-04-17",
-      "last_seen_on": "2026-08-24",
+      "extracted_on": "2025-01-05",
+      "last_seen_on": "2026-02-23",
       "still_on_page": true
      }
     ],
@@ -18370,7 +20670,7 @@
     "first_name": "Tamsin",
     "last_name": "Valderrama",
     "email": "tamsin.valderrama@datastax.com",
-    "score": 84,
+    "score": 81,
     "domain": "datastax.com",
     "accept_all": false,
     "position": "Director of Data Engineering",
@@ -18382,8 +20682,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-07-26",
-      "last_seen_on": "2026-05-01",
+      "extracted_on": "2025-07-15",
+      "last_seen_on": "2026-06-02",
       "still_on_page": true
      }
     ],
@@ -18396,6 +20696,82 @@
     "params": {
      "first_name": "Tamsin",
      "last_name": "Valderrama",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Anouk",
+    "last_name": "Abernathy",
+    "email": "anouk.abernathy@datastax.com",
+    "score": 93,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "Director of Infrastructure",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/anouk-abernathy-0dd9",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-08-16",
+      "last_seen_on": "2026-08-18",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Anouk",
+     "last_name": "Abernathy",
+     "full_name": null,
+     "domain": "datastax.com",
+     "company": null,
+     "max_duration": null
+    }
+   }
+  },
+  {
+   "data": {
+    "first_name": "Pavel",
+    "last_name": "Fitzgerald",
+    "email": "pavel.fitzgerald@datastax.com",
+    "score": 71,
+    "domain": "datastax.com",
+    "accept_all": false,
+    "position": "VP Engineering",
+    "twitter": null,
+    "linkedin_url": "http://www.linkedin.com/in/pavel-fitzgerald-c077",
+    "phone_number": null,
+    "company": "DataStax",
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-05-07",
+      "last_seen_on": "2026-03-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "first_name": "Pavel",
+     "last_name": "Fitzgerald",
      "full_name": null,
      "domain": "datastax.com",
      "company": null,
@@ -26350,11 +28726,851 @@
     }
    }
   },
+  "cosima.hargreaves@brackenridgeretail.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 95,
+    "email": "cosima.hargreaves@brackenridgeretail.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "brackenridgeretail.com",
+      "uri": "https://brackenridgeretail.com/about/team",
+      "extracted_on": "2025-08-12",
+      "last_seen_on": "2026-01-26",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "cosima.hargreaves@brackenridgeretail.com"
+    }
+   }
+  },
+  "gideon.lindqvist@brackenridgeretail.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 99,
+    "email": "gideon.lindqvist@brackenridgeretail.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "brackenridgeretail.com",
+      "uri": "https://brackenridgeretail.com/about/team",
+      "extracted_on": "2025-02-26",
+      "last_seen_on": "2026-04-06",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "gideon.lindqvist@brackenridgeretail.com"
+    }
+   }
+  },
+  "greta.holloway@callowaylogistics.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 95,
+    "email": "greta.holloway@callowaylogistics.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "callowaylogistics.com",
+      "uri": "https://callowaylogistics.com/about/team",
+      "extracted_on": "2025-02-07",
+      "last_seen_on": "2026-09-04",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "greta.holloway@callowaylogistics.com"
+    }
+   }
+  },
+  "yusuf.quintanilla@callowaylogistics.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 97,
+    "email": "yusuf.quintanilla@callowaylogistics.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "callowaylogistics.com",
+      "uri": "https://callowaylogistics.com/about/team",
+      "extracted_on": "2025-01-09",
+      "last_seen_on": "2026-01-20",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "yusuf.quintanilla@callowaylogistics.com"
+    }
+   }
+  },
+  "cassandra.bellweather@dunmoredesign.io": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 92,
+    "email": "cassandra.bellweather@dunmoredesign.io",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "dunmoredesign.io",
+      "uri": "https://dunmoredesign.io/about/team",
+      "extracted_on": "2025-09-25",
+      "last_seen_on": "2026-07-21",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "cassandra.bellweather@dunmoredesign.io"
+    }
+   }
+  },
+  "cassandra.eskildsen@dunmoredesign.io": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 93,
+    "email": "cassandra.eskildsen@dunmoredesign.io",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "dunmoredesign.io",
+      "uri": "https://dunmoredesign.io/about/team",
+      "extracted_on": "2025-05-28",
+      "last_seen_on": "2026-08-24",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "cassandra.eskildsen@dunmoredesign.io"
+    }
+   }
+  },
+  "nils.yarborough@eastgatefreight.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 89,
+    "email": "nils.yarborough@eastgatefreight.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "eastgatefreight.com",
+      "uri": "https://eastgatefreight.com/about/team",
+      "extracted_on": "2025-07-04",
+      "last_seen_on": "2026-01-18",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "nils.yarborough@eastgatefreight.com"
+    }
+   }
+  },
+  "dmitri.achterberg@eastgatefreight.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 96,
+    "email": "dmitri.achterberg@eastgatefreight.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "eastgatefreight.com",
+      "uri": "https://eastgatefreight.com/about/team",
+      "extracted_on": "2025-09-04",
+      "last_seen_on": "2026-02-12",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "dmitri.achterberg@eastgatefreight.com"
+    }
+   }
+  },
+  "bram.ellsworth@fenwickanalytics.io": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 99,
+    "email": "bram.ellsworth@fenwickanalytics.io",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "fenwickanalytics.io",
+      "uri": "https://fenwickanalytics.io/about/team",
+      "extracted_on": "2025-04-26",
+      "last_seen_on": "2026-07-15",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "bram.ellsworth@fenwickanalytics.io"
+    }
+   }
+  },
+  "florian.kensington@fenwickanalytics.io": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 89,
+    "email": "florian.kensington@fenwickanalytics.io",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "fenwickanalytics.io",
+      "uri": "https://fenwickanalytics.io/about/team",
+      "extracted_on": "2025-08-07",
+      "last_seen_on": "2026-01-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "florian.kensington@fenwickanalytics.io"
+    }
+   }
+  },
+  "ines.whitcombe@garrowbymedia.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 98,
+    "email": "ines.whitcombe@garrowbymedia.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "garrowbymedia.com",
+      "uri": "https://garrowbymedia.com/about/team",
+      "extracted_on": "2025-07-25",
+      "last_seen_on": "2026-01-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "ines.whitcombe@garrowbymedia.com"
+    }
+   }
+  },
+  "isolde.pemberton@garrowbymedia.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 89,
+    "email": "isolde.pemberton@garrowbymedia.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "garrowbymedia.com",
+      "uri": "https://garrowbymedia.com/about/team",
+      "extracted_on": "2025-05-09",
+      "last_seen_on": "2026-01-25",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "isolde.pemberton@garrowbymedia.com"
+    }
+   }
+  },
+  "hamish.castellanos@hollistelecom.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 89,
+    "email": "hamish.castellanos@hollistelecom.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "hollistelecom.com",
+      "uri": "https://hollistelecom.com/about/team",
+      "extracted_on": "2025-09-07",
+      "last_seen_on": "2026-07-20",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "hamish.castellanos@hollistelecom.com"
+    }
+   }
+  },
+  "zelda.kowalczyk@hollistelecom.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 89,
+    "email": "zelda.kowalczyk@hollistelecom.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "hollistelecom.com",
+      "uri": "https://hollistelecom.com/about/team",
+      "extracted_on": "2025-04-19",
+      "last_seen_on": "2026-05-26",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "zelda.kowalczyk@hollistelecom.com"
+    }
+   }
+  },
+  "mireille.holloway@inglebypayments.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 85,
+    "email": "mireille.holloway@inglebypayments.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "inglebypayments.com",
+      "uri": "https://inglebypayments.com/about/team",
+      "extracted_on": "2025-08-22",
+      "last_seen_on": "2026-01-16",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "mireille.holloway@inglebypayments.com"
+    }
+   }
+  },
+  "pavel.jablonski@inglebypayments.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 92,
+    "email": "pavel.jablonski@inglebypayments.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "inglebypayments.com",
+      "uri": "https://inglebypayments.com/about/team",
+      "extracted_on": "2025-09-28",
+      "last_seen_on": "2026-03-10",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "pavel.jablonski@inglebypayments.com"
+    }
+   }
+  },
+  "soren.thibodeaux@jessopdatapartners.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 99,
+    "email": "soren.thibodeaux@jessopdatapartners.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "jessopdatapartners.com",
+      "uri": "https://jessopdatapartners.com/about/team",
+      "extracted_on": "2025-08-23",
+      "last_seen_on": "2026-04-06",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "soren.thibodeaux@jessopdatapartners.com"
+    }
+   }
+  },
+  "xiomara.fairbairn@jessopdatapartners.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 88,
+    "email": "xiomara.fairbairn@jessopdatapartners.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "jessopdatapartners.com",
+      "uri": "https://jessopdatapartners.com/about/team",
+      "extracted_on": "2025-09-12",
+      "last_seen_on": "2026-01-10",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "xiomara.fairbairn@jessopdatapartners.com"
+    }
+   }
+  },
+  "bastian.lindqvist@kestrelhealth.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 95,
+    "email": "bastian.lindqvist@kestrelhealth.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "kestrelhealth.com",
+      "uri": "https://kestrelhealth.com/about/team",
+      "extracted_on": "2025-02-16",
+      "last_seen_on": "2026-04-19",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "bastian.lindqvist@kestrelhealth.com"
+    }
+   }
+  },
+  "vesna.valderrama@kestrelhealth.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 94,
+    "email": "vesna.valderrama@kestrelhealth.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "kestrelhealth.com",
+      "uri": "https://kestrelhealth.com/about/team",
+      "extracted_on": "2025-08-06",
+      "last_seen_on": "2026-07-10",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "vesna.valderrama@kestrelhealth.com"
+    }
+   }
+  },
+  "vesna.eskildsen@lindqvistenergy.io": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 92,
+    "email": "vesna.eskildsen@lindqvistenergy.io",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "lindqvistenergy.io",
+      "uri": "https://lindqvistenergy.io/about/team",
+      "extracted_on": "2025-09-09",
+      "last_seen_on": "2026-07-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "vesna.eskildsen@lindqvistenergy.io"
+    }
+   }
+  },
+  "vesna.szymanski@lindqvistenergy.io": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 85,
+    "email": "vesna.szymanski@lindqvistenergy.io",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "lindqvistenergy.io",
+      "uri": "https://lindqvistenergy.io/about/team",
+      "extracted_on": "2025-08-02",
+      "last_seen_on": "2026-01-22",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "vesna.szymanski@lindqvistenergy.io"
+    }
+   }
+  },
+  "tamsin.yarborough@marlowegaming.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 92,
+    "email": "tamsin.yarborough@marlowegaming.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "marlowegaming.com",
+      "uri": "https://marlowegaming.com/about/team",
+      "extracted_on": "2025-07-17",
+      "last_seen_on": "2026-07-10",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "tamsin.yarborough@marlowegaming.com"
+    }
+   }
+  },
+  "cosima.thibodeaux@marlowegaming.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 85,
+    "email": "cosima.thibodeaux@marlowegaming.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "marlowegaming.com",
+      "uri": "https://marlowegaming.com/about/team",
+      "extracted_on": "2025-06-11",
+      "last_seen_on": "2026-06-08",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "cosima.thibodeaux@marlowegaming.com"
+    }
+   }
+  },
   "zelda.cavendish@datastax.com": {
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 91,
+    "score": 93,
     "email": "zelda.cavendish@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26369,8 +29585,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-02-08",
-      "last_seen_on": "2026-04-28",
+      "extracted_on": "2025-05-18",
+      "last_seen_on": "2026-08-19",
       "still_on_page": true
      }
     ],
@@ -26389,7 +29605,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 85,
+    "score": 93,
     "email": "nils.lockridge@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26404,8 +29620,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-04-16",
-      "last_seen_on": "2026-07-07",
+      "extracted_on": "2025-07-23",
+      "last_seen_on": "2026-04-08",
       "still_on_page": true
      }
     ],
@@ -26424,7 +29640,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 96,
+    "score": 94,
     "email": "isolde.thibodeaux@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26439,8 +29655,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-02-23",
-      "last_seen_on": "2026-01-05",
+      "extracted_on": "2025-04-14",
+      "last_seen_on": "2026-08-14",
       "still_on_page": true
      }
     ],
@@ -26459,7 +29675,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 86,
+    "score": 89,
     "email": "odette.nakashima@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26474,8 +29690,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-07-28",
-      "last_seen_on": "2026-01-28",
+      "extracted_on": "2025-04-10",
+      "last_seen_on": "2026-06-15",
       "still_on_page": true
      }
     ],
@@ -26494,7 +29710,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 91,
+    "score": 87,
     "email": "nils.rasmussen@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26509,8 +29725,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-07-04",
-      "last_seen_on": "2026-04-12",
+      "extracted_on": "2025-09-16",
+      "last_seen_on": "2026-07-27",
       "still_on_page": true
      }
     ],
@@ -26529,7 +29745,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 97,
+    "score": 92,
     "email": "celine.underhill@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26544,8 +29760,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-01-23",
-      "last_seen_on": "2026-09-09",
+      "extracted_on": "2025-07-16",
+      "last_seen_on": "2026-04-20",
       "still_on_page": true
      }
     ],
@@ -26564,7 +29780,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 97,
+    "score": 86,
     "email": "gideon.pemberton@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26579,8 +29795,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-05-19",
-      "last_seen_on": "2026-07-23",
+      "extracted_on": "2025-01-18",
+      "last_seen_on": "2026-08-11",
       "still_on_page": true
      }
     ],
@@ -26599,7 +29815,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 96,
+    "score": 99,
     "email": "joaquin.valderrama@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26614,8 +29830,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-02-10",
-      "last_seen_on": "2026-04-14",
+      "extracted_on": "2025-07-07",
+      "last_seen_on": "2026-02-09",
       "still_on_page": true
      }
     ],
@@ -26634,7 +29850,7 @@
    "data": {
     "status": "valid",
     "result": "deliverable",
-    "score": 86,
+    "score": 97,
     "email": "tamsin.valderrama@datastax.com",
     "regexp": true,
     "gibberish": false,
@@ -26649,8 +29865,8 @@
      {
       "domain": "datastax.com",
       "uri": "https://datastax.com/about/team",
-      "extracted_on": "2025-01-15",
-      "last_seen_on": "2026-08-16",
+      "extracted_on": "2025-07-11",
+      "last_seen_on": "2026-03-08",
       "still_on_page": true
      }
     ],
@@ -26662,6 +29878,76 @@
    "meta": {
     "params": {
      "email": "tamsin.valderrama@datastax.com"
+    }
+   }
+  },
+  "anouk.abernathy@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 96,
+    "email": "anouk.abernathy@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-07-15",
+      "last_seen_on": "2026-01-05",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "anouk.abernathy@datastax.com"
+    }
+   }
+  },
+  "pavel.fitzgerald@datastax.com": {
+   "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 88,
+    "email": "pavel.fitzgerald@datastax.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true,
+    "accept_all": false,
+    "block": false,
+    "sources": [
+     {
+      "domain": "datastax.com",
+      "uri": "https://datastax.com/about/team",
+      "extracted_on": "2025-09-01",
+      "last_seen_on": "2026-06-08",
+      "still_on_page": true
+     }
+    ],
+    "verification": {
+     "date": "2026-09-02",
+     "status": "valid"
+    }
+   },
+   "meta": {
+    "params": {
+     "email": "pavel.fitzgerald@datastax.com"
     }
    }
   }

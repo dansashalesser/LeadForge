@@ -1723,9 +1723,9 @@
    "archived": false
   },
   {
-   "id": "90032",
+   "id": "90026",
    "properties": {
-    "createdate": "2025-07-10T22:13:45.666Z",
+    "createdate": "2025-01-14T01:07:52.600Z",
     "email": "joaquin.valderrama@datastax.com",
     "firstname": "Joaquin",
     "lastname": "Valderrama",
@@ -1734,20 +1734,20 @@
     "website": "datastax.com",
     "hs_additional_emails": null,
     "hs_email_optout": "true",
-    "hs_object_id": "90032",
-    "hubspot_owner_id": "9002",
-    "lastmodifieddate": "2026-05-01T04:54:02.081Z",
+    "hs_object_id": "90026",
+    "hubspot_owner_id": "9001",
+    "lastmodifieddate": "2026-05-08T18:05:53.633Z",
     "lifecyclestage": "lead",
-    "notes_last_updated": "2026-05-01T04:54:02.081Z"
+    "notes_last_updated": "2026-05-08T18:05:53.633Z"
    },
-   "createdAt": "2025-07-10T22:13:45.666Z",
-   "updatedAt": "2026-05-01T04:54:02.081Z",
+   "createdAt": "2025-01-14T01:07:52.600Z",
+   "updatedAt": "2026-05-08T18:05:53.633Z",
    "archived": false
   },
   {
-   "id": "90068",
+   "id": "90047",
    "properties": {
-    "createdate": "2025-08-21T20:50:31.404Z",
+    "createdate": "2025-01-12T01:00:12.121Z",
     "email": "tamsin.valderrama@datastax.com",
     "firstname": "Tamsin",
     "lastname": "Valderrama",
@@ -1756,14 +1756,14 @@
     "website": "datastax.com",
     "hs_additional_emails": null,
     "hs_email_optout": "false",
-    "hs_object_id": "90068",
+    "hs_object_id": "90047",
     "hubspot_owner_id": "9001",
-    "lastmodifieddate": "2026-02-23T12:50:52.774Z",
+    "lastmodifieddate": "2026-06-08T21:22:16.455Z",
     "lifecyclestage": "customer",
-    "notes_last_updated": "2026-02-23T12:50:52.774Z"
+    "notes_last_updated": "2026-06-08T21:22:16.455Z"
    },
-   "createdAt": "2025-08-21T20:50:31.404Z",
-   "updatedAt": "2026-02-23T12:50:52.774Z",
+   "createdAt": "2025-01-12T01:00:12.121Z",
+   "updatedAt": "2026-06-08T21:22:16.455Z",
    "archived": false
   }
  ],

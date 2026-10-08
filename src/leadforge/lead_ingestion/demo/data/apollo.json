@@ -40658,6 +40658,4170 @@
     "datastax"
    ],
    "search_result": {
+    "id": "9beb3163d2b7da9e2c504492",
+    "first_name": "Cosima",
+    "last_name_obfuscated": "Ha***s",
+    "title": "VP of Sales",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Brackenridge Retail",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "9beb3163d2b7da9e2c504492",
+     "first_name": "Cosima",
+     "last_name": "Hargreaves",
+     "name": "Cosima Hargreaves",
+     "linkedin_url": "http://www.linkedin.com/in/cosima-hargreaves-026c",
+     "title": "VP of Sales",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "VP of Sales",
+     "email": "cosima.hargreaves@brackenridgeretail.com",
+     "organization_id": "18bd0fb653758eb799674715",
+     "employment_history": [
+      {
+       "_id": "294405c2e9ad7b2d3613beb9",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "18bd0fb653758eb799674715",
+       "organization_name": "Brackenridge Retail",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "VP of Sales",
+       "updated_at": null,
+       "id": "294405c2e9ad7b2d3613beb9",
+       "key": "294405c2e9ad7b2d3613beb9"
+      }
+     ],
+     "state": "Texas",
+     "city": "Austin",
+     "country": "United States",
+     "departments": [
+      "sales"
+     ],
+     "subdepartments": [],
+     "seniority": "vp",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "18bd0fb653758eb799674715",
+      "name": "Brackenridge Retail",
+      "website_url": "http://www.brackenridgeretail.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/brackenridgeretail",
+      "twitter_url": "https://twitter.com/brackenridgeretail",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "25940219",
+      "founded_year": 1998,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "brackenridgeretail.com",
+      "industry": "logistics & supply chain",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "logistics & supply chain"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "logistics & supply chain": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Austin, Texas, United States",
+      "street_address": "100 Market St",
+      "city": "Austin",
+      "state": "Texas",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Brackenridge Retail builds data products.",
+      "short_description": "Brackenridge Retail is a logistics & supply chain company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164001
+   }
+  },
+  {
+   "subject": "p244",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "af7edf5500eceb6f311470d5",
+    "first_name": "Gideon",
+    "last_name_obfuscated": "Li***t",
+    "title": "Head of Marketing",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Brackenridge Retail",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "af7edf5500eceb6f311470d5",
+     "first_name": "Gideon",
+     "last_name": "Lindqvist",
+     "name": "Gideon Lindqvist",
+     "linkedin_url": "http://www.linkedin.com/in/gideon-lindqvist-2459",
+     "title": "Head of Marketing",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Marketing",
+     "email": "gideon.lindqvist@brackenridgeretail.com",
+     "organization_id": "18bd0fb653758eb799674715",
+     "employment_history": [
+      {
+       "_id": "5d074113f6bece0055fde7fa",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "18bd0fb653758eb799674715",
+       "organization_name": "Brackenridge Retail",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Marketing",
+       "updated_at": null,
+       "id": "5d074113f6bece0055fde7fa",
+       "key": "5d074113f6bece0055fde7fa"
+      }
+     ],
+     "state": "Texas",
+     "city": "Austin",
+     "country": "United States",
+     "departments": [
+      "marketing"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "18bd0fb653758eb799674715",
+      "name": "Brackenridge Retail",
+      "website_url": "http://www.brackenridgeretail.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/brackenridgeretail",
+      "twitter_url": "https://twitter.com/brackenridgeretail",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "25940219",
+      "founded_year": 1998,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "brackenridgeretail.com",
+      "industry": "logistics & supply chain",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "logistics & supply chain"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "logistics & supply chain": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Austin, Texas, United States",
+      "street_address": "100 Market St",
+      "city": "Austin",
+      "state": "Texas",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Brackenridge Retail builds data products.",
+      "short_description": "Brackenridge Retail is a logistics & supply chain company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164002
+   }
+  },
+  {
+   "subject": "p245",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "dff72e196a26c3d5cab82cf8",
+    "first_name": "Greta",
+    "last_name_obfuscated": "Ho***y",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Calloway Logistics",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "dff72e196a26c3d5cab82cf8",
+     "first_name": "Greta",
+     "last_name": "Holloway",
+     "name": "Greta Holloway",
+     "linkedin_url": "http://www.linkedin.com/in/greta-holloway-6ed9",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "greta.holloway@callowaylogistics.com",
+     "organization_id": "8c47c231a82de08d51abf74a",
+     "employment_history": [
+      {
+       "_id": "8fc28bac5d3c62a691e27ffd",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "8c47c231a82de08d51abf74a",
+       "organization_name": "Calloway Logistics",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "8fc28bac5d3c62a691e27ffd",
+       "key": "8fc28bac5d3c62a691e27ffd"
+      }
+     ],
+     "state": "England",
+     "city": "London",
+     "country": "United Kingdom",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "8c47c231a82de08d51abf74a",
+      "name": "Calloway Logistics",
+      "website_url": "http://www.callowaylogistics.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/callowaylogistics",
+      "twitter_url": "https://twitter.com/callowaylogistics",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "147094563",
+      "founded_year": 2011,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "callowaylogistics.com",
+      "industry": "internet",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "internet"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "internet": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, London, England, United Kingdom",
+      "street_address": "100 Market St",
+      "city": "London",
+      "state": "England",
+      "postal_code": "00000",
+      "country": "United Kingdom",
+      "owned_by_organization_id": null,
+      "seo_description": "Calloway Logistics builds data products.",
+      "short_description": "Calloway Logistics is a internet company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164003
+   }
+  },
+  {
+   "subject": "p246",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "c22d2ff6eb6f2fe8fa56056b",
+    "first_name": "Yusuf",
+    "last_name_obfuscated": "Qu***a",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Calloway Logistics",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "c22d2ff6eb6f2fe8fa56056b",
+     "first_name": "Yusuf",
+     "last_name": "Quintanilla",
+     "name": "Yusuf Quintanilla",
+     "linkedin_url": "http://www.linkedin.com/in/yusuf-quintanilla-9288",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "yusuf.quintanilla@callowaylogistics.com",
+     "organization_id": "8c47c231a82de08d51abf74a",
+     "employment_history": [
+      {
+       "_id": "b65065af8ef2f6be6ff2d22c",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "8c47c231a82de08d51abf74a",
+       "organization_name": "Calloway Logistics",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "b65065af8ef2f6be6ff2d22c",
+       "key": "b65065af8ef2f6be6ff2d22c"
+      }
+     ],
+     "state": "England",
+     "city": "London",
+     "country": "United Kingdom",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "8c47c231a82de08d51abf74a",
+      "name": "Calloway Logistics",
+      "website_url": "http://www.callowaylogistics.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/callowaylogistics",
+      "twitter_url": "https://twitter.com/callowaylogistics",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "147094563",
+      "founded_year": 2011,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "callowaylogistics.com",
+      "industry": "internet",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "internet"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "internet": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, London, England, United Kingdom",
+      "street_address": "100 Market St",
+      "city": "London",
+      "state": "England",
+      "postal_code": "00000",
+      "country": "United Kingdom",
+      "owned_by_organization_id": null,
+      "seo_description": "Calloway Logistics builds data products.",
+      "short_description": "Calloway Logistics is a internet company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164004
+   }
+  },
+  {
+   "subject": "p247",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "6b7bf4cbe778a350f612484d",
+    "first_name": "Cassandra",
+    "last_name_obfuscated": "Be***r",
+    "title": "Engineering Manager, Storage",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Dunmore Design",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "6b7bf4cbe778a350f612484d",
+     "first_name": "Cassandra",
+     "last_name": "Bellweather",
+     "name": "Cassandra Bellweather",
+     "linkedin_url": "http://www.linkedin.com/in/cassandra-bellweather-553e",
+     "title": "Engineering Manager, Storage",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Engineering Manager, Storage",
+     "email": "cassandra.bellweather@dunmoredesign.io",
+     "organization_id": "a6ebaf8012acc42f6336c17a",
+     "employment_history": [
+      {
+       "_id": "d484216f053a877ebc4fb7b6",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "a6ebaf8012acc42f6336c17a",
+       "organization_name": "Dunmore Design",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Engineering Manager, Storage",
+       "updated_at": null,
+       "id": "d484216f053a877ebc4fb7b6",
+       "key": "d484216f053a877ebc4fb7b6"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "manager",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "a6ebaf8012acc42f6336c17a",
+      "name": "Dunmore Design",
+      "website_url": "http://www.dunmoredesign.io",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/dunmoredesign",
+      "twitter_url": "https://twitter.com/dunmoredesign",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "175028984",
+      "founded_year": 2017,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "dunmoredesign.io",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 120,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Dunmore Design builds data products.",
+      "short_description": "Dunmore Design is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164005
+   }
+  },
+  {
+   "subject": "p248",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "db89453806a8e12504953fe7",
+    "first_name": "Cassandra",
+    "last_name_obfuscated": "Es***n",
+    "title": "Engineering Manager, Storage",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Dunmore Design",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "db89453806a8e12504953fe7",
+     "first_name": "Cassandra",
+     "last_name": "Eskildsen",
+     "name": "Cassandra Eskildsen",
+     "linkedin_url": "http://www.linkedin.com/in/cassandra-eskildsen-1aa5",
+     "title": "Engineering Manager, Storage",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Engineering Manager, Storage",
+     "email": "cassandra.eskildsen@dunmoredesign.io",
+     "organization_id": "a6ebaf8012acc42f6336c17a",
+     "employment_history": [
+      {
+       "_id": "7ef35940521e8a60835498bd",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "a6ebaf8012acc42f6336c17a",
+       "organization_name": "Dunmore Design",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Engineering Manager, Storage",
+       "updated_at": null,
+       "id": "7ef35940521e8a60835498bd",
+       "key": "7ef35940521e8a60835498bd"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "manager",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "a6ebaf8012acc42f6336c17a",
+      "name": "Dunmore Design",
+      "website_url": "http://www.dunmoredesign.io",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/dunmoredesign",
+      "twitter_url": "https://twitter.com/dunmoredesign",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "175028984",
+      "founded_year": 2017,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "dunmoredesign.io",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 120,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Dunmore Design builds data products.",
+      "short_description": "Dunmore Design is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164006
+   }
+  },
+  {
+   "subject": "p249",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "0c73b80d22839d64ddd82be3",
+    "first_name": "Nils",
+    "last_name_obfuscated": "Ya***h",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Eastgate Freight",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "0c73b80d22839d64ddd82be3",
+     "first_name": "Nils",
+     "last_name": "Yarborough",
+     "name": "Nils Yarborough",
+     "linkedin_url": "http://www.linkedin.com/in/nils-yarborough-b72d",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "nils.yarborough@eastgatefreight.com",
+     "organization_id": "ad9d6dadecaf6a0ab5f99e28",
+     "employment_history": [
+      {
+       "_id": "3eb28ddd46d93822d08b37c0",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "ad9d6dadecaf6a0ab5f99e28",
+       "organization_name": "Eastgate Freight",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "3eb28ddd46d93822d08b37c0",
+       "key": "3eb28ddd46d93822d08b37c0"
+      }
+     ],
+     "state": "Ontario",
+     "city": "Toronto",
+     "country": "Canada",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "ad9d6dadecaf6a0ab5f99e28",
+      "name": "Eastgate Freight",
+      "website_url": "http://www.eastgatefreight.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/eastgatefreight",
+      "twitter_url": "https://twitter.com/eastgatefreight",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "182048474",
+      "founded_year": 2013,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "eastgatefreight.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Toronto, Ontario, Canada",
+      "street_address": "100 Market St",
+      "city": "Toronto",
+      "state": "Ontario",
+      "postal_code": "00000",
+      "country": "Canada",
+      "owned_by_organization_id": null,
+      "seo_description": "Eastgate Freight builds data products.",
+      "short_description": "Eastgate Freight is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164007
+   }
+  },
+  {
+   "subject": "p250",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "b27debe9fc47f65679572d2f",
+    "first_name": "Dmitri",
+    "last_name_obfuscated": "Ac***g",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Eastgate Freight",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "b27debe9fc47f65679572d2f",
+     "first_name": "Dmitri",
+     "last_name": "Achterberg",
+     "name": "Dmitri Achterberg",
+     "linkedin_url": "http://www.linkedin.com/in/dmitri-achterberg-61df",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "dmitri.achterberg@eastgatefreight.com",
+     "organization_id": "ad9d6dadecaf6a0ab5f99e28",
+     "employment_history": [
+      {
+       "_id": "f2d27597656f74cf9ebed72b",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "ad9d6dadecaf6a0ab5f99e28",
+       "organization_name": "Eastgate Freight",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "f2d27597656f74cf9ebed72b",
+       "key": "f2d27597656f74cf9ebed72b"
+      }
+     ],
+     "state": "Ontario",
+     "city": "Toronto",
+     "country": "Canada",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "ad9d6dadecaf6a0ab5f99e28",
+      "name": "Eastgate Freight",
+      "website_url": "http://www.eastgatefreight.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/eastgatefreight",
+      "twitter_url": "https://twitter.com/eastgatefreight",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "182048474",
+      "founded_year": 2013,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "eastgatefreight.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Toronto, Ontario, Canada",
+      "street_address": "100 Market St",
+      "city": "Toronto",
+      "state": "Ontario",
+      "postal_code": "00000",
+      "country": "Canada",
+      "owned_by_organization_id": null,
+      "seo_description": "Eastgate Freight builds data products.",
+      "short_description": "Eastgate Freight is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164008
+   }
+  },
+  {
+   "subject": "p251",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "6a31f1c90d6c3c051ab52c1e",
+    "first_name": "Bram",
+    "last_name_obfuscated": "El***h",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Fenwick Analytics",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "6a31f1c90d6c3c051ab52c1e",
+     "first_name": "Bram",
+     "last_name": "Ellsworth",
+     "name": "Bram Ellsworth",
+     "linkedin_url": "http://www.linkedin.com/in/bram-ellsworth-ac7b",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "bram.ellsworth@fenwickanalytics.io",
+     "organization_id": "0e16f2faf0e3a9e60d9d4f22",
+     "employment_history": [
+      {
+       "_id": "e1c25ba150c3c6d09c1f13a6",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "0e16f2faf0e3a9e60d9d4f22",
+       "organization_name": "Fenwick Analytics",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "e1c25ba150c3c6d09c1f13a6",
+       "key": "e1c25ba150c3c6d09c1f13a6"
+      }
+     ],
+     "state": "North Holland",
+     "city": "Amsterdam",
+     "country": "Netherlands",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "0e16f2faf0e3a9e60d9d4f22",
+      "name": "Fenwick Analytics",
+      "website_url": "http://www.fenwickanalytics.io",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/fenwickanalytics",
+      "twitter_url": "https://twitter.com/fenwickanalytics",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "14774063",
+      "founded_year": 2019,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "fenwickanalytics.io",
+      "industry": "information technology & services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 380,
+      "industries": [
+       "information technology & services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "information technology & services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Amsterdam, North Holland, Netherlands",
+      "street_address": "100 Market St",
+      "city": "Amsterdam",
+      "state": "North Holland",
+      "postal_code": "00000",
+      "country": "Netherlands",
+      "owned_by_organization_id": null,
+      "seo_description": "Fenwick Analytics builds data products.",
+      "short_description": "Fenwick Analytics is a information technology & services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164009
+   }
+  },
+  {
+   "subject": "p252",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "9e5d5888e01f00252608bd5b",
+    "first_name": "Florian",
+    "last_name_obfuscated": "Ke***n",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Fenwick Analytics",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "9e5d5888e01f00252608bd5b",
+     "first_name": "Florian",
+     "last_name": "Kensington",
+     "name": "Florian Kensington",
+     "linkedin_url": "http://www.linkedin.com/in/florian-kensington-aadf",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "florian.kensington@fenwickanalytics.io",
+     "organization_id": "0e16f2faf0e3a9e60d9d4f22",
+     "employment_history": [
+      {
+       "_id": "b5db80625200f10e8885d5e9",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "0e16f2faf0e3a9e60d9d4f22",
+       "organization_name": "Fenwick Analytics",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "b5db80625200f10e8885d5e9",
+       "key": "b5db80625200f10e8885d5e9"
+      }
+     ],
+     "state": "North Holland",
+     "city": "Amsterdam",
+     "country": "Netherlands",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "0e16f2faf0e3a9e60d9d4f22",
+      "name": "Fenwick Analytics",
+      "website_url": "http://www.fenwickanalytics.io",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/fenwickanalytics",
+      "twitter_url": "https://twitter.com/fenwickanalytics",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "14774063",
+      "founded_year": 2019,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "fenwickanalytics.io",
+      "industry": "information technology & services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 380,
+      "industries": [
+       "information technology & services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "information technology & services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Amsterdam, North Holland, Netherlands",
+      "street_address": "100 Market St",
+      "city": "Amsterdam",
+      "state": "North Holland",
+      "postal_code": "00000",
+      "country": "Netherlands",
+      "owned_by_organization_id": null,
+      "seo_description": "Fenwick Analytics builds data products.",
+      "short_description": "Fenwick Analytics is a information technology & services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164010
+   }
+  },
+  {
+   "subject": "p253",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "1027b6242035e7fb83dffb2d",
+    "first_name": "Ines",
+    "last_name_obfuscated": "Wh***e",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Garrowby Media",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "1027b6242035e7fb83dffb2d",
+     "first_name": "Ines",
+     "last_name": "Whitcombe",
+     "name": "Ines Whitcombe",
+     "linkedin_url": "http://www.linkedin.com/in/ines-whitcombe-df5a",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "ines.whitcombe@garrowbymedia.com",
+     "organization_id": "c48346a9a18b387ca25f9521",
+     "employment_history": [
+      {
+       "_id": "d2bffd38bf7e5302426b7201",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "c48346a9a18b387ca25f9521",
+       "organization_name": "Garrowby Media",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "d2bffd38bf7e5302426b7201",
+       "key": "d2bffd38bf7e5302426b7201"
+      }
+     ],
+     "state": "Washington",
+     "city": "Seattle",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "c48346a9a18b387ca25f9521",
+      "name": "Garrowby Media",
+      "website_url": "http://www.garrowbymedia.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/garrowbymedia",
+      "twitter_url": "https://twitter.com/garrowbymedia",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "206058602",
+      "founded_year": 2007,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "garrowbymedia.com",
+      "industry": "information technology & services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 120,
+      "industries": [
+       "information technology & services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "information technology & services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Seattle, Washington, United States",
+      "street_address": "100 Market St",
+      "city": "Seattle",
+      "state": "Washington",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Garrowby Media builds data products.",
+      "short_description": "Garrowby Media is a information technology & services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164011
+   }
+  },
+  {
+   "subject": "p254",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "1a9902682c29db09b3599b73",
+    "first_name": "Isolde",
+    "last_name_obfuscated": "Pe***n",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Garrowby Media",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "1a9902682c29db09b3599b73",
+     "first_name": "Isolde",
+     "last_name": "Pemberton",
+     "name": "Isolde Pemberton",
+     "linkedin_url": "http://www.linkedin.com/in/isolde-pemberton-eabd",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "isolde.pemberton@garrowbymedia.com",
+     "organization_id": "c48346a9a18b387ca25f9521",
+     "employment_history": [
+      {
+       "_id": "37b9953b90bd92c2862099a1",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "c48346a9a18b387ca25f9521",
+       "organization_name": "Garrowby Media",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "37b9953b90bd92c2862099a1",
+       "key": "37b9953b90bd92c2862099a1"
+      }
+     ],
+     "state": "Washington",
+     "city": "Seattle",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "c48346a9a18b387ca25f9521",
+      "name": "Garrowby Media",
+      "website_url": "http://www.garrowbymedia.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/garrowbymedia",
+      "twitter_url": "https://twitter.com/garrowbymedia",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "206058602",
+      "founded_year": 2007,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "garrowbymedia.com",
+      "industry": "information technology & services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 120,
+      "industries": [
+       "information technology & services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "information technology & services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Seattle, Washington, United States",
+      "street_address": "100 Market St",
+      "city": "Seattle",
+      "state": "Washington",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Garrowby Media builds data products.",
+      "short_description": "Garrowby Media is a information technology & services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164012
+   }
+  },
+  {
+   "subject": "p255",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "e1fd3e2eee602cf8b82a5f2f",
+    "first_name": "Hamish",
+    "last_name_obfuscated": "Ca***s",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Hollis Telecom",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "e1fd3e2eee602cf8b82a5f2f",
+     "first_name": "Hamish",
+     "last_name": "Castellanos",
+     "name": "Hamish Castellanos",
+     "linkedin_url": "http://www.linkedin.com/in/hamish-castellanos-e60f",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "hamish.castellanos@hollistelecom.com",
+     "organization_id": "501bb04936cdee216bdd5659",
+     "employment_history": [
+      {
+       "_id": "f2f5a28b8fc206eee2e3df1e",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "501bb04936cdee216bdd5659",
+       "organization_name": "Hollis Telecom",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "f2f5a28b8fc206eee2e3df1e",
+       "key": "f2f5a28b8fc206eee2e3df1e"
+      }
+     ],
+     "state": "Massachusetts",
+     "city": "Boston",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "501bb04936cdee216bdd5659",
+      "name": "Hollis Telecom",
+      "website_url": "http://www.hollistelecom.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/hollistelecom",
+      "twitter_url": "https://twitter.com/hollistelecom",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "83999492",
+      "founded_year": 2014,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "hollistelecom.com",
+      "industry": "hospital & health care",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 380,
+      "industries": [
+       "hospital & health care"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "hospital & health care": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Boston, Massachusetts, United States",
+      "street_address": "100 Market St",
+      "city": "Boston",
+      "state": "Massachusetts",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Hollis Telecom builds data products.",
+      "short_description": "Hollis Telecom is a hospital & health care company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164013
+   }
+  },
+  {
+   "subject": "p256",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "566d4a3917784f94b720d8d1",
+    "first_name": "Zelda",
+    "last_name_obfuscated": "Ko***k",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Hollis Telecom",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "566d4a3917784f94b720d8d1",
+     "first_name": "Zelda",
+     "last_name": "Kowalczyk",
+     "name": "Zelda Kowalczyk",
+     "linkedin_url": "http://www.linkedin.com/in/zelda-kowalczyk-fb80",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "zelda.kowalczyk@hollistelecom.com",
+     "organization_id": "501bb04936cdee216bdd5659",
+     "employment_history": [
+      {
+       "_id": "1d8d027b49f4877193a4d665",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "501bb04936cdee216bdd5659",
+       "organization_name": "Hollis Telecom",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "1d8d027b49f4877193a4d665",
+       "key": "1d8d027b49f4877193a4d665"
+      }
+     ],
+     "state": "Massachusetts",
+     "city": "Boston",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "501bb04936cdee216bdd5659",
+      "name": "Hollis Telecom",
+      "website_url": "http://www.hollistelecom.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/hollistelecom",
+      "twitter_url": "https://twitter.com/hollistelecom",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "83999492",
+      "founded_year": 2014,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "hollistelecom.com",
+      "industry": "hospital & health care",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 380,
+      "industries": [
+       "hospital & health care"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "hospital & health care": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Boston, Massachusetts, United States",
+      "street_address": "100 Market St",
+      "city": "Boston",
+      "state": "Massachusetts",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Hollis Telecom builds data products.",
+      "short_description": "Hollis Telecom is a hospital & health care company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164014
+   }
+  },
+  {
+   "subject": "p257",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "18c24e7c30a0ebc26bdffa62",
+    "first_name": "Mireille",
+    "last_name_obfuscated": "Ho***y",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Ingleby Payments",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "18c24e7c30a0ebc26bdffa62",
+     "first_name": "Mireille",
+     "last_name": "Holloway",
+     "name": "Mireille Holloway",
+     "linkedin_url": "http://www.linkedin.com/in/mireille-holloway-86a2",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "mireille.holloway@inglebypayments.com",
+     "organization_id": "472294587f02294f6410ac18",
+     "employment_history": [
+      {
+       "_id": "26affdb62cbe0a03c7e42c81",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "472294587f02294f6410ac18",
+       "organization_name": "Ingleby Payments",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "26affdb62cbe0a03c7e42c81",
+       "key": "26affdb62cbe0a03c7e42c81"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "472294587f02294f6410ac18",
+      "name": "Ingleby Payments",
+      "website_url": "http://www.inglebypayments.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/inglebypayments",
+      "twitter_url": "https://twitter.com/inglebypayments",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "74590533",
+      "founded_year": 2021,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "inglebypayments.com",
+      "industry": "retail",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "retail"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "retail": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Ingleby Payments builds data products.",
+      "short_description": "Ingleby Payments is a retail company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164015
+   }
+  },
+  {
+   "subject": "p258",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "f9d0af5d768b3e36649e7aeb",
+    "first_name": "Pavel",
+    "last_name_obfuscated": "Ja***i",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Ingleby Payments",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "f9d0af5d768b3e36649e7aeb",
+     "first_name": "Pavel",
+     "last_name": "Jablonski",
+     "name": "Pavel Jablonski",
+     "linkedin_url": "http://www.linkedin.com/in/pavel-jablonski-305a",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "pavel.jablonski@inglebypayments.com",
+     "organization_id": "472294587f02294f6410ac18",
+     "employment_history": [
+      {
+       "_id": "bea7e94663e3b867d5fa0d9f",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "472294587f02294f6410ac18",
+       "organization_name": "Ingleby Payments",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "bea7e94663e3b867d5fa0d9f",
+       "key": "bea7e94663e3b867d5fa0d9f"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "472294587f02294f6410ac18",
+      "name": "Ingleby Payments",
+      "website_url": "http://www.inglebypayments.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/inglebypayments",
+      "twitter_url": "https://twitter.com/inglebypayments",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "74590533",
+      "founded_year": 2021,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "inglebypayments.com",
+      "industry": "retail",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "retail"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "retail": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Ingleby Payments builds data products.",
+      "short_description": "Ingleby Payments is a retail company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164016
+   }
+  },
+  {
+   "subject": "p259",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "b7557e4165a19679cc24ef2e",
+    "first_name": "Soren",
+    "last_name_obfuscated": "Th***x",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Jessop Data Partners",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "b7557e4165a19679cc24ef2e",
+     "first_name": "Soren",
+     "last_name": "Thibodeaux",
+     "name": "Soren Thibodeaux",
+     "linkedin_url": "http://www.linkedin.com/in/soren-thibodeaux-066f",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "soren.thibodeaux@jessopdatapartners.com",
+     "organization_id": "349066f90ac6114412dcd67d",
+     "employment_history": [
+      {
+       "_id": "e2fe42cc97691a5614e7557b",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "349066f90ac6114412dcd67d",
+       "organization_name": "Jessop Data Partners",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "e2fe42cc97691a5614e7557b",
+       "key": "e2fe42cc97691a5614e7557b"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "349066f90ac6114412dcd67d",
+      "name": "Jessop Data Partners",
+      "website_url": "http://www.jessopdatapartners.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/jessopdatapartners",
+      "twitter_url": "https://twitter.com/jessopdatapartners",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "55117423",
+      "founded_year": 2020,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "jessopdatapartners.com",
+      "industry": "financial services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "financial services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "financial services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Jessop Data Partners builds data products.",
+      "short_description": "Jessop Data Partners is a financial services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "18M",
+      "annual_revenue": 18000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164017
+   }
+  },
+  {
+   "subject": "p260",
+   "technology_uids": [
+    "cassandra"
+   ],
+   "search_result": {
+    "id": "85fa6e91a294f2c287adf09a",
+    "first_name": "Xiomara",
+    "last_name_obfuscated": "Fa***n",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Jessop Data Partners",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "85fa6e91a294f2c287adf09a",
+     "first_name": "Xiomara",
+     "last_name": "Fairbairn",
+     "name": "Xiomara Fairbairn",
+     "linkedin_url": "http://www.linkedin.com/in/xiomara-fairbairn-89af",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "xiomara.fairbairn@jessopdatapartners.com",
+     "organization_id": "349066f90ac6114412dcd67d",
+     "employment_history": [
+      {
+       "_id": "a90fda782c2f492a19e6af58",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "349066f90ac6114412dcd67d",
+       "organization_name": "Jessop Data Partners",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "a90fda782c2f492a19e6af58",
+       "key": "a90fda782c2f492a19e6af58"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "349066f90ac6114412dcd67d",
+      "name": "Jessop Data Partners",
+      "website_url": "http://www.jessopdatapartners.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/jessopdatapartners",
+      "twitter_url": "https://twitter.com/jessopdatapartners",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "55117423",
+      "founded_year": 2020,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "jessopdatapartners.com",
+      "industry": "financial services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 2400,
+      "industries": [
+       "financial services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "financial services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Jessop Data Partners builds data products.",
+      "short_description": "Jessop Data Partners is a financial services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "18M",
+      "annual_revenue": 18000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164018
+   }
+  },
+  {
+   "subject": "p261",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "a71469a110e5df5101e58297",
+    "first_name": "Bastian",
+    "last_name_obfuscated": "Li***t",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Kestrel Health",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "a71469a110e5df5101e58297",
+     "first_name": "Bastian",
+     "last_name": "Lindqvist",
+     "name": "Bastian Lindqvist",
+     "linkedin_url": "http://www.linkedin.com/in/bastian-lindqvist-1477",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "bastian.lindqvist@kestrelhealth.com",
+     "organization_id": "61eda42ef46a1068583901d4",
+     "employment_history": [
+      {
+       "_id": "79285e1015fd5e011a96417a",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "61eda42ef46a1068583901d4",
+       "organization_name": "Kestrel Health",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "79285e1015fd5e011a96417a",
+       "key": "79285e1015fd5e011a96417a"
+      }
+     ],
+     "state": "Washington",
+     "city": "Seattle",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "61eda42ef46a1068583901d4",
+      "name": "Kestrel Health",
+      "website_url": "http://www.kestrelhealth.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/kestrelhealth",
+      "twitter_url": "https://twitter.com/kestrelhealth",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "102685250",
+      "founded_year": 2008,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "kestrelhealth.com",
+      "industry": "financial services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 850,
+      "industries": [
+       "financial services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "financial services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Seattle, Washington, United States",
+      "street_address": "100 Market St",
+      "city": "Seattle",
+      "state": "Washington",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Kestrel Health builds data products.",
+      "short_description": "Kestrel Health is a financial services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164019
+   }
+  },
+  {
+   "subject": "p262",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "2c81bd45573184b1d1b937de",
+    "first_name": "Vesna",
+    "last_name_obfuscated": "Va***a",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Kestrel Health",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "2c81bd45573184b1d1b937de",
+     "first_name": "Vesna",
+     "last_name": "Valderrama",
+     "name": "Vesna Valderrama",
+     "linkedin_url": "http://www.linkedin.com/in/vesna-valderrama-7ea7",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "vesna.valderrama@kestrelhealth.com",
+     "organization_id": "61eda42ef46a1068583901d4",
+     "employment_history": [
+      {
+       "_id": "ed739b1d1b48137554db18c2",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "61eda42ef46a1068583901d4",
+       "organization_name": "Kestrel Health",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "ed739b1d1b48137554db18c2",
+       "key": "ed739b1d1b48137554db18c2"
+      }
+     ],
+     "state": "Washington",
+     "city": "Seattle",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "61eda42ef46a1068583901d4",
+      "name": "Kestrel Health",
+      "website_url": "http://www.kestrelhealth.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/kestrelhealth",
+      "twitter_url": "https://twitter.com/kestrelhealth",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "102685250",
+      "founded_year": 2008,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "kestrelhealth.com",
+      "industry": "financial services",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 850,
+      "industries": [
+       "financial services"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "financial services": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Seattle, Washington, United States",
+      "street_address": "100 Market St",
+      "city": "Seattle",
+      "state": "Washington",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Kestrel Health builds data products.",
+      "short_description": "Kestrel Health is a financial services company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "62M",
+      "annual_revenue": 62000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164020
+   }
+  },
+  {
+   "subject": "p263",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "32debc69663eeb023faa12a1",
+    "first_name": "Vesna",
+    "last_name_obfuscated": "Es***n",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Lindqvist Energy",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "32debc69663eeb023faa12a1",
+     "first_name": "Vesna",
+     "last_name": "Eskildsen",
+     "name": "Vesna Eskildsen",
+     "linkedin_url": "http://www.linkedin.com/in/vesna-eskildsen-4098",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "vesna.eskildsen@lindqvistenergy.io",
+     "organization_id": "5d1ce8e51ed1dcf0e4cf9cd3",
+     "employment_history": [
+      {
+       "_id": "1a21aaf320bee36696cbed23",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "5d1ce8e51ed1dcf0e4cf9cd3",
+       "organization_name": "Lindqvist Energy",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "1a21aaf320bee36696cbed23",
+       "key": "1a21aaf320bee36696cbed23"
+      }
+     ],
+     "state": "England",
+     "city": "London",
+     "country": "United Kingdom",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "5d1ce8e51ed1dcf0e4cf9cd3",
+      "name": "Lindqvist Energy",
+      "website_url": "http://www.lindqvistenergy.io",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/lindqvistenergy",
+      "twitter_url": "https://twitter.com/lindqvistenergy",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "97635982",
+      "founded_year": 2005,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "lindqvistenergy.io",
+      "industry": "telecommunications",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 120,
+      "industries": [
+       "telecommunications"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "telecommunications": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, London, England, United Kingdom",
+      "street_address": "100 Market St",
+      "city": "London",
+      "state": "England",
+      "postal_code": "00000",
+      "country": "United Kingdom",
+      "owned_by_organization_id": null,
+      "seo_description": "Lindqvist Energy builds data products.",
+      "short_description": "Lindqvist Energy is a telecommunications company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164021
+   }
+  },
+  {
+   "subject": "p264",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "67b60c60223302ad7f9da37f",
+    "first_name": "Vesna",
+    "last_name_obfuscated": "Sz***i",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Lindqvist Energy",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "67b60c60223302ad7f9da37f",
+     "first_name": "Vesna",
+     "last_name": "Szymanski",
+     "name": "Vesna Szymanski",
+     "linkedin_url": "http://www.linkedin.com/in/vesna-szymanski-4907",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "vesna.szymanski@lindqvistenergy.io",
+     "organization_id": "5d1ce8e51ed1dcf0e4cf9cd3",
+     "employment_history": [
+      {
+       "_id": "f73ad9f7da20332206c06b76",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "5d1ce8e51ed1dcf0e4cf9cd3",
+       "organization_name": "Lindqvist Energy",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "f73ad9f7da20332206c06b76",
+       "key": "f73ad9f7da20332206c06b76"
+      }
+     ],
+     "state": "England",
+     "city": "London",
+     "country": "United Kingdom",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "5d1ce8e51ed1dcf0e4cf9cd3",
+      "name": "Lindqvist Energy",
+      "website_url": "http://www.lindqvistenergy.io",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/lindqvistenergy",
+      "twitter_url": "https://twitter.com/lindqvistenergy",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "97635982",
+      "founded_year": 2005,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "lindqvistenergy.io",
+      "industry": "telecommunications",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 120,
+      "industries": [
+       "telecommunications"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "telecommunications": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, London, England, United Kingdom",
+      "street_address": "100 Market St",
+      "city": "London",
+      "state": "England",
+      "postal_code": "00000",
+      "country": "United Kingdom",
+      "owned_by_organization_id": null,
+      "seo_description": "Lindqvist Energy builds data products.",
+      "short_description": "Lindqvist Energy is a telecommunications company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164022
+   }
+  },
+  {
+   "subject": "p265",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "ad0f3a95997facf0fa370ef7",
+    "first_name": "Tamsin",
+    "last_name_obfuscated": "Ya***h",
+    "title": "Head of Data Platform",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Marlowe Gaming",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "ad0f3a95997facf0fa370ef7",
+     "first_name": "Tamsin",
+     "last_name": "Yarborough",
+     "name": "Tamsin Yarborough",
+     "linkedin_url": "http://www.linkedin.com/in/tamsin-yarborough-a6aa",
+     "title": "Head of Data Platform",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Head of Data Platform",
+     "email": "tamsin.yarborough@marlowegaming.com",
+     "organization_id": "30d6557c8dc96a5e7a9ea7ec",
+     "employment_history": [
+      {
+       "_id": "7fe073af0fcaf79959a3f0da",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "30d6557c8dc96a5e7a9ea7ec",
+       "organization_name": "Marlowe Gaming",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Head of Data Platform",
+       "updated_at": null,
+       "id": "7fe073af0fcaf79959a3f0da",
+       "key": "7fe073af0fcaf79959a3f0da"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "head",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "30d6557c8dc96a5e7a9ea7ec",
+      "name": "Marlowe Gaming",
+      "website_url": "http://www.marlowegaming.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/marlowegaming",
+      "twitter_url": "https://twitter.com/marlowegaming",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "51209559",
+      "founded_year": 2012,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "marlowegaming.com",
+      "industry": "hospital & health care",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 380,
+      "industries": [
+       "hospital & health care"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "hospital & health care": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Marlowe Gaming builds data products.",
+      "short_description": "Marlowe Gaming is a hospital & health care company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "18M",
+      "annual_revenue": 18000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164023
+   }
+  },
+  {
+   "subject": "p266",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "2e11c3475c4d8c4d8abe566f",
+    "first_name": "Cosima",
+    "last_name_obfuscated": "Th***x",
+    "title": "Staff Database Engineer",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "Marlowe Gaming",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "2e11c3475c4d8c4d8abe566f",
+     "first_name": "Cosima",
+     "last_name": "Thibodeaux",
+     "name": "Cosima Thibodeaux",
+     "linkedin_url": "http://www.linkedin.com/in/cosima-thibodeaux-5042",
+     "title": "Staff Database Engineer",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Staff Database Engineer",
+     "email": "cosima.thibodeaux@marlowegaming.com",
+     "organization_id": "30d6557c8dc96a5e7a9ea7ec",
+     "employment_history": [
+      {
+       "_id": "f665eba8d4c8d4c5743c11e2",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "30d6557c8dc96a5e7a9ea7ec",
+       "organization_name": "Marlowe Gaming",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Staff Database Engineer",
+       "updated_at": null,
+       "id": "f665eba8d4c8d4c5743c11e2",
+       "key": "f665eba8d4c8d4c5743c11e2"
+      }
+     ],
+     "state": "Colorado",
+     "city": "Denver",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "senior",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "30d6557c8dc96a5e7a9ea7ec",
+      "name": "Marlowe Gaming",
+      "website_url": "http://www.marlowegaming.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/marlowegaming",
+      "twitter_url": "https://twitter.com/marlowegaming",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "51209559",
+      "founded_year": 2012,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "marlowegaming.com",
+      "industry": "hospital & health care",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 380,
+      "industries": [
+       "hospital & health care"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "hospital & health care": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Denver, Colorado, United States",
+      "street_address": "100 Market St",
+      "city": "Denver",
+      "state": "Colorado",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "Marlowe Gaming builds data products.",
+      "short_description": "Marlowe Gaming is a hospital & health care company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "18M",
+      "annual_revenue": 18000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164024
+   }
+  },
+  {
+   "subject": "p267",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
     "id": "7193e66a5373a9c5b1ab075c",
     "first_name": "Zelda",
     "last_name_obfuscated": "Ca***h",
@@ -40833,7 +44997,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p244",
+   "subject": "p268",
    "technology_uids": [
     "datastax"
    ],
@@ -41013,7 +45177,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p245",
+   "subject": "p269",
    "technology_uids": [
     "datastax"
    ],
@@ -41193,7 +45357,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p246",
+   "subject": "p270",
    "technology_uids": [
     "datastax"
    ],
@@ -41373,7 +45537,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p247",
+   "subject": "p271",
    "technology_uids": [
     "datastax"
    ],
@@ -41553,7 +45717,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p248",
+   "subject": "p272",
    "technology_uids": [
     "datastax"
    ],
@@ -41733,7 +45897,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p249",
+   "subject": "p273",
    "technology_uids": [
     "datastax"
    ],
@@ -41913,7 +46077,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p250",
+   "subject": "p274",
    "technology_uids": [
     "datastax"
    ],
@@ -42093,7 +46257,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p251",
+   "subject": "p275",
    "technology_uids": [
     "datastax"
    ],
@@ -42273,7 +46437,7 @@
    "domain": "datastax.com"
   },
   {
-   "subject": "p252",
+   "subject": "p276",
    "technology_uids": [
     "datastax"
    ],
@@ -42449,6 +46613,366 @@
      }
     },
     "request_id": 718432950164010
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p277",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "1cefcec2216bfb0aa20ccd36",
+    "first_name": "Anouk",
+    "last_name_obfuscated": "Ab***y",
+    "title": "Director of Infrastructure",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "1cefcec2216bfb0aa20ccd36",
+     "first_name": "Anouk",
+     "last_name": "Abernathy",
+     "name": "Anouk Abernathy",
+     "linkedin_url": "http://www.linkedin.com/in/anouk-abernathy-0dd9",
+     "title": "Director of Infrastructure",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "Director of Infrastructure",
+     "email": "anouk.abernathy@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "63dcc02aa0bfb6122cecfec1",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "Director of Infrastructure",
+       "updated_at": null,
+       "id": "63dcc02aa0bfb6122cecfec1",
+       "key": "63dcc02aa0bfb6122cecfec1"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "director",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164011
+   },
+   "domain": "datastax.com"
+  },
+  {
+   "subject": "p278",
+   "technology_uids": [
+    "datastax"
+   ],
+   "search_result": {
+    "id": "20f55bd002a37d03d0b40deb",
+    "first_name": "Pavel",
+    "last_name_obfuscated": "Fi***d",
+    "title": "VP Engineering",
+    "last_refreshed_at": "2026-09-28T11:04:52.318+00:00",
+    "has_email": true,
+    "has_city": true,
+    "has_state": true,
+    "has_country": true,
+    "has_direct_phone": "Maybe: please request direct dial via people/bulk_match",
+    "organization": {
+     "name": "DataStax",
+     "has_industry": true,
+     "has_phone": false,
+     "has_city": true,
+     "has_state": true,
+     "has_country": true,
+     "has_zip_code": false,
+     "has_revenue": true,
+     "has_employee_count": true
+    }
+   },
+   "enrichment": {
+    "person": {
+     "id": "20f55bd002a37d03d0b40deb",
+     "first_name": "Pavel",
+     "last_name": "Fitzgerald",
+     "name": "Pavel Fitzgerald",
+     "linkedin_url": "http://www.linkedin.com/in/pavel-fitzgerald-c077",
+     "title": "VP Engineering",
+     "email_status": "verified",
+     "photo_url": null,
+     "twitter_url": null,
+     "github_url": null,
+     "facebook_url": null,
+     "extrapolated_email_confidence": null,
+     "headline": "VP Engineering",
+     "email": "pavel.fitzgerald@datastax.com",
+     "organization_id": "1e99c6c9d99f092aa1868521",
+     "employment_history": [
+      {
+       "_id": "bed04b0d30d73a200db55f02",
+       "created_at": null,
+       "current": true,
+       "degree": null,
+       "description": null,
+       "emails": null,
+       "end_date": null,
+       "grade_level": null,
+       "kind": null,
+       "major": null,
+       "organization_id": "1e99c6c9d99f092aa1868521",
+       "organization_name": "DataStax",
+       "raw_address": null,
+       "start_date": "2022-03-01",
+       "title": "VP Engineering",
+       "updated_at": null,
+       "id": "bed04b0d30d73a200db55f02",
+       "key": "bed04b0d30d73a200db55f02"
+      }
+     ],
+     "state": "California",
+     "city": "Santa Clara",
+     "country": "United States",
+     "departments": [
+      "engineering_technical"
+     ],
+     "subdepartments": [],
+     "seniority": "vp",
+     "functions": [
+      "engineering"
+     ],
+     "is_likely_to_engage": false,
+     "show_intent": false,
+     "revealed_for_current_team": true,
+     "match_confidence": "high",
+     "organization": {
+      "id": "1e99c6c9d99f092aa1868521",
+      "name": "DataStax",
+      "website_url": "http://www.datastax.com",
+      "blog_url": null,
+      "angellist_url": null,
+      "linkedin_url": "http://www.linkedin.com/company/datastax",
+      "twitter_url": "https://twitter.com/datastax",
+      "facebook_url": null,
+      "primary_phone": {},
+      "languages": [],
+      "alexa_ranking": null,
+      "phone": null,
+      "linkedin_uid": "32087148",
+      "founded_year": 2010,
+      "publicly_traded_symbol": null,
+      "publicly_traded_exchange": null,
+      "logo_url": null,
+      "crunchbase_url": null,
+      "primary_domain": "datastax.com",
+      "industry": "computer software",
+      "keywords": [
+       "data platform",
+       "distributed databases"
+      ],
+      "estimated_num_employees": 900,
+      "industries": [
+       "computer software"
+      ],
+      "secondary_industries": [],
+      "snippets_loaded": true,
+      "industry_tag_id": "5567cd4773696439b10b0000",
+      "industry_tag_hash": {
+       "computer software": "5567cd4773696439b10b0000"
+      },
+      "retail_location_count": 0,
+      "raw_address": "100 Market St, Santa Clara, California, United States",
+      "street_address": "100 Market St",
+      "city": "Santa Clara",
+      "state": "California",
+      "postal_code": "00000",
+      "country": "United States",
+      "owned_by_organization_id": null,
+      "seo_description": "DataStax builds data products.",
+      "short_description": "DataStax is a computer software company.",
+      "suborganizations": [],
+      "num_suborganizations": 0,
+      "annual_revenue_printed": "240M",
+      "annual_revenue": 240000000,
+      "total_funding": null,
+      "total_funding_printed": null,
+      "latest_funding_round_date": null,
+      "latest_funding_stage": null,
+      "funding_events": [],
+      "technology_names": [
+       "DataStax",
+       "Cassandra",
+       "Amazon AWS",
+       "Kubernetes",
+       "Snowflake"
+      ],
+      "current_technologies": [
+       {
+        "uid": "datastax",
+        "name": "DataStax",
+        "category": "Databases"
+       },
+       {
+        "uid": "cassandra",
+        "name": "Cassandra",
+        "category": "Databases"
+       },
+       {
+        "uid": "amazon_aws",
+        "name": "Amazon AWS",
+        "category": "Hosting"
+       },
+       {
+        "uid": "kubernetes",
+        "name": "Kubernetes",
+        "category": "Other"
+       },
+       {
+        "uid": "snowflake",
+        "name": "Snowflake",
+        "category": "Data Warehousing"
+       }
+      ],
+      "org_chart_root_people_ids": [],
+      "org_chart_sector": "OrgChart::SectorHierarchy::Rules::IT",
+      "org_chart_removed": false,
+      "org_chart_show_department_filter": true
+     }
+    },
+    "request_id": 718432950164012
    },
    "domain": "datastax.com"
   }

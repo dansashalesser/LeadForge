@@ -37,6 +37,10 @@ WORKER_SCENARIOS: tuple[tuple[str, int], ...] = (
     ("worker_no_linkedin", 2),
     ("worker_opted_out", 1),
     ("worker_customer", 1),
+    # Two more employees, labelled for the usage tests (user-recognition 1.2): to a
+    # users search for DataStax's own product they are the vendor's staff, never users.
+    # Their email is Verified and their invite ignored, so a fallback email.
+    ("vendor_staff", 2),
 )
 _ACCEPT_DAYS = (1, 2, 3)
 _REJECTED = frozenset(

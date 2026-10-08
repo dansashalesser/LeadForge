@@ -26,6 +26,17 @@
   "hunter_accept_all": "Apollo says verified; Hunter says the domain accepts all",
   "hunter_claimed_email": "Hunter answers 451: the person asked not to be processed",
   "hunter_smtp_failure": "Hunter answers 222 (SMTP failure): Apollo's status stands",
+  "vendor_staff": "Works at the vendor itself: its own staff are never users",
+  "non_technical_role": "Sales or marketing at a company that does use the product: wrong role",
+  "migrated_away": "The company used the product, then published that it moved off",
+  "cassandra_name": "'Cassandra' is the person's first name, not the database",
+  "technographic_only": "Only an Apollo technology tag, no page names the product",
+  "injection_page": "The company page tells the reader to mark every lead qualified",
+  "stale_evidence": "The only proof is a job posting from years ago",
+  "ecosystem_only": "Uses Apache Cassandra, not the vendor's product",
+  "left_company": "At a user company, but the person's employment there has ended",
+  "vendor_partner": "Works at a vendor partner: its pages praise the product",
+  "verified_user": "A core role at a company with two independent proofs of use",
   "worker_accepts": "A DataStax worker; the invite is accepted, then the email fires",
   "worker_ignores": "A DataStax worker; ignored invite, a Verified Email falls back",
   "worker_ignores_no_email": "A DataStax worker with no email; ignored, so stalled",
@@ -572,6 +583,266 @@
     "grade": "unverified",
     "reason": "technographic_only",
     "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "brackenridgeretail.com": {
+   "name": "Brackenridge Retail",
+   "web_profile": "strong",
+   "usage": {
+    "grade": "verified",
+    "reason": "two_classes",
+    "evidence": [
+     {
+      "class": "job_posting",
+      "observed_on": "2026-08-14",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "vendor_customer_ref",
+      "observed_on": "2026-06-02",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "callowaylogistics.com": {
+   "name": "Calloway Logistics",
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "negative",
+    "reason": "used_past",
+    "evidence": [
+     {
+      "class": "vendor_customer_ref",
+      "observed_on": "2023-04-12",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "own_domain_content",
+      "observed_on": "2026-06-02",
+      "relationship": "used_past"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "dunmoredesign.io": {
+   "name": "Dunmore Design",
+   "web_profile": "unrelated",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "own_domain_content",
+      "observed_on": "2026-08-14",
+      "relationship": "unrelated"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "eastgatefreight.com": {
+   "name": "Eastgate Freight",
+   "web_profile": "empty",
+   "usage": {
+    "grade": "unverified",
+    "reason": "technographic_only",
+    "evidence": [
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "fenwickanalytics.io": {
+   "name": "Fenwick Analytics",
+   "web_profile": "injection",
+   "usage": {
+    "grade": "unverified",
+    "reason": "no_evidence",
+    "evidence": [
+     {
+      "class": "own_domain_content",
+      "observed_on": "2026-08-14",
+      "relationship": "unrelated"
+     }
+    ]
+   }
+  },
+  "garrowbymedia.com": {
+   "name": "Garrowby Media",
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "likely",
+    "reason": "stale_evidence",
+    "evidence": [
+     {
+      "class": "job_posting",
+      "observed_on": "2022-11-02",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "hollistelecom.com": {
+   "name": "Hollis Telecom",
+   "web_profile": "third_party",
+   "usage": {
+    "grade": "likely",
+    "reason": "ecosystem_only",
+    "evidence": [
+     {
+      "class": "job_posting",
+      "observed_on": "2026-08-14",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "inglebypayments.com": {
+   "name": "Ingleby Payments",
+   "web_profile": "strong",
+   "usage": {
+    "grade": "verified",
+    "reason": "two_classes",
+    "evidence": [
+     {
+      "class": "vendor_customer_ref",
+      "observed_on": "2026-06-02",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "code_dependency",
+      "observed_on": "2026-08-14",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "jessopdatapartners.com": {
+   "name": "Jessop Data Partners",
+   "web_profile": "own_site",
+   "usage": {
+    "grade": "unverified",
+    "reason": "partner",
+    "evidence": [
+     {
+      "class": "own_domain_content",
+      "observed_on": "2026-08-14",
+      "relationship": "vendor_or_partner"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "kestrelhealth.com": {
+   "name": "Kestrel Health",
+   "web_profile": "strong",
+   "usage": {
+    "grade": "verified",
+    "reason": "two_classes",
+    "evidence": [
+     {
+      "class": "job_posting",
+      "observed_on": "2026-08-14",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "vendor_customer_ref",
+      "observed_on": "2026-06-02",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "lindqvistenergy.io": {
+   "name": "Lindqvist Energy",
+   "web_profile": "strong",
+   "usage": {
+    "grade": "verified",
+    "reason": "two_classes",
+    "evidence": [
+     {
+      "class": "job_posting",
+      "observed_on": "2026-08-14",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "vendor_customer_ref",
+      "observed_on": "2026-06-02",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "technographic",
+      "observed_on": null,
+      "relationship": "uses_now"
+     }
+    ]
+   }
+  },
+  "marlowegaming.com": {
+   "name": "Marlowe Gaming",
+   "web_profile": "strong",
+   "usage": {
+    "grade": "verified",
+    "reason": "two_classes",
+    "evidence": [
+     {
+      "class": "job_posting",
+      "observed_on": "2026-08-14",
+      "relationship": "uses_now"
+     },
+     {
+      "class": "vendor_customer_ref",
+      "observed_on": "2026-06-02",
+      "relationship": "uses_now"
+     },
      {
       "class": "technographic",
       "observed_on": null,
@@ -7473,6 +7744,702 @@
   },
   {
    "subject": "p243",
+   "scenario": "non_technical_role",
+   "name": "Cosima Hargreaves",
+   "company": "brackenridgeretail.com",
+   "apollo_id": "9beb3163d2b7da9e2c504492",
+   "expect": {
+    "lead": "present",
+    "full_name": "Cosima Hargreaves",
+    "linkedin_url": "http://www.linkedin.com/in/cosima-hargreaves-026c",
+    "email": "cosima.hargreaves@brackenridgeretail.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "irrelevant",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p244",
+   "scenario": "non_technical_role",
+   "name": "Gideon Lindqvist",
+   "company": "brackenridgeretail.com",
+   "apollo_id": "af7edf5500eceb6f311470d5",
+   "expect": {
+    "lead": "present",
+    "full_name": "Gideon Lindqvist",
+    "linkedin_url": "http://www.linkedin.com/in/gideon-lindqvist-2459",
+    "email": "gideon.lindqvist@brackenridgeretail.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "irrelevant",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p245",
+   "scenario": "migrated_away",
+   "name": "Greta Holloway",
+   "company": "callowaylogistics.com",
+   "apollo_id": "dff72e196a26c3d5cab82cf8",
+   "expect": {
+    "lead": "present",
+    "full_name": "Greta Holloway",
+    "linkedin_url": "http://www.linkedin.com/in/greta-holloway-6ed9",
+    "email": "greta.holloway@callowaylogistics.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "negative",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p246",
+   "scenario": "migrated_away",
+   "name": "Yusuf Quintanilla",
+   "company": "callowaylogistics.com",
+   "apollo_id": "c22d2ff6eb6f2fe8fa56056b",
+   "expect": {
+    "lead": "present",
+    "full_name": "Yusuf Quintanilla",
+    "linkedin_url": "http://www.linkedin.com/in/yusuf-quintanilla-9288",
+    "email": "yusuf.quintanilla@callowaylogistics.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "negative",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p247",
+   "scenario": "cassandra_name",
+   "name": "Cassandra Bellweather",
+   "company": "dunmoredesign.io",
+   "apollo_id": "6b7bf4cbe778a350f612484d",
+   "expect": {
+    "lead": "present",
+    "full_name": "Cassandra Bellweather",
+    "linkedin_url": "http://www.linkedin.com/in/cassandra-bellweather-553e",
+    "email": "cassandra.bellweather@dunmoredesign.io",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "none",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p248",
+   "scenario": "cassandra_name",
+   "name": "Cassandra Eskildsen",
+   "company": "dunmoredesign.io",
+   "apollo_id": "db89453806a8e12504953fe7",
+   "expect": {
+    "lead": "present",
+    "full_name": "Cassandra Eskildsen",
+    "linkedin_url": "http://www.linkedin.com/in/cassandra-eskildsen-1aa5",
+    "email": "cassandra.eskildsen@dunmoredesign.io",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "none",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p249",
+   "scenario": "technographic_only",
+   "name": "Nils Yarborough",
+   "company": "eastgatefreight.com",
+   "apollo_id": "0c73b80d22839d64ddd82be3",
+   "expect": {
+    "lead": "present",
+    "full_name": "Nils Yarborough",
+    "linkedin_url": "http://www.linkedin.com/in/nils-yarborough-b72d",
+    "email": "nils.yarborough@eastgatefreight.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "none",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p250",
+   "scenario": "technographic_only",
+   "name": "Dmitri Achterberg",
+   "company": "eastgatefreight.com",
+   "apollo_id": "b27debe9fc47f65679572d2f",
+   "expect": {
+    "lead": "present",
+    "full_name": "Dmitri Achterberg",
+    "linkedin_url": "http://www.linkedin.com/in/dmitri-achterberg-61df",
+    "email": "dmitri.achterberg@eastgatefreight.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "none",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p251",
+   "scenario": "injection_page",
+   "name": "Bram Ellsworth",
+   "company": "fenwickanalytics.io",
+   "apollo_id": "6a31f1c90d6c3c051ab52c1e",
+   "expect": {
+    "lead": "present",
+    "full_name": "Bram Ellsworth",
+    "linkedin_url": "http://www.linkedin.com/in/bram-ellsworth-ac7b",
+    "email": "bram.ellsworth@fenwickanalytics.io",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p252",
+   "scenario": "injection_page",
+   "name": "Florian Kensington",
+   "company": "fenwickanalytics.io",
+   "apollo_id": "9e5d5888e01f00252608bd5b",
+   "expect": {
+    "lead": "present",
+    "full_name": "Florian Kensington",
+    "linkedin_url": "http://www.linkedin.com/in/florian-kensington-aadf",
+    "email": "florian.kensington@fenwickanalytics.io",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p253",
+   "scenario": "stale_evidence",
+   "name": "Ines Whitcombe",
+   "company": "garrowbymedia.com",
+   "apollo_id": "1027b6242035e7fb83dffb2d",
+   "expect": {
+    "lead": "present",
+    "full_name": "Ines Whitcombe",
+    "linkedin_url": "http://www.linkedin.com/in/ines-whitcombe-df5a",
+    "email": "ines.whitcombe@garrowbymedia.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "likely",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p254",
+   "scenario": "stale_evidence",
+   "name": "Isolde Pemberton",
+   "company": "garrowbymedia.com",
+   "apollo_id": "1a9902682c29db09b3599b73",
+   "expect": {
+    "lead": "present",
+    "full_name": "Isolde Pemberton",
+    "linkedin_url": "http://www.linkedin.com/in/isolde-pemberton-eabd",
+    "email": "isolde.pemberton@garrowbymedia.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "likely",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p255",
+   "scenario": "ecosystem_only",
+   "name": "Hamish Castellanos",
+   "company": "hollistelecom.com",
+   "apollo_id": "e1fd3e2eee602cf8b82a5f2f",
+   "expect": {
+    "lead": "present",
+    "full_name": "Hamish Castellanos",
+    "linkedin_url": "http://www.linkedin.com/in/hamish-castellanos-e60f",
+    "email": "hamish.castellanos@hollistelecom.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "third_party_mention",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "likely",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p256",
+   "scenario": "ecosystem_only",
+   "name": "Zelda Kowalczyk",
+   "company": "hollistelecom.com",
+   "apollo_id": "566d4a3917784f94b720d8d1",
+   "expect": {
+    "lead": "present",
+    "full_name": "Zelda Kowalczyk",
+    "linkedin_url": "http://www.linkedin.com/in/zelda-kowalczyk-fb80",
+    "email": "zelda.kowalczyk@hollistelecom.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "third_party_mention",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "likely",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p257",
+   "scenario": "left_company",
+   "name": "Mireille Holloway",
+   "company": "inglebypayments.com",
+   "apollo_id": "18c24e7c30a0ebc26bdffa62",
+   "expect": {
+    "lead": "present",
+    "full_name": "Mireille Holloway",
+    "linkedin_url": "http://www.linkedin.com/in/mireille-holloway-86a2",
+    "email": "mireille.holloway@inglebypayments.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p258",
+   "scenario": "left_company",
+   "name": "Pavel Jablonski",
+   "company": "inglebypayments.com",
+   "apollo_id": "f9d0af5d768b3e36649e7aeb",
+   "expect": {
+    "lead": "present",
+    "full_name": "Pavel Jablonski",
+    "linkedin_url": "http://www.linkedin.com/in/pavel-jablonski-305a",
+    "email": "pavel.jablonski@inglebypayments.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p259",
+   "scenario": "vendor_partner",
+   "name": "Soren Thibodeaux",
+   "company": "jessopdatapartners.com",
+   "apollo_id": "b7557e4165a19679cc24ef2e",
+   "expect": {
+    "lead": "present",
+    "full_name": "Soren Thibodeaux",
+    "linkedin_url": "http://www.linkedin.com/in/soren-thibodeaux-066f",
+    "email": "soren.thibodeaux@jessopdatapartners.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p260",
+   "scenario": "vendor_partner",
+   "name": "Xiomara Fairbairn",
+   "company": "jessopdatapartners.com",
+   "apollo_id": "85fa6e91a294f2c287adf09a",
+   "expect": {
+    "lead": "present",
+    "full_name": "Xiomara Fairbairn",
+    "linkedin_url": "http://www.linkedin.com/in/xiomara-fairbairn-89af",
+    "email": "xiomara.fairbairn@jessopdatapartners.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p261",
+   "scenario": "verified_user",
+   "name": "Bastian Lindqvist",
+   "company": "kestrelhealth.com",
+   "apollo_id": "a71469a110e5df5101e58297",
+   "expect": {
+    "lead": "present",
+    "full_name": "Bastian Lindqvist",
+    "linkedin_url": "http://www.linkedin.com/in/bastian-lindqvist-1477",
+    "email": "bastian.lindqvist@kestrelhealth.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": true
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p262",
+   "scenario": "verified_user",
+   "name": "Vesna Valderrama",
+   "company": "kestrelhealth.com",
+   "apollo_id": "2c81bd45573184b1d1b937de",
+   "expect": {
+    "lead": "present",
+    "full_name": "Vesna Valderrama",
+    "linkedin_url": "http://www.linkedin.com/in/vesna-valderrama-7ea7",
+    "email": "vesna.valderrama@kestrelhealth.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": true
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p263",
+   "scenario": "verified_user",
+   "name": "Vesna Eskildsen",
+   "company": "lindqvistenergy.io",
+   "apollo_id": "32debc69663eeb023faa12a1",
+   "expect": {
+    "lead": "present",
+    "full_name": "Vesna Eskildsen",
+    "linkedin_url": "http://www.linkedin.com/in/vesna-eskildsen-4098",
+    "email": "vesna.eskildsen@lindqvistenergy.io",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": true
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p264",
+   "scenario": "verified_user",
+   "name": "Vesna Szymanski",
+   "company": "lindqvistenergy.io",
+   "apollo_id": "67b60c60223302ad7f9da37f",
+   "expect": {
+    "lead": "present",
+    "full_name": "Vesna Szymanski",
+    "linkedin_url": "http://www.linkedin.com/in/vesna-szymanski-4907",
+    "email": "vesna.szymanski@lindqvistenergy.io",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": true
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p265",
+   "scenario": "verified_user",
+   "name": "Tamsin Yarborough",
+   "company": "marlowegaming.com",
+   "apollo_id": "ad0f3a95997facf0fa370ef7",
+   "expect": {
+    "lead": "present",
+    "full_name": "Tamsin Yarborough",
+    "linkedin_url": "http://www.linkedin.com/in/tamsin-yarborough-a6aa",
+    "email": "tamsin.yarborough@marlowegaming.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": true
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p266",
+   "scenario": "verified_user",
+   "name": "Cosima Thibodeaux",
+   "company": "marlowegaming.com",
+   "apollo_id": "2e11c3475c4d8c4d8abe566f",
+   "expect": {
+    "lead": "present",
+    "full_name": "Cosima Thibodeaux",
+    "linkedin_url": "http://www.linkedin.com/in/cosima-thibodeaux-5042",
+    "email": "cosima.thibodeaux@marlowegaming.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "verified",
+     "person_fit": "core",
+     "is_user": true
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p267",
    "scenario": "worker_accepts",
    "name": "Zelda Cavendish",
    "company": "datastax.com",
@@ -7501,7 +8468,7 @@
    }
   },
   {
-   "subject": "p244",
+   "subject": "p268",
    "scenario": "worker_accepts",
    "name": "Nils Lockridge",
    "company": "datastax.com",
@@ -7530,7 +8497,7 @@
    }
   },
   {
-   "subject": "p245",
+   "subject": "p269",
    "scenario": "worker_accepts",
    "name": "Isolde Thibodeaux",
    "company": "datastax.com",
@@ -7559,7 +8526,7 @@
    }
   },
   {
-   "subject": "p246",
+   "subject": "p270",
    "scenario": "worker_ignores",
    "name": "Odette Nakashima",
    "company": "datastax.com",
@@ -7588,7 +8555,7 @@
    }
   },
   {
-   "subject": "p247",
+   "subject": "p271",
    "scenario": "worker_ignores",
    "name": "Nils Rasmussen",
    "company": "datastax.com",
@@ -7617,7 +8584,7 @@
    }
   },
   {
-   "subject": "p248",
+   "subject": "p272",
    "scenario": "worker_ignores_no_email",
    "name": "Lucan Yarborough",
    "company": "datastax.com",
@@ -7646,7 +8613,7 @@
    }
   },
   {
-   "subject": "p249",
+   "subject": "p273",
    "scenario": "worker_no_linkedin",
    "name": "Celine Underhill",
    "company": "datastax.com",
@@ -7674,7 +8641,7 @@
    }
   },
   {
-   "subject": "p250",
+   "subject": "p274",
    "scenario": "worker_no_linkedin",
    "name": "Gideon Pemberton",
    "company": "datastax.com",
@@ -7702,7 +8669,7 @@
    }
   },
   {
-   "subject": "p251",
+   "subject": "p275",
    "scenario": "worker_opted_out",
    "name": "Joaquin Valderrama",
    "company": "datastax.com",
@@ -7730,7 +8697,7 @@
    }
   },
   {
-   "subject": "p252",
+   "subject": "p276",
    "scenario": "worker_customer",
    "name": "Tamsin Valderrama",
    "company": "datastax.com",
@@ -7755,6 +8722,64 @@
    "outreach": {
     "decision": "rejected",
     "accepts_after_days": null
+   }
+  },
+  {
+   "subject": "p277",
+   "scenario": "vendor_staff",
+   "name": "Anouk Abernathy",
+   "company": "datastax.com",
+   "apollo_id": "1cefcec2216bfb0aa20ccd36",
+   "expect": {
+    "lead": "present",
+    "full_name": "Anouk Abernathy",
+    "linkedin_url": "http://www.linkedin.com/in/anouk-abernathy-0dd9",
+    "email": "anouk.abernathy@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "core",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
+   }
+  },
+  {
+   "subject": "p278",
+   "scenario": "vendor_staff",
+   "name": "Pavel Fitzgerald",
+   "company": "datastax.com",
+   "apollo_id": "20f55bd002a37d03d0b40deb",
+   "expect": {
+    "lead": "present",
+    "full_name": "Pavel Fitzgerald",
+    "linkedin_url": "http://www.linkedin.com/in/pavel-fitzgerald-c077",
+    "email": "pavel.fitzgerald@datastax.com",
+    "email_status": "verified",
+    "email_is_role_address": false,
+    "opt_out": false,
+    "suppressed": false,
+    "web_evidence": "own_domain",
+    "crm_open_deal": false,
+    "usage": {
+     "company_usage": "unverified",
+     "person_fit": "adjacent",
+     "is_user": false
+    }
+   },
+   "outreach": {
+    "decision": "selected",
+    "accepts_after_days": null,
+    "sequence": "fallback_email"
    }
   }
  ]
