@@ -10,9 +10,11 @@ import re
 from collections.abc import Sequence
 from typing import Protocol
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from leadforge.lead_ingestion.catalog import CatalogProduct
+from leadforge.outreach.llm import ModelInvoker
+from leadforge.outreach.prompts import Prompt, delimit
 from leadforge.outreach.usage.fetch import Passages
 from leadforge.outreach.usage.records import ClassifierStamp, Relationship
 
@@ -158,3 +160,72 @@ __all__: Sequence[str] = [
     "OfflineClassifier",
     "UsageCues",
 ]
+
+
+class LlmClassifier:
+    """Model-backed classifier. Keeps an answer only when it is the schema, the subject
+    is the target, the product matches and every quote is verbatim from a passage; any
+    other outcome (including exhausted schema retries) leaves the passage unclassified.
+    """
+
+    def __init__(
+        self, model: ModelInvoker, prompt: Prompt, *, model_name: str, retries: int
+    ) -> None:
+        if retries < 0:
+            raise ValueError("retries must not be negative")
+        self._model = model
+        self._prompt = prompt
+        self._name = model_name
+        self._retries = retries
+
+    def stamp(
+        self, target: str, product: CatalogProduct, passages: Passages
+    ) -> ClassifierStamp:
+        payload = json.dumps(
+            [
+                self._prompt.version,
+                self._name,
+                target,
+                product.key,
+                list(passages.passages),
+            ],
+            sort_keys=True,
+        )
+        return ClassifierStamp(
+            kind="llm",
+            model=self._name,
+            prompt_version=self._prompt.version,
+            input_hash=hashlib.sha256(payload.encode()).hexdigest(),
+        )
+
+    def classify(
+        self, target: str, product: CatalogProduct, passages: Passages
+    ) -> Judgement | None:
+        system = self._prompt.fill(
+            product=product.name or product.key, product_key=product.key
+        )
+        human = "\n\n".join(
+            [delimit("target", target)]
+            + [delimit("passage", p) for p in passages.passages]
+        )
+        messages = (("system", system), ("human", human))
+        for _ in range(self._retries + 1):
+            try:
+                answer = self._model.invoke(messages)
+                judgement = (
+                    answer
+                    if isinstance(answer, Judgement)
+                    else Judgement.model_validate(answer)
+                )
+            except ValidationError:
+                continue
+            return judgement if _kept(judgement, product, passages) else None
+        return None
+
+
+def _kept(j: Judgement, product: CatalogProduct, passages: Passages) -> bool:
+    if not j.subject_is_target_company or j.product_key != product.key:
+        return False
+    if not j.quotes:
+        return j.relationship is Relationship.UNRELATED
+    return all(q.strip() and any(q in p for p in passages.passages) for q in j.quotes)
