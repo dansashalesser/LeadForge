@@ -190,3 +190,21 @@ def test_the_verdict_reason_stores_both_grades_and_the_grade_reason() -> None:
     first = d.reasons[0]
     assert (first.company_usage, first.company_usage_reason) == ("verified", "r")
     assert first.person_fit == "core"
+
+
+@pytest.mark.parametrize(
+    ("grade", "expected"),
+    [("core", Decimal(1)), ("adjacent", Decimal("0.5")), ("irrelevant", Decimal(0))],
+)
+def test_the_users_fit_term_is_the_person_fit_grade(
+    grade: str, expected: Decimal
+) -> None:
+    verdict = _verdict(VerdictStatus.SELECTED).model_copy(
+        update={"person_fit": PersonFit(grade)}  # type: ignore[arg-type]
+    )
+    d = decide(make_stored(), CrmState(), make_plan(), CONFIG, LABELS, verdict)
+
+    fit = {r.code: r for r in d.reasons}["icp_fit"]
+    assert fit.value == expected
+    assert fit.note is not None
+    assert "Person Fit" in fit.note

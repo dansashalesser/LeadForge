@@ -370,7 +370,13 @@ def _evidence(reasons: list[dict[str, object]]) -> tuple[EvidenceItem, ...]:
 
 def _reason(reason: dict[str, object]) -> str:
     value = reason.get("value")
-    return f"{reason['code']}={value}" if value is not None else str(reason["code"])
+    if value is None:
+        return str(reason["code"])
+    try:
+        shown = f"{float(str(value)):.2f}".rstrip("0").rstrip(".")
+    except ValueError:
+        shown = str(value)
+    return f"{reason['code']}={shown}"
 
 
 def _mask_email(address: str | None) -> str | None:

@@ -44,6 +44,9 @@ _HALF = Decimal("0.5")
 _QUARTER = Decimal("0.25")
 _PLACES = Decimal("0.001")
 _RANK_ONLY = "not used in users mode: the usage verdict decides, the score ranks"
+# In users mode the fit term is the verdict's Person Fit, which grades the role.
+_FIT_VALUES = {"core": Decimal(1), "adjacent": Decimal("0.5"), "irrelevant": _ZERO}
+_FIT_NOTE = "users mode: Person Fit (core 1, adjacent 0.5, irrelevant 0)"
 
 
 class MissingVerdictError(ValueError):
@@ -96,7 +99,8 @@ def decide(
         return Decision(
             lead_id=stored.lead_id, status="rejected", score=_ZERO, reasons=rejected
         )
-    score, terms = _score(stored, plan, cfg, labels, users=gated)
+    fit = verdict.person_fit.grade if gated and verdict is not None else None
+    score, terms = _score(stored, plan, cfg, labels, users=gated, person_fit=fit)
     if verdict is not None and gated:
         if verdict.status is not VerdictStatus.SELECTED:
             status = (
@@ -174,6 +178,7 @@ def _score(
     labels: Collection[str],
     *,
     users: bool = False,
+    person_fit: str | None = None,
 ) -> tuple[Decimal, tuple[Reason, ...]]:
     weights = cfg.weights
     values: tuple[tuple[str, Decimal, Decimal | None, str | None], ...] = (
@@ -183,7 +188,11 @@ def _score(
             _competitor_evidence(stored, labels, plan.terms) if plan.terms else None,
             None if plan.terms else "not applicable: the search names no technology",
         ),
-        ("icp_fit", weights.icp_fit, _icp_fit(stored, plan), None),
+        (
+            ("icp_fit", weights.icp_fit, _FIT_VALUES[person_fit], _FIT_NOTE)
+            if person_fit is not None
+            else ("icp_fit", weights.icp_fit, _icp_fit(stored, plan), None)
+        ),
         ("intent", weights.intent, _intent(stored), None),
         ("contactability", weights.contactability, _contactability(stored), None),
         (

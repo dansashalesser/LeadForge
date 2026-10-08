@@ -270,7 +270,8 @@
       const row = el("tr", { class: "lead" },
         el("td", { text: lead.name || lead.email || lead.lead_id.slice(0, 8) }),
         el("td", {}, el("span", { class: `badge ${lead.status}`, text: lead.status })),
-        el("td", { text: String(lead.score) }),
+        // Users mode: the score only ranks selected people; for the rest it means nothing.
+        el("td", { text: lead.verdict && lead.status !== "selected" ? "—" : String(lead.score) }),
         el("td", { text: lead.sequence }),
         el("td", { text: lead.reasons.join(", ") }));
       const more = el("tr", { class: "hidden" }, el("td", { colspan: "5" }, leadDetail(lead)));
