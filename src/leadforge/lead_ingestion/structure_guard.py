@@ -21,6 +21,9 @@ RAW_SCHEMA_ALLOWED: Mapping[tuple[str, str], tuple[str, ...]] = {
     # module (serpapi.py) is imported.
     ("usage", "serp.py"): (_BACKENDS, f"{_BACKENDS}.SearchBackend"),
     ("tests", "test_usage_serp.py"): (_BACKENDS, f"{_BACKENDS}.select_backend"),
+    # The demo wiring builds the same SERP client over the demo transport, so it takes
+    # the same package and nothing deeper.
+    ("usage", "demo_wiring.py"): (_BACKENDS, f"{_BACKENDS}.select_backend"),
 }
 """(parent dir, file) outside the slice -> the exact adapter modules it may import."""
 
