@@ -1,8 +1,8 @@
 """The usage SERP client: one family query via the ingestion backend (Req 4.1).
 
 Reuses ingestion's backend (request shape), transport and throttle; spends one search
-from the run budget per query. Exhausted budget raises ``SearchBudgetExhaustedError`` so the
-stage stops and grades the company ``unverified`` with ``BUDGET_EXHAUSTED``.
+from the run budget per query. Exhausted budget raises ``SearchBudgetExhaustedError``
+so the stage stops and grades the company ``unverified`` with ``BUDGET_EXHAUSTED``.
 """
 
 from collections.abc import Mapping
