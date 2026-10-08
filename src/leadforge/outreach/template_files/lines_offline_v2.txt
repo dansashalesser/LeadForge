@@ -1,0 +1,16 @@
+# Fragments the offline writer joins into a Message; one "key: text" per line.
+# {title}, {company} and {value} are filled from the Lead's own facts.
+# Keep these plain, short and literally true. With no model to write the sentences,
+# a line that states what the evidence shows beats one that editorialises about it:
+# a template cannot read the evidence, so it cannot say anything about it.
+greeting.none: there
+role.title_company: {title} at {company} is close to the corner I work in.
+role.title: Your work as {title} is close to the corner I work in.
+role.company: What the team at {company} is building is close to the corner I work in.
+role.none: Your profile is close to the corner I work in.
+hook.product.uses_now: {company} runs {value}, and that is what I work on day to day.
+hook.product.evaluating: I gather {company} has been weighing up {value}, which is what I work on day to day.
+hook.product.used_past: {company} used to run {value}, which is what I work on day to day.
+hook.tech: Running {value} well is harder than it looks from outside.
+hook.intent: The {value} work on your side is hard to miss.
+hook.evidence: "{value}" stayed with me.

@@ -3,6 +3,7 @@
 Sockets are blocked as in the demo dataset test: the run is synthetic end to end.
 """
 
+import io
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import load_workbook
 
 from leadforge.lead_ingestion.match_key_digest import MATCH_KEY_SECRET_ENV
 from leadforge.lead_ingestion.models import DataMode
@@ -62,10 +64,16 @@ def test_a_foreign_host_is_refused(client: TestClient) -> None:
 
 
 def test_an_empty_store_says_so(client: TestClient) -> None:
-    for path in ("/api/main/leads", "/api/main/runs", "/api/demo/scorecard"):
+    for path in (
+        "/api/main/leads",
+        "/api/main/leads.xlsx",
+        "/api/main/runs",
+        "/api/demo/scorecard",
+    ):
         response = client.get(path)
         assert response.status_code == 409, path
     assert client.get("/api/elsewhere/leads").status_code == 404
+    assert client.get("/api/elsewhere/leads.xlsx").status_code == 404
 
 
 def test_the_page_and_sources_are_served(client: TestClient) -> None:
@@ -96,6 +104,14 @@ def test_a_demo_run_through_the_api_is_readable_and_scored(client: TestClient) -
     assert all("***@" in e for e in emails)
     revealed = client.get("/api/demo/leads", params={"reveal": True}).json()["leads"]
     assert not any("***" in (x["lead"]["email"] or "") for x in revealed)
+
+    workbook = client.get("/api/demo/leads.xlsx")
+    assert workbook.status_code == 200
+    assert "demo-leads.xlsx" in workbook.headers["content-disposition"]
+    rows = list(load_workbook(io.BytesIO(workbook.content))["Leads"].values)
+    assert rows[0][:3] == ("Lead ID", "Name", "Email")
+    assert {r[0] for r in rows[1:]} == {x["lead_id"] for x in masked}
+    assert [r[2] for r in rows[1:] if r[2]] == emails
 
     runs = client.get("/api/demo/runs").json()["runs"]
     assert len(runs) == 1

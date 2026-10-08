@@ -51,6 +51,7 @@ from leadforge.outreach.config import OutreachConfig, load_outreach_config
 from leadforge.outreach.demo_service import (
     DEMO_OUTBOX,
     ENV_LOCK,
+    build_demo_service,
     demo_acceptance,
     demo_search,
 )
@@ -61,10 +62,18 @@ from leadforge.outreach.errors import (
     NoProductSelectedError,
     OutreachConfigError,
     PlanCompileError,
+    UnknownLeadError,
     UnknownModeError,
+    UnknownSearchError,
     UnknownTermError,
 )
-from leadforge.outreach.report import build_report, render_json, render_markdown
+from leadforge.outreach.report import (
+    XLSX_TYPE,
+    build_report,
+    render_json,
+    render_markdown,
+    render_xlsx,
+)
 from leadforge.outreach.runtime import build_service, source_mode_notes
 from leadforge.outreach.search_plan import SearchPlan, parse_request
 from leadforge.outreach.tables import OutreachSearch
@@ -133,6 +142,15 @@ class SearchStart(BaseModel):
 
     plan: SearchPlan
     store: Store = "main"
+
+
+class MessagesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    store: Store = "main"
+    # The search the Lead was found by. Its usage evidence is what makes a Message
+    # specific; without it the Message has only the Lead's own data to work from.
+    search_id: uuid.UUID | None = None
 
 
 class TickRequest(BaseModel):
@@ -365,10 +383,51 @@ def create_router(
                 )
             }
 
+    @router.post(
+        "/api/outreach/leads/{lead_id}/messages",
+        dependencies=[Depends(_require_write_header)],
+    )
+    def write_messages(lead_id: uuid.UUID, request: MessagesRequest) -> dict[str, Any]:
+        """Write a Lead's invite and email now and return them; nothing is stored."""
+        try:
+            with reading(request.store) as session:
+                if request.store == "demo":
+                    demo_engine = create_store_engine(local_file_url(demo_path()))
+                    try:
+                        service = build_demo_service(demo_engine, demo_path())
+                    finally:
+                        demo_engine.dispose()
+                else:
+                    with ENV_LOCK:
+                        service = build_service(env())
+                facts = service.lead_facts(session, lead_id, request.search_id)
+            # Written after the session closes: a slow model call holds no
+            # connection or transaction.
+            result = service.draft_messages(facts)
+        except (UnknownLeadError, UnknownSearchError) as error:
+            raise HTTPException(404, str(error)) from None
+        except (*_NAMED_ERRORS, OutreachConfigError, ConfigurationError) as error:
+            raise cleanly(error) from None
+        return {
+            "lead_id": str(lead_id),
+            "generator": "model" if service.uses_model else "offline",
+            "drafts": [
+                {
+                    "kind": draft.kind,
+                    "subject": draft.subject,
+                    "body": draft.body,
+                    "checks_passed": all(c.passed for c in checks),
+                    "failed_checks": [c.name for c in checks if not c.passed],
+                }
+                for draft, checks in result.drafts
+            ],
+            "failures": [{"name": c.name, "detail": c.detail} for c in result.failures],
+        }
+
     @router.get("/api/outreach/searches/{search_id}/report")
     def report(
         search_id: uuid.UUID,
-        fmt: Annotated[str, Query(alias="format", pattern="^(md|json)$")] = "md",
+        fmt: Annotated[str, Query(alias="format", pattern="^(md|json|xlsx)$")] = "md",
         reveal: bool = False,
         store: Store = "main",
     ) -> Response:
@@ -378,6 +437,13 @@ def create_router(
             built = build_report(session, search_id, reveal=reveal)
         if fmt == "json":
             return Response(render_json(built), media_type="application/json")
+        if fmt == "xlsx":
+            name = f"search-{built.mode}-{str(search_id)[:8]}.xlsx"
+            return Response(
+                render_xlsx(built),
+                media_type=XLSX_TYPE,
+                headers={"Content-Disposition": f'attachment; filename="{name}"'},
+            )
         return PlainTextResponse(render_markdown(built), media_type="text/markdown")
 
     @router.post("/api/outreach/tick", dependencies=[Depends(_require_write_header)])

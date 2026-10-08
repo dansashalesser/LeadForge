@@ -352,7 +352,10 @@ function viewLeads() {
     (e) => { f.flag = e.target.value; refreshTable(); }),
     state.score ? sel(f.scenario, [["", "Any scenario"], ...state.score.scenarios.map((s) => [s.name, s.name])],
       (e) => { f.scenario = e.target.value; refreshTable(); }) : null,
-    h("span", { class: "muted", id: "lead-count" }));
+    h("span", { class: "muted", id: "lead-count" }),
+    // The whole store's active leads (not just the filtered rows), masked as shown.
+    h("a", { class: "btn", download: "", href: `/api/${state.store}/leads.xlsx?reveal=${state.reveal}`,
+      title: "Every active lead in this store, as an Excel workbook" }, "Download Excel"));
   const wrap = h("div", { class: "panel" }, h("div", { id: "lead-table" }));
   const container = h("div", {}, toolbar, wrap);
 

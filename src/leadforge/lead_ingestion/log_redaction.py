@@ -8,9 +8,9 @@ scrubber for reports (task 18.3).
 Manifest and seeding (``credential_manifest``, ``secrets_from_environ``): the manifest
 is ``env_example.BUILTIN_SETTINGS`` plus every registered adapter's ``required_env``.
 Values come from an injected environ, never the process environment. Two built-in
-settings are not credentials: ``LLM_PROVIDER`` / ``LLM_MODEL`` are skipped (seeding
-``openai`` would corrupt every log line that names the provider), and ``DATABASE_URL``
-seeds only its password, so the path stays readable in logs.
+settings are not credentials: ``LEADFORGE_LLM_PROVIDER`` / ``LEADFORGE_LLM_MODEL`` are
+skipped (seeding ``openai`` would corrupt every log line that names the provider), and
+``DATABASE_URL`` seeds only its password, so the path stays readable in logs.
 
 Provisional decisions (see choices.md, task 8.4):
 
@@ -84,7 +84,7 @@ MAX_VALUE_CHARS = 2000
 _LONG_KEYS = frozenset({"exception", "stack"})
 _LONG_FACTOR = 10
 _MAX_DEPTH = 32
-NON_SECRET_SETTINGS = frozenset({"LLM_PROVIDER", "LLM_MODEL"})
+NON_SECRET_SETTINGS = frozenset({"LEADFORGE_LLM_PROVIDER", "LEADFORGE_LLM_MODEL"})
 RAW_KEYS = frozenset(
     {
         "raw",

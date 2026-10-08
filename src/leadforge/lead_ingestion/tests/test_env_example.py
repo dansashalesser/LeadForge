@@ -152,8 +152,9 @@ def test_empty_registry_lists_database_and_llm_settings_only() -> None:
     text = render_env_example(SourceRegistry())
     assert list(_entries(text)) == [
         "DATABASE_URL",
-        "LLM_PROVIDER",
-        "LLM_MODEL",
+        "LEADFORGE_LLM_PROVIDER",
+        "LEADFORGE_LLM_MODEL",
+        "ANTHROPIC_API_KEY",
         "LEADFORGE_MATCH_KEY_SECRET",
     ]
 
@@ -194,8 +195,9 @@ def test_union_of_adapter_variables_is_listed_sorted_after_builtins() -> None:
     names = list(_entries(render_env_example(registry)))
     assert names == [
         "DATABASE_URL",
-        "LLM_PROVIDER",
-        "LLM_MODEL",
+        "LEADFORGE_LLM_PROVIDER",
+        "LEADFORGE_LLM_MODEL",
+        "ANTHROPIC_API_KEY",
         "LEADFORGE_MATCH_KEY_SECRET",
         "ALPHA_API_KEY",
         "ZETA_API_KEY",
@@ -269,8 +271,9 @@ def test_keyless_adapter_needs_no_documentation_url_and_adds_no_entry() -> None:
     registry = SourceRegistry([_cls("local", ())])
     assert list(_entries(render_env_example(registry))) == [
         "DATABASE_URL",
-        "LLM_PROVIDER",
-        "LLM_MODEL",
+        "LEADFORGE_LLM_PROVIDER",
+        "LEADFORGE_LLM_MODEL",
+        "ANTHROPIC_API_KEY",
         "LEADFORGE_MATCH_KEY_SECRET",
     ]
 
@@ -339,7 +342,13 @@ def test_output_uses_lf_only_and_ends_with_exactly_one_newline() -> None:
 def test_process_environment_values_never_reach_the_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    for name in ("DATABASE_URL", "LLM_PROVIDER", "LLM_MODEL", "A_KEY"):
+    for name in (
+        "DATABASE_URL",
+        "LEADFORGE_LLM_PROVIDER",
+        "LEADFORGE_LLM_MODEL",
+        "ANTHROPIC_API_KEY",
+        "A_KEY",
+    ):
         monkeypatch.setenv(name, SECRET)
     registry = SourceRegistry([_cls("a", ("A_KEY",), docs_url="https://a.invalid/d")])
     assert SECRET not in render_env_example(registry)

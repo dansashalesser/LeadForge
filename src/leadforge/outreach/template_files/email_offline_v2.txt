@@ -1,0 +1,9 @@
+Subject: Quick note, {first_name}
+
+Hi {first_name},
+
+{role_line}{hook_line}
+
+If you are open to it, I would welcome twenty minutes to compare notes. If not, no hard feelings.
+
+Thanks for reading.

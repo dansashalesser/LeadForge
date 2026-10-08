@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pytest
 import sqlalchemy as sa
@@ -32,6 +33,7 @@ from leadforge.outreach.clock import FakeClock
 from leadforge.outreach.config import load_outreach_config
 from leadforge.outreach.decisions import Decision, Reason, record_decisions
 from leadforge.outreach.dispatch import DryRunDispatcher
+from leadforge.outreach.errors import MessageGenerationError
 from leadforge.outreach.report import build_report, render_json, render_markdown
 from leadforge.outreach.search_plan import SearchPlan, parse_request
 from leadforge.outreach.searches import start_search
@@ -117,6 +119,39 @@ async def test_a_zero_key_search_runs_end_to_end_and_says_what_was_synthetic(
     with Session(composed.engine) as session:
         row = session.scalars(sa.select(OutreachSearch)).one()
         assert (row.status, row.ingestion_run_id) == ("done", summary.run_id)
+
+
+async def test_a_failed_model_call_sends_one_lead_to_manual_review_not_the_search(
+    composed: Backend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = _service(composed, tmp_path, [])
+    write = SearchService._write
+    calls: list[uuid.UUID] = []
+
+    def flaky(self: SearchService, stored: Any, *args: Any) -> Any:
+        calls.append(stored.lead_id)
+        if len(calls) == 1:
+            raise MessageGenerationError("the model call failed (APITimeoutError)")
+        return write(self, stored, *args)
+
+    monkeypatch.setattr(SearchService, "_write", flaky)
+    plan = service.plan(parse_request("free_text", "teams running mongodb"))
+
+    summary = await service.run(plan, show=lambda _: None)
+
+    assert calls  # at least one Lead was selected and written
+    assert summary.counts["manual_review"] >= 1
+    assert "1 lead(s) to manual review after a model error" in "\n".join(
+        summary.notes
+    )
+    with Session(composed.engine) as session:
+        assert session.scalars(sa.select(OutreachSearch.status)).one() == "done"
+        failed = session.scalars(
+            sa.select(OutreachDecision).filter_by(lead_id=calls[0])
+        ).one()
+        assert failed.status == "manual_review"
+        assert "message_model_failed" in json.dumps(failed.reasons)
+    assert _count(composed, OutreachMessage) == 2 * summary.counts["selected"]
 
 
 class _Accepts:

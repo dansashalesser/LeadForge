@@ -197,6 +197,26 @@ def _to_record(row: UsageEvidence) -> EvidenceRecord:
     )
 
 
+def evidence_for(
+    session: Session, search_id: uuid.UUID, company_key: str
+) -> tuple[EvidenceRecord, ...]:
+    """A search's Evidence Records for one company, read on a caller's session.
+
+    ``UsageStore.list_evidence`` opens a Session of its own. This reads inside one the
+    caller already holds, so a request already reading the store opens no second
+    connection and sees its own transaction.
+    """
+    stmt = (
+        select(UsageEvidence)
+        .where(
+            UsageEvidence.search_id == search_id,
+            UsageEvidence.company_key == company_key,
+        )
+        .order_by(UsageEvidence.created_at, UsageEvidence.id)
+    )
+    return tuple(_to_record(row) for row in session.scalars(stmt))
+
+
 def _need_hash(input_hash: str) -> None:
     if not input_hash:
         raise UsageStoreError("input_hash must not be empty")

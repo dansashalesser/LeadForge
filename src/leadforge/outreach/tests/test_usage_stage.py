@@ -23,6 +23,7 @@ from leadforge.outreach.usage.stage import (
     StageConfig,
     StageDeps,
     StageLead,
+    company_key_of,
     run_usage_stage,
 )
 from leadforge.outreach.usage.verdict import VerdictStatus
@@ -157,6 +158,18 @@ def run(leads, by_family=None, *, searches=50, match=None, cfg=None):
 
 
 # Verifies: specs/user-recognition/requirements.md#4.4
+def test_company_key_of_agrees_with_the_key_the_stage_files_evidence_under():
+    # A reader looks evidence up by this key; if the two ever disagree it finds none
+    # and the Message quietly loses everything the run proved.
+    lead = make_lead("acme.example")
+    out, _, _ = run([lead], {"vendor_customer": [hit("vendor_customer")]})
+
+    records = [r for verdict in out.values() for r in verdict.evidence_refs]
+
+    assert records
+    assert {r.company_key for r in records} == {company_key_of(lead.lead)}
+
+
 def test_verified_by_first_family_has_no_later_queries():
     lead = make_lead("acme.example")
     out, serp, store = run([lead], {"vendor_customer": [hit("vendor_customer")]})

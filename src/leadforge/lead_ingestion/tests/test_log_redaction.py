@@ -87,19 +87,26 @@ def test_secrets_come_from_the_injected_environ_only(monkeypatch: Any) -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#10.5
 def test_non_secret_llm_settings_and_url_user_are_not_seeded() -> None:
     env = {
-        "LLM_PROVIDER": "anthropic-provider",
-        "LLM_MODEL": "some-model-name-long",
+        "LEADFORGE_LLM_PROVIDER": "anthropic-provider",
+        "LEADFORGE_LLM_MODEL": "some-model-name-long",
         "DATABASE_URL": "postgresql://bob:s3cretpassw0rd@db.example/leadforge",
         "A_KEY": SECRET,
     }
     got = secrets_from_environ(
-        env, ["LLM_PROVIDER", "LLM_MODEL", "DATABASE_URL", "A_KEY"]
+        env,
+        ["LEADFORGE_LLM_PROVIDER", "LEADFORGE_LLM_MODEL", "DATABASE_URL", "A_KEY"],
     )
     assert SECRET in got
     assert "s3cretpassw0rd" in got
     assert "anthropic-provider" not in got
     assert "some-model-name-long" not in got
     assert "postgresql://bob:s3cretpassw0rd@db.example/leadforge" not in got
+
+
+def test_the_llm_key_is_a_built_in_secret() -> None:
+    names = [name for name, *_ in BUILTIN_SETTINGS]
+    assert "ANTHROPIC_API_KEY" in names
+    assert SECRET in secrets_from_environ({"ANTHROPIC_API_KEY": SECRET}, names)
 
 
 # ---- the value scrubber --------------------------------------------------------

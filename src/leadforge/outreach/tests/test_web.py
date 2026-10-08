@@ -1,14 +1,17 @@
 """The outreach API and page, on the ingestion web app (13.1-13.5)."""
 
+import io
 import re
 import shutil
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import load_workbook
 
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.web.api import create_app
+from leadforge.outreach.report import XLSX_TYPE
 from leadforge.outreach.web import create_router
 
 CONFIG_DIR = Path(__file__).resolve().parents[4] / "config"
@@ -141,6 +144,32 @@ def test_the_markdown_download_matches_the_cli_report_and_the_json(
         client.get(f"/api/outreach/searches/{search_id}/report?format=pdf").status_code
         == 422
     )
+
+
+def test_the_excel_download_has_every_lead_masked_unless_revealed(
+    client: TestClient,
+) -> None:
+    search_id = _run(client)
+    url = f"/api/outreach/searches/{search_id}/report"
+    report = client.get(f"/api/outreach/searches/{search_id}").json()["report"]
+
+    masked = client.get(url, params={"format": "xlsx"})
+    revealed = client.get(url, params={"format": "xlsx", "reveal": True})
+
+    assert masked.status_code == 200
+    assert masked.headers["content-type"] == XLSX_TYPE
+    assert "attachment" in masked.headers["content-disposition"]
+    book = load_workbook(io.BytesIO(masked.content))
+    assert book.sheetnames == ["Summary", "Leads", "Evidence"]
+    rows = list(book["Leads"].iter_rows(values_only=True))
+    assert rows[0][:3] == ("Lead ID", "Name", "Email")
+    assert {r[0] for r in rows[1:]} == {lead["lead_id"] for lead in report["leads"]}
+    emails = [r[2] for r in rows[1:] if r[2]]
+    assert emails
+    assert all(str(e).startswith("***@") for e in emails)
+    assert all(r[1] is None for r in rows[1:])
+    shown = list(load_workbook(io.BytesIO(revealed.content))["Leads"].values)
+    assert not any("***" in str(r[2] or "") for r in shown[1:])
 
 
 # Verifies: outreach requirements 13.3
@@ -335,3 +364,39 @@ def test_the_dashboard_versions_its_scripts_and_is_never_cached(
     assert '<link rel="stylesheet" href="/outreach/app.css?v=' in response.text
     # The version changes when the file does, so a new build is fetched.
     assert client.get("/").text == response.text
+
+
+def test_a_lead_s_messages_are_written_on_demand_and_not_stored(
+    client: TestClient,
+) -> None:
+    search_id = _run(client)
+    report = client.get(f"/api/outreach/searches/{search_id}").json()["report"]
+    lead_id = report["leads"][0]["lead_id"]
+
+    answer = client.post(
+        f"/api/outreach/leads/{lead_id}/messages", json={}, headers=WRITE
+    )
+    again = client.get(f"/api/outreach/searches/{search_id}").json()["report"]
+
+    assert answer.status_code == 200, answer.text
+    body = answer.json()
+    assert body["generator"] == "offline"
+    assert {d["kind"] for d in body["drafts"]} == {"invite", "email"}
+    assert all(d["body"] for d in body["drafts"])
+    assert again["leads"] == report["leads"]
+
+
+def test_on_demand_messages_need_the_write_header_and_a_known_lead(
+    client: TestClient,
+) -> None:
+    _run(client)
+    missing = "00000000-0000-0000-0000-000000000000"
+
+    assert (
+        client.post(f"/api/outreach/leads/{missing}/messages", json={}).status_code
+        == 403
+    )
+    unknown = client.post(
+        f"/api/outreach/leads/{missing}/messages", json={}, headers=WRITE
+    )
+    assert unknown.status_code == 404

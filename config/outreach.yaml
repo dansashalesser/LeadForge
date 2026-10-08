@@ -22,9 +22,10 @@
 #
 # llm: the provider and model used when LEADFORGE_LLM_PROVIDER and LEADFORGE_LLM_MODEL
 # are not set (the environment wins, so a different provider needs no edit here); the key
-# is read from <PROVIDER>_API_KEY. timeout_s is how long one model call may take, and
+# is read from <PROVIDER>_API_KEY. timeout_s is how long one model call may take,
 # compile_retries how many more times a free-text query is compiled when the model's
-# plan does not validate.
+# plan does not validate, and effort the reasoning effort of the compiler, writer and
+# judge (anthropic and openai only; remove it for a provider without one).
 #
 # outbox_path: the JSONL file every dry-run Message is appended to.
 
@@ -60,6 +61,7 @@ messages:
   email_max_chars: 1200
   max_regenerations: 3
   max_hook_facts: 3
+  max_usage_quote_chars: 160
   banned_phrases:
     - hope this email finds you well
     - touch base
@@ -69,8 +71,9 @@ messages:
 
 llm:
   provider: anthropic
-  model: claude-haiku-4-5-20251001
-  timeout_s: 30
+  model: claude-sonnet-5-5
+  timeout_s: 60
   compile_retries: 2
+  effort: low
 
 outbox_path: outbox/dry_run.jsonl

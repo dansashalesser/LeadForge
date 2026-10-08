@@ -50,6 +50,8 @@ class WriteOutcome(BaseModel):
     status: Literal["ready", "manual_review"]
     # (invite, email) when ready; empty when the Lead goes to manual review.
     drafts: tuple[Draft, ...]
+    # Each draft's checks, in the order of ``drafts``; every one passed.
+    checks: tuple[tuple[Check, ...], ...] = ()
     # The checks that failed on the last attempt of the Message that gave up.
     failures: tuple[Check, ...] = ()
 
@@ -82,18 +84,19 @@ class LlmWriter:
 
     def write(self, facts: LeadFacts) -> WriteOutcome:
         drafts: list[Draft] = []
+        passed: list[tuple[Check, ...]] = []
         for kind in ("invite", "email"):
-            draft, failures = self._one(kind, facts)
+            draft, checks = self._one(kind, facts)
             if draft is None:
-                return WriteOutcome(
-                    status="manual_review", drafts=(), failures=failures
-                )
+                return WriteOutcome(status="manual_review", drafts=(), failures=checks)
             drafts.append(draft)
-        return WriteOutcome(status="ready", drafts=tuple(drafts))
+            passed.append(checks)
+        return WriteOutcome(status="ready", drafts=tuple(drafts), checks=tuple(passed))
 
     def _one(
         self, kind: Literal["invite", "email"], facts: LeadFacts
     ) -> tuple[Draft | None, tuple[Check, ...]]:
+        """The passing draft and its checks, or None and the last attempt's failures."""
         ask = render_facts(facts)
         failures: tuple[Check, ...] = ()
         for _ in range(self._cfg.max_regenerations + 1):
@@ -131,7 +134,7 @@ class LlmWriter:
             )
             checks = check_message(draft, facts, self._cfg)
             if all_passed(checks):
-                return draft, ()
+                return draft, checks
             failures = tuple(c for c in checks if not c.passed)
         return None, failures
 

@@ -54,7 +54,16 @@ from leadforge.outreach.usage.verdict import (
     verdict,
 )
 
-__all__ = ["StageConfig", "StageDeps", "StageLead", "run_usage_stage"]
+__all__ = [
+    "StageConfig",
+    "StageDeps",
+    "StageLead",
+    "cited_evidence",
+    "company_key_of",
+    "current_employer",
+    "person_url_of",
+    "run_usage_stage",
+]
 
 _FAMILY_CLASS = {
     "vendor_customer": EvidenceClass.VENDOR_CUSTOMER_REF,
@@ -145,7 +154,12 @@ def _domain(raw: str) -> str:
     return raw.strip().lower().removeprefix("www.")
 
 
-def _employer(lead: CanonicalLead) -> Employment | None:
+def current_employer(lead: CanonicalLead) -> Employment | None:
+    """The employment whose company the stage grades: current, else unknown, else first.
+
+    The Message facts name the same company, so evidence filed under it is never
+    retold about another one.
+    """
     for e in lead.employments:
         if e.is_current is True:
             return e
@@ -153,6 +167,16 @@ def _employer(lead: CanonicalLead) -> Employment | None:
         if e.is_current is None:
             return e
     return lead.employments[0] if lead.employments else None
+
+
+def company_key_of(lead: CanonicalLead) -> str | None:
+    """The key this Lead's employer has in the usage tables, or None with no employer.
+
+    One definition, so a reader looking Evidence Records up by company agrees with the
+    stage that filed them.
+    """
+    emp = current_employer(lead)
+    return None if emp is None else _company_key(emp)[0]
 
 
 def _company_key(emp: Employment) -> tuple[str, str, str]:
@@ -343,7 +367,7 @@ def _exclusions(
     )
     if partner:
         out.append(Exclusion.VENDOR_PARTNER)
-    emp = _employer(sl.lead)
+    emp = current_employer(sl.lead)
     name = (sl.lead.full_name or "").lower()
     if (emp is not None and emp.is_current is False) or (
         name and any(name in text for text in co.left_names)
@@ -384,7 +408,7 @@ def _person_fit(
                 product_key=product.key,
                 evidence_class=EvidenceClass.PERSON_SELF_STATED,
                 source="person",
-                url=got.url or f"person:{sl.lead_id}",
+                url=person_url_of(sl.lead_id, sl.lead),
                 observed_on=None,
                 quote=j.quotes[0] if j.quotes else mention,
                 relationship=Relationship.USES_NOW,
@@ -404,6 +428,54 @@ def _person_fit(
     return fit
 
 
+def cited_evidence(
+    records: Sequence[EvidenceRecord],
+    vendor: CatalogVendor,
+    product_keys: Sequence[str],
+    person_url: str,
+    cfg: StageConfig,
+    today: date,
+) -> tuple[EvidenceRecord, ...]:
+    """The evidence a Verdict cited, rebuilt from the records its run filed.
+
+    A run files every record it found for a company, but its Verdict cites only the
+    best product's counted records and the person's own confirmed statement. Grading
+    the filed records again, as of the run's ``today``, picks the same ones. A
+    statement another person at the company made is never cited for this one.
+    """
+    products = _resolve(vendor, product_keys)
+    company = [
+        r for r in records if r.evidence_class is not EvidenceClass.PERSON_SELF_STATED
+    ]
+    per = {
+        product.key: grade_company(
+            [r for r in company if r.product_key == product.key],
+            cfg.grade,
+            cfg.include_ecosystem,
+            eco,
+            today,
+        )
+        for product, eco in products
+    }
+    best, _ = max(products, key=lambda p: _RANK[per[p[0].key].grade])
+    boost = next(
+        (
+            r
+            for r in records
+            if r.evidence_class is EvidenceClass.PERSON_SELF_STATED
+            and r.product_key == best.key
+            and r.url == person_url
+        ),
+        None,
+    )
+    return per[best.key].records + ((boost,) if boost is not None else ())
+
+
+def person_url_of(lead_id: uuid.UUID, lead: CanonicalLead) -> str:
+    """The URL a person's own confirmed statement is filed under."""
+    return str(lead.linkedin_url or "") or f"person:{lead_id}"
+
+
 async def run_usage_stage(
     leads: Sequence[StageLead],
     vendor: CatalogVendor,
@@ -417,7 +489,7 @@ async def run_usage_stage(
     companies: dict[str, _Company] = {}
     employer_of: dict[uuid.UUID, str] = {}
     for sl in leads:
-        emp = _employer(sl.lead)
+        emp = current_employer(sl.lead)
         if emp is None:
             continue
         key, name, domain = _company_key(emp)

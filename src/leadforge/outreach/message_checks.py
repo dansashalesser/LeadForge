@@ -7,9 +7,13 @@ Four deterministic checks, the same for a model's draft and an offline template:
 * ``length``: the configured character limits.
 * ``banned_phrases``: none of the configured phrases, ignoring case.
 * ``grounding``: at least one claim; every claim names a fact of the Lead, quotes words
-  of the Message, and those words state the fact (hold its value, or are part of it);
-  and no capitalised name or number in the Message is absent from every fact (a figure
-  or proper name the Lead record never gave).
+  of the Message, and those words state the fact; and no capitalised name or number in
+  the Message is absent from every fact (a figure or proper name the Lead record never
+  gave).
+
+A short fact (a name, a title, a signal) is stated by holding its value or being part of
+it. A long one (a published quote) is stated by using only its words, so a Message can
+retell it in its own voice instead of pasting it: see ``_within``.
 
 Checks only read the Message and the Lead's facts; they never call a model.
 """
@@ -20,12 +24,34 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from leadforge.outreach.config import MessageConfig
-from leadforge.outreach.facts import LeadFacts
+from leadforge.outreach.facts import Fact, FactKind, LeadFacts
 
 __all__ = ["Check", "Claim", "Draft", "all_passed", "check_message"]
 
 # Words a Message may use that are names of things, not claims about the Lead.
 _PLATFORM_WORDS = frozenset({"linkedin"})
+# Facts whose value is published prose rather than a single thing, so a claim may retell
+# the value instead of repeating it word for word.
+_RETOLD: frozenset[FactKind] = frozenset({"usage", "evidence"})
+# Words a retelling may bring in that assert nothing: grammar, and the pronouns that let
+# a company's own "our ledger" be addressed back to a person as "your ledger".
+_FREE_WORDS = (
+    # articles, demonstratives, conjunctions, prepositions
+    "a an the this that these those there here and or but so as if then than "
+    "of to in on at by for from with about into over under "
+    # the verbs that only carry grammar
+    "is are was were be been being has have had do does did "
+    # pronouns: whose side a sentence speaks from is not a claim
+    "i me my mine we us our ours you your yours they them their theirs "
+    "he him his she her hers it its who whose which what when where how "
+    # intensifiers, and the tails of split contractions
+    "too very just also still yet s re ve ll d m"
+)
+_FREE = frozenset(_FREE_WORDS.split())
+# Words that turn a statement into its opposite. A retelling keeps the quote's
+# polarity: it may not negate what the quote affirms, nor drop a negation it holds.
+# "t" is the tail of a contraction split at a typographic apostrophe (U+2019).
+_NEGATIONS = frozenset({"not", "no", "nor", "never", "t"})
 # The pronoun and its contractions are capitalised wherever they stand.
 _PRONOUN = frozenset({"i", "i'd", "i'm", "i've", "i'll"})
 _ENTITY = re.compile(r"(?<![\w'-])(?:[A-Z][\w'-]*|\d[\d.,]*)")
@@ -128,7 +154,7 @@ def _grounding(draft: Draft, facts: LeadFacts) -> Check:
             problems.append(f"claim names no fact: {claim.fact_id}")
         elif claim.text.casefold() not in body:
             problems.append(f"claim text is not in the Message: {claim.fact_id}")
-        elif not _states(claim.text, fact.value):
+        elif not _states(claim.text, fact):
             problems.append(f"claim does not state the fact: {claim.fact_id}")
     ungrounded = _ungrounded(draft, facts)
     if ungrounded:
@@ -138,10 +164,41 @@ def _grounding(draft: Draft, facts: LeadFacts) -> Check:
     )
 
 
-def _states(claim_text: str, fact_value: str) -> bool:
-    """The claim holds the fact's value, or is part of it (a first name of a name)."""
-    text, value = claim_text.casefold(), fact_value.casefold()
+def _states(claim_text: str, fact: Fact) -> bool:
+    """The claim states the fact: word for word, or retold for a published quote."""
+    if fact.kind in _RETOLD:
+        return _within(claim_text, fact.value)
+    text, value = claim_text.casefold(), fact.value.casefold()
     return value in text or text in value
+
+
+def _within(claim_text: str, fact_value: str) -> bool:
+    """Every word the claim asserts is a word of the quote.
+
+    A quote is prose someone else published, usually about the company rather than to
+    the person, so a Message that reads as one person writing to another has to retell
+    it. A retelling may drop words, reorder them, change their number and speak from the
+    other side; it may not bring in a word the quote does not hold. That keeps the claim
+    answerable to the quote without demanding it be pasted in. It must assert at
+    least one word of the quote, and say yes where the quote says yes.
+    """
+    known = set(_WORD.findall(fact_value.casefold()))
+    said = set(_WORD.findall(claim_text.casefold()))
+    asserted = {w for w in said if w not in _FREE}
+    return (
+        bool(asserted)
+        and all(_known(w, known) for w in asserted)
+        and _negated(said) == _negated(known)
+    )
+
+
+def _negated(words: set[str]) -> bool:
+    return any(w in _NEGATIONS or w.endswith("n't") for w in words)
+
+
+def _known(word: str, known: set[str]) -> bool:
+    """The word is in the quote, give or take a plural."""
+    return word in known or word.rstrip("s") in known or f"{word}s" in known
 
 
 def _ungrounded(draft: Draft, facts: LeadFacts) -> list[str]:

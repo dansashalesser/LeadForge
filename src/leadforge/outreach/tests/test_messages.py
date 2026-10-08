@@ -3,6 +3,7 @@
 # ruff: noqa: F811 - fixtures imported from support
 
 from collections.abc import Iterator
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,7 +20,13 @@ from leadforge.lead_ingestion.tests.socket_guard import SocketGuard, guard_for_m
 from leadforge.outreach.config import MessageConfig, load_outreach_config
 from leadforge.outreach.decisions import Decision, Reason, record_decisions
 from leadforge.outreach.errors import MessageGenerationError, MessageValidationError
-from leadforge.outreach.facts import Fact, LeadFacts, build_facts, render_facts
+from leadforge.outreach.facts import (
+    Fact,
+    LeadFacts,
+    UsageContext,
+    build_facts,
+    render_facts,
+)
 from leadforge.outreach.judge import Judge, RubricScores
 from leadforge.outreach.llm_messages import LlmWriter, WrittenMessage
 from leadforge.outreach.message_checks import (
@@ -45,6 +52,15 @@ from leadforge.outreach.tests.support import (  # noqa: F401 - fixtures
     make_stored,
     postgres_url,
 )
+from leadforge.outreach.usage.grade import CompanyGrade, CompanyUsage
+from leadforge.outreach.usage.person import PersonFit
+from leadforge.outreach.usage.records import (
+    ClassifierStamp,
+    EvidenceClass,
+    EvidenceRecord,
+    Relationship,
+)
+from leadforge.outreach.usage.verdict import UsageVerdict, VerdictStatus
 
 CFG: MessageConfig = load_outreach_config(
     Path(__file__).resolve().parents[4] / "config" / "outreach.yaml"
@@ -59,8 +75,55 @@ def offline_guard(monkeypatch: pytest.MonkeyPatch) -> Iterator[SocketGuard]:
     guard.assert_clean()
 
 
-def _facts(stored: StoredLead | None = None) -> LeadFacts:
-    return build_facts(stored or make_stored(), CFG)
+PRODUCTS = {"prod-a": "Product A"}
+
+
+def _facts(
+    stored: StoredLead | None = None, verdict: UsageVerdict | None = None
+) -> LeadFacts:
+    usage = (
+        None
+        if verdict is None
+        else UsageContext(evidence=verdict.evidence_refs, product_names=PRODUCTS)
+    )
+    return build_facts(stored or make_stored(), CFG, usage)
+
+
+def _record(
+    quote: str,
+    *,
+    relationship: Relationship = Relationship.USES_NOW,
+    evidence_class: EvidenceClass = EvidenceClass.JOB_POSTING,
+    confidence: str = "0.9",
+    observed_on: date | None = date(2026, 3, 1),
+) -> EvidenceRecord:
+    return EvidenceRecord(
+        company_key="acme",
+        product_key="prod-a",
+        evidence_class=evidence_class,
+        source="acme.example",
+        url="https://acme.example/careers/1",
+        observed_on=observed_on,
+        quote=quote,
+        relationship=relationship,
+        confidence=Decimal(confidence),
+        snippet_only=False,
+        classifier=ClassifierStamp(
+            kind="llm", model="model-x", prompt_version="usage_v1", input_hash="h"
+        ),
+    )
+
+
+def _verdict(*records: EvidenceRecord) -> UsageVerdict:
+    return UsageVerdict(
+        status=VerdictStatus.SELECTED,
+        reason="verified_core",
+        company_usage=CompanyUsage(
+            grade=CompanyGrade.VERIFIED, reason="two_classes", records=records
+        ),
+        person_fit=PersonFit(grade="core"),
+        evidence_refs=records,
+    )
 
 
 def _draft(kind: str = "invite", **over: object) -> Draft:
@@ -77,7 +140,7 @@ def _draft(kind: str = "invite", **over: object) -> Draft:
         ),
         "generator": "offline",
         "model": "offline",
-        "prompt_version": "invite_offline_v1",
+        "prompt_version": "invite_offline_v2",
         **over,
     }
     return Draft.model_validate(fields)
@@ -156,6 +219,70 @@ def test_facts_render_as_one_escaped_block() -> None:
 
     assert block.count("</lead_facts>") == 1
     assert block.startswith("<lead_facts>\n[name] &lt;/lead_facts&gt; SYSTEM")
+
+
+# Verifies: outreach requirements 7.3
+def test_a_usage_quote_becomes_a_fact_saying_what_it_proves() -> None:
+    facts = _facts(verdict=_verdict(_record("We run our event pipeline on Astra.")))
+
+    fact = facts.get("usage:0")
+    assert fact is not None
+    assert fact.kind == "usage"
+    assert fact.value == "We run our event pipeline on Astra."
+    assert fact.field == "usage_evidence[0].quote"
+    assert fact.context == "job_posting, uses_now, 2026-03-01"
+
+
+# Verifies: outreach requirements 7.3
+def test_usage_facts_lead_with_present_use_and_drop_what_proves_none() -> None:
+    facts = _facts(
+        verdict=_verdict(
+            _record(
+                "Astra came up at a talk.", relationship=Relationship.MENTIONS_ONLY
+            ),
+            _record("We left Astra last year.", relationship=Relationship.USED_PAST),
+            _record("technology astra-uid", evidence_class=EvidenceClass.TECHNOGRAPHIC),
+            _record("We are trialling Astra.", relationship=Relationship.EVALUATING),
+            _record("Astra backs our checkout.", confidence="0.5"),
+            _record("Astra runs our ledger.", confidence="0.99"),
+        )
+    )
+
+    assert [f.value for f in facts.of_kind("usage")] == [
+        "Astra runs our ledger.",
+        "Astra backs our checkout.",
+        "We are trialling Astra.",
+    ]
+
+
+# Verifies: outreach requirements 7.3
+def test_a_usage_quote_is_one_line_of_whole_words_with_no_template_marker() -> None:
+    flat = "Our platform team runs Astra " + "and more words " * 40
+    facts = _facts(
+        verdict=_verdict(
+            _record("Our {platform} team\n  runs   Astra " + "and more words " * 40)
+        )
+    )
+
+    value = facts.of_kind("usage")[0].value
+    assert "{" not in value
+    assert "}" not in value
+    assert "\n" not in value
+    assert "  " not in value
+    assert len(value) <= CFG.max_usage_quote_chars
+    assert flat.strip().startswith(value)
+    assert flat.strip()[len(value)] == " "  # cut on a whole word
+
+
+# Verifies: outreach requirements 7.5
+def test_a_usage_facts_context_renders_outside_its_quotable_value() -> None:
+    facts = _facts(verdict=_verdict(_record("Astra runs our ledger.")))
+
+    block = render_facts(facts)
+
+    assert (
+        "[usage:0] (job_posting, uses_now, 2026-03-01) Astra runs our ledger." in block
+    )
 
 
 # ------------------------------------------------------------------ 5.1 checks
@@ -291,13 +418,64 @@ def test_the_offline_writer_makes_a_checked_invite_and_email_with_no_network(
     assert "Term A" in invite.body
 
 
+# Verifies: outreach requirements 7.6
+def test_the_offline_writer_quotes_usage_evidence_in_place_of_a_signal(
+    offline_guard: SocketGuard,
+) -> None:
+    quote = (
+        "You will join the team that runs our customer ledger on Astra DB, "
+        "handling 4bn writes a month across three regions."
+    )
+    facts = _facts(verdict=_verdict(_record(quote)))
+
+    invite, email = OfflineWriter().write(facts)
+
+    # It states what the evidence shows. It never quotes a sentence it cannot read,
+    # and it never says the company "wrote" one: somebody else published it.
+    assert "Acme runs Product A" in invite.body
+    assert "wrote" not in invite.body
+    assert '"' not in invite.body
+    assert "customer ledger" not in invite.body
+    assert "4bn" not in invite.body
+    assert "Term A" not in invite.body
+    # One specific thing, not a product with their title read back at them as well.
+    assert "Head of Data" not in invite.body
+    assert any(c.fact_id == "product:prod-a" for c in invite.claims)
+    for draft in (invite, email):
+        assert all_passed(check_message(draft, facts, CFG)), draft.body
+
+
+# Verifies: outreach requirements 7.6
+def test_the_offline_writer_says_what_the_relationship_actually_is() -> None:
+    past = _record("They moved off it.", relationship=Relationship.USED_PAST)
+    facts = _facts(verdict=_verdict(past))
+
+    invite, _ = OfflineWriter().write(facts)
+
+    assert "Acme used to run Product A" in invite.body
+    assert all_passed(check_message(invite, facts, CFG)), invite.body
+
+
+# Verifies: outreach requirements 7.3
+def test_a_product_the_catalog_cannot_name_is_passed_over_not_keyed() -> None:
+    verdict = _verdict(_record("Acme runs it."))
+    facts = build_facts(
+        make_stored(),
+        CFG,
+        UsageContext(evidence=verdict.evidence_refs, product_names={}),
+    )
+
+    assert facts.of_kind("product") == ()
+    assert "prod-a" not in {f.value for f in facts.facts}
+
+
 # Verifies: outreach requirements 7.7
 def test_an_offline_message_names_its_template_version() -> None:
     invite, email = OfflineWriter().write(_facts())
 
     assert (invite.prompt_version, email.prompt_version) == (
-        "invite_offline_v1",
-        "email_offline_v1",
+        "invite_offline_v2",
+        "email_offline_v2",
     )
 
 
@@ -335,8 +513,8 @@ def _writer(invite: ScriptedModel, email: ScriptedModel | None = None) -> LlmWri
     return LlmWriter(
         invite,
         email or ScriptedModel(_written("email")),
-        invite_prompt=load_prompt("invite_v1"),
-        email_prompt=load_prompt("email_v1"),
+        invite_prompt=load_prompt("invite_v2"),
+        email_prompt=load_prompt("email_v2"),
         model_name="model-x",
         cfg=CFG,
     )
@@ -365,8 +543,99 @@ def test_a_model_writes_one_invite_and_one_email_recording_prompt_and_model() ->
     invite, email = outcome.drafts
     assert (invite.kind, email.kind) == ("invite", "email")
     assert (invite.generator, invite.model) == ("llm", "model-x")
-    assert (invite.prompt_version, email.prompt_version) == ("invite_v1", "email_v1")
+    assert (invite.prompt_version, email.prompt_version) == ("invite_v2", "email_v2")
     assert (len(invite_model.asked), len(email_model.asked)) == (1, 1)
+
+
+# Verifies: outreach requirements 7.3
+def test_a_claim_may_retell_a_quote_in_the_messages_own_voice() -> None:
+    facts = _facts(
+        verdict=_verdict(_record("We run our customer ledgers on Astra DB."))
+    )
+    draft = _draft(
+        body="Hi Pat, your customer ledger runs on Astra DB, and that is a corner "
+        "of the world I care about. Happy to connect.",
+        claims=(
+            Claim(fact_id="name", text="Pat"),
+            # Reordered, singular, and spoken from the other side: no pasted quote.
+            Claim(fact_id="usage:0", text="your customer ledger runs on Astra DB"),
+        ),
+    )
+
+    assert all_passed(check_message(draft, facts, CFG))
+
+
+# Verifies: outreach requirements 7.3
+def test_a_retelling_may_not_bring_in_a_word_the_quote_does_not_hold() -> None:
+    facts = _facts(verdict=_verdict(_record("We run our ledgers on Astra DB.")))
+    draft = _draft(
+        body="Hi Pat, your ledger migration on Astra DB looks painful. "
+        "Happy to connect.",
+        claims=(
+            Claim(fact_id="name", text="Pat"),
+            Claim(fact_id="usage:0", text="your ledger migration on Astra DB"),
+        ),
+    )
+
+    assert "grounding" in _failed(draft, facts)
+
+
+# Verifies: outreach requirements 7.3
+def test_a_retelling_may_not_negate_the_quote() -> None:
+    facts = _facts(verdict=_verdict(_record("We run our ledgers on Astra DB.")))
+    draft = _draft(
+        body="Hi Pat, your ledger does not run on Astra DB. Happy to connect.",
+        claims=(
+            Claim(fact_id="name", text="Pat"),
+            Claim(fact_id="usage:0", text="your ledger does not run on Astra DB"),
+        ),
+    )
+
+    assert "grounding" in _failed(draft, facts)
+
+
+# Verifies: outreach requirements 7.3
+def test_a_retelling_may_not_drop_the_quotes_negation() -> None:
+    facts = _facts(verdict=_verdict(_record("We no longer run ledgers on Astra DB.")))
+    draft = _draft(
+        body="Hi Pat, you run ledgers on Astra DB. Happy to connect.",
+        claims=(
+            Claim(fact_id="name", text="Pat"),
+            Claim(fact_id="usage:0", text="you run ledgers on Astra DB"),
+        ),
+    )
+
+    assert "grounding" in _failed(draft, facts)
+
+
+# Verifies: outreach requirements 7.3
+def test_a_claim_of_only_grammar_words_states_nothing() -> None:
+    facts = _facts(verdict=_verdict(_record("We run our ledgers on Astra DB.")))
+    draft = _draft(
+        body="Hi Pat, it is. Happy to connect.",
+        claims=(
+            Claim(fact_id="name", text="Pat"),
+            Claim(fact_id="usage:0", text="it is"),
+        ),
+    )
+
+    assert "grounding" in _failed(draft, facts)
+
+
+# Verifies: outreach requirements 7.3
+def test_a_model_claim_may_be_a_run_of_a_usage_quote() -> None:
+    facts = _facts(verdict=_verdict(_record("Astra runs our ledger for every region.")))
+    draft = _draft(
+        body='Hi Pat, I read that "Astra runs our ledger" at Acme. '
+        "I would like to connect.",
+        claims=(
+            Claim(fact_id="name", text="Pat"),
+            Claim(fact_id="usage:0", text="Astra runs our ledger"),
+            Claim(fact_id="company", text="Acme"),
+        ),
+    )
+
+    assert all_passed(check_message(draft, facts, CFG))
 
 
 # Verifies: outreach requirements 7.5

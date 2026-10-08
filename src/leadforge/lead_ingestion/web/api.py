@@ -26,7 +26,7 @@ from typing import Annotated, Any
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -53,6 +53,7 @@ from leadforge.lead_ingestion.source_settings import load_source_settings
 from leadforge.lead_ingestion.store.lead_reader import StoredLead, list_leads, load_lead
 from leadforge.lead_ingestion.store.migrate import StoreNotMigratedError, require_head
 from leadforge.lead_ingestion.store.models import IngestionRun, SourceRun
+from leadforge.lead_ingestion.web.export import XLSX_TYPE, leads_xlsx
 from leadforge.lead_ingestion.web.jobs import JobBusyError, JobKind, JobRunner
 
 __all__ = ["create_app"]
@@ -196,10 +197,13 @@ def create_app(
         finally:
             engine.dispose()
 
-    def all_leads(session: Session, include_retired: bool) -> list[StoredLead]:
+    def all_leads(
+        session: Session, include_retired: bool, cap: int | None = _MAX_LEADS
+    ) -> list[StoredLead]:
+        """The store's leads, page by page; ``cap=None`` reads every one."""
         leads: list[StoredLead] = []
         after = None
-        while len(leads) < _MAX_LEADS and (
+        while (cap is None or len(leads) < cap) and (
             page := list_leads(
                 session, include_retired=include_retired, limit=_PAGE, after=after
             )
@@ -255,6 +259,23 @@ def create_app(
             "leads": [lead_json(s, reveal) for s in found],
             "truncated": len(found) >= _MAX_LEADS,
         }
+
+    @app.get("/api/{store}/leads.xlsx")
+    def leads_workbook(
+        store: str,
+        reveal: bool = False,
+        include_retired: bool = False,
+    ) -> Response:
+        # A download is the whole store, never the first page of it.
+        with session_for(store) as session:
+            found = all_leads(session, include_retired, cap=None)
+        return Response(
+            leads_xlsx(lead_json(s, reveal) for s in found),
+            media_type=XLSX_TYPE,
+            headers={
+                "Content-Disposition": f'attachment; filename="{store}-leads.xlsx"'
+            },
+        )
 
     @app.get("/api/{store}/leads/{lead_id}")
     def lead(store: str, lead_id: uuid.UUID, reveal: bool = False) -> dict[str, Any]:

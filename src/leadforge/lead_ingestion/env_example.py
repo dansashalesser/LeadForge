@@ -2,10 +2,10 @@
 
 ``.env.example`` is the union of every registered adapter's ``required_env`` and
 ``optional_env`` (non-secret plan settings), each with the adapter's ``env_notes`` line
-when it declares one, plus the database URL and the LLM provider and model settings,
-so a reviewer sees every variable live mode reads and no real value. The committed
-file is checked byte for byte against ``render_env_example`` (10.4), so an adapter
-reading an undocumented variable fails the suite; regenerate with
+when it declares one, plus the database URL and the LLM provider, model and key
+settings, so a reviewer sees every variable live mode reads and no real value. The
+committed file is checked byte for byte against ``render_env_example`` (10.4), so an
+adapter reading an undocumented variable fails the suite; regenerate with
 ``REGENERATE_COMMAND``.
 
 Provisional decisions (see choices.md, task 8.3):
@@ -63,16 +63,25 @@ BUILTIN_SETTINGS: tuple[tuple[str, str, str, str], ...] = (
         "SQLAlchemy URL; leave empty for the local default database file",
     ),
     (
-        "LLM_PROVIDER",
+        "LEADFORGE_LLM_PROVIDER",
         "llm",
         "https://python.langchain.com/docs/how_to/chat_models_universal_init/",
-        "chat model provider passed to LangChain init_chat_model",
+        "chat model provider passed to LangChain init_chat_model; empty means the "
+        "llm.provider of config/outreach.yaml",
     ),
     (
-        "LLM_MODEL",
+        "LEADFORGE_LLM_MODEL",
         "llm",
         "https://python.langchain.com/docs/how_to/chat_models_universal_init/",
-        "chat model name passed to LangChain init_chat_model",
+        "chat model name passed to LangChain init_chat_model; empty means the "
+        "llm.model of config/outreach.yaml",
+    ),
+    (
+        "ANTHROPIC_API_KEY",
+        "llm",
+        "https://docs.anthropic.com/en/api/getting-started",
+        "key for the default anthropic provider (another provider reads "
+        "<PROVIDER>_API_KEY); unset means offline templates and no live users search",
     ),
     (
         MATCH_KEY_SECRET_ENV,

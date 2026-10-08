@@ -61,6 +61,14 @@ class MessageGenerationError(RuntimeError):
     """The model call that writes or judges a Message failed (type only, no text)."""
 
 
+class UnknownLeadError(LookupError):
+    """Messages were asked for a Lead the store does not hold."""
+
+
+class UnknownSearchError(LookupError):
+    """Messages were asked for under a search the store does not hold."""
+
+
 class MessageValidationError(ValueError):
     """A Message that failed its checks was offered for storage."""
 

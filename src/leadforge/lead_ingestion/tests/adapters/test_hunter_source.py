@@ -2340,9 +2340,7 @@ async def test_a_found_address_carries_the_identity_it_was_asked_for() -> None:
         value="Ada", truncated=False, original_length=3
     )
     assert values["person.last_name"].value == "Lovelace"
-    assert (
-        values["person.linkedin_url"] == ADA_LINKEDIN
-    )  # the request's, not Hunter's
+    assert values["person.linkedin_url"] == ADA_LINKEDIN  # the request's, not Hunter's
     records = {p.canonical_path: p for p in contribution.provenance}
     for path, raw in (
         ("company.domain", "asked.domain"),

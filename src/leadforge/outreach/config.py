@@ -91,8 +91,11 @@ class MessageConfig(_Frozen):
     email_subject_max_chars: Count
     email_max_chars: Count
     max_regenerations: Annotated[int, Field(ge=0)]
-    # How many tech, intent and web-evidence facts of each kind a writer is shown.
+    # How many tech, intent, usage and web-evidence facts of each kind a writer is
+    # shown.
     max_hook_facts: Count
+    # The longest run of an evidence quote a writer may be given to cite.
+    max_usage_quote_chars: Count
     banned_phrases: tuple[Annotated[str, Field(min_length=1)], ...]
 
 
@@ -104,6 +107,9 @@ class LlmConfig(_Frozen):
     timeout_s: Annotated[float, Field(gt=0, allow_inf_nan=False)]
     # Extra tries when the model returns a plan that does not validate.
     compile_retries: Annotated[int, Field(ge=0)]
+    # Reasoning effort for the compiler, writer and judge; None is the provider's
+    # default, which for newer models is slow enough to outrun timeout_s.
+    effort: Annotated[str, Field(min_length=1)] | None = None
 
 
 class SourcesConfig(_Frozen):

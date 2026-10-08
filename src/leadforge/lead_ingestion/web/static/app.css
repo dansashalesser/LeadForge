@@ -38,6 +38,7 @@ button { font: inherit; cursor: pointer; }
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+a.btn { text-decoration: none; display: inline-block; }
 
 .tabs { display: flex; gap: 4px; padding: 12px 24px 0; }
 .tabs button {

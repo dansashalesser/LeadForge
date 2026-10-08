@@ -35,6 +35,7 @@ from leadforge.outreach.usage.store import (
     UsageEvidence,
     UsageStore,
     UsageStoreError,
+    evidence_for,
 )
 
 NOW = datetime(2026, 10, 8, tzinfo=UTC)
@@ -116,6 +117,23 @@ def test_evidence_round_trips_and_lists_by_search_and_company(
     assert [r.record for r in got] == [rec]
     assert got[0].record.confidence == Decimal("0.85")
     assert len(store.list_evidence(search_id)) == 2
+
+
+# Verifies: specs/user-recognition/requirements.md#5.8
+def test_evidence_for_reads_one_company_on_a_caller_s_session(
+    engine: sa.Engine, search_id: uuid.UUID
+) -> None:
+    store = UsageStore(engine)
+    rec = _record()
+    store.append_evidence(search_id, rec)
+    store.append_evidence(search_id, _record(company_key="other.example"))
+
+    with Session(engine) as session:
+        got = evidence_for(session, search_id, "acme.example")
+        elsewhere = evidence_for(session, uuid.uuid4(), "acme.example")
+
+    assert got == (rec,)
+    assert elsewhere == ()
 
 
 # Verifies: specs/user-recognition/requirements.md#5.8

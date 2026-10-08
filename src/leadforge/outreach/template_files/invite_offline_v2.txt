@@ -1,0 +1,1 @@
+Hi {first_name} — {role_line}{hook_line}Happy to connect.

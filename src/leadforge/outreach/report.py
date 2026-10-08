@@ -2,17 +2,23 @@
 
 Counts are queries over the outreach tables, never tallies carried in memory, so a
 report built later matches one built at the time. It lists each Lead with its Decision
-reasons and Messages, as Markdown or JSON. Emails and LinkedIn URLs are masked, and a
-Lead's name is left out, unless ``reveal`` is asked for. The report also says what was
-synthetic or offline (14.3).
+reasons and Messages, as Markdown, JSON or an Excel workbook. Emails and LinkedIn URLs
+are masked, and a Lead's name is left out, unless ``reveal`` is asked for. The report
+also says what was synthetic or offline (14.3).
 """
 
+import io
 import json
 import uuid
+from collections.abc import Iterable, Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
+from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+from openpyxl.styles import Font
+from openpyxl.worksheet.worksheet import Worksheet
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
@@ -27,6 +33,7 @@ from leadforge.outreach.tables import (
 )
 
 __all__ = [
+    "XLSX_TYPE",
     "EvidenceItem",
     "Funnel",
     "LeadRow",
@@ -34,6 +41,7 @@ __all__ = [
     "build_report",
     "render_json",
     "render_markdown",
+    "render_xlsx",
 ]
 
 _MASK = "***"
@@ -83,6 +91,9 @@ class LeadRow(_Frozen):
     invite: str | None
     email_subject: str | None
     email_body: str | None
+    # The prompt or template version the stored Messages were written from. A run keeps
+    # the wording it used, so this is what says a Message predates the current one.
+    message_version: str | None = None
 
 
 class Report(_Frozen):
@@ -168,6 +179,115 @@ def render_markdown(report: Report) -> str:
                 _quote(row.email_body),
             ]
     return "\n".join(out) + "\n"
+
+
+_LEAD_COLUMNS = (
+    "Lead ID", "Name", "Email", "LinkedIn", "Status", "Score", "Verdict",
+    "Company Usage", "Company Usage reason", "Person Fit", "Reasons", "Sequence",
+    "Invite", "Email subject", "Email body",
+)  # fmt: skip
+_EVIDENCE_COLUMNS = (
+    "Lead ID", "Section", "Class", "Relationship", "Observed on", "Source", "URL",
+    "Quote",
+)  # fmt: skip
+XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_STATUS_ORDER = {"selected": 0, "manual_review": 1}
+_CELL_MAX = 32_767  # Excel's limit on one cell's text
+
+
+def render_xlsx(report: Report) -> bytes:
+    """The report as a workbook: Summary, Leads (selected first) and Evidence."""
+    book = Workbook()
+    summary = book.active
+    assert summary is not None  # a new Workbook always has one sheet
+    summary.title = "Summary"
+    _fill(
+        summary,
+        [
+            ("Mode", report.mode),
+            ("Query", report.query),
+            ("Search", str(report.search_id)),
+            ("Details revealed", "yes" if report.revealed else "no"),
+            (),
+            ("Funnel step", "Count"),
+            *report.funnel.model_dump().items(),
+            (),
+            ("What ran",),
+            *[(n,) for n in report.notes],
+        ],
+    )
+    leads = sorted(
+        report.leads, key=lambda r: (_STATUS_ORDER.get(r.status, 2), -r.score)
+    )
+    _table(
+        book.create_sheet("Leads"),
+        _LEAD_COLUMNS,
+        [
+            (
+                str(r.lead_id),
+                r.name,
+                r.email,
+                r.linkedin_url,
+                r.status,
+                r.score,
+                r.verdict,
+                r.company_usage,
+                r.company_usage_reason,
+                r.person_fit,
+                ", ".join(r.reasons),
+                r.sequence,
+                r.invite,
+                r.email_subject,
+                r.email_body,
+            )
+            for r in leads
+        ],
+    )
+    _table(
+        book.create_sheet("Evidence"),
+        _EVIDENCE_COLUMNS,
+        [
+            (
+                str(r.lead_id),
+                i.section,
+                i.evidence_class,
+                i.relationship,
+                i.observed_on,
+                i.source,
+                i.url,
+                i.quote,
+            )
+            for r in leads
+            for i in r.evidence
+        ],
+    )
+    out = io.BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+def _table(
+    sheet: Worksheet, header: Sequence[str], rows: Iterable[Sequence[object]]
+) -> None:
+    """A header row in bold, frozen and filterable, then the rows."""
+    _fill(sheet, [header, *rows])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+
+
+def _fill(sheet: Worksheet, rows: Iterable[Sequence[object]]) -> None:
+    """Write values only. Text never becomes a formula: quotes are untrusted page
+    text, and a leading ``=`` would otherwise run when the file is opened."""
+    for r, row in enumerate(rows, start=1):
+        for c, value in enumerate(row, start=1):
+            cell = sheet.cell(r, c)
+            if isinstance(value, str):
+                cell.value = ILLEGAL_CHARACTERS_RE.sub("", value)[:_CELL_MAX]
+                cell.data_type = "s"
+            else:
+                cell.value = value  # type: ignore[assignment]
 
 
 _SECTIONS = (("company_usage", "Company Usage"), ("person_fit", "Person Fit"))
@@ -324,6 +444,9 @@ def _row(
         invite=None if invite is None else invite.body,
         email_subject=None if mail is None else mail.subject,
         email_body=None if mail is None else mail.body,
+        message_version=next(
+            (m.prompt_version for m in (invite, mail) if m is not None), None
+        ),
     )
 
 

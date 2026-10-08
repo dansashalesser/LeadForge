@@ -3,7 +3,7 @@
 The root composes the slices so neither imports the other: ingestion never knows
 outreach exists. ``leadforge ingest|leads|demo`` are ingestion's; ``leadforge outreach
 search|tick|messages|report`` are outreach's; ``leadforge web`` serves the ingestion UI
-with the outreach API and page (``/outreach``) added to it.
+with the outreach API added to it and lead search as the dashboard's first tab.
 """
 
 from leadforge.lead_ingestion.cli import app

@@ -16,10 +16,12 @@ __all__ = ["OFFLINE_LABEL", "TEMPLATES_DIR", "OfflineWriter"]
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "template_files"
 OFFLINE_LABEL = "offline"
-_INVITE = "invite_offline_v1"
-_EMAIL = "email_offline_v1"
-_LINES = "lines_offline_v1"
-_HOOK_ORDER: tuple[FactKind, ...] = ("tech", "intent", "evidence")
+_INVITE = "invite_offline_v2"
+_EMAIL = "email_offline_v2"
+_LINES = "lines_offline_v2"
+# A product in use is the most specific thing a template can state, so it leads. The
+# ``usage`` quote behind it is deliberately absent: see ``_hook``.
+_HOOK_ORDER: tuple[FactKind, ...] = ("product", "tech", "intent", "evidence")
 
 
 class OfflineWriter:
@@ -36,19 +38,22 @@ class OfflineWriter:
         first = (
             name.value.split()[0] if name is not None else self._lines["greeting.none"]
         )
-        role_line, role_claims = self._role(facts)
-        hook_line, hook_claims = self._hook(facts)
+        company = facts.get("company")
+        hook_line, hook_claims, hook_kind = self._hook(facts, company)
+        # A product in use already says something specific. Reading their title back at
+        # them as well is what makes a Message sound assembled, so the role gives way.
+        role_line, role_claims = (
+            ("", ()) if hook_kind == "product" else self._role(facts)
+        )
         claims = (
             tuple([Claim(fact_id="name", text=first)] if name is not None else [])
             + role_claims
             + hook_claims
         )
-        company = facts.get("company")
         fill = {
             "first_name": first,
             "role_line": role_line,
             "hook_line": hook_line,
-            "at_company": f" at {company.value}" if company is not None else "",
         }
         invite = _tidy(_fill(self._invite, fill))
         subject, _, body = _fill(self._email, fill).partition("\n\n")
@@ -90,13 +95,30 @@ class OfflineWriter:
             text = text.replace("{" + fact.kind + "}", fact.value)
         return text + " ", tuple(Claim(fact_id=f.id, text=f.value) for f in used)
 
-    def _hook(self, facts: LeadFacts) -> tuple[str, tuple[Claim, ...]]:
+    def _hook(
+        self, facts: LeadFacts, company: Fact | None
+    ) -> tuple[str, tuple[Claim, ...], FactKind | None]:
+        """The strongest hook line, its claim, and the kind of fact it came from.
+
+        The published sentence behind a product is never offered here. Somebody else
+        wrote it, usually about the company rather than to this person, and a template
+        can neither read it nor say anything true about it: quoting it and adding a
+        remark produces a Message that means nothing. Only the model writer, which can
+        read it, is given it. A template states the thing itself instead.
+        """
         for kind in _HOOK_ORDER:
             chosen: Fact | None = next(iter(facts.of_kind(kind)), None)
-            if chosen is not None:
-                text = self._lines[f"hook.{kind}"].replace("{value}", chosen.value)
-                return text + " ", (Claim(fact_id=chosen.id, text=chosen.value),)
-        return "", ()
+            # A product line names the employer, so without one it has no sentence.
+            if chosen is None or (kind == "product" and company is None):
+                continue
+            key = f"hook.{kind}"
+            if chosen.variant is not None:
+                key = f"{key}.{chosen.variant}"
+            text = self._lines[key].replace("{value}", chosen.value)
+            if company is not None:
+                text = text.replace("{company}", company.value)
+            return text + " ", (Claim(fact_id=chosen.id, text=chosen.value),), kind
+        return "", (), None
 
 
 def _read_lines(path: Path) -> dict[str, str]:

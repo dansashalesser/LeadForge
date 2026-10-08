@@ -62,13 +62,14 @@
   const detailTitle = el("h3", { text: "Leads" });
   const days = el("input", { type: "number", min: "0", step: "1", value: "3", "aria-label": "Advance days" });
   const download = el("a", { download: "outreach-report.md", text: "Download report (Markdown)" });
+  const downloadXlsx = el("a", { class: "btn", download: "", text: "Download Excel" });
   const funnel = el("div", { class: "funnel" });
   const notes = el("div", { class: "notes" });
   const leadsBox = el("div");
   const detail = el("section", { class: "panel hidden", "aria-label": "Search detail" },
     el("div", { class: "row first" }, detailTitle, el("div", { style: "flex:1" }),
       el("label", {}, "Advance days ", days),
-      el("button", { class: "btn", onclick: () => advance(), text: "Advance" }), download),
+      el("button", { class: "btn", onclick: () => advance(), text: "Advance" }), downloadXlsx, download),
     funnel, notes, leadsBox);
 
   const root = el("div", { class: "search-tab" },
@@ -213,19 +214,27 @@
 
   // ------------------------------------------------------------- searches and leads
 
+  // Two loads can be in flight at once (running a search reloads the list, and the
+  // dashboard reload that follows can ask for it again). Clearing the box before the
+  // await let both appends land, so the table rendered twice. Build first, swap once,
+  // and let the newest call win.
+  let searchesLoad = 0;
+
   async function loadSearches() {
-    searchesBox.replaceChildren();
+    const token = ++searchesLoad;
     let searches = [];
     try {
       ({ searches } = await api(`/api/outreach/searches?${storeQuery()}`));
     } catch (error) {
-      searchesBox.append(el("div", { class: "note", text: ui.store === "demo"
+      if (token !== searchesLoad) return;
+      searchesBox.replaceChildren(el("div", { class: "note", text: ui.store === "demo"
         ? "No searches on the demo dataset yet: pick a vendor and run one."
         : `No searches yet on My store (${error.message}).` }));
       return;
     }
+    if (token !== searchesLoad) return;
     if (!searches.length) {
-      searchesBox.append(el("div", { class: "note", text: "No searches yet." }));
+      searchesBox.replaceChildren(el("div", { class: "note", text: "No searches yet." }));
       return;
     }
     const table = el("table", {},
@@ -239,16 +248,21 @@
       body.append(row);
     }
     table.append(body);
-    searchesBox.append(table);
+    searchesBox.replaceChildren(table);
   }
 
+  let openLoad = 0;
+
   async function openSearch(id) {
+    const token = ++openLoad;
     ui.search = id;
     const reveal = Boolean(ui.ctx.state.reveal);
     const { report } = await api(`/api/outreach/searches/${id}?${storeQuery()}&reveal=${reveal}`);
+    if (token !== openLoad) return;
     detail.classList.remove("hidden");
     detailTitle.textContent = `Leads: ${report.mode} / ${report.query}`;
     download.href = `/api/outreach/searches/${id}/report?${storeQuery()}&format=md&reveal=${reveal}`;
+    downloadXlsx.href = `/api/outreach/searches/${id}/report?${storeQuery()}&format=xlsx&reveal=${reveal}`;
     funnel.replaceChildren(...Object.entries(report.funnel).map(([name, count]) =>
       el("div", {}, el("b", { text: String(count) }), name)));
     notes.textContent = report.notes.join(" · ");
@@ -334,16 +348,60 @@
     }
     if (lead.person_fit) box.append(el("div", {}, el("b", { text: "Person Fit: " }), lead.person_fit));
     box.append(...evidenceBlocks(lead.evidence || []));
+    // What the search run stored, which is the wording that run had. Saying which
+    // version it came from is what tells you a Message is older than the current one.
+    const stored = el("div");
+    if (lead.invite === null && lead.email_body === null) {
+      stored.append(el("div", { class: "note", text: "No Messages for this Lead." }));
+    } else {
+      stored.append(el("div", { class: "note", text: lead.message_version
+        ? `Stored by this search run, written from ${lead.message_version}.`
+        : "Stored by this search run." }));
+    }
     if (lead.invite !== null) {
-      box.append(el("b", { text: "LinkedIn invite" }), el("div", { class: "msg", text: lead.invite }));
+      stored.append(el("b", { text: "LinkedIn invite" }), el("div", { class: "msg", text: lead.invite }));
     }
     if (lead.email_body !== null) {
-      box.append(el("b", { text: `Email: ${lead.email_subject}` }), el("div", { class: "msg", text: lead.email_body }));
+      stored.append(el("b", { text: `Email: ${lead.email_subject}` }), el("div", { class: "msg", text: lead.email_body }));
     }
-    if (lead.invite === null && lead.email_body === null) {
-      box.append(el("div", { class: "note", text: "No Messages for this Lead." }));
-    }
+    box.append(stored, generator(lead, stored));
     return box;
+  }
+
+  // Writes this Lead's invite and email on demand (model if configured, else offline
+  // templates) and shows them here. Nothing is stored or sent.
+  function generator(lead, stored) {
+    const out = el("div", { class: "generated" });
+    const button = el("button", { class: "btn", text: "Generate messages" });
+    button.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      button.disabled = true;
+      out.replaceChildren(el("div", { class: "note", text: "Writing…" }));
+      try {
+        // The search carries the usage evidence this Lead was selected on.
+        const result = await post(`/api/outreach/leads/${lead.lead_id}/messages`,
+          { store: ui.store, search_id: ui.search });
+        const parts = [el("div", { class: "note", text: `Written ${result.generator === "model" ? "by the model" : "offline, from templates"}; not saved or sent.` })];
+        if (!result.drafts.length) {
+          const why = result.failures.map((f) => (f.detail ? `${f.name}: ${f.detail}` : f.name)).join("; ");
+          parts.push(el("div", { class: "note", text: why ? `No Message passed its checks (${why}).` : "No Message passed its checks." }));
+        }
+        for (const d of result.drafts) {
+          const title = d.kind === "invite" ? "LinkedIn invite" : `Email: ${d.subject || ""}`;
+          parts.push(el("b", { text: title }), el("div", { class: "msg", text: d.body }));
+          if (!d.checks_passed) parts.push(el("div", { class: "note", text: `Failed checks: ${d.failed_checks.join(", ")}` }));
+        }
+        // One Message on screen, not two: what the run stored is now out of date.
+        stored.classList.add("hidden");
+        out.replaceChildren(...parts);
+      } catch (error) {
+        out.replaceChildren(el("div", { class: "note", text: error.message }));
+      } finally {
+        button.disabled = false;
+        button.textContent = "Regenerate messages";
+      }
+    });
+    return el("div", {}, el("div", { class: "row" }, button), out);
   }
 
   async function advance() {
