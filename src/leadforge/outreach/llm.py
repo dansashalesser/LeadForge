@@ -49,15 +49,30 @@ def llm_settings(environ: Mapping[str, str], config: LlmConfig) -> LlmSettings |
     return LlmSettings(provider, model, key_env, config.timeout_s)
 
 
+# Providers whose LangChain class takes ``reasoning_effort``.
+EFFORT_PROVIDERS = frozenset({"anthropic", "openai"})
+
+
 def build_chat_model(
-    settings: LlmSettings, environ: Mapping[str, str]
+    settings: LlmSettings, environ: Mapping[str, str], *, effort: str | None = None
 ) -> BaseChatModel:
-    """The LangChain chat model for ``settings``; opens no connection until called."""
+    """The LangChain chat model for ``settings``; opens no connection until called.
+
+    ``effort`` is the reasoning effort; ``None`` leaves the provider default. A
+    provider without that setting is an error, never silently ignored."""
+    extra: dict[str, str] = {}
+    if effort is not None:
+        if settings.provider not in EFFORT_PROVIDERS:
+            raise ValueError(
+                f"provider {settings.provider!r} has no reasoning effort setting"
+            )
+        extra["reasoning_effort"] = effort
     return init_chat_model(
         settings.model,
         model_provider=settings.provider,
         api_key=environ[settings.key_env],
         timeout=settings.timeout_s,
+        **extra,
     )
 
 

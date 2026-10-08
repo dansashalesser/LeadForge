@@ -364,17 +364,22 @@ def usage_eval(
 
     if classifier not in ("offline", "llm"):
         raise typer.BadParameter("classifier must be offline or llm")
-    if classifier == "llm":
-        # The live classifier factory (task 6.3) is not built yet; never fall back.
-        typer.echo(
-            f"{UsageClassifierUnavailableError()}: the live classifier factory "
-            "(task 6.3) is pending",
-            err=True,
-        )
-        raise typer.Exit(EXIT_CONFIGURATION_ERROR)
     try:
         loaded = load_cases(cases)
     except EvalCaseError as exc:
         typer.echo(_safe(str(exc)), err=True)
         raise typer.Exit(EXIT_CONFIGURATION_ERROR) from exc
-    _echo(render_report(run_eval(loaded, OfflineClassifier(UsageCues()))))
+    if classifier == "llm":
+        from leadforge.outreach.usage.flow import classifier_for
+
+        cfg = load_outreach_config()
+        try:
+            chosen = classifier_for(
+                synthetic=False, usage=cfg.usage, llm=cfg.llm, environ=os.environ
+            )
+        except UsageClassifierUnavailableError as exc:
+            typer.echo(_safe(str(exc)), err=True)
+            raise typer.Exit(EXIT_CONFIGURATION_ERROR) from exc
+    else:
+        chosen = OfflineClassifier(UsageCues())
+    _echo(render_report(run_eval(loaded, chosen)))

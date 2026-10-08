@@ -60,8 +60,8 @@ from leadforge.outreach.searches import finish_search, link_hook, start_search
 from leadforge.outreach.tables import OutreachDecision
 from leadforge.outreach.tick import tick
 from leadforge.outreach.usage.budget import UsageBudget
-from leadforge.outreach.usage.classify import OfflineClassifier
 from leadforge.outreach.usage.demo_wiring import demo_usage_deps
+from leadforge.outreach.usage.flow import classifier_for
 from leadforge.outreach.usage.grade import CompanyGrade, CompanyUsage
 from leadforge.outreach.usage.person import PersonFit, RoleVocabulary
 from leadforge.outreach.usage.stage import (
@@ -267,9 +267,9 @@ class SearchService:
         cfg = self._cfg.usage
         classifier = self._usage_classifier
         if classifier is None:
-            if not synthetic:
-                raise UsageClassifierUnavailableError
-            classifier = OfflineClassifier(cfg.cues)
+            classifier = classifier_for(
+                synthetic=synthetic, usage=cfg, llm=self._cfg.llm, environ=self._environ
+            )
         build = self._usage_deps
         if build is None:
             if not synthetic:
