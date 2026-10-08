@@ -483,8 +483,8 @@ def test_a_column_may_make_a_term_expressible_that_the_adapter_never_declared(
     }
 
 
-# Verifies: specs/lead-source-adapters/requirements.md#23.2
-def test_the_adapter_default_fills_a_term_the_configuration_does_not_cover(
+# Verifies: specs/user-recognition/requirements.md#2.7
+def test_the_adapter_default_no_longer_fills_a_term_the_configuration_does_not_cover(
     write: Write, make_package: MakePackage
 ) -> None:
     path = write(PROFILE)
@@ -506,9 +506,9 @@ def test_the_adapter_default_fills_a_term_the_configuration_does_not_cover(
 
     effective = effective_vocabulary(profile, registry.source_class("provider_two"))
 
-    # tech_beta has no provider_two column: the default fills it. rival_one has one:
-    # the configuration replaces the default whole (no merging of values).
-    assert effective["tech_beta"] == "default_beta"
+    # tech_beta has no provider_two column: the profile is the only vocabulary (2.7),
+    # so the adapter default is inert and the term is Not Applicable.
+    assert "tech_beta" not in effective
     assert effective["rival_one"] == ("rival one",)
     assert effective["tech_alpha"] == ("phrase one", "phrase two")
     assert check_against_registry(profile, registry, path=path) == ("provider_one",)

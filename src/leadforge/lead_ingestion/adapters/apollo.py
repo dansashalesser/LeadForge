@@ -148,6 +148,7 @@ import structlog
 from pydantic import BaseModel, StrictStr, model_validator
 
 from leadforge.lead_ingestion.base_source import (
+    TARGET_TERM_PATH_PREFIX,
     BaseLeadSource,
     Capability,
     ChargeUnit,
@@ -160,6 +161,7 @@ from leadforge.lead_ingestion.base_source import (
     RateWindow,
     RawBatch,
     SourceRequest,
+    _is_empty_vocabulary,
     resolve_credentials,
     retry_after_seconds,
 )
@@ -392,6 +394,16 @@ def _company_domain(value: object) -> str | None:
     return next(iter(domains)) if len(domains) == 1 else None
 
 
+class NoSearchVocabularyError(ValueError):
+    """A search was asked of a source given no Target Profile vocabulary to ask with."""
+
+    def __init__(self, source: str) -> None:
+        super().__init__(
+            f"{source} has no search vocabulary: build it from a Target Profile "
+            "(effective_vocabulary) and pass it as vocabulary"
+        )
+
+
 class ApolloSource(BaseLeadSource):
     name: ClassVar[str] = "apollo"
     capabilities: ClassVar[frozenset[Capability]] = frozenset(
@@ -404,18 +416,14 @@ class ApolloSource(BaseLeadSource):
         "person.linkedin_url": frozenset({"linkedin_url"}),
         "company.name": frozenset({"organization.name"}),
         "company.technologies": frozenset({"organization.current_technologies"}),
-        "target_profile.datastax": frozenset({_UID_PARAM}),
-        "target_profile.apache_cassandra": frozenset({_UID_PARAM}),
     }
     # Search is free; people/match, the only credit-bearing path, costs one per lead.
     cost_class: ClassVar[CostClass] = CostClass.PAID
     charge_unit: ClassVar[ChargeUnit] = ChargeUnit.PER_LEAD
     yields_suppression: ClassVar[bool] = False
     live_access: ClassVar[LiveAccess] = LiveAccess.GATED
-    target_vocabulary: ClassVar[Mapping[str, object]] = {
-        "datastax": ["datastax"],
-        "apache_cassandra": ["cassandra"],  # Apollo lists it as "Cassandra"
-    }
+    # No default vocabulary: the Target Profile supplies every term.
+    target_vocabulary: ClassVar[Mapping[str, object]] = {}
     endpoints: ClassVar[Mapping[str, Endpoint]] = {
         "search": _SEARCH,
         "match": _MATCH,
@@ -533,6 +541,19 @@ class ApolloSource(BaseLeadSource):
         chosen = self.target_vocabulary if vocabulary is None else vocabulary
         self._uids = uids_of(chosen)
         self._domains = domains_of(chosen)
+        # Answerable surfaces are derived per profile term: a UID term is asked on the
+        # technology parameter, a domain term on the domain parameter.
+        self._term_surfaces: Mapping[str, frozenset[str]] = {
+            f"{TARGET_TERM_PATH_PREFIX}{term}": frozenset(
+                {_DOMAIN_PARAM if _is_domain_filter(value) else _UID_PARAM}
+            )
+            for term, value in chosen.items()
+            if not _is_empty_vocabulary(value)
+        }
+
+    @property
+    def run_answerable_surfaces(self) -> Mapping[str, frozenset[str]]:
+        return {**self.answerable_surfaces, **self._term_surfaces}
 
     @classmethod
     def from_run(
@@ -604,6 +625,8 @@ class ApolloSource(BaseLeadSource):
         # A domain search carries no technology filter, and the other way round.
         asks = [*((_UID_PARAM, u) for u in self._uids)]
         asks += [(_DOMAIN_PARAM, d) for d in self._domains]
+        if not asks:
+            raise NoSearchVocabularyError(self.name)
         for param, value in asks:
             matched = False
             for number in range(1, MAX_PAGE + 1):
@@ -731,7 +754,7 @@ class ApolloSource(BaseLeadSource):
             source_name=self.name,
             data_mode=self.data_mode,
             fetched_at=datetime.now(UTC),
-            answerable_surfaces=self.answerable_surfaces,
+            answerable_surfaces=self.run_answerable_surfaces,
         )
         normalizer = Normalizer()
         return [
@@ -817,7 +840,7 @@ class ApolloSource(BaseLeadSource):
             source_name=self.name,
             data_mode=self.data_mode,
             fetched_at=datetime.now(UTC),
-            answerable_surfaces=self.answerable_surfaces,
+            answerable_surfaces=self.run_answerable_surfaces,
         )
         normalizer = Normalizer()
         responses: dict[str, Mapping[str, object]] = {}
@@ -1356,8 +1379,9 @@ def uids_of(vocabulary: Mapping[str, object]) -> tuple[str, ...]:
     """Every technology UID in the vocabulary, first appearance order, no repeats.
 
     Format only, no list: each must already be in Apollo's UID form
-    (``technology_uid`` leaves it unchanged), so a name such as ``MongoDB`` fails at
-    startup instead of spending a search that can match nothing.
+    (``technology_uid`` leaves it unchanged), so a display name such as
+    ``Some Product`` fails at startup instead of spending a search that can match
+    nothing.
     """
     uids: dict[str, None] = {}
     for term, value in vocabulary.items():

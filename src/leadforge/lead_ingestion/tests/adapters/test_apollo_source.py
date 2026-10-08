@@ -17,6 +17,7 @@ from leadforge.lead_ingestion.adapters.apollo import (
     MAX_PER_PAGE,
     RUNG_CONFIDENCE,
     ApolloSource,
+    NoSearchVocabularyError,
     credits_in,
 )
 from leadforge.lead_ingestion.base_source import (
@@ -159,7 +160,12 @@ async def test_live_run_without_the_key_fails_naming_the_variable() -> None:
 # Verifies: specs/lead-source-adapters/requirements.md#12.1
 async def test_synthetic_run_needs_no_key_and_sends_none() -> None:
     transport = Scripted(lambda _: page(0, 0))
-    source = ApolloSource(DataMode.SYNTHETIC, transport=transport, environ={})
+    source = ApolloSource(
+        DataMode.SYNTHETIC,
+        transport=transport,
+        environ={},
+        vocabulary={"t": ["datastax"]},
+    )
     await source.fetch_raw(REQUEST)
     assert transport.calls[0][2] == {}
 
@@ -185,14 +191,24 @@ async def test_uids_come_from_the_supplied_vocabulary_not_from_code() -> None:
     ]
 
 
-# Verifies: specs/lead-source-adapters/requirements.md#12.13
-async def test_without_a_profile_the_adapters_declared_default_is_used() -> None:
+# Verifies: specs/user-recognition/requirements.md#2.7
+async def test_without_a_profile_vocabulary_a_search_fails_fast() -> None:
     transport = Scripted(lambda _: page(0, 0))
-    await live(transport).fetch_raw(REQUEST)
-    assert {c[1][UID_PARAM] for c in transport.calls} == {
-        "datastax",
-        "cassandra",
-    }
+    with pytest.raises(NoSearchVocabularyError):
+        await live(transport).fetch_raw(REQUEST)
+    assert transport.calls == []
+
+
+# Verifies: specs/user-recognition/requirements.md#2.7
+def test_answerable_target_surfaces_are_derived_per_profile_term() -> None:
+    source = live(
+        Scripted(lambda _: page(0, 0)),
+        vocabulary={"t": ["datastax"], "d": {"organization_domains": ["acme.com"]}},
+    )
+    surfaces = source.run_answerable_surfaces
+    assert surfaces["target_profile.t"] == frozenset({UID_PARAM})
+    assert surfaces["target_profile.d"] == frozenset({DOMAIN_PARAM})
+    assert not any(k.startswith("target_profile.") for k in source.answerable_surfaces)
 
 
 # Verifies: specs/hunter-outreach/requirements.md#3.1

@@ -227,22 +227,17 @@ def _read_templates(file: Path, raw: object) -> tuple[str, ...]:
 def effective_vocabulary(
     profile: TargetProfile, source: type[BaseLeadSource]
 ) -> Mapping[str, object]:
-    """Per profile term, the vocabulary the source is asked with (config overrides).
+    """Per profile term, the vocabulary the source is asked with.
 
-    Per term, never per value: a column present for the source wins whole (no deep
-    merge); an explicitly empty column means no surface and drops the term; with no
-    column the adapter's own default fills the gap. Only terms of the profile are
-    considered, so an adapter default for a term the profile no longer lists is inert.
-    A term absent from the result is Not Applicable for the source (3.3).
+    The profile is the only source: an adapter declares no default. A term with no
+    column for the source, or an empty one, is Not Applicable for it and is left out
+    of the result (3.3).
     """
-    defaults = source.target_vocabulary
     effective: dict[str, object] = {}
     for term in profile.terms():
-        value = (
-            profile.vocabulary(source.name, term)
-            if profile.has_column(source.name, term)
-            else defaults.get(term)
-        )
+        if not profile.has_column(source.name, term):
+            continue
+        value = profile.vocabulary(source.name, term)
         if not _is_empty_vocabulary(value):
             effective[term] = value
     return MappingProxyType(effective)

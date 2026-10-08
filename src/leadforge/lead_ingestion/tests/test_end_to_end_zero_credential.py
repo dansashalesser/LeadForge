@@ -417,8 +417,10 @@ async def test_no_lead_data_reaches_the_summary_or_the_report(
 # Verifies: specs/lead-source-adapters/requirements.md#4.5
 # Verifies: specs/lead-source-adapters/requirements.md#6.5
 def test_the_ingest_command_runs_the_zero_credential_ingestion_and_exits_zero(
-    clean_environment: Path, guard: SocketGuard
+    clean_environment: Path, guard: SocketGuard, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Adapters carry no vocabulary (2.7): the run needs the Target Profile in reach.
+    monkeypatch.chdir(REPO_ROOT)
     result = CliRunner().invoke(cli.app, ["ingest"])
 
     assert result.exit_code == 0, result.output

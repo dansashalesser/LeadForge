@@ -212,7 +212,9 @@ def build_synthetic(
     """A source over its own fixtures, the way the composition root must build one."""
     transport = source_class.build_transport(mode)
     if source_class is ApolloSource:
-        return ApolloSource(mode, transport=transport, pacing=pacing)
+        return ApolloSource(
+            mode, transport=transport, pacing=pacing, vocabulary={"t": ["datastax"]}
+        )
     if source_class is HubSpotSource:
         return HubSpotSource(mode, transport=transport, pacing=pacing)
     if source_class is HunterSource:
@@ -394,7 +396,12 @@ async def test_a_source_resolved_synthetic_but_built_with_a_live_transport_fails
     ) -> BaseLeadSource:
         if source_class is ApolloSource:
             live = source_class.build_transport(DataMode.LIVE)  # the mis-build
-            return ApolloSource(mode, transport=live, environ={"APOLLO_API_KEY": "x"})
+            return ApolloSource(
+                mode,
+                transport=live,
+                environ={"APOLLO_API_KEY": "x"},
+                vocabulary={"t": ["datastax"]},
+            )
         return build_synthetic(source_class, mode, pacing)
 
     with pytest.raises(ExceptionGroup) as raised:
@@ -859,7 +866,11 @@ async def test_a_source_resolved_live_with_fixtures_is_not_a_synthetic_run(
     ) -> BaseLeadSource:
         transport = source_class.build_transport(DataMode.SYNTHETIC)
         return ApolloSource(
-            mode, transport=transport, environ={"APOLLO_API_KEY": "x"}, pacing=pacing
+            mode,
+            transport=transport,
+            environ={"APOLLO_API_KEY": "x"},
+            pacing=pacing,
+            vocabulary={"t": ["datastax"]},
         )
 
     pipeline = await run_pipeline(engine, registry, fixtures_under_live)

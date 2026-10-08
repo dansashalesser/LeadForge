@@ -85,7 +85,7 @@ def test_apollo_takes_its_technologies_from_the_profile_vocabulary() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#4.5
-def test_apollo_without_a_profile_keeps_its_own_default_vocabulary() -> None:
+def test_apollo_without_a_profile_has_no_vocabulary() -> None:
     source = ApolloSource.from_run(
         SYNTHETIC,
         transport=ApolloSource.build_transport(SYNTHETIC),
@@ -93,7 +93,7 @@ def test_apollo_without_a_profile_keeps_its_own_default_vocabulary() -> None:
         vocabulary=None,
     )
 
-    assert source._uids == ("datastax", "cassandra")
+    assert source._uids == ()
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#4.5

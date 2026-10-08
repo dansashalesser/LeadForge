@@ -617,6 +617,12 @@ class BaseLeadSource(ABC):
         """Check a non-JSON reference file with the adapter's own loader (5.3)."""
         raise FixtureSchemaError(cls.name, field=f"{file}: no loader declared")
 
+    @property
+    def run_answerable_surfaces(self) -> Mapping[str, frozenset[str]]:
+        """The surfaces this instance can be asked on: the class declaration, plus any
+        target terms an adapter derives from the vocabulary it was built with."""
+        return self.answerable_surfaces
+
     def target_term_absence(
         self, term: str, *, vocabulary: Mapping[str, object] | None = None
     ) -> SourceAbsence | None:
@@ -651,7 +657,7 @@ class BaseLeadSource(ABC):
 
         if absence.source_name != self.name:
             raise reject(f"attributed to {absence.source_name!r}, not {self.name!r}")
-        surfaces = self.answerable_surfaces.get(absence.canonical_path)
+        surfaces = self.run_answerable_surfaces.get(absence.canonical_path)
         if absence.kind is AbsenceKind.NOT_APPLICABLE:
             if surfaces is not None:
                 raise reject("source declares this path answerable; not applicable")

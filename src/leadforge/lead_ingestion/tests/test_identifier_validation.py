@@ -113,15 +113,14 @@ async def test_unknown_mode_is_rejected_not_treated_as_live() -> None:
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.4
-async def test_adapter_default_vocabulary_is_checked_when_profile_has_no_column() -> (
-    None
-):
+async def test_an_adapter_default_does_not_fill_a_term_the_profile_lacks() -> None:
     blanked = TargetProfile(technologies={"default_term": {"issuer": ""}})
-    # an explicit empty column drops the default, so nothing is checked
+    # an explicit empty column means nothing is checked
     assert await check(Lookup(set()), profile=blanked) == ()
+    # no column for the source: the profile is the only vocabulary (2.7), so the
+    # adapter's own default is inert
     bare = TargetProfile(technologies={"default_term": {"phrases": "x"}})
-    found = await check(Lookup(set()), profile=bare)
-    assert [(w.term, w.identifier) for w in found] == [("default_term", "id_default")]
+    assert await check(Lookup(set()), profile=bare) == ()
 
 
 # Verifies: specs/lead-source-adapters/requirements.md#23.4

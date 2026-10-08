@@ -159,9 +159,13 @@ def enrichment(*leads: LeadContribution) -> EnrichmentRequest:
 # ---------------------------------------------------------------- drivers
 
 
+# The vocabulary a Target Profile hands Apollo; the adapter declares none of its own.
+VOCAB: Mapping[str, object] = {"term_a": ["datastax"], "term_b": ["cassandra"]}
+
+
 def _build(provider: str, transport: Any) -> BaseLeadSource:
     if provider == "apollo":
-        return ApolloSource(DataMode.SYNTHETIC, transport=transport)
+        return ApolloSource(DataMode.SYNTHETIC, transport=transport, vocabulary=VOCAB)
     if provider == "hubspot":
         return HubSpotSource(DataMode.SYNTHETIC, transport=transport)
     if provider == "hunter":
@@ -456,7 +460,11 @@ def required_labels(source: type[BaseLeadSource]) -> set[str]:
     labels = set(source.endpoints)
     if source.yields_suppression:
         labels.add("suppression")
-    if any(p.startswith(TARGET_TERM_PATH_PREFIX) for p in source.answerable_surfaces):
+    # A source that derives target surfaces from the vocabulary it was built with.
+    derives = (
+        source.run_answerable_surfaces is not BaseLeadSource.run_answerable_surfaces
+    )
+    if derives:
         labels.add("target_match")
     if "person.email_status" in source.answerable_surfaces:
         labels.add("email_status")
@@ -584,27 +592,22 @@ async def test_each_case_runs_with_no_socket_and_no_credential(
 def test_a_source_without_a_term_vocabulary_reports_not_applicable_not_no_match() -> (
     None
 ):
-    terms = sorted(
-        {
-            path.removeprefix(TARGET_TERM_PATH_PREFIX)
-            for source in SOURCES.values()
-            for path in source.answerable_surfaces
-            if path.startswith(TARGET_TERM_PATH_PREFIX)
-        }
-    )
-    assert terms
+    terms = ["term_a"]
     applicable = not_applicable = 0
     for name, cls in SOURCES.items():
         source = cls(
-            DataMode.SYNTHETIC, transport=cls.build_transport(DataMode.SYNTHETIC)
+            DataMode.SYNTHETIC,
+            transport=cls.build_transport(DataMode.SYNTHETIC),
+            **({"vocabulary": VOCAB} if name == "apollo" else {}),
         )
         for term in terms:
-            absence = source.target_term_absence(term)
+            absence = source.target_term_absence(term, vocabulary=VOCAB)
             path = f"{TARGET_TERM_PATH_PREFIX}{term}"
-            if path in cls.answerable_surfaces:
+            if path in source.run_answerable_surfaces:
                 assert absence is None, (name, term)
                 applicable += 1
                 continue
+            absence = source.target_term_absence(term, vocabulary={})
             assert absence is not None, (name, term)
             assert absence.kind is AbsenceKind.NOT_APPLICABLE
             assert absence.raw_field_path is None
