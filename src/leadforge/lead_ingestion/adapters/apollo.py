@@ -319,6 +319,8 @@ class _Organization(BaseModel):
     name: StrictStr | None = None
     current_technologies: list[_Technology] | None = None
     primary_domain: StrictStr | None = None
+    technology_names: list[StrictStr] | None = None
+    keywords: list[StrictStr] | None = None
 
 
 class _Person(BaseModel):
@@ -328,6 +330,8 @@ class _Person(BaseModel):
     title: StrictStr | None = None
     linkedin_url: StrictStr | None = None
     organization: _Organization | None = None
+    # Added by ``fetch_raw``: every technology UID search that found this person.
+    matched_technology_uids: list[StrictStr] | None = None
 
 
 class _MatchedPerson(BaseModel):
@@ -340,6 +344,11 @@ class _MatchedPerson(BaseModel):
     linkedin_url: StrictStr | None = None
     email: StrictStr | None = None
     email_status: StrictStr | None = None
+    headline: StrictStr | None = None
+    departments: list[StrictStr] | None = None
+    functions: list[StrictStr] | None = None
+    seniority: StrictStr | None = None
+    employment_history: list[dict[str, Any]] | None = None
     organization: _Organization | None = None
 
     @model_validator(mode="after")
@@ -361,6 +370,17 @@ def _is_hit(response: Mapping[str, object]) -> bool:
     """
     person = response.get("person")
     return isinstance(person, Mapping) and person.get("match_confidence") != _NO_MATCH
+
+
+def _jobs_without_nulls(value: object) -> list[dict[str, Any]]:
+    """Employment history as stored: each job without its null fields.
+
+    Apollo sends most job fields as null; the store round-trips JSON values and has
+    no use for a field the provider left empty.
+    """
+    if not isinstance(value, list) or not all(isinstance(j, Mapping) for j in value):
+        raise ValueError("employment_history must be a list of jobs")
+    return [{k: v for k, v in job.items() if v is not None} for job in value]
 
 
 def _company_domain(value: object) -> str | None:
@@ -435,6 +455,7 @@ class ApolloSource(BaseLeadSource):
         FieldRule("person.linkedin_url", "linkedin_url"),
         FieldRule("company.name", "organization.name", untrusted=True),
         FieldRule("company.technologies", "organization.current_technologies"),
+        FieldRule("person.matched_technology_uids", "matched_technology_uids"),
     )
     MATCH_RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule(_ID_PATH, "person.id"),
@@ -444,8 +465,19 @@ class ApolloSource(BaseLeadSource):
         FieldRule("person.linkedin_url", "person.linkedin_url"),
         FieldRule("person.email", "person.email"),
         FieldRule("person.email_status", "person.email_status"),
+        FieldRule("person.headline", "person.headline", untrusted=True),
+        FieldRule("person.departments", "person.departments"),
+        FieldRule("person.functions", "person.functions"),
+        FieldRule("person.seniority", "person.seniority"),
+        FieldRule(
+            "person.employment_history",
+            "person.employment_history",
+            transform=_jobs_without_nulls,
+        ),
         FieldRule("company.name", "person.organization.name", untrusted=True),
         FieldRule("company.technologies", "person.organization.current_technologies"),
+        FieldRule("company.technology_names", "person.organization.technology_names"),
+        FieldRule("company.keywords", "person.organization.keywords"),
         FieldRule(
             "company.domain",
             "person.organization.primary_domain",
@@ -568,6 +600,7 @@ class ApolloSource(BaseLeadSource):
             return await self._enrich(request)
         headers = self._headers()
         people: dict[str, Mapping[str, Any]] = {}
+        matched_uids: dict[str, list[str]] = {}
         # A domain search carries no technology filter, and the other way round.
         asks = [*((_UID_PARAM, u) for u in self._uids)]
         asks += [(_DOMAIN_PARAM, d) for d in self._domains]
@@ -577,16 +610,26 @@ class ApolloSource(BaseLeadSource):
                 found = await self._search(param, value, number, headers)
                 matched = matched or bool(found)
                 for person in found:
-                    people.setdefault(str(person.get("id")), person)
+                    key = str(person.get("id"))
+                    people.setdefault(key, person)
+                    if param == _UID_PARAM:
+                        seen = matched_uids.setdefault(key, [])
+                        if value not in seen:
+                            seen.append(value)
                 if len(found) < self._per_page:
                     break
             if not matched and param == _UID_PARAM:
                 _log.warning("apollo_technology_no_matches", uid=value)
             elif not matched:
                 _log.warning("apollo_domain_no_matches")
-        return RawBatch(
-            source_name=self.name, payload={"people": list(people.values())}
-        )
+        # A person found by several UID searches keeps every UID that found them.
+        merged = [
+            {**p, "matched_technology_uids": matched_uids[k]}
+            if k in matched_uids
+            else p
+            for k, p in people.items()
+        ]
+        return RawBatch(source_name=self.name, payload={"people": merged})
 
     async def _search(
         self, param: str, value: str, number: int, headers: Mapping[str, str]

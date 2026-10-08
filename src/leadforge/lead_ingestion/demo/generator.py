@@ -705,6 +705,34 @@ def _search_person(p: Person, apollo_id: str) -> Json:
     }
 
 
+def _job(p: Person, apollo_id: str, *, left: bool) -> Json:
+    return {
+        "_id": apollo_id[::-1],
+        "created_at": None,
+        "current": not left,
+        "degree": None,
+        "description": None,
+        "emails": None,
+        "end_date": "2025-06-30" if left else None,
+        "grade_level": None,
+        "kind": None,
+        "major": None,
+        "organization_id": p.company.apollo_org_id,
+        "organization_name": p.company.name,
+        "raw_address": None,
+        "start_date": "2019-04-01" if left else "2022-03-01",
+        "title": p.title[:120],
+        "updated_at": None,
+        "id": apollo_id[::-1],
+        "key": apollo_id[::-1],
+    }
+
+
+def _employment_history(p: Person, apollo_id: str) -> list[Json]:
+    """One current job; a person who left has the company they left as a past job."""
+    return [_job(p, apollo_id, left=p.scenario in _LEFT_SCENARIOS)]
+
+
 def _match_answer(p: Person, apollo_id: str, request_id: int) -> Json:
     if p.match_confidence == "none":
         return {"person": {"match_confidence": "none"}, "request_id": request_id}
@@ -726,28 +754,7 @@ def _match_answer(p: Person, apollo_id: str, request_id: int) -> Json:
             "headline": p.title[:120],
             "email": p.email,
             "organization_id": p.company.apollo_org_id,
-            "employment_history": [
-                {
-                    "_id": apollo_id[::-1],
-                    "created_at": None,
-                    "current": True,
-                    "degree": None,
-                    "description": None,
-                    "emails": None,
-                    "end_date": None,
-                    "grade_level": None,
-                    "kind": None,
-                    "major": None,
-                    "organization_id": p.company.apollo_org_id,
-                    "organization_name": p.company.name,
-                    "raw_address": None,
-                    "start_date": "2022-03-01",
-                    "title": p.title[:120],
-                    "updated_at": None,
-                    "id": apollo_id[::-1],
-                    "key": apollo_id[::-1],
-                }
-            ],
+            "employment_history": _employment_history(p, apollo_id),
             "state": state,
             "city": city,
             "country": country,

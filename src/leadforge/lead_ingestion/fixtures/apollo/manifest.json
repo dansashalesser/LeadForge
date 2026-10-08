@@ -23,7 +23,7 @@
       "schema_verified_on": "2026-10-06",
       "api_version": null,
       "redaction": null,
-      "note": "Hand-made stand-in; not a capture. Every field matched the OpenAPI 200 response at https://docs.apollo.io/reference/people-enrichment, read in full on 2026-10-06: person.match_confidence (enum high/medium/low/none, on person, not the envelope), person id, names, title, linkedin_url, email, email_status, organization name, primary_domain and current_technologies[uid,name,category], and request_id."
+      "note": "Hand-made stand-in; not a capture. Fields matched the OpenAPI 200 response at https://docs.apollo.io/reference/people-enrichment, read in full on 2026-10-06: person match_confidence (on the person), id, names, title, linkedin_url, email, email_status, headline, departments, functions, seniority, employment_history[]; organization name, primary_domain, current_technologies[], technology_names, keywords; request_id."
     },
     {
       "file": "supported_technologies_excerpt.csv",

@@ -12,9 +12,38 @@
       "name": "Example Data Corp",
       "primary_domain": "example.com",
       "current_technologies": [
-        {"uid": "datastax", "name": "DataStax", "category": "Databases"}
+        {
+          "uid": "datastax",
+          "name": "DataStax",
+          "category": "Databases"
+        }
+      ],
+      "technology_names": [
+        "DataStax"
+      ],
+      "keywords": [
+        "data platform"
       ]
-    }
+    },
+    "headline": "VP Engineering",
+    "departments": [
+      "data_science"
+    ],
+    "functions": [
+      "engineering"
+    ],
+    "seniority": "vp",
+    "employment_history": [
+      {
+        "_id": "j1",
+        "current": true,
+        "end_date": null,
+        "organization_id": "o1",
+        "organization_name": "Example Data Corp",
+        "start_date": "2022-03-01",
+        "title": "VP Engineering"
+      }
+    ]
   },
   "request_id": 1
 }

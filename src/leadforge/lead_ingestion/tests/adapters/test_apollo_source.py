@@ -392,6 +392,7 @@ async def test_fixture_search_contributes_identity_firmographics_and_no_contact(
         "person.last_name": "Lo***e",
         "person.title": "VP Engineering",
         "company.name": "Example Data Corp",
+        "person.matched_technology_uids": ["datastax"],
     }
     assert {p.canonical_path for p in first.provenance} == set(first.values)
     # Provider free text is untrusted by construction (1.6, 22.1); the id is not text.
@@ -820,6 +821,23 @@ async def test_fixture_match_contributes_contact_identity_with_provenance() -> N
         ],
         # organization.primary_domain, registrable (ADR-0006, 2026-10-06).
         "company.domain": "example.com",
+        # Kept signals (user-recognition 3.2).
+        "person.headline": "VP Engineering",
+        "person.departments": ["data_science"],
+        "person.functions": ["engineering"],
+        "person.seniority": "vp",
+        "person.employment_history": [
+            {
+                "_id": "j1",
+                "current": True,
+                "organization_id": "o1",
+                "organization_name": "Example Data Corp",
+                "start_date": "2022-03-01",
+                "title": "VP Engineering",
+            }
+        ],
+        "company.technology_names": ["DataStax"],
+        "company.keywords": ["data platform"],
     }
     # One provenance record per populated field. Apollo states no per-field certainty;
     # the confidence is ours, by the lookup rung that found the person (follow-up
@@ -838,6 +856,7 @@ async def test_fixture_match_contributes_contact_identity_with_provenance() -> N
         "person.first_name",
         "person.last_name",
         "person.title",
+        "person.headline",
         "company.name",
     }
     for path in untrusted:
