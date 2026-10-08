@@ -2,9 +2,15 @@
 // textContent (through h()), never parsed as HTML.
 "use strict";
 
+// Tabs a host page adds before this script runs: window.leadforgeTabs = [{ key, label,
+// view }]. They come first and the first is the default tab; a view is called as
+// view({ state, setTab, reload }) on every render and returns the node to show.
+const extraTabs = window.leadforgeTabs || [];
+const wantedTab = new URLSearchParams(location.search).get("tab");
+
 const state = {
   store: localStorage.getItem("lf.store") || "demo",
-  tab: localStorage.getItem("lf.tab") || "overview",
+  tab: wantedTab || (extraTabs[0] && extraTabs[0].key) || localStorage.getItem("lf.tab") || "overview",
   reveal: false,
   leads: null, leadsError: null,
   runs: null, runsError: null,
@@ -197,11 +203,20 @@ function renderChrome() {
   renderActions();
 }
 
+function setTab(key) {
+  state.tab = key;
+  localStorage.setItem("lf.tab", key);
+  render();
+}
+
 function render() {
   if (state.tab === "scorecard" && state.store !== "demo") state.tab = "overview";
   renderChrome();
   const view = $("#view");
-  const fn = { overview: viewOverview, leads: viewLeads, runs: viewRuns, scorecard: viewScorecard }[state.tab];
+  const extra = extraTabs.find((t) => t.key === state.tab);
+  const fn = extra
+    ? () => extra.view({ state, setTab, reload: loadAll })
+    : { overview: viewOverview, leads: viewLeads, runs: viewRuns, scorecard: viewScorecard }[state.tab] || viewOverview;
   view.replaceChildren(fn());
 }
 
@@ -600,11 +615,8 @@ document.querySelectorAll("#store-switch button").forEach((b) => b.addEventListe
   state.scenario = null;
   loadAll();
 }));
-document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => {
-  state.tab = b.dataset.tab;
-  localStorage.setItem("lf.tab", state.tab);
-  render();
-}));
+for (const t of [...extraTabs].reverse()) $("#tabs").prepend(h("button", { "data-tab": t.key }, t.label));
+document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
 $("#reveal").addEventListener("change", (e) => { state.reveal = e.target.checked; loadAll(); });
 $("#scrim").addEventListener("click", closeDrawer);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });

@@ -1,30 +1,31 @@
-:root { --fg: #1c2330; --muted: #5d6879; --line: #d9dee6; --accent: #1f6feb; --bg: #f7f8fa; }
-* { box-sizing: border-box; }
-body { margin: 0; font: 14px/1.45 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
-.top { display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--line); }
-.brand { font-weight: 700; } .brand span { color: var(--accent); }
-.spacer { flex: 1; } .note { color: var(--muted); }
-.panel { margin: 16px 20px; padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
-h2 { margin: 0 0 12px; font-size: 16px; }
-.row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-.seg button { padding: 6px 12px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
-.seg button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-input[type=text] { flex: 1; min-width: 220px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; }
-input[type=number] { width: 70px; }
-button { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
-button:disabled { opacity: .45; cursor: default; }
-.plan { background: var(--bg); padding: 10px; border-radius: 6px; overflow: auto; }
-.status { margin-top: 8px; color: var(--muted); } .status.error { color: #b42318; }
-.hidden { display: none; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-tr.lead { cursor: pointer; } tr.lead:hover { background: var(--bg); }
-.funnel { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
-.funnel div { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; }
-.funnel b { display: block; font-size: 18px; }
-.notes { color: var(--muted); margin-bottom: 8px; }
-.msg { white-space: pre-wrap; background: var(--bg); padding: 8px; border-radius: 6px; margin: 4px 0 10px; }
-.badge { padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); }
-.badge.selected { border-color: #1a7f37; color: #1a7f37; }
-.badge.rejected { border-color: #b42318; color: #b42318; }
-.badge.needs_enrichment, .badge.manual_review { border-color: #9a6700; color: #9a6700; }
+/* The Search tab of the dashboard. Everything is scoped to .search-tab; colours come
+   from the dashboard's own variables. */
+.search-tab { display: grid; gap: 16px; }
+.search-tab .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.search-tab .row.first { margin-top: 0; }
+.search-tab h3 { margin: 0; font-size: 14px; }
+.search-tab input[type=text], .search-tab select {
+  padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit;
+  background: var(--panel); color: var(--ink);
+}
+.search-tab input[type=text] { flex: 1; min-width: 220px; }
+.search-tab select[multiple] { min-width: 200px; min-height: 84px; }
+.search-tab input[type=number] { width: 70px; padding: 6px; }
+.search-tab .scope { padding: 8px 12px; border-radius: 8px; background: var(--chip); }
+.search-tab .scope.live { background: color-mix(in srgb, var(--warn) 20%, transparent); }
+.search-tab .review { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.search-tab .review ul { margin: 6px 0; padding-left: 18px; }
+.search-tab .review pre { max-height: 260px; overflow: auto; margin: 6px 0 0; }
+.search-tab .status { margin-top: 8px; color: var(--muted); }
+.search-tab .status.error { color: var(--bad); }
+.search-tab .funnel { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+.search-tab .funnel div { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.search-tab .funnel b { display: block; font-size: 18px; }
+.search-tab .notes { color: var(--muted); margin-bottom: 8px; }
+.search-tab .msg { white-space: pre-wrap; background: var(--bg); padding: 8px; border-radius: 8px; margin: 4px 0 10px; }
+.search-tab .note { color: var(--muted); }
+.search-tab tr.lead { cursor: pointer; }
+.search-tab tr.lead:hover { background: var(--chip); }
+.search-tab .badge.selected { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.search-tab .badge.rejected { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.search-tab .badge.needs_enrichment, .search-tab .badge.manual_review { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }

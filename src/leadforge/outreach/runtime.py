@@ -11,13 +11,17 @@ from collections.abc import Mapping
 from sqlalchemy import Engine
 
 from leadforge.lead_ingestion.catalog import load_catalog
+from leadforge.lead_ingestion.ingest_runner import GLOBAL_MODE_VARIABLE
+from leadforge.lead_ingestion.mode_resolution import make_mode_resolver
+from leadforge.lead_ingestion.registry import SourceRegistry
+from leadforge.lead_ingestion.source_settings import load_source_settings
 from leadforge.outreach.acceptance import SeededAcceptance
 from leadforge.outreach.clock import Clock, SystemClock
 from leadforge.outreach.config import OutreachConfig, load_outreach_config
 from leadforge.outreach.dispatch import DryRunDispatcher
 from leadforge.outreach.service import SearchService
 
-__all__ = ["build_service", "with_usage_overrides"]
+__all__ = ["build_service", "source_mode_notes", "with_usage_overrides"]
 
 
 def with_usage_overrides(
@@ -62,3 +66,19 @@ def build_service(
         dispatcher=DryRunDispatcher(config.outbox_path),
         engine=engine,
     )
+
+
+def source_mode_notes(environ: Mapping[str, str]) -> list[tuple[str, str]]:
+    """``(source name, resolved mode)`` for each enabled source, before any spend.
+
+    What a run would resolve each source to right now, from the same registry and mode
+    resolver the ingestion dashboard uses; the service reports the same fact after the
+    run as ``source <name>: <mode>``.
+    """
+    registry = SourceRegistry.discover(config=load_source_settings())
+    resolver = make_mode_resolver(
+        environ, global_override=environ.get(GLOBAL_MODE_VARIABLE)
+    )
+    described = registry.describe(environ, resolve_mode=resolver)
+    rows = [d.to_dict() for d in described]
+    return [(str(r["name"]), str(r["resolved_mode"])) for r in rows if r["enabled"]]

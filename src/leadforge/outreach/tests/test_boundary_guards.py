@@ -83,6 +83,25 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.demo.transport", "DemoPages"),
         (f"{INGESTION}.demo.transport", "DemoTransport"),
         (f"{INGESTION}.demo.transport", "_Tables"),
+        # demo_service.py: the dashboard's Demo dataset and ``--demo`` build the same
+        # service the end-to-end demo tests do: the demo transport, its retry policy
+        # and answer key, and the demo store's file URL. cli.py and web.py name the
+        # demo store's default path (.leadforge/demo.db) the dashboard already uses.
+        (f"{INGESTION}.database", "local_file_url"),
+        (f"{INGESTION}.demo", "generator"),
+        (f"{INGESTION}.demo.cli", "DEFAULT_DB"),
+        (f"{INGESTION}.demo.cli", "DEMO_RETRY"),
+        (f"{INGESTION}.demo.transport", "demo_transport_factory"),
+        # A demo search forces the global mode to synthetic for its own duration, the
+        # way the dashboard's demo job does (the run reads it from the environment).
+        (f"{INGESTION}.ingest_runner", "GLOBAL_MODE_VARIABLE"),
+        # runtime.py: the plan step names each source's mode (live or synthetic) with
+        # the registry and resolver the ingestion dashboard uses, before any spend.
+        (f"{INGESTION}.mode_resolution", "make_mode_resolver"),
+        (f"{INGESTION}.registry", "SourceRegistry"),
+        (f"{INGESTION}.source_settings", "load_source_settings"),
+        # web.py serves the dashboard's own index page with the Search tab added.
+        (f"{INGESTION}.web.api", "STATIC"),
     }
 )
 

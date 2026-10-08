@@ -15,10 +15,16 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,12 +35,24 @@ from leadforge.lead_ingestion.catalog import (
     load_catalog,
     load_roles,
 )
-from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
+from leadforge.lead_ingestion.database import (
+    DatabaseConfigError,
+    create_store_engine,
+    local_file_url,
+)
+from leadforge.lead_ingestion.demo.cli import DEFAULT_DB
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.ingest_runner import RunInProgressError
 from leadforge.lead_ingestion.store.migrate import StoreNotMigratedError, require_head
+from leadforge.lead_ingestion.web.api import STATIC as DASHBOARD_STATIC
 from leadforge.outreach.acceptance import SeededAcceptance
 from leadforge.outreach.config import OutreachConfig, load_outreach_config
+from leadforge.outreach.demo_service import (
+    DEMO_OUTBOX,
+    ENV_LOCK,
+    demo_acceptance,
+    demo_search,
+)
 from leadforge.outreach.dispatch import DryRunDispatcher
 from leadforge.outreach.errors import (
     MessageGenerationError,
@@ -46,7 +64,7 @@ from leadforge.outreach.errors import (
     UnknownTermError,
 )
 from leadforge.outreach.report import build_report, render_json, render_markdown
-from leadforge.outreach.runtime import build_service
+from leadforge.outreach.runtime import build_service, source_mode_notes
 from leadforge.outreach.search_plan import SearchPlan, parse_request
 from leadforge.outreach.tables import OutreachSearch
 from leadforge.outreach.tick import tick
@@ -60,6 +78,12 @@ from leadforge.outreach.usage.verdict import Strictness
 __all__ = ["create_router"]
 
 STATIC = Path(__file__).resolve().parent / "static"
+Store = Literal["demo", "main"]
+# The dashboard's extra tab: script before the dashboard's own, so it can register.
+_TAB_SCRIPT = (
+    '<script src="/outreach/app.js"></script>\n  <script src="/static/app.js">'
+)
+_TAB_STYLE = '<link rel="stylesheet" href="/outreach/app.css">\n</head>'
 _NAMED_ERRORS = (
     UnknownModeError,
     UnknownTermError,
@@ -81,12 +105,14 @@ class PlanRequest(BaseModel):
     domains: list[str] = []
     vendor: str | None = None
     products: list[str] = []
+    store: Store = "main"
 
 
 class SearchStart(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     plan: SearchPlan
+    store: Store = "main"
 
 
 class TickRequest(BaseModel):
@@ -95,6 +121,7 @@ class TickRequest(BaseModel):
     search_id: uuid.UUID | None = None
     advance_days: float | None = None
     now: datetime | None = None
+    store: Store = "main"
 
 
 def _require_write_header(
@@ -104,17 +131,37 @@ def _require_write_header(
         raise HTTPException(403, "missing X-LeadForge header")
 
 
-def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
-    """The outreach routes. ``environ`` defaults to the live process environment."""
+def create_router(
+    environ: Mapping[str, str] | None = None, demo_db: Path | None = None
+) -> APIRouter:
+    """The outreach routes. ``environ`` defaults to the live process environment.
+
+    ``demo_db`` is the demo store (default: the one the dashboard's demo uses). Every
+    route takes a ``store``: ``main`` is the configured ``DATABASE_URL``, ``demo`` is
+    the synthetic dataset in its own database.
+    """
     router = APIRouter()
 
     def env() -> Mapping[str, str]:
         return os.environ if environ is None else environ
 
+    def demo_path() -> Path:
+        return (demo_db or DEFAULT_DB).resolve()
+
     @contextmanager
-    def reading() -> Iterator[Session]:
+    def reading(store: Store = "main") -> Iterator[Session]:
         try:
-            engine = create_store_engine(environ=env())
+            if store == "demo":
+                path = demo_path()
+                if not path.exists():
+                    raise HTTPException(
+                        409, "no demo searches yet: run a search on the demo dataset"
+                    )
+                engine = create_store_engine(local_file_url(path))
+            else:
+                # Waits out a demo search, which points the environment at its store.
+                with ENV_LOCK:
+                    engine = create_store_engine(environ=env())
             require_head(engine)
         except (ConfigurationError, DatabaseConfigError) as error:
             raise HTTPException(500, f"configuration error: {error}") from None
@@ -183,22 +230,47 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
             raise cleanly(error) from None
         return {"approved": key}
 
+    def run_notes(store: Store) -> list[str]:
+        """What each source would run as, in the words of the post-run notes."""
+        if store == "demo":
+            return [
+                "demo dataset: every source runs synthetic, nothing leaves this machine"
+            ]
+        with ENV_LOCK:
+            modes = source_mode_notes(env())
+        return [f"source {name}: {mode}" for name, mode in modes]
+
     @router.post("/api/outreach/plan", dependencies=[Depends(_require_write_header)])
     def plan(request: PlanRequest) -> dict[str, Any]:
         """Compile a plan. Nothing is spent and nothing is stored."""
         try:
-            built = build_service(env()).plan(
-                parse_request(
-                    request.mode,
-                    request.query,
-                    request.domains,
-                    vendor=request.vendor,
-                    products=request.products,
-                )
+            parsed = parse_request(
+                request.mode,
+                request.query,
+                request.domains,
+                vendor=request.vendor,
+                products=request.products,
             )
-        except (*_NAMED_ERRORS, OutreachConfigError, ConfigurationError) as error:
+            if request.store == "demo":
+                with demo_search(demo_path()) as service:
+                    built = service.plan(parsed)
+            else:
+                with ENV_LOCK:
+                    built = build_service(env()).plan(parsed)
+            notes = run_notes(request.store)
+        except (
+            *_NAMED_ERRORS,
+            OutreachConfigError,
+            ConfigurationError,
+            ValueError,
+        ) as error:
             raise cleanly(error) from None
-        return {"plan": built.model_dump(mode="json")}
+        return {
+            "plan": built.model_dump(mode="json"),
+            "store": request.store,
+            "notes": notes,
+            "live_sources": [n for n in notes if n.endswith(": live")],
+        }
 
     @router.post(
         "/api/outreach/searches", dependencies=[Depends(_require_write_header)]
@@ -206,8 +278,17 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
     def start(request: SearchStart) -> dict[str, Any]:
         """Run a shown plan: ingest, select, write, first tick."""
         try:
-            service = build_service(env())
-            summary = asyncio.run(service.run(request.plan, show=lambda _: None))
+            if request.store == "demo":
+                with demo_search(demo_path()) as service:
+                    summary = asyncio.run(
+                        service.run(request.plan, show=lambda _: None)
+                    )
+            else:
+                with ENV_LOCK:
+                    service = build_service(env())
+                    summary = asyncio.run(
+                        service.run(request.plan, show=lambda _: None)
+                    )
         except (
             *_NAMED_ERRORS,
             OutreachConfigError,
@@ -217,16 +298,21 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
             raise cleanly(error) from None
         return {
             "search_id": str(summary.search_id),
+            "store": request.store,
             "gathered": summary.gathered,
             "counts": dict(summary.counts),
             "invited": summary.invited,
             "notes": list(summary.notes),
-            "outbox": str(service.outbox_path),
+            "outbox": str(
+                demo_path().parent / DEMO_OUTBOX
+                if request.store == "demo"
+                else service.outbox_path
+            ),
         }
 
     @router.get("/api/outreach/searches")
-    def searches() -> dict[str, Any]:
-        with reading() as session:
+    def searches(store: Store = "main") -> dict[str, Any]:
+        with reading(store) as session:
             rows = session.scalars(
                 select(OutreachSearch).order_by(OutreachSearch.created_at.desc())
             ).all()
@@ -247,8 +333,10 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
         return {"searches": out}
 
     @router.get("/api/outreach/searches/{search_id}")
-    def detail(search_id: uuid.UUID, reveal: bool = False) -> dict[str, Any]:
-        with reading() as session:
+    def detail(
+        search_id: uuid.UUID, reveal: bool = False, store: Store = "main"
+    ) -> dict[str, Any]:
+        with reading(store) as session:
             if session.get(OutreachSearch, search_id) is None:
                 raise HTTPException(404, f"no search {search_id}")
             return {
@@ -262,8 +350,9 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
         search_id: uuid.UUID,
         fmt: Annotated[str, Query(alias="format", pattern="^(md|json)$")] = "md",
         reveal: bool = False,
+        store: Store = "main",
     ) -> Response:
-        with reading() as session:
+        with reading(store) as session:
             if session.get(OutreachSearch, search_id) is None:
                 raise HTTPException(404, f"no search {search_id}")
             built = build_report(session, search_id, reveal=reveal)
@@ -287,8 +376,18 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
             days=request.advance_days or 0
         )
         lines: list[str] = []
-        dispatcher = DryRunDispatcher(config.outbox_path, lines.append)
-        with reading() as session:
+        outbox = (
+            demo_path().parent / DEMO_OUTBOX
+            if request.store == "demo"
+            else config.outbox_path
+        )
+        dispatcher = DryRunDispatcher(outbox, lines.append)
+        with reading(request.store) as session:
+            acceptance = (
+                demo_acceptance(session.get_bind(), config)  # type: ignore[arg-type]
+                if request.store == "demo"
+                else SeededAcceptance(config.simulation)
+            )
             ids = (
                 [request.search_id]
                 if request.search_id
@@ -301,7 +400,7 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
                         search_id,
                         when,
                         cfg=config.triggers,
-                        acceptance=SeededAcceptance(config.simulation),
+                        acceptance=acceptance,
                         dispatcher=dispatcher,
                     )
                 )
@@ -309,9 +408,18 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
             )
         return {"at": when.isoformat(), "fired": fired}
 
+    @router.get("/")
+    def dashboard() -> HTMLResponse:
+        """The ingestion dashboard with the Search tab added (first, the default)."""
+        html = (DASHBOARD_STATIC / "index.html").read_text(encoding="utf-8")
+        html = html.replace('<script src="/static/app.js">', _TAB_SCRIPT, 1)
+        html = html.replace("</head>", _TAB_STYLE, 1)
+        return HTMLResponse(html)
+
     @router.get("/outreach")
-    def page() -> FileResponse:
-        return FileResponse(STATIC / "outreach.html")
+    def page() -> RedirectResponse:
+        """The old page: search now lives in the dashboard's first tab."""
+        return RedirectResponse("/?tab=search")
 
     @router.get("/outreach/app.js")
     def script() -> FileResponse:

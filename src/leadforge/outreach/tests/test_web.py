@@ -176,22 +176,20 @@ def test_advancing_days_fires_what_became_due(client: TestClient) -> None:
 def test_the_page_has_the_search_panel_leads_timeline_and_download(
     client: TestClient,
 ) -> None:
-    page = client.get("/outreach")
+    page = client.get("/")
     script = client.get("/outreach/app.js")
     styles = client.get("/outreach/app.css")
 
     assert page.status_code == script.status_code == styles.status_code == 200
-    for needle in (
-        'id="mode"',
-        'id="preview"',
-        'id="run"',
-        'id="plan"',
-        'id="advance"',
-        'id="download"',
-    ):
-        assert needle in page.text
+    # The dashboard page carries the Search tab's script before its own, and its style.
+    assert page.text.index("/outreach/app.js") < page.text.index("/static/app.js")
+    assert "/outreach/app.css" in page.text
+    for needle in ('"data-mode"', "Run search", "Review plan", "Advance", "download"):
+        assert needle in script.text
     for mode in ("free_text", "workers", "users"):
-        assert f'data-mode="{mode}"' in page.text
+        assert f'["{mode}"' in script.text
+    assert script.text.index('["users"') < script.text.index('["workers"')
+    assert 'key: "search"' in script.text
     assert "textContent" in script.text
     assert not re.search(r"innerHTML\s*=", script.text)
     assert "X-LeadForge" in script.text
@@ -260,15 +258,14 @@ def test_a_new_catalog_file_appears_in_the_api_with_no_frontend_change(
 
 # Verifies: specs/user-recognition/requirements.md#2.4
 def test_the_page_builds_its_filters_from_the_api(client: TestClient) -> None:
-    page = client.get("/outreach").text
     script = client.get("/outreach/app.js").text
 
-    assert 'id="vendor"' in page
-    assert 'id="products"' in page
+    assert '"aria-label": "Vendor"' in script
+    assert '"aria-label": "Products"' in script
     assert "/api/catalog" in script
-    assert "vendor:" in script
+    assert "body.vendor" in script
     assert "products" in script
-    assert "newco" not in page + script
+    assert "newco" not in script
 
 
 # Verifies: specs/user-recognition/requirements.md#8.4

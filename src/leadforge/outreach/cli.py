@@ -26,7 +26,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion.catalog import CatalogError, UnknownCatalogKeyError
-from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
+from leadforge.lead_ingestion.database import (
+    DatabaseConfigError,
+    create_store_engine,
+    local_file_url,
+)
+from leadforge.lead_ingestion.demo.cli import DEFAULT_DB
 from leadforge.lead_ingestion.env_file import EnvFileError, load_env_file_into_process
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.ingest_runner import RunInProgressError
@@ -35,6 +40,7 @@ from leadforge.lead_ingestion.store.migrate import StoreNotMigratedError, requir
 from leadforge.outreach.acceptance import SeededAcceptance
 from leadforge.outreach.clock import SystemClock
 from leadforge.outreach.config import load_outreach_config
+from leadforge.outreach.demo_service import DEMO_OUTBOX, demo_search
 from leadforge.outreach.dispatch import DryRunDispatcher
 from leadforge.outreach.errors import (
     MessageGenerationError,
@@ -87,6 +93,11 @@ outreach_app.add_typer(catalog_app, name="catalog")
 _ESCAPE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 _REVEAL = typer.Option("--reveal", help="Print emails, URLs and names whole.")
 _SEARCH = typer.Option("--search", help="The search id.")
+_DEMO = typer.Option(
+    "--demo",
+    help="Use the synthetic demo dataset and its own store (.leadforge/demo.db): "
+    "no keys, no credits, dry-run sends.",
+)
 
 
 def _safe(text: str) -> str:
@@ -133,9 +144,13 @@ def _setup() -> None:
 
 
 @contextmanager
-def _session() -> Iterator[Session]:
+def _session(demo: bool = False) -> Iterator[Session]:
     _setup()
-    engine = create_store_engine()
+    engine = (
+        create_store_engine(local_file_url(DEFAULT_DB.resolve()))
+        if demo
+        else create_store_engine()
+    )
     try:
         require_head(engine)
         with Session(engine) as session, session.begin():
@@ -169,23 +184,36 @@ def _search(
     products: list[str] | None = None,
     include_ecosystem: bool | None = None,
     usage_budget: int | None = None,
+    demo: bool = False,
 ) -> None:
     with _failing_cleanly():
         _setup()
+        request = parse_request(
+            mode, query, domains, vendor=vendor, products=products or []
+        )
+        if demo:
+            # Same service the dashboard builds for its Demo dataset.
+            with demo_search(
+                DEFAULT_DB,
+                include_ecosystem=include_ecosystem,
+                usage_budget=usage_budget,
+            ) as service:
+                plan = service.plan(request)
+                summary = asyncio.run(service.run(plan, show=_show_plan))
+                _print_summary(summary, DEFAULT_DB.resolve().parent / DEMO_OUTBOX)
+            return
         service = build_service(
             os.environ, include_ecosystem=include_ecosystem, usage_budget=usage_budget
         )
-        plan = service.plan(
-            parse_request(mode, query, domains, vendor=vendor, products=products or [])
-        )
+        plan = service.plan(request)
         summary = asyncio.run(service.run(plan, show=_show_plan))
         _print_summary(summary, service.outbox_path)
 
 
 @search_app.command("free-text")
-def free_text(query: str) -> None:
+def free_text(query: str, demo: Annotated[bool, _DEMO] = False) -> None:
     """Search by describing who you want in plain words."""
-    _search("free_text", query, [])
+    _search("free_text", query, [], demo=demo)
 
 
 @search_app.command("workers")
@@ -194,9 +222,10 @@ def workers(
     domain: Annotated[
         list[str] | None, typer.Option("--domain", help="A domain of the company.")
     ] = None,
+    demo: Annotated[bool, _DEMO] = False,
 ) -> None:
     """Search the people who work at a company."""
-    _search("workers", company, domain or [])
+    _search("workers", company, domain or [], demo=demo)
 
 
 @search_app.command("users")
@@ -220,6 +249,7 @@ def users(
         int | None,
         typer.Option("--usage-budget", min=0, help="Usage-search budget for this run."),
     ] = None,
+    demo: Annotated[bool, _DEMO] = False,
 ) -> None:
     """Search the people and companies that use a vendor's catalog products."""
     _search(
@@ -230,6 +260,7 @@ def users(
         products=product,
         include_ecosystem=True if include_ecosystem else None,
         usage_budget=usage_budget,
+        demo=demo,
     )
 
 
@@ -285,9 +316,11 @@ def tick_command(
 
 
 @outreach_app.command("messages")
-def messages(search: Annotated[uuid.UUID, _SEARCH]) -> None:
+def messages(
+    search: Annotated[uuid.UUID, _SEARCH], demo: Annotated[bool, _DEMO] = False
+) -> None:
     """List the Messages written for a search."""
-    with _failing_cleanly(), _session() as session:
+    with _failing_cleanly(), _session(demo) as session:
         decisions = session.scalars(
             select(OutreachDecision)
             .where(OutreachDecision.search_id == search)
@@ -314,11 +347,12 @@ def report(
     search: Annotated[uuid.UUID, _SEARCH],
     fmt: Annotated[str, typer.Option("--format", help="md or json.")] = "md",
     reveal: Annotated[bool, _REVEAL] = False,
+    demo: Annotated[bool, _DEMO] = False,
 ) -> None:
     """Print the report of a search."""
     if fmt not in ("md", "json"):
         raise typer.BadParameter("format must be md or json")
-    with _failing_cleanly(), _session() as session:
+    with _failing_cleanly(), _session(demo) as session:
         if session.get(OutreachSearch, search) is None:
             typer.echo(f"no such search: {search}", err=True)
             raise typer.Exit(EXIT_FAILED)
