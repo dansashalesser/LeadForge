@@ -580,6 +580,34 @@ def test_a_retelling_may_not_bring_in_a_word_the_quote_does_not_hold() -> None:
     assert "grounding" in _failed(draft, facts)
 
 
+def test_the_company_fact_names_the_employer_the_usage_stage_graded() -> None:
+    unknown = make_employment()
+    unknown = unknown.model_copy(
+        update={
+            "is_current": None,
+            "company": unknown.company.model_copy(
+                update={"company_id": "c1", "name": "Acme"}
+            ),
+        }
+    )
+    current = make_employment()
+    current = current.model_copy(
+        update={
+            "is_current": True,
+            "company": current.company.model_copy(
+                update={"company_id": "c2", "name": "Beta"}
+            ),
+        }
+    )
+    stored = make_stored(make_lead(employments=(unknown, current)))
+
+    company = _facts(stored).get("company")
+
+    assert company is not None
+    assert company.value == "Beta"
+    assert company.field == "employments[1].company.name"
+
+
 # Verifies: outreach requirements 7.3
 def test_a_retelling_may_not_negate_the_quote() -> None:
     facts = _facts(verdict=_verdict(_record("We run our ledgers on Astra DB.")))

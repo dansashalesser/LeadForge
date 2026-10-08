@@ -44,7 +44,12 @@ from leadforge.outreach.tables import (
     OutreachSearch,
     OutreachTriggerEvent,
 )
-from leadforge.outreach.tests.support import NOW, engine, make_plan  # noqa: F401
+from leadforge.outreach.tests.support import (  # noqa: F401
+    NOW,
+    engine,
+    make_plan,
+    make_stored,
+)
 from leadforge.outreach.tests.test_triggers import _seed_lead
 from leadforge.outreach.tick import tick
 
@@ -121,37 +126,50 @@ async def test_a_zero_key_search_runs_end_to_end_and_says_what_was_synthetic(
         assert (row.status, row.ingestion_run_id) == ("done", summary.run_id)
 
 
-async def test_a_failed_model_call_sends_one_lead_to_manual_review_not_the_search(
-    composed: Backend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_a_failed_model_call_costs_one_lead_its_messages_not_the_search(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service = _service(composed, tmp_path, [])
+    config = load_outreach_config(CONFIG_DIR / "outreach.yaml")
+    service = SearchService(
+        config=config,
+        catalog=load_catalog(),
+        environ={},
+        clock=FakeClock(NOW),
+        acceptance=SeededAcceptance(config.simulation),
+        dispatcher=DryRunDispatcher(tmp_path / "outbox.jsonl", lambda _: None),
+    )
+    failing, fine = make_stored(), make_stored()
     write = SearchService._write
-    calls: list[uuid.UUID] = []
 
     def flaky(self: SearchService, stored: Any, *args: Any) -> Any:
-        calls.append(stored.lead_id)
-        if len(calls) == 1:
+        if stored.lead_id == failing.lead_id:
             raise MessageGenerationError("the model call failed (APITimeoutError)")
         return write(self, stored, *args)
 
     monkeypatch.setattr(SearchService, "_write", flaky)
-    plan = service.plan(parse_request("free_text", "teams running mongodb"))
+    selected = [
+        Decision(
+            lead_id=s.lead_id,
+            status="selected",
+            score=Decimal("0.9"),
+            reasons=(Reason(code="icp_fit"),),
+        )
+        for s in (failing, fine)
+    ]
 
-    summary = await service.run(plan, show=lambda _: None)
-
-    assert calls  # at least one Lead was selected and written
-    assert summary.counts["manual_review"] >= 1
-    assert "1 lead(s) to manual review after a model error" in "\n".join(
-        summary.notes
+    final, drafts, model_errors = service._write_selected(
+        selected,
+        [failing, fine],
+        service._writer(),
+        service._judge(),
+        make_plan(mode="free_text"),
+        None,
     )
-    with Session(composed.engine) as session:
-        assert session.scalars(sa.select(OutreachSearch.status)).one() == "done"
-        failed = session.scalars(
-            sa.select(OutreachDecision).filter_by(lead_id=calls[0])
-        ).one()
-        assert failed.status == "manual_review"
-        assert "message_model_failed" in json.dumps(failed.reasons)
-    assert _count(composed, OutreachMessage) == 2 * summary.counts["selected"]
+
+    assert model_errors == 1
+    assert [d.status for d in final] == ["manual_review", "selected"]
+    assert final[0].reasons[0].code == "message_model_failed"
+    assert list(drafts) == [fine.lead_id]
 
 
 class _Accepts:

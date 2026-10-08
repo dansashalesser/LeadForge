@@ -383,6 +383,7 @@ def test_a_lead_s_messages_are_written_on_demand_and_not_stored(
     assert body["generator"] == "offline"
     assert {d["kind"] for d in body["drafts"]} == {"invite", "email"}
     assert all(d["body"] for d in body["drafts"])
+    assert body["failures"] == []
     assert again["leads"] == report["leads"]
 
 
@@ -400,3 +401,20 @@ def test_on_demand_messages_need_the_write_header_and_a_known_lead(
         f"/api/outreach/leads/{missing}/messages", json={}, headers=WRITE
     )
     assert unknown.status_code == 404
+
+
+def test_on_demand_messages_under_an_unknown_search_are_a_404_not_generic(
+    client: TestClient,
+) -> None:
+    search_id = _run(client)
+    report = client.get(f"/api/outreach/searches/{search_id}").json()["report"]
+    lead_id = report["leads"][0]["lead_id"]
+
+    answer = client.post(
+        f"/api/outreach/leads/{lead_id}/messages",
+        json={"search_id": "00000000-0000-0000-0000-000000000000"},
+        headers=WRITE,
+    )
+
+    assert answer.status_code == 404
+    assert "no search" in answer.json()["detail"]
