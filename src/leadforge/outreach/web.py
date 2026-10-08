@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import UnknownCatalogKeyError
 from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.ingest_runner import RunInProgressError
@@ -33,6 +34,7 @@ from leadforge.outreach.dispatch import DryRunDispatcher
 from leadforge.outreach.errors import (
     MessageGenerationError,
     MissingDomainError,
+    NoProductSelectedError,
     OutreachConfigError,
     PlanCompileError,
     UnknownModeError,
@@ -51,8 +53,10 @@ _NAMED_ERRORS = (
     UnknownModeError,
     UnknownTermError,
     MissingDomainError,
+    NoProductSelectedError,
     PlanCompileError,
     MessageGenerationError,
+    UnknownCatalogKeyError,
     ValidationError,
 )
 
@@ -63,6 +67,8 @@ class PlanRequest(BaseModel):
     mode: str
     query: str
     domains: list[str] = []
+    vendor: str | None = None
+    products: list[str] = []
 
 
 class SearchStart(BaseModel):
@@ -120,7 +126,13 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
         """Compile a plan. Nothing is spent and nothing is stored."""
         try:
             built = build_service(env()).plan(
-                parse_request(request.mode, request.query, request.domains)
+                parse_request(
+                    request.mode,
+                    request.query,
+                    request.domains,
+                    vendor=request.vendor,
+                    products=request.products,
+                )
             )
         except (*_NAMED_ERRORS, OutreachConfigError, ConfigurationError) as error:
             raise cleanly(error) from None

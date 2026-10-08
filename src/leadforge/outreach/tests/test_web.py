@@ -37,9 +37,10 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
 def _plan(
     client: TestClient, mode: str = "users", query: str = "mongodb"
 ) -> dict[str, object]:
-    answer = client.post(
-        "/api/outreach/plan", json={"mode": mode, "query": query}, headers=WRITE
-    )
+    body: dict[str, object] = {"mode": mode, "query": query}
+    if mode == "users":
+        body["products"] = [query]
+    answer = client.post("/api/outreach/plan", json=body, headers=WRITE)
     assert answer.status_code == 200, answer.text
     plan = answer.json()["plan"]
     assert isinstance(plan, dict)
@@ -202,3 +203,15 @@ def test_the_ingestion_routes_still_work_beside_the_outreach_router(
 ) -> None:
     assert client.get("/").status_code == 200
     assert client.get("/api/stores").status_code == 200
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_a_users_plan_with_no_product_is_a_400_naming_the_fault(
+    client: TestClient,
+) -> None:
+    answer = client.post(
+        "/api/outreach/plan", json={"mode": "users", "query": "x"}, headers=WRITE
+    )
+
+    assert answer.status_code == 400
+    assert "catalog product" in answer.text

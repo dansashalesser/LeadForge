@@ -14,9 +14,9 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import load_catalog
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.store import models as m
-from leadforge.lead_ingestion.target_profile import load_target_profile
 from leadforge.lead_ingestion.tests.socket_guard import guard_for_mode
 from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # noqa: F401 - fixtures
     Backend,
@@ -29,7 +29,6 @@ from leadforge.lead_ingestion.tests.test_run_lifecycle_both_engines import (  # 
 )
 from leadforge.outreach.acceptance import SeededAcceptance
 from leadforge.outreach.clock import FakeClock
-from leadforge.outreach.company_terms import load_company_terms
 from leadforge.outreach.config import load_outreach_config
 from leadforge.outreach.decisions import Decision, Reason, record_decisions
 from leadforge.outreach.dispatch import DryRunDispatcher
@@ -54,8 +53,7 @@ def _service(backend: Backend, tmp_path: Path, lines: list[str]) -> SearchServic
     config = load_outreach_config(CONFIG_DIR / "outreach.yaml")
     return SearchService(
         config=config,
-        base_profile=load_target_profile(CONFIG_DIR / "target_profile.yaml"),
-        companies=load_company_terms(CONFIG_DIR / "company_terms.yaml"),
+        catalog=load_catalog(),
         environ={},
         clock=FakeClock(NOW),
         acceptance=SeededAcceptance(config.simulation),
@@ -90,7 +88,9 @@ async def test_a_zero_key_search_runs_end_to_end_and_says_what_was_synthetic(
         guard.install(monkeypatch)
     shown: list[SearchPlan] = []
 
-    plan = service.plan(parse_request(mode, query))
+    plan = service.plan(
+        parse_request(mode, query, products=[query] if mode == "users" else [])
+    )
     assert _count(composed, OutreachSearch) == 0  # planning stores and spends nothing
     summary = await service.run(plan, show=shown.append)
 
@@ -259,7 +259,7 @@ async def test_the_report_of_a_zero_key_run_says_what_was_synthetic(
     composed: Backend, tmp_path: Path
 ) -> None:
     service = _service(composed, tmp_path, [])
-    plan = service.plan(parse_request("users", "mongodb"))
+    plan = service.plan(parse_request("users", "mongodb", products=["mongodb"]))
     summary = await service.run(plan, show=lambda _: None)
     with Session(composed.engine) as session:
         notes = "\n".join(build_report(session, summary.search_id).notes)

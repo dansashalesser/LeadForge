@@ -25,6 +25,7 @@ import typer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import UnknownCatalogKeyError
 from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
 from leadforge.lead_ingestion.env_file import EnvFileError, load_env_file_into_process
 from leadforge.lead_ingestion.errors import ConfigurationError
@@ -38,6 +39,7 @@ from leadforge.outreach.dispatch import DryRunDispatcher
 from leadforge.outreach.errors import (
     MessageGenerationError,
     MissingDomainError,
+    NoProductSelectedError,
     OutreachConfigError,
     PlanCompileError,
     UnknownModeError,
@@ -104,8 +106,10 @@ def _failing_cleanly() -> Iterator[None]:
         UnknownModeError,
         UnknownTermError,
         MissingDomainError,
+        NoProductSelectedError,
         PlanCompileError,
         MessageGenerationError,
+        UnknownCatalogKeyError,
     ) as error:
         typer.echo(f"error: {error}", err=True)
         raise typer.Exit(EXIT_FAILED) from None
@@ -144,11 +148,20 @@ def _print_summary(summary: SearchSummary, outbox: Path) -> None:
     typer.echo(f"outbox: {outbox}")
 
 
-def _search(mode: Mode, query: str, domains: list[str]) -> None:
+def _search(
+    mode: Mode,
+    query: str,
+    domains: list[str],
+    *,
+    vendor: str | None = None,
+    products: list[str] | None = None,
+) -> None:
     with _failing_cleanly():
         _setup()
         service = build_service(os.environ)
-        plan = service.plan(parse_request(mode, query, domains))
+        plan = service.plan(
+            parse_request(mode, query, domains, vendor=vendor, products=products or [])
+        )
         summary = asyncio.run(service.run(plan, show=_show_plan))
         _print_summary(summary, service.outbox_path)
 
@@ -171,9 +184,24 @@ def workers(
 
 
 @search_app.command("users")
-def users(company: str) -> None:
-    """Search the people and companies that use a company's product."""
-    _search("users", company, [])
+def users(
+    product: Annotated[
+        list[str] | None,
+        typer.Option("--product", help="A catalog product key (repeatable)."),
+    ] = None,
+    vendor: Annotated[
+        str | None,
+        typer.Option("--vendor", help="Catalog vendor key; its product names it."),
+    ] = None,
+) -> None:
+    """Search the people and companies that use a vendor's catalog products."""
+    _search(
+        "users",
+        vendor or ", ".join(product or ()) or "-",
+        [],
+        vendor=vendor,
+        products=product,
+    )
 
 
 @outreach_app.command("tick")

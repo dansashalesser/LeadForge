@@ -12,12 +12,14 @@ list``.
 import asyncio
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import load_catalog
 from leadforge.lead_ingestion.database import (
     DatabaseConfigError,
     create_store_engine,
@@ -32,11 +34,33 @@ from leadforge.lead_ingestion.ingest_runner import RunInProgressError, run_inges
 from leadforge.lead_ingestion.log_redaction import configure_logging
 from leadforge.lead_ingestion.retry import RetryPolicy
 from leadforge.lead_ingestion.store.migrate import StoreNotMigratedError, require_head
+from leadforge.lead_ingestion.target_profile import TargetProfile
 
 EXIT_CONFIGURATION_ERROR = 2
 EXIT_RUN_IN_PROGRESS = 3
 DEFAULT_DB = Path(".leadforge") / "demo.db"
+# Superseded by ``demo_profile`` (removed with the file in task 3.5).
 PROFILE = Path(__file__).parent / "target_profile.yaml"
+_KEYWORD_TEMPLATES = (
+    "{term} migration",
+    "hiring {term} engineer",
+    "{term} alternative",
+)
+
+
+def demo_profile() -> TargetProfile:
+    """The demo's Target Profile, built from the catalog: DataStax is the target,
+    every other vendor a competitor, Apollo takes UIDs and Google phrases."""
+    catalog = load_catalog()
+    built = catalog.to_profile(
+        "datastax",
+        competitors=tuple(k for k in catalog.vendor_keys() if k != "datastax"),
+        uid_source="apollo",
+        alias_source="google_search",
+    )
+    return replace(built, keyword_templates=_KEYWORD_TEMPLATES)
+
+
 # The demo serves one Apollo 429: retry it as a live run would, with millisecond
 # backoff so the demo never waits.
 DEMO_RETRY = RetryPolicy(base_delay_s=0.001, max_delay_s=0.01, max_retry_after_s=0.01)
@@ -89,7 +113,7 @@ def run(
         configure_logging(os.environ)
         outcome = asyncio.run(
             run_ingestion(
-                target_profile_path=PROFILE,
+                target_profile=demo_profile(),
                 transport_factory=factory,
                 synthetic_retry=DEMO_RETRY,
             )

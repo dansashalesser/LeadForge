@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import Catalog
 from leadforge.lead_ingestion.database import create_store_engine
 from leadforge.lead_ingestion.ingest_runner import IngestionOutcome, run_ingestion
 from leadforge.lead_ingestion.store.lead_reader import (
@@ -28,11 +29,9 @@ from leadforge.lead_ingestion.store.lead_reader import (
     list_leads,
 )
 from leadforge.lead_ingestion.store.migrate import upgrade_to_head
-from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.outreach.acceptance import AcceptanceSource
 from leadforge.outreach.clock import Clock
 from leadforge.outreach.company_plans import users_plan, workers_plan
-from leadforge.outreach.company_terms import CompanyTerms
 from leadforge.outreach.compile_llm import LlmCompiler, PlanDraft
 from leadforge.outreach.compile_offline import OfflineCompiler, phrases_of
 from leadforge.outreach.config import OutreachConfig
@@ -45,7 +44,7 @@ from leadforge.outreach.llm_messages import LlmWriter, WrittenMessage
 from leadforge.outreach.message_checks import Check, Draft, all_passed, check_message
 from leadforge.outreach.messages import record_messages
 from leadforge.outreach.offline_messages import OfflineWriter
-from leadforge.outreach.profile import plan_to_profile
+from leadforge.outreach.profile import catalog_base_profile, plan_to_profile
 from leadforge.outreach.prompts import load_prompt
 from leadforge.outreach.qualify import decide_all
 from leadforge.outreach.search_plan import SearchPlan, SearchRequest
@@ -76,8 +75,7 @@ class SearchService:
         self,
         *,
         config: OutreachConfig,
-        base_profile: TargetProfile,
-        companies: CompanyTerms,
+        catalog: Catalog,
         environ: Mapping[str, str],
         clock: Clock,
         acceptance: AcceptanceSource,
@@ -86,8 +84,8 @@ class SearchService:
         ingest: Ingest = run_ingestion,
     ) -> None:
         self._cfg = config
-        self._base = base_profile
-        self._companies = companies
+        self._catalog = catalog
+        self._base = catalog_base_profile(catalog, config.sources)
         self._environ = environ
         self._clock = clock
         self._acceptance = acceptance
@@ -109,9 +107,9 @@ class SearchService:
     def plan(self, request: SearchRequest) -> SearchPlan:
         """Compile the request. No provider is called and nothing is stored."""
         if request.mode == "workers":
-            return workers_plan(request, self._companies)
+            return workers_plan(request, self._catalog)
         if request.mode == "users":
-            return users_plan(request, self._companies)
+            return users_plan(request, self._catalog)
         compiler = self._free_text_compiler()
         return compiler.compile(request)
 

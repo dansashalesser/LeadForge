@@ -27,7 +27,7 @@ import structlog
 
 from leadforge.lead_ingestion.database import DatabaseConfigError
 from leadforge.lead_ingestion.demo import generator
-from leadforge.lead_ingestion.demo.cli import DEMO_RETRY, PROFILE, RUN_LOG
+from leadforge.lead_ingestion.demo.cli import DEMO_RETRY, RUN_LOG, demo_profile
 from leadforge.lead_ingestion.demo.transport import demo_transport_factory
 from leadforge.lead_ingestion.env_file import EnvFileError
 from leadforge.lead_ingestion.errors import ConfigurationError
@@ -183,7 +183,7 @@ class JobRunner:
         with _environ(env):
             outcome = asyncio.run(
                 run_ingestion(
-                    target_profile_path=PROFILE,
+                    target_profile=demo_profile(),
                     transport_factory=factory,
                     synthetic_retry=DEMO_RETRY,
                 )

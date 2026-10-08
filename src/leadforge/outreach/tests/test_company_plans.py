@@ -1,119 +1,153 @@
-"""Company modes: terms and domains from config, then an in-memory profile (1.2-4.2)."""
+"""Company modes: catalog products and domains, then an in-memory profile (1.2-4.2)."""
 
 from pathlib import Path
 
 import pytest
 import yaml
 
+from leadforge.lead_ingestion.catalog import (
+    Alias,
+    Catalog,
+    CatalogProduct,
+    CatalogVendor,
+    UnknownCatalogKeyError,
+)
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.registry import SourceRegistry
 from leadforge.lead_ingestion.target_profile import (
     TargetProfile,
     check_against_registry,
     effective_vocabulary,
-    load_target_profile,
 )
 from leadforge.outreach.company_plans import users_plan, workers_plan
 from leadforge.outreach.company_terms import (
-    CompanyTerms,
     load_company_terms,
     normalize_company,
 )
 from leadforge.outreach.config import load_outreach_config
 from leadforge.outreach.errors import (
     MissingDomainError,
+    NoProductSelectedError,
     OutreachConfigError,
     UnknownTermError,
 )
-from leadforge.outreach.profile import plan_to_profile
+from leadforge.outreach.profile import catalog_base_profile, plan_to_profile
 from leadforge.outreach.search_plan import SearchPlan, parse_request
 
 CONFIG = Path(__file__).resolve().parents[4] / "config"
 SOURCES = load_outreach_config(CONFIG / "outreach.yaml").sources
 
 
+def _product(key: str, *aliases: str, uids: tuple[str, ...] = ()) -> CatalogProduct:
+    return CatalogProduct(
+        key=key,
+        aliases=tuple(Alias(text=a) for a in aliases),
+        technology_uids=uids,
+    )
+
+
 @pytest.fixture(scope="module")
-def companies() -> CompanyTerms:
-    return load_company_terms(CONFIG / "company_terms.yaml")
+def catalog() -> Catalog:
+    acme = CatalogVendor(
+        key="acme",
+        name="Acme Corp",
+        domains=("acme.example",),
+        partner_domains=(),
+        products=(
+            _product("widget", "Acme Widget", uids=("acme_widget",)),
+            _product("gadget", "Acme Gadget"),
+        ),
+        ecosystem=(_product("sprocket", "Sprocket"),),
+    )
+    other = CatalogVendor(
+        key="other",
+        name="Other",
+        domains=("other.example",),
+        partner_domains=(),
+        products=(_product("thing", "Other Thing", uids=("other_thing",)),),
+        ecosystem=(),
+    )
+    return Catalog({"acme": acme, "other": other})
 
 
 @pytest.fixture(scope="module")
-def base() -> TargetProfile:
-    return load_target_profile(CONFIG / "target_profile.yaml")
+def base(catalog: Catalog) -> TargetProfile:
+    return catalog_base_profile(catalog, SOURCES)
 
 
-# Verifies: outreach requirements 4.1
-def test_every_configured_term_is_in_the_base_profile(
-    companies: CompanyTerms, base: TargetProfile
+# Verifies: specs/user-recognition/requirements.md#2.7
+def test_the_base_profile_holds_every_catalog_product_and_ecosystem_entry(
+    base: TargetProfile,
 ) -> None:
-    for name, entry in companies.companies.items():
-        assert set(entry.terms) <= set(base.terms()), name
-
-
-# Verifies: outreach requirements 4.1
-def test_a_users_search_for_a_company_maps_to_its_terms_in_the_profile(
-    companies: CompanyTerms, base: TargetProfile
-) -> None:
-    name, entry = next(
-        (n, e) for n, e in companies.companies.items() if len(e.terms) > 1
-    )
-    plan = users_plan(parse_request("users", f" {name.upper()} "), companies)
-    profile = plan_to_profile(plan, base, SOURCES)
-
-    assert plan.terms == entry.terms
-    assert not plan.unmapped
-    assert set(profile.terms()) == set(entry.terms)
-    for term in entry.terms:
-        assert profile.vocabulary(SOURCES.phrase_search, term) is not None
-        assert {**profile.technologies, **profile.competitors}[term] == {
-            **base.technologies,
-            **base.competitors,
-        }[term]
-
-
-# Verifies: outreach requirements 4.1
-def test_a_company_with_no_entry_is_searched_by_name_and_flagged(
-    companies: CompanyTerms, base: TargetProfile
-) -> None:
-    plan = users_plan(parse_request("users", "Unlisted Corp"), companies)
-    profile = plan_to_profile(plan, base, SOURCES)
-
-    assert plan.unmapped
-    assert plan.terms == ()
-    assert profile.terms() == ("unlisted_corp",)
-    assert profile.vocabulary(SOURCES.phrase_search, "unlisted_corp") == (
-        "Unlisted Corp",
-    )
-
-
-# Verifies: outreach requirements 4.2
-def test_users_mode_keeps_the_keyword_templates_that_gather_company_signals(
-    companies: CompanyTerms, base: TargetProfile
-) -> None:
-    mapped = plan_to_profile(
-        users_plan(parse_request("users", "mongodb"), companies), base, SOURCES
-    )
-    unmapped = plan_to_profile(
-        users_plan(parse_request("users", "nobody"), companies), base, SOURCES
-    )
-
+    assert set(base.terms()) == {"widget", "gadget", "sprocket", "thing"}
+    assert base.vocabulary(SOURCES.domain_filter, "widget") == ("acme_widget",)
+    assert base.vocabulary(SOURCES.phrase_search, "gadget") == ("Acme Gadget",)
     assert base.keyword_templates
-    assert mapped.keyword_templates == base.keyword_templates
-    assert unmapped.keyword_templates == base.keyword_templates
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_a_users_search_names_catalog_products_and_maps_them_to_terms(
+    catalog: Catalog, base: TargetProfile
+) -> None:
+    request = parse_request("users", "acme", products=["widget", "gadget"])
+    plan = users_plan(request, catalog)
+    profile = plan_to_profile(plan, base, SOURCES)
+
+    assert plan.terms == ("widget", "gadget")
+    assert plan.company == "Acme Corp"
+    assert not plan.unmapped
+    assert set(profile.terms()) == {"widget", "gadget"}
+    assert profile.keyword_templates == base.keyword_templates
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_a_users_search_may_name_the_vendor_or_leave_it_to_the_product(
+    catalog: Catalog,
+) -> None:
+    by_product = users_plan(parse_request("users", "q", products=["thing"]), catalog)
+    by_vendor = users_plan(
+        parse_request("users", "q", vendor="other", products=["thing"]), catalog
+    )
+
+    assert by_product.company == by_vendor.company == "Other"
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_a_users_search_with_no_product_is_rejected_before_any_provider_call(
+    catalog: Catalog,
+) -> None:
+    with pytest.raises(NoProductSelectedError):
+        users_plan(parse_request("users", "acme"), catalog)
+    with pytest.raises(NoProductSelectedError):
+        users_plan(parse_request("users", "acme", vendor="acme"), catalog)
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_a_users_search_naming_an_unknown_product_or_vendor_is_a_named_error(
+    catalog: Catalog,
+) -> None:
+    with pytest.raises(UnknownCatalogKeyError):
+        users_plan(parse_request("users", "q", products=["nope"]), catalog)
+    with pytest.raises(UnknownCatalogKeyError):
+        users_plan(
+            parse_request("users", "q", vendor="acme", products=["thing"]), catalog
+        )
 
 
 # Verifies: outreach requirements 1.2
 def test_the_plan_becomes_a_profile_object_with_no_file_written(
-    companies: CompanyTerms, base: TargetProfile, tmp_path: Path, monkeypatch: object
+    catalog: Catalog, base: TargetProfile, tmp_path: Path, monkeypatch: object
 ) -> None:
     assert isinstance(monkeypatch, pytest.MonkeyPatch)
     monkeypatch.chdir(tmp_path)
 
     plan_to_profile(
-        users_plan(parse_request("users", "mongodb"), companies), base, SOURCES
+        users_plan(parse_request("users", "acme", products=["widget"]), catalog),
+        base,
+        SOURCES,
     )
     plan_to_profile(
-        workers_plan(parse_request("workers", "acme", ["acme.com"]), companies),
+        workers_plan(parse_request("workers", "acme", ["acme.com"]), catalog),
         base,
         SOURCES,
     )
@@ -123,15 +157,15 @@ def test_the_plan_becomes_a_profile_object_with_no_file_written(
 
 # Verifies: outreach requirements 3.1
 def test_a_workers_plan_is_a_domain_filter_and_no_technology(
-    companies: CompanyTerms, base: TargetProfile
+    catalog: Catalog, base: TargetProfile
 ) -> None:
-    plan = workers_plan(parse_request("workers", "Acme Corp", ["acme.com"]), companies)
+    plan = workers_plan(parse_request("workers", "Nowhere Corp", ["x.com"]), catalog)
     profile = plan_to_profile(plan, base, SOURCES)
 
-    assert plan.domains == ("acme.com",)
-    assert profile.terms() == ("acme_corp",)
-    assert profile.vocabulary(SOURCES.domain_filter, "acme_corp") == {
-        SOURCES.domain_key: ("acme.com",)
+    assert plan.domains == ("x.com",)
+    assert profile.terms() == ("nowhere_corp",)
+    assert profile.vocabulary(SOURCES.domain_filter, "nowhere_corp") == {
+        SOURCES.domain_key: ("x.com",)
     }
     assert profile.providers() == (SOURCES.domain_filter,)
     assert profile.keyword_templates == ()
@@ -139,12 +173,13 @@ def test_a_workers_plan_is_a_domain_filter_and_no_technology(
 
 
 # Verifies: outreach requirements 3.1
-def test_a_workers_profile_is_accepted_by_every_registered_source() -> None:
+def test_a_workers_profile_is_accepted_by_every_registered_source(
+    catalog: Catalog,
+) -> None:
     registry = SourceRegistry.discover()
     profile = plan_to_profile(
         workers_plan(
-            parse_request("workers", "Acme", ["acme.com", "acme.io"]),
-            CompanyTerms(companies={}),
+            parse_request("workers", "Acme", ["acme.com", "acme.io"]), catalog
         ),
         TargetProfile(),
         SOURCES,
@@ -161,25 +196,26 @@ def test_a_workers_profile_is_accepted_by_every_registered_source() -> None:
     )
 
 
-# Verifies: outreach requirements 3.3
-def test_a_workers_search_uses_the_configured_domains_or_the_requested_ones(
-    companies: CompanyTerms,
+# Verifies: specs/user-recognition/requirements.md#2.7
+def test_a_workers_search_uses_the_vendor_domains_or_the_requested_ones(
+    catalog: Catalog,
 ) -> None:
-    configured = workers_plan(parse_request("workers", "MongoDB"), companies)
+    configured = workers_plan(parse_request("workers", " ACME  corp "), catalog)
+    by_key = workers_plan(parse_request("workers", "acme"), catalog)
     requested = workers_plan(
-        parse_request("workers", "MongoDB", ["mongo.example.org"]), companies
+        parse_request("workers", "Acme Corp", ["acme.example.org"]), catalog
     )
 
-    assert configured.domains == ("mongodb.com",)
-    assert requested.domains == ("mongo.example.org",)
+    assert configured.domains == by_key.domains == ("acme.example",)
+    assert requested.domains == ("acme.example.org",)
 
 
 # Verifies: outreach requirements 3.3
 def test_a_workers_search_with_no_known_domain_stops_naming_the_company(
-    companies: CompanyTerms,
+    catalog: Catalog,
 ) -> None:
     with pytest.raises(MissingDomainError) as raised:
-        workers_plan(parse_request("workers", "Nowhere Inc"), companies)
+        workers_plan(parse_request("workers", "Nowhere Inc"), catalog)
 
     assert raised.value.company == "Nowhere Inc"
     assert "--domain" in str(raised.value)
@@ -198,7 +234,8 @@ def test_a_plan_naming_an_unknown_term_never_reaches_a_profile(
 
 
 # Verifies: outreach requirements 4.1
-def test_company_lookup_ignores_case_and_spacing(companies: CompanyTerms) -> None:
+def test_company_lookup_ignores_case_and_spacing() -> None:
+    companies = load_company_terms(CONFIG / "company_terms.yaml")
     assert normalize_company("  Data   Stax ") == "data stax"
     name = next(iter(companies.companies))
     assert companies.entry(name.upper()) == companies.entry(f" {name} ")

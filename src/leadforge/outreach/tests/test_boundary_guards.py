@@ -51,8 +51,13 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.store.models", "AppendOnlyViolationError"),
         # The report says which sources ran synthetic, read from the run's own rows.
         (f"{INGESTION}.store.models", "SourceRun"),
-        # The usage slice (user-recognition): catalog types for product/vendor lookup,
-        # the SERP backend contract, the shared throttle and the injected transport.
+        # The usage slice (user-recognition): the catalog (the only vocabulary
+        # source, Req 2.7) with its loader and unknown-key error, and its types for
+        # product/vendor lookup, the SERP backend contract, the shared throttle and the
+        # injected transport.
+        (f"{INGESTION}.catalog", "Catalog"),
+        (f"{INGESTION}.catalog", "UnknownCatalogKeyError"),
+        (f"{INGESTION}.catalog", "load_catalog"),
         (f"{INGESTION}.catalog", "CatalogProduct"),
         (f"{INGESTION}.catalog", "CatalogVendor"),
         (f"{INGESTION}.adapters.search_backends", "SearchBackend"),

@@ -11,13 +11,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import load_catalog
 from leadforge.lead_ingestion.demo import generator
 from leadforge.lead_ingestion.demo.cli import DEMO_RETRY
 from leadforge.lead_ingestion.demo.outreach_data import TARGET_DOMAIN
 from leadforge.lead_ingestion.demo.transport import demo_transport_factory
 from leadforge.lead_ingestion.ingest_runner import run_ingestion
 from leadforge.lead_ingestion.models import DataMode
-from leadforge.lead_ingestion.target_profile import load_target_profile
 from leadforge.lead_ingestion.tests.socket_guard import guard_for_mode
 from leadforge.lead_ingestion.tests.test_persistence_both_engines import (  # noqa: F401 - fixtures
     Backend,
@@ -30,7 +30,6 @@ from leadforge.lead_ingestion.tests.test_run_lifecycle_both_engines import (  # 
 )
 from leadforge.outreach.acceptance import AnswerKeyAcceptance, SeededAcceptance
 from leadforge.outreach.clock import FakeClock
-from leadforge.outreach.company_terms import load_company_terms
 from leadforge.outreach.config import load_outreach_config
 from leadforge.outreach.dispatch import DryRunDispatcher
 from leadforge.outreach.report import build_report
@@ -98,8 +97,7 @@ def _service(
     factory, _ = demo_transport_factory()
     return SearchService(
         config=config,
-        base_profile=load_target_profile(CONFIG_DIR / "target_profile.yaml"),
-        companies=load_company_terms(CONFIG_DIR / "company_terms.yaml"),
+        catalog=load_catalog(),
         environ={},
         clock=FakeClock(NOW),
         acceptance=(
@@ -123,7 +121,9 @@ async def _search(
     backend: Backend, tmp_path: Path, mode: str, query: str
 ) -> SearchSummary:
     service = _service(backend, tmp_path)
-    plan = service.plan(parse_request(mode, query))
+    plan = service.plan(
+        parse_request(mode, query, products=[query] if mode == "users" else [])
+    )
     summary = await service.run(plan, show=lambda _: None)
     config = load_outreach_config(CONFIG_DIR / "outreach.yaml")
     dispatcher = DryRunDispatcher(tmp_path / "outbox.jsonl", lambda _: None)

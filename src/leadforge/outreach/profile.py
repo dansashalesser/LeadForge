@@ -1,7 +1,7 @@
 """A Search Plan as the in-memory Target Profile an ingestion run takes (1.2, 4.1, 4.2).
 
 Nothing is written to disk. Terms come from the base profile
-(``config/target_profile.yaml``), so a term it does not hold is ``UnknownTermError``,
+(built from the Product Catalog), so a term it does not hold is ``UnknownTermError``,
 raised before any provider call. The source columns that take a domain or a phrase
 are named by ``SourcesConfig``, never here.
 
@@ -14,11 +14,41 @@ are named by ``SourcesConfig``, never here.
 
 import re
 
+from leadforge.lead_ingestion.catalog import Catalog
 from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.outreach.config import SourcesConfig
 from leadforge.outreach.search_plan import SearchPlan, check_terms
 
-__all__ = ["plan_to_profile"]
+__all__ = ["KEYWORD_TEMPLATES", "catalog_base_profile", "plan_to_profile"]
+
+# Search phrasings that gather Company Signals; "{term}" is the term key. Generic: no
+# vendor or product is named here.
+KEYWORD_TEMPLATES = (
+    "{term} migration",
+    "hiring {term} engineer",
+    "{term} alternative",
+)
+
+
+def catalog_base_profile(catalog: Catalog, sources: SourcesConfig) -> TargetProfile:
+    """Every product and ecosystem entry of every vendor, as the base profile.
+
+    Per term, ``sources.domain_filter`` gets the technology UIDs and
+    ``sources.phrase_search`` the alias texts (the columns ``to_profile`` writes).
+    """
+    technologies: dict[str, object] = {}
+    for vendor in catalog.vendors():
+        technologies.update(
+            catalog.to_profile(
+                vendor.key,
+                uid_source=sources.domain_filter,
+                alias_source=sources.phrase_search,
+            ).technologies
+        )
+    return TargetProfile(
+        technologies=technologies,  # type: ignore[arg-type]
+        keyword_templates=KEYWORD_TEMPLATES,
+    )
 
 
 def plan_to_profile(

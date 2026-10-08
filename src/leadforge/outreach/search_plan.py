@@ -46,6 +46,9 @@ class SearchRequest(_Frozen):
     mode: Mode
     query: Text
     domains: tuple[Domain, ...] = ()
+    # Users mode: catalog keys. The vendor may be left out; its product names it.
+    vendor: str | None = None
+    products: tuple[str, ...] = ()
 
 
 class SearchPlan(_Frozen):
@@ -57,7 +60,7 @@ class SearchPlan(_Frozen):
     titles: tuple[str, ...] = ()
     seniorities: tuple[str, ...] = ()
     compiler: Compiler
-    # True when a users-mode company had no entry in the company-terms file.
+    # Kept for stored plans: a catalog users plan always names its products.
     unmapped: bool = False
 
 
@@ -70,13 +73,20 @@ def parse_mode(value: str) -> Mode:
 
 
 def parse_request(
-    mode: str, query: str, domains: Collection[str] = ()
+    mode: str,
+    query: str,
+    domains: Collection[str] = (),
+    *,
+    vendor: str | None = None,
+    products: Collection[str] = (),
 ) -> SearchRequest:
     """A validated request; the mode is checked first so its error is the named one."""
     return SearchRequest(
         mode=parse_mode(mode),
         query=query.strip(),
         domains=tuple(d.strip().lower() for d in domains),
+        vendor=vendor.strip().lower() if vendor and vendor.strip() else None,
+        products=tuple(dict.fromkeys(p.strip().lower() for p in products if p.strip())),
     )
 
 

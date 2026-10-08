@@ -81,7 +81,7 @@ def test_ingestion_never_imports_outreach() -> None:
 def test_a_search_prints_its_plan_then_the_funnel_and_the_outbox_path(
     workdir: Path,
 ) -> None:
-    result = runner.invoke(app, ["outreach", "search", "users", "mongodb"])
+    result = runner.invoke(app, ["outreach", "search", "users", "--product", "mongodb"])
 
     assert result.exit_code == 0, result.output
     plan_at = result.output.index('"mode": "users"')
@@ -97,7 +97,9 @@ def test_a_search_prints_its_plan_then_the_funnel_and_the_outbox_path(
 # Verifies: outreach requirements 12.1
 def test_each_search_mode_runs_from_the_command_line(workdir: Path) -> None:
     free = runner.invoke(app, ["outreach", "search", "free-text", "teams on mongodb"])
-    users = runner.invoke(app, ["outreach", "search", "users", "couchbase"])
+    users = runner.invoke(
+        app, ["outreach", "search", "users", "--product", "couchbase"]
+    )
     workers = runner.invoke(
         app, ["outreach", "search", "workers", "Acme", "--domain", "acme.example"]
     )
@@ -142,7 +144,7 @@ def test_an_unknown_term_or_a_query_naming_nothing_exits_one(workdir: Path) -> N
 
 # Verifies: outreach requirements 12.1
 def test_tick_messages_and_report_work_on_a_stored_search(workdir: Path) -> None:
-    runner.invoke(app, ["outreach", "search", "users", "mongodb"])
+    runner.invoke(app, ["outreach", "search", "users", "--product", "mongodb"])
     engine = sa.create_engine(f"sqlite:///{workdir / 'store.db'}")
     with Session(engine) as session:
         search_id = session.scalars(sa.select(OutreachSearch.id)).one()
@@ -190,7 +192,7 @@ def test_the_readers_name_the_fix_on_a_store_that_was_never_set_up(
 
 # Verifies: outreach requirements 11.4
 def test_the_report_command_masks_unless_reveal(workdir: Path) -> None:
-    runner.invoke(app, ["outreach", "search", "users", "mongodb"])
+    runner.invoke(app, ["outreach", "search", "users", "--product", "mongodb"])
     engine = sa.create_engine(f"sqlite:///{workdir / 'store.db'}")
     with Session(engine) as session:
         search_id = session.scalars(sa.select(OutreachSearch.id)).one()
@@ -219,7 +221,7 @@ def test_the_report_command_masks_unless_reveal(workdir: Path) -> None:
 
 # Verifies: outreach requirements 15.2
 def test_the_scorecard_command_prints_the_mismatch_count(workdir: Path) -> None:
-    runner.invoke(app, ["outreach", "search", "users", "mongodb"])
+    runner.invoke(app, ["outreach", "search", "users", "--product", "mongodb"])
     engine = sa.create_engine(f"sqlite:///{workdir / 'store.db'}")
     with Session(engine) as session:
         search_id = session.scalars(sa.select(OutreachSearch.id)).one()
@@ -242,3 +244,14 @@ def test_the_scorecard_command_prints_the_mismatch_count(workdir: Path) -> None:
     assert "mismatches:" in result.output
     assert "mismatched" in result.output
     assert missing.exit_code != 0
+
+
+# Verifies: specs/user-recognition/requirements.md#2.2
+def test_a_users_search_with_no_product_exits_cleanly_before_any_provider_call(
+    workdir: Path,
+) -> None:
+    result = runner.invoke(app, ["outreach", "search", "users"])
+
+    assert result.exit_code != 0
+    assert "catalog product" in result.output
+    assert "plan (" not in result.output  # no plan shown, so nothing was spent

@@ -39,6 +39,7 @@ from typing import Annotated, Any
 import typer
 from sqlalchemy.orm import Session
 
+from leadforge.lead_ingestion.catalog import UnknownCatalogKeyError, load_catalog
 from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
 from leadforge.lead_ingestion.demo.cli import demo_app
 from leadforge.lead_ingestion.env_file import EnvFileError, load_env_file_into_process
@@ -55,6 +56,7 @@ from leadforge.lead_ingestion.store.lead_reader import (
     load_lead,
 )
 from leadforge.lead_ingestion.store.migrate import StoreNotMigratedError, require_head
+from leadforge.lead_ingestion.target_profile import TargetProfile
 from leadforge.lead_ingestion.web.cli import serve
 
 EXIT_CONFIGURATION_ERROR = 2
@@ -74,14 +76,41 @@ def main() -> None:
 
 
 @app.command()
-def ingest() -> None:
-    """Run the Lead Ingestion Layer."""
+def ingest(
+    vendor: Annotated[
+        str | None,
+        typer.Option("--vendor", help="Catalog vendor whose products to search."),
+    ] = None,
+    product: Annotated[
+        list[str] | None,
+        typer.Option("--product", help="A catalog product key (repeatable)."),
+    ] = None,
+    uid_source: Annotated[
+        str | None,
+        typer.Option(
+            "--uid-source",
+            envvar="LEADFORGE_UID_SOURCE",
+            help="Source that takes technology UIDs (with --vendor).",
+        ),
+    ] = None,
+    alias_source: Annotated[
+        str | None,
+        typer.Option(
+            "--alias-source",
+            envvar="LEADFORGE_ALIAS_SOURCE",
+            help="Source that takes alias phrases (with --vendor).",
+        ),
+    ] = None,
+) -> None:
+    """Run the Lead Ingestion Layer, searching the catalog selection if given."""
     try:
+        profile = _catalog_profile(vendor, product or [], uid_source, alias_source)
         # The .env is loaded first (it never overrides the process, so the run's own
         # load is a no-op) so the redactor is seeded with every credential in reach.
         load_env_file_into_process()
         configure_logging(os.environ)
-        outcome = asyncio.run(run_ingestion())
+        kwargs = {} if profile is None else {"target_profile": profile}
+        outcome = asyncio.run(run_ingestion(**kwargs))
     except (ConfigurationError, EnvFileError, DatabaseConfigError) as error:
         typer.echo(f"configuration error: {error}", err=True)
         raise typer.Exit(EXIT_CONFIGURATION_ERROR) from None
@@ -92,6 +121,44 @@ def ingest() -> None:
     typer.echo("")
     typer.echo(outcome.report_text)
     raise typer.Exit(outcome.exit.exit_code)
+
+
+def _catalog_profile(
+    vendor: str | None,
+    products: list[str],
+    uid_source: str | None,
+    alias_source: str | None,
+) -> TargetProfile | None:
+    """The profile for ``--vendor``/``--product``: the catalog is the only source.
+
+    Every other vendor is a competitor. No vendor means no profile (a source that
+    needs a vocabulary then says so).
+    """
+    if vendor is None:
+        if products:
+            raise ConfigurationError(
+                "ingest", key_path="--product", detail="needs --vendor"
+            )
+        return None
+    if not uid_source or not alias_source:
+        raise ConfigurationError(
+            "ingest",
+            key_path="--uid-source/--alias-source",
+            detail="name the source columns the catalog fills",
+        )
+    catalog = load_catalog()
+    try:
+        return catalog.to_profile(
+            vendor,
+            product_keys=products or None,
+            competitors=tuple(k for k in catalog.vendor_keys() if k != vendor),
+            uid_source=uid_source,
+            alias_source=alias_source,
+        )
+    except UnknownCatalogKeyError as error:
+        raise ConfigurationError(
+            "ingest", key_path="--vendor/--product", detail=str(error)
+        ) from None
 
 
 @contextmanager

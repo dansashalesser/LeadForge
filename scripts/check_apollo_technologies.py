@@ -1,13 +1,13 @@
-"""Check the Target Profile's Apollo technology UIDs against Apollo's live list.
+"""Check the Product Catalog's Apollo technology UIDs against Apollo's live list.
 
 Dev tool, not part of a run. Apollo publishes its supported technologies as a CSV
 (``Category,Technology``) at ``LIST_URL``, linked from the people search docs. The
 list is Apollo's data and is not vendored (user decision 2026-10-06): the repo keeps
 only the excerpt for configured terms, ``fixtures/apollo/`` ``TECHNOLOGY_EXCERPT``,
-which a test holds equal to the configuration.
+which a test holds equal to the catalog.
 
 Usage: ``APOLLO_API_KEY=... uv run python scripts/check_apollo_technologies.py
-[--rows] [--profile PATH]``. Exit 0 when every configured UID is listed, 1 when one
+[--rows] [--catalog DIR]``. Exit 0 when every configured UID is listed, 1 when one
 is not (named on stderr), 2 without a key, on a download failure or when the
 download is not the list. ``--rows`` prints the excerpt for the configured UIDs to
 stdout, to paste over the fixture. The list is held in memory only; nothing is
@@ -24,33 +24,23 @@ from pathlib import Path
 
 import httpx
 
-from leadforge.lead_ingestion.adapters.apollo import (
-    ApolloSource,
-    technology_rows,
-    uids_of,
-)
-from leadforge.lead_ingestion.catalog import unknown_technology_uids
+from leadforge.lead_ingestion.adapters.apollo import technology_rows
+from leadforge.lead_ingestion.catalog import load_catalog, unknown_technology_uids
 from leadforge.lead_ingestion.errors import NormalizationError
-from leadforge.lead_ingestion.target_profile import (
-    effective_vocabulary,
-    load_target_profile,
-)
 
 API_HOST = "api.apollo.io"
 LIST_URL = f"https://{API_HOST}/v1/auth/supported_technologies_csv"
 KEY_ENV = "APOLLO_API_KEY"
 KEY_HEADER = "x-api-key"
 TIMEOUT_SECONDS = 30
-DEFAULT_PROFILE = Path(__file__).resolve().parents[1] / "config" / "target_profile.yaml"
 HEADER = ("Category", "Technology")
 
 Rows = Mapping[str, tuple[str, str]]
 
 
-def configured_uids(profile: Path = DEFAULT_PROFILE) -> frozenset[str]:
-    """The UIDs Apollo is asked with: the profile's column over the adapter default."""
-    vocabulary = effective_vocabulary(load_target_profile(profile), ApolloSource)
-    return frozenset(uids_of(vocabulary))
+def configured_uids(catalog_dir: Path | None = None) -> frozenset[str]:
+    """The UIDs Apollo is asked with: every technology UID of the catalog."""
+    return frozenset(load_catalog(catalog_dir).technology_uids())
 
 
 def missing(listed: Rows, configured: frozenset[str]) -> list[str]:
@@ -100,7 +90,10 @@ def main(
     parser = argparse.ArgumentParser(description="Check Apollo technology UIDs.")
     parser.add_argument("--rows", action="store_true", help="print the excerpt")
     parser.add_argument(
-        "--profile", type=Path, default=DEFAULT_PROFILE, help="target profile YAML"
+        "--catalog",
+        type=Path,
+        default=None,
+        help="catalog directory (default: shipped)",
     )
     args = parser.parse_args(argv)
     key = environ.get(KEY_ENV, "").strip()
@@ -122,7 +115,7 @@ def main(
     except NormalizationError:
         print("download is not a Category,Technology list", file=sys.stderr)
         return 2
-    configured = configured_uids(args.profile)
+    configured = configured_uids(args.catalog)
     if args.rows:
         print(excerpt(listed, configured), end="")
     absent = missing(listed, configured)

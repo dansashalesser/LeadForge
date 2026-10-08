@@ -30,6 +30,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from leadforge.lead_ingestion.catalog import load_catalog
+
 SEED = 20261007
 GENERATED_ON = "2026-10-07"
 DATA_DIR = Path(__file__).parent / "data"
@@ -38,15 +40,22 @@ ANSWER_KEY = "answer_key"
 
 Json = dict[str, Any]
 
-# Apollo technology UIDs of config/target_profile.yaml. couchbase gets nobody, so the
+# Display name and category per Apollo technology UID. couchbase gets nobody, so the
 # run logs apollo_technology_no_matches for it.
-_TECHNOLOGIES: dict[str, tuple[str, str]] = {
+_LABELS: dict[str, tuple[str, str]] = {
     "cassandra": ("Cassandra", "Databases"),
     "datastax": ("DataStax", "Databases"),
     "mongodb_atlas": ("MongoDB Atlas", "Databases"),
     "mongodb_realm": ("MongoDB Realm", "Mobile Development"),
     "couchbase": ("Couchbase", "Databases"),
 }
+# The UIDs are the catalog's (config/catalog/): a catalog UID with no label here fails
+# at import, so the generator and the catalog cannot drift apart.
+_CATALOG_UIDS = load_catalog().technology_uids()
+_UNLABELLED = [u for u in _CATALOG_UIDS if u not in _LABELS]
+if _UNLABELLED:
+    raise RuntimeError(f"demo generator has no label for catalog UIDs {_UNLABELLED}")
+_TECHNOLOGIES = {u: label for u, label in _LABELS.items() if u in _CATALOG_UIDS}
 _OTHER_TECH = (
     ("amazon_aws", "Amazon AWS", "Hosting"),
     ("kubernetes", "Kubernetes", "Other"),

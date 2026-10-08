@@ -43,6 +43,16 @@ class MissingDomainError(ValueError):
         )
 
 
+class NoProductSelectedError(ValueError):
+    """A users search that names no catalog product. There is no default vendor."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "a users search must name at least one catalog product "
+            "(--product, optionally --vendor)"
+        )
+
+
 class PlanCompileError(RuntimeError):
     """A query could not be compiled into a valid Search Plan."""
 

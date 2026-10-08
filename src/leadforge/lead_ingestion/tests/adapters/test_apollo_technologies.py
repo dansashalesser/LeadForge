@@ -206,3 +206,17 @@ def test_the_script_has_help(capsys: pytest.CaptureFixture[str]) -> None:
         _script().main(["--help"], environ={})
     assert exited.value.code == 0
     assert "--rows" in capsys.readouterr().out
+
+
+# Verifies: specs/user-recognition/requirements.md#2.7
+def test_the_script_reads_its_uids_from_the_given_catalog_directory(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "acme.yaml").write_text(
+        "vendor: {key: acme, name: Acme, domains: [], partner_domains: []}\n"
+        "products:\n  - key: widget\n    aliases: [{text: Widget}]\n"
+        "    technology_uids: [acme_widget]\n",
+        encoding="utf-8",
+    )
+
+    assert _script().configured_uids(tmp_path) == frozenset({"acme_widget"})

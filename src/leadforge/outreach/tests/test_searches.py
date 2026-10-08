@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from leadforge.lead_ingestion import ingest_runner
 from leadforge.lead_ingestion.base_source import BaseLeadSource
+from leadforge.lead_ingestion.catalog import Catalog
 from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.store import models as m
 from leadforge.lead_ingestion.target_profile import TargetProfile, load_target_profile
@@ -26,7 +27,6 @@ from leadforge.lead_ingestion.tests.test_run_lifecycle_both_engines import (  # 
 )
 from leadforge.lead_ingestion.transport import Transport
 from leadforge.outreach.company_plans import workers_plan
-from leadforge.outreach.company_terms import CompanyTerms
 from leadforge.outreach.config import load_outreach_config
 from leadforge.outreach.profile import plan_to_profile
 from leadforge.outreach.search_plan import SearchPlan, parse_request
@@ -38,9 +38,7 @@ NOW = datetime(2026, 10, 7, tzinfo=UTC)
 
 
 def _plan() -> SearchPlan:
-    return workers_plan(
-        parse_request("workers", "Acme", ["acme.com"]), CompanyTerms(companies={})
-    )
+    return workers_plan(parse_request("workers", "Acme", ["acme.com"]), Catalog({}))
 
 
 # Verifies: outreach requirements 5.1
