@@ -198,6 +198,11 @@ function leadDetail(lead) {
   const box = el("div");
   box.append(el("div", { text: `Email: ${lead.email || "none"} · LinkedIn: ${lead.linkedin_url || "none"}` }));
   if (lead.verdict) box.append(el("div", {}, el("b", { text: "Verdict: " }), lead.verdict));
+  if (lead.company_usage) {
+    const why = lead.company_usage_reason ? ` (${lead.company_usage_reason})` : "";
+    box.append(el("div", {}, el("b", { text: "Company Usage: " }), `${lead.company_usage}${why}`));
+  }
+  if (lead.person_fit) box.append(el("div", {}, el("b", { text: "Person Fit: " }), lead.person_fit));
   box.append(...evidenceBlocks(lead.evidence || []));
   if (lead.invite !== null) {
     box.append(el("b", { text: "LinkedIn invite" }), el("div", { class: "msg", text: lead.invite }));

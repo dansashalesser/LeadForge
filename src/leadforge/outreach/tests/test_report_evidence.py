@@ -35,7 +35,7 @@ URL = "https://acme.example/blog/migration?a=1&b=2"
 QUOTE = "We run <b>astra</b> in production"
 
 
-def _seed(engine: sa.Engine, mode: str = "users") -> uuid.UUID:
+def _seed(engine: sa.Engine, mode: str = "users", grades: bool = True) -> uuid.UUID:
     refs = (
         EvidenceRef(
             evidence_class="own_domain_content",
@@ -67,7 +67,13 @@ def _seed(engine: sa.Engine, mode: str = "users") -> uuid.UUID:
                     status="selected",
                     score=1,
                     reasons=(
-                        Reason(code="verified_core", evidence_refs=refs),
+                        Reason(
+                            code="verified_core",
+                            evidence_refs=refs,
+                            company_usage="verified" if grades else None,
+                            company_usage_reason="two sources" if grades else None,
+                            person_fit="core" if grades else None,
+                        ),
                         Reason(code="icp_fit", value=1, weight=1),
                     ),
                 ),
@@ -120,3 +126,28 @@ def test_markdown_shows_verdict_sections_and_quotes_linked_to_urls(
     assert "<https://acme.example/blog/migration?a=1&b=2>" in text
     assert "javascript:" not in text
     assert '"url"' in render_json(report)
+
+
+# Verifies: specs/user-recognition/requirements.md#8.4
+def test_grades_show_in_row_markdown_and_json(engine: sa.Engine) -> None:
+    search = _seed(engine)
+    with Session(engine) as session:
+        report = build_report(session, search)
+    row = report.leads[0]
+    assert (row.company_usage, row.person_fit) == ("verified", "core")
+    assert row.company_usage_reason == "two sources"
+    text = render_markdown(report)
+    assert "- Company Usage: verified (two sources)" in text
+    assert "- Person Fit: core" in text
+    assert '"company_usage": "verified"' in render_json(report)
+
+
+# Verifies: specs/user-recognition/requirements.md#8.4
+def test_a_row_stored_without_grades_renders_without_them(
+    engine: sa.Engine,
+) -> None:
+    search = _seed(engine, grades=False)
+    with Session(engine) as session:
+        report = build_report(session, search)
+    assert report.leads[0].company_usage is None
+    assert "Person Fit:" not in render_markdown(report)

@@ -72,6 +72,9 @@ class LeadRow(_Frozen):
     score: Decimal
     reasons: tuple[str, ...]
     verdict: str | None = None
+    company_usage: str | None = None
+    company_usage_reason: str | None = None
+    person_fit: str | None = None
     evidence: tuple[EvidenceItem, ...] = ()
     sequence: str
     name: str | None
@@ -149,6 +152,11 @@ def render_markdown(report: Report) -> str:
         out.append("- reasons: " + (", ".join(row.reasons) or "none"))
         if row.verdict is not None:
             out.append(f"- verdict: {row.verdict}")
+        if row.company_usage is not None:
+            why = f" ({row.company_usage_reason})" if row.company_usage_reason else ""
+            out.append(f"- Company Usage: {row.company_usage}{why}")
+        if row.person_fit is not None:
+            out.append(f"- Person Fit: {row.person_fit}")
         out += _evidence_lines(row.evidence)
         if row.invite is not None:
             out += ["", "Invite:", "", _quote(row.invite)]
@@ -308,6 +316,7 @@ def _row(
         reasons=tuple(_reason(r) for r in decision.reasons),
         verdict=_verdict(decision.reasons) if mode == "users" else None,
         evidence=_evidence(decision.reasons) if mode == "users" else (),
+        **(_grades(decision.reasons) if mode == "users" else {}),
         sequence=" > ".join(kinds) or "not started",
         name=stored.lead.full_name if reveal and stored is not None else None,
         email=email if reveal else _mask_email(email),
@@ -324,6 +333,13 @@ def _verdict(reasons: list[dict[str, object]]) -> str | None:
     if first.get("value") is None and first.get("weight") is None:
         return str(first["code"]) if "code" in first else None
     return None
+
+
+def _grades(reasons: list[dict[str, object]]) -> dict[str, str | None]:
+    """Company Usage and Person Fit grades from the verdict reason; None on old rows."""
+    first = reasons[0] if reasons else {}
+    keys = ("company_usage", "company_usage_reason", "person_fit")
+    return {k: (None if first.get(k) is None else str(first[k])) for k in keys}
 
 
 def _evidence(reasons: list[dict[str, object]]) -> tuple[EvidenceItem, ...]:

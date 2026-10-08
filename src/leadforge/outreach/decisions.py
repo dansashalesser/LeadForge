@@ -60,6 +60,9 @@ class Reason(_Frozen):
     weight: Decimal | None = None
     note: str | None = None
     evidence_refs: tuple[EvidenceRef, ...] = ()
+    company_usage: str | None = None
+    company_usage_reason: str | None = None
+    person_fit: str | None = None
 
 
 class Decision(_Frozen):
@@ -80,6 +83,9 @@ def _stored(reason: Reason) -> dict[str, object]:
     out = reason.model_dump(mode="json", by_alias=True)
     if not reason.evidence_refs:
         del out["evidence_refs"]
+    for grade in ("company_usage", "company_usage_reason", "person_fit"):
+        if out[grade] is None:
+            del out[grade]
     return out
 
 

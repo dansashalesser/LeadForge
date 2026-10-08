@@ -175,3 +175,18 @@ def test_workers_mode_ignores_verdicts_and_keeps_its_score_terms() -> None:
     by_code = {r.code: r for r in d.reasons}
     assert by_code["intent"].value is not None
     assert all(not r.evidence_refs for r in d.reasons)
+
+
+# Verifies: specs/user-recognition/requirements.md#8.4
+def test_the_verdict_reason_stores_both_grades_and_the_grade_reason() -> None:
+    d = decide(
+        make_stored(),
+        CrmState(),
+        make_plan(),
+        CONFIG,
+        LABELS,
+        _verdict(VerdictStatus.SELECTED),
+    )
+    first = d.reasons[0]
+    assert (first.company_usage, first.company_usage_reason) == ("verified", "r")
+    assert first.person_fit == "core"

@@ -143,7 +143,13 @@ def _verdict_reason(verdict: UsageVerdict) -> Reason:
         )
         for r in verdict.evidence_refs
     )
-    return Reason(code=verdict.reason, evidence_refs=refs)
+    return Reason(
+        code=verdict.reason,
+        evidence_refs=refs,
+        company_usage=str(verdict.company_usage.grade),
+        company_usage_reason=verdict.company_usage.reason,
+        person_fit=verdict.person_fit.grade,
+    )
 
 
 def _hard_rejections(
