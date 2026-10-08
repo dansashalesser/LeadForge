@@ -59,6 +59,8 @@ ALLOWED_INGESTION_IMPORTS: frozenset[tuple[str, str]] = frozenset(
         (f"{INGESTION}.catalog", "UnknownCatalogKeyError"),
         (f"{INGESTION}.catalog", "load_catalog"),
         (f"{INGESTION}.catalog", "CatalogProduct"),
+        # usage/eval.py: eval cases declare their own aliases in the catalog shape.
+        (f"{INGESTION}.catalog", "Alias"),
         (f"{INGESTION}.catalog", "CatalogVendor"),
         (f"{INGESTION}.adapters.search_backends", "SearchBackend"),
         (f"{INGESTION}.throttle", "SourceThrottle"),

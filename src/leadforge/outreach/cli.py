@@ -44,6 +44,7 @@ from leadforge.outreach.errors import (
     PlanCompileError,
     UnknownModeError,
     UnknownTermError,
+    UsageClassifierUnavailableError,
 )
 from leadforge.outreach.messages import stored_messages
 from leadforge.outreach.report import build_report, render_json, render_markdown
@@ -54,6 +55,13 @@ from leadforge.outreach.search_plan import Mode, SearchPlan, parse_request
 from leadforge.outreach.service import SearchSummary
 from leadforge.outreach.tables import OutreachDecision, OutreachSearch
 from leadforge.outreach.tick import tick
+from leadforge.outreach.usage.eval import (
+    DEFAULT_CASES,
+    EvalCaseError,
+    load_cases,
+    render_report,
+    run_eval,
+)
 
 __all__ = ["outreach_app"]
 
@@ -324,3 +332,34 @@ def scorecard(
             typer.echo(f"no such search: {search}", err=True)
             raise typer.Exit(EXIT_FAILED)
         typer.echo(render_scorecard(score_decisions(session, search, key)))
+
+
+@outreach_app.command("usage-eval")
+def usage_eval(
+    cases: Annotated[
+        Path, typer.Option("--cases", help="Labelled cases (default: the seed set).")
+    ] = DEFAULT_CASES,
+    classifier: Annotated[
+        str, typer.Option("--classifier", help="offline (default, no key) or llm.")
+    ] = "offline",
+) -> None:
+    """Score the usage classifier on labelled cases. Not part of CI (live runs)."""
+    from leadforge.outreach.usage.classify import OfflineClassifier
+    from leadforge.outreach.usage.cues import UsageCues
+
+    if classifier not in ("offline", "llm"):
+        raise typer.BadParameter("classifier must be offline or llm")
+    if classifier == "llm":
+        # The live classifier factory (task 6.3) is not built yet; never fall back.
+        typer.echo(
+            f"{UsageClassifierUnavailableError()}: the live classifier factory "
+            "(task 6.3) is pending",
+            err=True,
+        )
+        raise typer.Exit(EXIT_CONFIGURATION_ERROR)
+    try:
+        loaded = load_cases(cases)
+    except EvalCaseError as exc:
+        typer.echo(_safe(str(exc)), err=True)
+        raise typer.Exit(EXIT_CONFIGURATION_ERROR) from exc
+    _echo(render_report(run_eval(loaded, OfflineClassifier(UsageCues()))))
