@@ -27,12 +27,12 @@ def _stamp() -> ClassifierStamp:
 def _record(**kw) -> EvidenceRecord:
     base = dict(
         company_key="acme.com",
-        product_key="hubspot",
+        product_key="product-a",
         evidence_class=EvidenceClass.VENDOR_CUSTOMER_REF,
         source="serp",
         url="https://x.test/a",
         observed_on=date(2026, 1, 1),
-        quote="we use HubSpot",
+        quote="we use Product A",
         relationship=Relationship.USES_NOW,
         confidence=Decimal("0.9"),
         snippet_only=False,

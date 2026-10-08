@@ -87,7 +87,7 @@ def test_technographic_only_reason():
 
 
 # Verifies: specs/user-recognition/requirements.md#6.2
-def test_apollo_tag_counts_as_second_class():
+def test_provider_tag_counts_as_second_class():
     result = grade([rec(C.JOB_POSTING), rec(C.TECHNOGRAPHIC)])
     assert result.grade is V
     assert {r.evidence_class for r in result.records} == {

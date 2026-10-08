@@ -32,8 +32,8 @@ ROLES = RoleVocabulary(
         ("Principal Site Reliability Engineer", "core"),
         ("CTO", "adjacent"),
         ("Sales Engineer", "irrelevant"),
-        ("Salesforce Architect", "irrelevant"),  # not "sales"; no vocabulary hit
-        ("Salesforce Database Engineer", "core"),  # "salesforce" must not trip "sales"
+        ("Salesware Architect", "irrelevant"),  # not "sales"; no vocabulary hit
+        ("Salesware Database Engineer", "core"),  # "salesware" must not trip "sales"
         ("Gardener", "irrelevant"),  # "engineer" is not inside "gardener"
         ("", "irrelevant"),
     ],
