@@ -39,9 +39,11 @@ from leadforge.lead_ingestion.models import DataMode
 from leadforge.lead_ingestion.send_prohibition import assert_no_send_capable_endpoints
 from leadforge.lead_ingestion.transport import Transport, TransportResponse
 
-__all__ = ["DemoLog", "DemoTransport", "demo_transport_factory"]
+__all__ = ["DemoLog", "DemoPages", "DemoTransport", "demo_transport_factory"]
 
 _QUOTED = re.compile(r'"([^"]+)"')
+_SITE = re.compile(r"site:([^\s)/\"]+)")
+_ATS_HOSTS = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com")
 _CONTACT_DEFAULTS = ("createdate", "hs_object_id", "lastmodifieddate")
 _DEAL_DEFAULTS = (
     "amount",
@@ -102,6 +104,11 @@ class _Tables:
         self.deals: list[Json] = hubspot["deals"]
         self.hunter = load("hunter", directory)
         self.google = load("google_search", directory)
+        self.pages: Json = load("pages", directory)
+        self.families: dict[str, Json] = self.google.get("families", {})
+        self.family_by_name = {
+            entry["name"].lower(): domain for domain, entry in self.families.items()
+        }
 
 
 def _person_keys(person: Mapping[str, Any]) -> list[str]:
@@ -315,10 +322,53 @@ class DemoTransport:
 
     # Google (SerpApi) -----------------------------------------------------------
 
+    def _family_domain(self, q: str) -> str | None:
+        """The company a family query is about: a quoted name, else a ``site:`` host."""
+        for name in _QUOTED.findall(q):
+            if (domain := self._tables.family_by_name.get(name.lower())) is not None:
+                return domain
+        for host in _SITE.findall(q.lower()):
+            bare = host.removeprefix("www.")
+            if bare in self._tables.families:
+                return bare
+        return None
+
+    def _family_results(self, q: str) -> list[Json] | None:
+        """The results of one query family (Req 4.1) for the company the query names.
+
+        The family follows from the query: ``site:linkedin.com`` is LinkedIn,
+        ``site:github.com`` code, an ATS host or a careers path job postings, the
+        company's own domain its site, any other ``site:`` the vendor's pages, and no
+        ``site:`` third-party pages. A family with no proof answers empty.
+        """
+        domain = self._family_domain(q)
+        if domain is None:
+            return None
+        lowered = q.lower()
+        hosts = [h.removeprefix("www.") for h in _SITE.findall(lowered)]
+        if "site:linkedin.com" in lowered:
+            family = "linkedin_public"
+        elif "site:github.com" in lowered:
+            family = "code"
+        elif any(a in lowered for a in _ATS_HOSTS) or "/careers" in lowered:
+            family = "job_posting"
+        elif domain in hosts:
+            family = "own_site"
+        elif hosts:
+            family = "vendor_customer"
+        else:
+            family = "third_party"
+        found = self._tables.families[domain]["results"].get(family, [])
+        return list(found)
+
     def _google(self, query: Mapping[str, object]) -> Json:
         q = str(query.get("q", ""))
         quoted = _QUOTED.search(q)
         domain = quoted.group(1).lower() if quoted else ""
+        family_results: list[Json] | None = None
+        if domain not in self._tables.google["by_domain"]:
+            family_results = self._family_results(q)  # not an ingestion anchor query
+            domain = self._family_domain(q) or domain
         self._log.searched_domains.add(domain)
         self._request_id += 1
         metadata = {
@@ -346,7 +396,11 @@ class DemoTransport:
                         "error": fault["error"],
                     }
         entry = self._tables.google["by_domain"].get(domain)
-        results: list[Json] = [] if entry is None else entry["organic_results"]
+        results: list[Json] = (
+            family_results
+            if family_results is not None
+            else ([] if entry is None else entry["organic_results"])
+        )
         if not results or int(str(query.get("start", 0) or 0)) > 0:
             return {
                 "search_metadata": metadata,
@@ -368,6 +422,28 @@ class DemoTransport:
             },
             "organic_results": results,
         }
+
+
+class DemoPages:
+    """Serves the proof pages and ``robots.txt`` of the synthetic usage flow.
+
+    ``fetch(url)`` answers ``(status, body)``: the stored page, the shared
+    ``robots_txt`` for any ``/robots.txt``, 404 for anything else. It never reaches a
+    socket, and a ``linkedin.com`` URL is always 404 (the demo holds no LinkedIn page).
+    Each call is counted as ``pages.fetch`` in the log.
+    """
+
+    def __init__(self, tables: _Tables, log: DemoLog) -> None:
+        self._pages: Mapping[str, str] = tables.pages["pages"]
+        self._robots: str = tables.pages["robots_txt"]
+        self._log = log
+
+    def fetch(self, url: str) -> tuple[int, str]:
+        self._log.requests["pages.fetch"] += 1
+        if url.split("?")[0].endswith("/robots.txt"):
+            return 200, self._robots
+        body = self._pages.get(url)
+        return (404, "") if body is None else (200, body)
 
 
 def _match_key(body: Mapping[str, object]) -> str | None:

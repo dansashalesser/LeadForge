@@ -1311,10 +1311,12 @@ def build(seed: int = SEED) -> dict[str, Json]:
     # The usage people and the outreach people come last, each from a random generator
     # of its own, so every record above is the same as before they existed.
     from leadforge.lead_ingestion.demo.outreach_data import extend
+    from leadforge.lead_ingestion.demo.pages_data import extend as extend_pages
     from leadforge.lead_ingestion.demo.usage_data import extend as extend_usage
 
     extend_usage(tables)
     extend(tables)
+    extend_pages(tables)  # last: it reads every company the key holds
     return tables
 
 
