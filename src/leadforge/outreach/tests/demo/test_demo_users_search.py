@@ -82,3 +82,32 @@ async def test_a_demo_users_search_for_datastax_is_precise_and_every_selection_i
     assert not adversarial_fp, summary_line
     assert selected, summary_line
     assert uncited == 0, summary_line
+
+
+# A search judges what the store holds, not only what its own run wrote: a repeat
+# search over the same store (its fetch stores nothing new) selects the same people.
+async def test_a_repeat_users_search_over_the_same_store_selects_the_same_people(
+    composed: Backend, tmp_path: Any
+) -> None:
+    first = await _search(composed, tmp_path, "users", "DataStax")
+    second = await _search(composed, tmp_path, "users", "DataStax")
+
+    with Session(composed.engine) as session:
+        chosen = [
+            set(
+                session.scalars(
+                    select(OutreachDecision.lead_id).where(
+                        OutreachDecision.search_id == s.search_id,
+                        OutreachDecision.status == "selected",
+                    )
+                )
+            )
+            for s in (first, second)
+        ]
+        card = score_users_search(session, second.search_id, KEY)
+
+    assert second.gathered > 0
+    assert chosen[0]
+    assert chosen[1] == chosen[0]
+    assert card.recall is not None
+    assert card.recall >= MIN_RECALL, render_users(card)

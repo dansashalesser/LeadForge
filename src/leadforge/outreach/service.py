@@ -12,7 +12,7 @@ for live data (14.3).
 """
 
 import uuid
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -40,7 +40,12 @@ from leadforge.outreach.acceptance import AcceptanceSource
 from leadforge.outreach.clock import Clock
 from leadforge.outreach.company_plans import users_plan, workers_plan
 from leadforge.outreach.compile_llm import LlmCompiler, PlanDraft
-from leadforge.outreach.compile_offline import OfflineCompiler, phrases_of
+from leadforge.outreach.compile_offline import (
+    OfflineCompiler,
+    _holds,
+    _words,
+    phrases_of,
+)
 from leadforge.outreach.config import OutreachConfig
 from leadforge.outreach.decisions import Decision, Reason, record_decisions
 from leadforge.outreach.dispatch import DryRunDispatcher
@@ -201,7 +206,7 @@ class SearchService:
         writer = self._writer()
         judge = self._judge()
         with Session(engine) as session:
-            leads = _gather(session, outcome.run_id)
+            leads = _gather(session, outcome.run_id, plan, labels)
         verdicts = await self._usage_verdicts(engine, search_id, plan, outcome, leads)
         with Session(engine) as session, session.begin():
             crm = crm_state(session, [s.lead_id for s in leads])
@@ -372,7 +377,27 @@ class SearchService:
         return tuple(notes)
 
 
-def _gather(session: Session, run_id: uuid.UUID) -> list[StoredLead]:
+def _gather(
+    session: Session,
+    run_id: uuid.UUID,
+    plan: SearchPlan,
+    labels: Collection[str],
+) -> list[StoredLead]:
+    """The run's own leads, plus every stored lead the plan matches.
+
+    A run stores only contributions it has not seen before, so a repeat search over
+    the same store writes nothing and its run alone would gather nobody. The store is
+    narrowed with what it already holds (no provider call) before the usage stage:
+    workers by employer domain, users by a tech signal naming a plan term.
+    """
+    gathered = {s.lead_id: s for s in _leads(session, run_id)}
+    for stored in _leads(session, None):
+        if stored.lead_id not in gathered and _matches(stored, plan, labels):
+            gathered[stored.lead_id] = stored
+    return sorted(gathered.values(), key=lambda s: str(s.lead_id))
+
+
+def _leads(session: Session, run_id: uuid.UUID | None) -> list[StoredLead]:
     leads: list[StoredLead] = []
     after: uuid.UUID | None = None
     while True:
@@ -381,6 +406,23 @@ def _gather(session: Session, run_id: uuid.UUID) -> list[StoredLead]:
         if len(page) < _PAGE:
             return leads
         after = page[-1].lead_id
+
+
+def _matches(stored: StoredLead, plan: SearchPlan, labels: Collection[str]) -> bool:
+    lead = stored.lead
+    if plan.mode == "workers":
+        wanted = {d.casefold() for d in plan.domains}
+        return any(
+            d.casefold() in wanted for e in lead.employments for d in e.company.domains
+        )
+    if plan.mode == "users":
+        phrases = [_words(p) for p in labels if _words(p)]
+        return any(
+            _holds(_words(signal.label), phrase)
+            for signal in lead.tech_signals
+            for phrase in phrases
+        )
+    return False  # free text: the run's own leads only
 
 
 def no_employer_verdict() -> UsageVerdict:
