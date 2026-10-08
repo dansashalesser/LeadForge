@@ -186,7 +186,7 @@ def test_an_envelope_ignore_lists_leaves_so_a_stray_envelope_field_still_fails(
         (
             HunterSource,
             "IGNORED",
-            "email.seniority",
+            "email.twitter",
             "domain_search.json",
             "data.emails.",
         ),

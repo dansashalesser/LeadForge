@@ -151,7 +151,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple
 
 import structlog
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, Field, StrictBool, StrictStr
 
 from leadforge.lead_ingestion.base_source import (
     BaseLeadSource,
@@ -221,6 +221,7 @@ _KEY_HEADER = "X-API-KEY"
 _KEY_ENV = "HUNTER_API_KEY"
 _DOCS = "https://hunter.io/api-documentation/v2"
 _EMAIL_PATH = "person.email"
+_SOURCE_META_PATH = "person.email_sources_meta"
 
 _SEARCH = Endpoint(method="GET", path="/v2/domain-search", bucket="finder")
 _FINDER = Endpoint(method="GET", path="/v2/email-finder", bucket="finder")
@@ -282,6 +283,10 @@ _log = structlog.get_logger()
 
 class _Source(BaseModel):
     uri: StrictStr
+    domain: StrictStr | None = None
+    extracted_on: StrictStr | None = None
+    last_seen_on: StrictStr | None = None
+    still_on_page: StrictBool | None = None
 
 
 class _Verification(BaseModel):
@@ -294,6 +299,9 @@ class _Email(BaseModel):
     first_name: StrictStr | None = None
     last_name: StrictStr | None = None
     position: StrictStr | None = None
+    seniority: StrictStr | None = None
+    department: StrictStr | None = None
+    linkedin: StrictStr | None = None
     sources: list[_Source] | None = None
     verification: _Verification | None = None
 
@@ -343,6 +351,30 @@ def _source_uris(value: object) -> object:
         raise TypeError("sources must be a list")
     uris = tuple(source["uri"] for source in value)
     return uris or None
+
+
+_SOURCE_META_KEYS = ("uri", "domain", "extracted_on", "last_seen_on", "still_on_page")
+
+
+def _source_meta(value: object) -> object:
+    """Each source page as stored: its metadata without the fields Hunter left null.
+
+    The store has no use for a null inside a nested value, so it is dropped here.
+    """
+    if not isinstance(value, list):
+        raise TypeError("sources must be a list")
+    pages = tuple(
+        {k: source[k] for k in _SOURCE_META_KEYS if source.get(k) is not None}
+        for source in value
+    )
+    return pages or None
+
+
+def _department(value: object) -> object:
+    """Hunter's one department as the departments list the other providers use."""
+    if not isinstance(value, str):
+        raise TypeError("department must be text")
+    return (value,)
 
 
 class HunterSource(BaseLeadSource):
@@ -444,6 +476,12 @@ class HunterSource(BaseLeadSource):
             "person.email_status", "email.verification.status", transform=_email_status
         ),
         FieldRule("person.email_sources", "email.sources", transform=_source_uris),
+        FieldRule(_SOURCE_META_PATH, "email.sources", transform=_source_meta),
+        # Not ``person.linkedin_url``: that is a Match Key, and joining the address's
+        # person to Apollo's by it would skip the verifier rerun the run depends on.
+        FieldRule("person.email_linkedin_url", "email.linkedin"),
+        FieldRule("person.departments", "email.department", transform=_department),
+        FieldRule("person.seniority", "email.seniority"),
     )
     FINDER_RULES: ClassVar[tuple[FieldRule, ...]] = (
         FieldRule("company.name", "company", untrusted=True),
@@ -453,6 +491,7 @@ class HunterSource(BaseLeadSource):
             "person.email_status", "verification.status", transform=_email_status
         ),
         FieldRule("person.email_sources", "sources", transform=_source_uris),
+        FieldRule(_SOURCE_META_PATH, "sources", transform=_source_meta),
     )
     FINDER_IGNORED: ClassVar[frozenset[str]] = frozenset(
         {
@@ -517,9 +556,6 @@ class HunterSource(BaseLeadSource):
             "linked_domains",
             "email.type",
             "email.confidence",  # read by the adapter into the email's provenance
-            "email.seniority",
-            "email.department",
-            "email.linkedin",
             "email.twitter",
             "email.phone_number",
             "email.verification.date",

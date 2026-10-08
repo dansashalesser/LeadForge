@@ -433,6 +433,18 @@ async def test_fixture_contributes_email_verdict_confidence_and_sources() -> Non
         "person.last_name": "Lovelace",
         "person.title": "VP Engineering",
         "person.email_sources": ("https://example.com/team",),
+        "person.email_sources_meta": (
+            {
+                "uri": "https://example.com/team",
+                "domain": "example.com",
+                "extracted_on": "2026-01-10",
+                "last_seen_on": "2026-09-01",
+                "still_on_page": True,
+            },
+        ),
+        "person.email_linkedin_url": "https://www.linkedin.com/in/ada-lovelace",
+        "person.departments": ("it",),
+        "person.seniority": "executive",
     }
     assert {p.canonical_path for p in first.provenance} == set(first.values)
     assert all(p.data_mode is DataMode.SYNTHETIC for p in first.provenance)
@@ -2328,7 +2340,9 @@ async def test_a_found_address_carries_the_identity_it_was_asked_for() -> None:
         value="Ada", truncated=False, original_length=3
     )
     assert values["person.last_name"].value == "Lovelace"
-    assert values["person.linkedin_url"] == ADA_LINKEDIN  # the request's, not Hunter's
+    assert (
+        values["person.linkedin_url"] == ADA_LINKEDIN
+    )  # the request's, not Hunter's
     records = {p.canonical_path: p for p in contribution.provenance}
     for path, raw in (
         ("company.domain", "asked.domain"),
