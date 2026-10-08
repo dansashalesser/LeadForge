@@ -1,7 +1,7 @@
 "use strict";
 // Outreach page: all text from the API is set with textContent, never as HTML.
 
-const state = { mode: "free_text", plan: null, search: null };
+const state = { mode: "free_text", plan: null, search: null, catalog: { vendors: [] } };
 const $ = (id) => document.getElementById(id);
 
 function el(tag, attrs, ...children) {
@@ -46,14 +46,40 @@ function setMode(mode) {
   $("run").disabled = true;
   $("plan").classList.add("hidden");
   $("domains").classList.toggle("hidden", mode !== "workers");
+  $("vendor").classList.toggle("hidden", mode !== "users");
+  $("products").classList.toggle("hidden", mode !== "users");
   $("query").placeholder = {
     free_text: "Describe who you want to reach",
     workers: "Company name",
-    users: "Company whose product they use",
+    users: "Optional note (pick vendor and products)",
   }[mode];
   for (const button of document.querySelectorAll("#mode button")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
+}
+
+// Vendors and products come from GET /api/catalog; nothing about them is in this file.
+function fillProducts() {
+  const vendor = state.catalog.vendors.find((v) => v.key === $("vendor").value);
+  const options = vendor ? [...vendor.products, ...vendor.ecosystem] : [];
+  $("products").replaceChildren(...options.map((p) => el("option", { value: p.key, text: p.name })));
+}
+
+async function loadCatalog() {
+  try {
+    state.catalog = await api("/api/catalog");
+  } catch (error) {
+    setStatus(`Catalog unavailable: ${error.message}`, true);
+    return;
+  }
+  $("vendor").replaceChildren(...state.catalog.vendors.map((v) => el("option", { value: v.key, text: v.name })));
+  fillProducts();
+}
+
+function usersFilters() {
+  if (state.mode !== "users") return {};
+  const products = [...$("products").selectedOptions].map((o) => o.value);
+  return { vendor: $("vendor").value || null, products, query: $("query").value || products.join(" ") };
 }
 
 async function preview() {
@@ -62,7 +88,7 @@ async function preview() {
   try {
     const domains = $("domains").value.split(",").map((d) => d.trim()).filter(Boolean);
     const answer = await post("/api/outreach/plan", {
-      mode: state.mode, query: $("query").value, domains,
+      mode: state.mode, query: $("query").value, domains, ...usersFilters(),
     });
     state.plan = answer.plan;
     $("plan").textContent = JSON.stringify(answer.plan, null, 2);
@@ -177,7 +203,9 @@ for (const button of document.querySelectorAll("#mode button")) {
 }
 $("preview").addEventListener("click", preview);
 $("run").addEventListener("click", run);
+$("vendor").addEventListener("change", fillProducts);
 $("advance").addEventListener("click", advance);
 $("reveal").addEventListener("change", () => state.search && openSearch(state.search));
 setMode("free_text");
+loadCatalog();
 loadSearches();

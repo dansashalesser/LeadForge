@@ -23,7 +23,11 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from leadforge.lead_ingestion.catalog import UnknownCatalogKeyError
+from leadforge.lead_ingestion.catalog import (
+    UnknownCatalogKeyError,
+    load_catalog,
+    load_roles,
+)
 from leadforge.lead_ingestion.database import DatabaseConfigError, create_store_engine
 from leadforge.lead_ingestion.errors import ConfigurationError
 from leadforge.lead_ingestion.ingest_runner import RunInProgressError
@@ -45,6 +49,7 @@ from leadforge.outreach.runtime import build_service
 from leadforge.outreach.search_plan import SearchPlan, parse_request
 from leadforge.outreach.tables import OutreachSearch
 from leadforge.outreach.tick import tick
+from leadforge.outreach.usage.verdict import Strictness
 
 __all__ = ["create_router"]
 
@@ -120,6 +125,40 @@ def create_router(environ: Mapping[str, str] | None = None) -> APIRouter:
         if isinstance(error, ConfigurationError | OutreachConfigError):
             return HTTPException(500, f"configuration error: {error}")
         return HTTPException(400, str(error))
+
+    @router.get("/api/catalog")
+    def catalog() -> dict[str, Any]:
+        """Every option the search form renders, read from the catalog on each call."""
+        try:
+            vendors = load_catalog().vendors()
+            roles = load_roles()
+            usage = load_outreach_config().usage
+        except (ConfigurationError, OutreachConfigError) as error:
+            raise cleanly(error) from None
+
+        def entries(items: Any) -> list[dict[str, str]]:
+            return [{"key": p.key, "name": p.name or p.key} for p in items]
+
+        return {
+            "vendors": [
+                {
+                    "key": v.key,
+                    "name": v.name,
+                    "products": entries(v.products),
+                    "ecosystem": entries(v.ecosystem),
+                }
+                for v in vendors
+            ],
+            "include_ecosystem": usage.include_ecosystem,
+            "role_families": [f.key for f in roles.families],
+            "seniorities": list(roles.seniority),
+            "strictness": {
+                "options": [s.value for s in Strictness],
+                "default": usage.strictness.value,
+            },
+            "max_evidence_age_days": usage.max_evidence_age_days,
+            "budget": usage.budget.model_dump(),
+        }
 
     @router.post("/api/outreach/plan", dependencies=[Depends(_require_write_header)])
     def plan(request: PlanRequest) -> dict[str, Any]:

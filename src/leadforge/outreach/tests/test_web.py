@@ -215,3 +215,57 @@ def test_a_users_plan_with_no_product_is_a_400_naming_the_fault(
 
     assert answer.status_code == 400
     assert "catalog product" in answer.text
+
+
+# Verifies: specs/user-recognition/requirements.md#2.3
+def test_the_catalog_api_lists_every_filter_option(client: TestClient) -> None:
+    options = client.get("/api/catalog")
+
+    assert options.status_code == 200
+    body = options.json()
+    assert body["vendors"]
+    for vendor in body["vendors"]:
+        assert vendor["key"]
+        assert vendor["name"]
+        assert vendor["products"]
+        assert {"key", "name"} <= set(vendor["products"][0])
+        assert "ecosystem" in vendor
+    assert body["role_families"]
+    assert body["seniorities"]
+    assert body["strictness"]["options"] == ["verified_only", "verified_plus_likely"]
+    assert body["strictness"]["default"] in body["strictness"]["options"]
+    assert body["max_evidence_age_days"] > 0
+    assert set(body["budget"]) == {"searches", "fetches", "llm_calls"}
+
+
+# Verifies: specs/user-recognition/requirements.md#2.4
+def test_a_new_catalog_file_appears_in_the_api_with_no_frontend_change(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("LEADFORGE_CATALOG_DIR", str(tmp_path / "config" / "catalog"))
+    before = {v["key"] for v in client.get("/api/catalog").json()["vendors"]}
+    (tmp_path / "config" / "catalog" / "newco.yaml").write_text(
+        "vendor:\n  key: newco\n  name: NewCo\n  domains: [newco.example]\n"
+        "products:\n  - key: widget\n    name: Widget\n"
+        "    aliases:\n      - text: NewCo Widget\n",
+        encoding="utf-8",
+    )
+
+    after = client.get("/api/catalog").json()["vendors"]
+
+    assert "newco" not in before
+    added = next(v for v in after if v["key"] == "newco")
+    assert added["products"] == [{"key": "widget", "name": "Widget"}]
+
+
+# Verifies: specs/user-recognition/requirements.md#2.4
+def test_the_page_builds_its_filters_from_the_api(client: TestClient) -> None:
+    page = client.get("/outreach").text
+    script = client.get("/outreach/app.js").text
+
+    assert 'id="vendor"' in page
+    assert 'id="products"' in page
+    assert "/api/catalog" in script
+    assert "vendor:" in script
+    assert "products" in script
+    assert "newco" not in page + script
